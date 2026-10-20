@@ -1,0 +1,44 @@
+name: Preview deploy
+
+# Deploys every pull request to a temporary Firebase Hosting preview channel and comments
+# the URL on the pull request. Skips itself until the setup in README.md is done.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  preview:
+    # Secrets are not available to pull requests from forks.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check Firebase setup
+        id: setup
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          project=$(node -p "require('./.firebaserc').projects.default")
+          if [ -z "$SERVICE_ACCOUNT" ] || [ "$project" = "YOUR_FIREBASE_PROJECT_ID" ]; then
+            echo "::notice::Preview deploy skipped: set the project ID in .firebaserc and add the FIREBASE_SERVICE_ACCOUNT secret (see README)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v5
+        if: steps.setup.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - if: steps.setup.outputs.ready == 'true'
+        run: npm ci && npm run build
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        if: steps.setup.outputs.ready == 'true'
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          expires: 7d
