@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/preact';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/preact';
 import { describe, expect, it, vi } from 'vitest';
 import { createPersistedStore } from '../src/ui/persist/persistedStore';
 import { initialWizardState, type WizardStep } from '../src/ui/wizard/types';
@@ -47,9 +47,10 @@ describe('Wizard', () => {
     expect(screen.getByRole('alert').textContent).toBe('Enter a name to continue.');
     expect(heading().textContent).toBe('First step');
 
+    // The message goes as soon as the problem is fixed, before Next is pressed again.
     fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Sample A' } });
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    expect(screen.queryByRole('alert')).toBeNull();
     expect(heading().textContent).toBe('Second step');
   });
 

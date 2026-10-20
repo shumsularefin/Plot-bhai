@@ -13,7 +13,7 @@ import {
   type ExportPreset,
   type ExportSettings,
 } from './export';
-import type { AxisLabels, Domain, PlotSeries } from './types';
+import type { AxisLabels, Domain, PlotMarker, PlotSeries } from './types';
 
 interface ExportPanelProps {
   series: readonly PlotSeries[];
@@ -22,6 +22,8 @@ interface ExportPanelProps {
   settings: ExportSettings;
   onChange: (patch: Partial<ExportSettings>) => void;
   exportName: string;
+  /** Data points drawn as circles in the exported figure. */
+  points?: readonly PlotMarker[] | undefined;
 }
 
 /** Figure export: journal width presets, font, sizes, and SVG or PNG (300 or 600 dpi) download. */
@@ -32,6 +34,7 @@ export function ExportPanel({
   settings,
   onChange,
   exportName,
+  points,
 }: ExportPanelProps) {
   const [status, setStatus] = useState<{ text: string; error: boolean } | null>(null);
   const size = figureSize(settings);
@@ -58,7 +61,7 @@ export function ExportPanel({
   );
 
   const exportSvg = () => {
-    const svg = renderSvgString(series, domain, labels, settings);
+    const svg = renderSvgString(series, domain, labels, settings, points);
     downloadBlob(new Blob([svg], { type: 'image/svg+xml' }), `${stem}.svg`);
     setStatus({ text: `Saved ${stem}.svg.`, error: false });
   };
@@ -66,7 +69,7 @@ export function ExportPanel({
   const exportPng = async (dpi: number) => {
     setStatus({ text: `Creating the ${dpi} dpi image…`, error: false });
     try {
-      const svg = renderSvgString(series, domain, labels, settings);
+      const svg = renderSvgString(series, domain, labels, settings, points);
       downloadBlob(await svgToPng(svg, size, dpi), `${stem}-${dpi}dpi.png`);
       setStatus({ text: `Saved ${stem}-${dpi}dpi.png.`, error: false });
     } catch {

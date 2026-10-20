@@ -28,6 +28,8 @@ export interface PlotMarker {
 export interface AxisLabels {
   x: ComponentChildren;
   y: ComponentChildren;
+  /** Number the y axis, for quantities with real units such as a width in degrees. */
+  yValues?: boolean;
 }
 
 export type Domain = readonly [number, number];

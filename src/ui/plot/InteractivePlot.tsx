@@ -70,10 +70,10 @@ export function InteractivePlot(props: InteractivePlotProps) {
   const [hoverX, setHoverX] = useState<number | null>(null);
 
   const height = Math.round(props.heightFor?.(width) ?? Math.min(520, Math.max(260, width * 0.6)));
-  const m = plotMargins(FONT_SIZE);
+  const m = plotMargins(FONT_SIZE, labels.yValues);
   const innerW = Math.max(1, width - m.left - m.right);
   const innerH = Math.max(1, height - m.top - m.bottom);
-  const yDomain = visibleYDomain(series, domain);
+  const yDomain = visibleYDomain(series, domain, 0, markers);
 
   // Latest values for event handlers that live across renders.
   const live = useRef({ domain, extent, minSpan, innerW, onDomainChange });

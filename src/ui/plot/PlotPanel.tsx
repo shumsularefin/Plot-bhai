@@ -4,7 +4,7 @@ import { ExportPanel } from './ExportPanel';
 import type { ExportSettings } from './export';
 import { InteractivePlot, type InteractivePlotProps } from './InteractivePlot';
 import { prepareSeries, xExtent, type SeriesSource } from './series';
-import type { AxisLabels, Domain } from './types';
+import type { AxisLabels, Domain, PlotMarker } from './types';
 import { zoomDomain } from './view';
 import './plot.css';
 
@@ -30,6 +30,8 @@ interface PlotPanelProps {
   interaction?: PlotInteraction;
   /** Optional residual curve, drawn in a small panel under the plot with the same 2θ range. */
   residual?: SeriesSource;
+  /** Data points drawn as circles, on screen and in the exported figure (unlike markers). */
+  points?: readonly PlotMarker[];
 }
 
 export type PlotInteraction = Pick<
@@ -102,6 +104,7 @@ export function PlotPanel(props: PlotPanelProps) {
         minSpan={minSpan}
         onDomainChange={setDomain}
         formatX={(x) => `${xName} ${round(x)}${xUnit}`}
+        {...(props.points && { markers: props.points })}
         {...props.interaction}
         description={`Plot of intensity against ${xName}, ${series.length} pattern${series.length === 1 ? '' : 's'}.`}
       />
@@ -200,6 +203,7 @@ export function PlotPanel(props: PlotPanelProps) {
         settings={settings.export}
         onChange={(patch) => onSettingsChange({ export: { ...settings.export, ...patch } })}
         exportName={exportName}
+        points={props.points}
       />
     </div>
   );

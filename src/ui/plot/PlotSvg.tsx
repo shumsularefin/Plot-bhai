@@ -22,12 +22,12 @@ export interface Margins {
 }
 
 /** Space around the plot area, sized from the font so labels never clip. */
-export function plotMargins(fontSize: number): Margins {
+export function plotMargins(fontSize: number, yValues = false): Margins {
   return {
     top: fontSize * 0.8,
     right: fontSize * 1.2,
     bottom: fontSize * 3.3,
-    left: fontSize * 2.1,
+    left: fontSize * (yValues ? 4.6 : 2.1),
   };
 }
 
@@ -51,16 +51,22 @@ interface PlotSvgProps {
 }
 
 /**
- * y range of the data visible between xDomain[0] and xDomain[1], padded a little so lines do
- * not touch the frame. extraTopFraction leaves room at the top (for a legend).
+ * y range of the data and markers visible between xDomain[0] and xDomain[1], padded a little
+ * so lines do not touch the frame. extraTopFraction leaves room at the top (for a legend).
  */
 export function visibleYDomain(
   series: readonly PlotSeries[],
   xDomain: Domain,
   extraTopFraction = 0,
+  markers: readonly PlotMarker[] = [],
 ): Domain {
   let lo = Infinity;
   let hi = -Infinity;
+  for (const marker of markers) {
+    if (marker.x < xDomain[0] || marker.x > xDomain[1]) continue;
+    lo = Math.min(lo, marker.y);
+    hi = Math.max(hi, marker.y);
+  }
   for (const s of series) {
     const end = Math.min(s.y.length, lowerBound(s.x, xDomain[1]) + 1);
     for (let i = Math.max(0, lowerBound(s.x, xDomain[0]) - 1); i < end; i++) {
@@ -95,7 +101,7 @@ export function PlotSvg(props: PlotSvgProps) {
     children,
   } = props;
   const clipId = `plot-clip-${useId()}`;
-  const m = plotMargins(style.fontSize);
+  const m = plotMargins(style.fontSize, labels.yValues);
   const innerW = Math.max(1, width - m.left - m.right);
   const innerH = Math.max(1, height - m.top - m.bottom);
   const [x0, x1] = xDomain;
@@ -108,7 +114,7 @@ export function PlotSvg(props: PlotSvgProps) {
       : 0;
   const [y0, y1] =
     props.yDomain ??
-    visibleYDomain(series, xDomain, legendHeight / Math.max(innerH - legendHeight, 1));
+    visibleYDomain(series, xDomain, legendHeight / Math.max(innerH - legendHeight, 1), markers);
   const px = (x: number) => ((x - x0) / (x1 - x0)) * innerW;
   const py = (y: number) => innerH - ((y - y0) / (y1 - y0)) * innerH;
   const digits = style.print ? 3 : 1;
@@ -131,6 +137,9 @@ export function PlotSvg(props: PlotSvgProps) {
 
   const tickLength = style.fontSize * 0.45;
   const xTicks = niceTicks(x0, x1, Math.max(2, Math.round(innerW / (style.fontSize * 6))));
+  const yTicks = labels.yValues
+    ? niceTicks(y0, y1, Math.max(2, Math.round(innerH / (style.fontSize * 5))))
+    : [];
   const print = style.print;
   const ink = print ? '#000000' : undefined;
   const frameWidth = print ? 0.75 : 1;
@@ -187,6 +196,12 @@ export function PlotSvg(props: PlotSvgProps) {
               d={`M${px(t.value).toFixed(2)} ${innerH}v${-tickLength}M${px(t.value).toFixed(2)} 0v${tickLength}`}
             />
           ))}
+          {yTicks.map((t) => (
+            <path
+              key={t.value}
+              d={`M0 ${py(t.value).toFixed(2)}h${tickLength}M${innerW} ${py(t.value).toFixed(2)}h${-tickLength}`}
+            />
+          ))}
         </g>
 
         <g class={print ? undefined : 'plot-text'} {...text} text-anchor="middle">
@@ -198,10 +213,21 @@ export function PlotSvg(props: PlotSvgProps) {
           <text x={innerW / 2} y={innerH + style.fontSize * 2.75}>
             {labels.x}
           </text>
-          <text transform={`translate(${-style.fontSize * 0.7} ${innerH / 2}) rotate(-90)`}>
+          <text
+            transform={`translate(${-style.fontSize * (labels.yValues ? 4 : 0.7)} ${innerH / 2}) rotate(-90)`}
+          >
             {labels.y}
           </text>
         </g>
+        {yTicks.length > 0 && (
+          <g class={print ? undefined : 'plot-text'} {...text} text-anchor="end">
+            {yTicks.map((t) => (
+              <text key={t.value} x={-style.fontSize * 0.4} y={py(t.value)} dy="0.35em">
+                {t.label}
+              </text>
+            ))}
+          </g>
+        )}
 
         {legendHeight > 0 && (
           <g class={print ? undefined : 'plot-text'} {...text} text-anchor="end">

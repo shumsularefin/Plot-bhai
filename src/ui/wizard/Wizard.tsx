@@ -17,7 +17,8 @@ interface WizardProps<D> {
  */
 export function Wizard<D>({ title, steps, store }: WizardProps<D>) {
   const { state, status } = useStore(store);
-  const [error, setError] = useState<string | null>(null);
+  // After a refused Next, the message stays while the problem lasts and goes once it is fixed.
+  const [checking, setChecking] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const movedByUser = useRef(false);
 
@@ -37,7 +38,7 @@ export function Wizard<D>({ title, steps, store }: WizardProps<D>) {
   if (!step) return null;
 
   const goTo = (target: number) => {
-    setError(null);
+    setChecking(false);
     movedByUser.current = true;
     store.set((previous) => ({
       ...previous,
@@ -48,7 +49,7 @@ export function Wizard<D>({ title, steps, store }: WizardProps<D>) {
 
   const next = () => {
     const message = step.validate?.(state.data) ?? null;
-    setError(message);
+    setChecking(message !== null);
     if (message === null && index < last) goTo(index + 1);
   };
 
@@ -57,11 +58,12 @@ export function Wizard<D>({ title, steps, store }: WizardProps<D>) {
 
   const startOver = () => {
     if (window.confirm('Start over? This clears every step of this analysis.')) {
-      setError(null);
+      setChecking(false);
       store.reset();
     }
   };
 
+  const error = checking ? (step.validate?.(state.data) ?? null) : null;
   const errorId = `wizard-error-${step.id}`;
 
   return (

@@ -1,7 +1,7 @@
 import { h, render } from 'preact';
 import { PlotSvg } from './PlotSvg';
 import { setPngDpi } from './png';
-import type { AxisLabels, Domain, PlotSeries } from './types';
+import type { AxisLabels, Domain, PlotMarker, PlotSeries } from './types';
 
 /** Journal figure widths. Heights are a starting point and can be changed. */
 export const EXPORT_PRESETS = {
@@ -66,6 +66,7 @@ export function renderSvgString(
   xDomain: Domain,
   labels: AxisLabels,
   settings: ExportSettings,
+  markers?: readonly PlotMarker[],
 ): string {
   const size = figureSize(settings);
   const host = document.createElement('div');
@@ -78,6 +79,7 @@ export function renderSvgString(
       labels,
       samples: VECTOR_SAMPLES,
       legend: true,
+      ...(markers && { markers }),
       style: {
         fontSize: settings.fontSizePt,
         lineWidth: settings.lineWidthPt,
