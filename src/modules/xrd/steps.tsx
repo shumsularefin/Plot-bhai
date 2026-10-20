@@ -1,7 +1,7 @@
 import type { WizardStep } from '../../ui/wizard/types';
 import type { XrdData } from './data';
+import { CleanStep } from './CleanStep';
 import { UploadStep } from './UploadStep';
-import { XrdPlot } from './XrdPlot';
 
 function LaterStage() {
   return <p class="placeholder-note">This step is built in a later stage.</p>;
@@ -18,26 +18,7 @@ export const xrdSteps: readonly WizardStep<XrdData>[] = [
         ? 'Load at least one pattern to continue. "Try with example data" loads a synthetic one.'
         : null,
   },
-  {
-    id: 'clean',
-    title: 'Clean data',
-    render: ({ data, update }) => (
-      <>
-        <p class="placeholder-note">
-          Cleaning tools are built in the next stage. Your loaded patterns are shown below.
-        </p>
-        {data.patterns.length > 0 ? (
-          <XrdPlot
-            patterns={data.patterns}
-            settings={data.plot}
-            onSettingsChange={(patch) => update({ plot: { ...data.plot, ...patch } })}
-          />
-        ) : (
-          <p>No patterns are loaded. Go back to Upload to add one.</p>
-        )}
-      </>
-    ),
-  },
+  { id: 'clean', title: 'Clean data', render: (context) => <CleanStep {...context} /> },
   { id: 'material', title: 'Choose material', render: () => <LaterStage /> },
   { id: 'phases', title: 'Compare reference phases', render: () => <LaterStage /> },
   { id: 'fit', title: 'Fit peaks', render: () => <LaterStage /> },
