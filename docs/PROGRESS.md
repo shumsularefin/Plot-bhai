@@ -1,5 +1,144 @@
 # Progress
 
+## Stage 2: XRD preprocessing (done)
+
+Branch `stage-2-preprocess`, built on `stage-1-import`. `CLAUDE.md` was replaced with the
+updated version you supplied, which adds thermal analysis as a fifth tool.
+
+### What was built
+
+- **Science code** (`src/core/xrd/`, no UI imports). Each formula has a doc comment giving the
+  equation, the variables and the units.
+  - **Radiation** (`radiation.ts`): Cu, Co, Cr, Fe, Mo and Ag, each with its Kα1 and Kα2
+    wavelengths (Å) and a source. The Kα2/Kα1 ratio is editable, default 0.5. There is a
+    "Kα1 only (monochromator)" option.
+  - **Savitzky–Golay smoothing** (`process/savitzkyGolay.ts`): odd window, order 2–5. The end
+    points are smoothed by evaluating the polynomial fitted to the first or last full window,
+    so no points are lost.
+  - **Background** (`process/background.ts`), three methods:
+    - _Iterative polynomial_ (Lieber and Mahadevan-Jansen, "modified polyfit"), degree 1–8.
+    - _SNIP_ (Ryan et al. 1988), using the LLS operator and a window that grows from 1 point to
+      the chosen width in degrees.
+    - _Manual anchors_: the user clicks the plot and a monotone cubic (Fritsch–Carlson PCHIP)
+      passes through the points without overshooting.
+  - **Kα2 stripping** (`process/kAlpha2.ts`): Rachinger (1948), point by point from low angle.
+    It uses the exact Bragg-law position sin θ2 = (λ2/λ1) sin θ1, and handles steps larger
+    than the Kα2 shift.
+  - **Pipeline** (`process/pipeline.ts`): runs zero shift, smoothing, background, Kα2 and
+    normalisation in that order. Each step has its own switch. Plain-language messages are
+    attached to the step they concern, for example "Kα2 stripping works best after the
+    background is removed".
+- **Clean data step** (wizard step 2, `src/modules/xrd/CleanStep.tsx`):
+  - **Per step:** a radiation selector, then one card per step with an on/off switch, a short
+    plain-language description, its settings and a Reset button.
+  - **Whole step:** Undo (every change, up to 50 steps), "Reset all steps" and "Use these
+    settings for all patterns". Manual anchors are not copied between patterns.
+  - **Views:** Before, After, or Before and after. The background is drawn as a dashed line.
+  - **Anchors:** shown as circles, and can be removed one at a time or all at once.
+  - **Wavelength check:** a warning appears if the XRDML file's stated Kα1 differs from the
+    chosen anode.
+- **Reversible:** processing never changes the stored data. Only the settings are saved, and
+  the processed pattern is recomputed from the original each time. Switching every step off
+  returns the original exactly (tested).
+- **Worker:** processing runs in `src/workers/process.worker.ts`. Only one job runs at a time,
+  and newer settings replace any queued ones, so quick changes never pile up.
+- **Plot additions:** dashed series, markers, click-to-place in data coordinates, and an option
+  to hide the normalise and offset controls.
+- **Saved sessions:** the format version is now 3, and Stage 1 (version 2) sessions are
+  migrated, keeping their patterns. The persisted store gained an optional `migrate` hook,
+  which is tested.
+- **Example data:** each synthetic peak now has a Cu Kα2 line (ratio 0.5), so stripping can be
+  tried on the example.
+
+### Known-answer tests (`tests/xrd-process.test.ts`)
+
+Synthetic pseudo-Voigt peaks (FWHM 0.3°, step 0.01°) at 25°, 38°, 52° and 66°, with heights
+3000, 8000, 2000 and 5000. Positions and heights are measured with a least-squares parabola
+through the 17 points around each maximum.
+
+| Test                                                            | Tolerance                                                                                                                                                                     |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Iterative polynomial on a known cubic background (noise-free)   | heights within 1 %, positions within 0.005°                                                                                                                                   |
+| SNIP on a known exponential background (noise-free)             | heights within 2 %, positions within 0.005°; peak-free residual < 20 counts                                                                                                   |
+| Rachinger on a known Cu Kα1 + Kα2 doublet (noise-free)          | Kα1 heights within 1 %, positions within 0.005°; Kα2 residue < 1 % of peak height                                                                                             |
+| Rachinger when the step (0.05°) is larger than the Kα2 shift    | error < 2 % of peak height everywhere                                                                                                                                         |
+| Smoothing, then SNIP, then Kα2 stripping on noisy data (seeded) | heights within 3 %, positions within 0.01°                                                                                                                                    |
+| Savitzky–Golay                                                  | 5-point quadratic weights are (−3, 12, 17, 12, −3)/35; a cubic passes unchanged with order 3 (ends included); noise RMS falls below 60 % with the peak height kept within 1 % |
+| Anchors                                                         | the curve passes through every anchor, is flat outside them, and does not overshoot                                                                                           |
+| Reversibility                                                   | every step off returns the input exactly; zero shift and normalisation do exactly what they say                                                                               |
+| Speed                                                           | 50,000 points with every step on (both automatic background methods) in under 1 s                                                                                             |
+
+### Sources and items to verify
+
+- **TODO(verify): wavelengths.** International Tables for Crystallography and Hölzer et al.
+  (1997) could not be reached from this environment, so no value was typed from memory.
+  - Cu Kα1 (1.54059292 Å), Cu Kα2 (1.544414 Å) and Mo Kα1 (0.70931713 Å) come from International
+    Tables Vol. C, 2nd ed., p. 203, as quoted in the xrayutilities source.
+  - All other values come from pymatgen's `WAVELENGTHS` table. pymatgen does not say where
+    they come from.
+  - The app shows the source next to the values and says they are still to be verified.
+  - Please check every value against International Tables Vol. C, Table 4.2.2.1.
+- **Kα2/Kα1 ratio:** 0.5 is the GSAS-II default (`GSASIIpwd.py`). Real tubes differ slightly,
+  so it is editable.
+- **Method references** (bibliographic details confirmed by web search; full texts not read):
+  - Savitzky and Golay, Anal. Chem. 36 (1964) 1627–1639.
+  - Ryan et al., Nucl. Instrum. Methods B 34 (1988) 396–402.
+  - Lieber and Mahadevan-Jansen, Applied Spectroscopy 57 (2003). The starting page differs
+    between sources (1362 or 1363), so no pages are given.
+  - Rachinger, J. Sci. Instrum. 25 (1948) 254.
+  - Fritsch and Carlson, SIAM J. Numer. Anal. 17 (1980) 238–246. This one is from memory, not
+    checked.
+- **SNIP variant:** the window grows from 1 point to the chosen width, as in common
+  implementations. Ryan et al. also describe reducing the window in the final iterations; that
+  variant is not implemented.
+
+### Decisions
+
+- **Order of steps:** zero shift first, so Kα2 positions use corrected angles. Kα2 stripping
+  comes after background removal, because Rachinger also scales any remaining background by
+  1/(1 + R).
+- **Manual anchors use the clicked position** (2θ and intensity), not the nearest data point.
+  This lets the user put the background exactly where they see it.
+- **No new dependencies.** Linear algebra is a small Gaussian-elimination solver in
+  `src/core/math/linear.ts`.
+
+### Verification (real results)
+
+- `npm run lint`: pass. `npm run typecheck` (app and tests): pass.
+- `npm test`: 115 tests pass and 1 is skipped (the real-file test, until you add a file).
+- `npm run build`: pass. `npm run size`: initial JavaScript 8.2 KB gzipped (budget 150 KB). The
+  XRD chunk is 17.9 KB, the import worker 4.5 KB and the processing worker 2.8 KB; all load on
+  demand.
+- Browser check (headless Chromium, production build served with the `firebase.json` headers):
+  - Every step switches on and off, and the dashed background appears.
+  - Four manual anchors could be clicked onto the plot, removed one by one, and restored with
+    Undo.
+  - The radiation selector and the Kα1-only option work.
+  - A reload keeps the settings. "Reset all steps" turns everything off. The Before, After and
+    Before-and-after views draw the right curves.
+  - No console errors or CSP violations.
+- 50,000-point pattern in the browser:
+  - Turning on smoothing, SNIP and Kα2 stripping, and then making six rapid changes to the SNIP
+    width, settled in about 0.5 to 0.6 s.
+  - The iterative polynomial took 43 ms.
+  - No long tasks on the main thread.
+- No horizontal scroll, and every control at least 44 px tall, at 360, 768, 1280 and 1920 px in
+  light and dark.
+
+### Known issues and to-dos
+
+- **Waiting on you:** verify the wavelengths (see above), and add a real XRD file to
+  `tests/fixtures-real/`.
+- In "Before and after" with normalisation on, the processed curve is on a different scale from
+  the original. A note explains this and points to the After view.
+- Smoothing assumes an even step and warns when the step varies.
+- The new CLAUDE.md lists five tools, but the home page still shows four. A Thermal card was left
+  out because this stage was XRD preprocessing only.
+
+### Next stage
+
+Stage 3: not started. Waiting for your go-ahead and the stage brief.
+
 ## Stage 1: XRD data import and plot (done)
 
 Branch `stage-1-import`, built on `stage-0-foundation`.
@@ -134,7 +273,7 @@ xrayutilities (`io/panalytical_xml.py`, `io/rigaku_ras.py`) and GSAS-II
 
 ### Next stage
 
-Stage 2: not started. Waiting for your go-ahead and the stage brief.
+Stage 2 (see above).
 
 ## Stage 0: project foundation (done)
 
