@@ -22,7 +22,7 @@ jobs:
         env:
           SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
-          project=$(node -p "require('./.firebaserc').projects.default")
+          project=$(node -p "JSON.parse(require('fs').readFileSync('.firebaserc', 'utf8')).projects.default")
           if [ -z "$SERVICE_ACCOUNT" ] || [ "$project" = "YOUR_FIREBASE_PROJECT_ID" ]; then
             echo "::notice::Preview deploy skipped: set the project ID in .firebaserc and add the FIREBASE_SERVICE_ACCOUNT secret (see README)."
             echo "ready=false" >> "$GITHUB_OUTPUT"
