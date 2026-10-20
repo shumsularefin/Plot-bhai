@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from 'preact/hooks';
 import { HelpTip } from '../HelpTip';
 import { ExportPanel } from './ExportPanel';
 import type { ExportSettings } from './export';
-import { InteractivePlot } from './InteractivePlot';
+import { InteractivePlot, type InteractivePlotProps } from './InteractivePlot';
 import { prepareSeries, xExtent, type SeriesSource } from './series';
-import type { AxisLabels, Domain, PlotMarker } from './types';
+import type { AxisLabels, Domain } from './types';
 import { zoomDomain } from './view';
 import './plot.css';
 
@@ -26,10 +26,18 @@ interface PlotPanelProps {
   exportName: string;
   /** Show the normalise and offset options (off for single-pattern views such as cleaning). */
   showOverlayOptions?: boolean;
-  markers?: readonly PlotMarker[];
-  onPlotClick?: (x: number, y: number) => void;
-  hint?: string;
+  /** Clicking, marker and hint options passed to the plot. */
+  interaction?: PlotInteraction;
+  /** Optional residual curve, drawn in a small panel under the plot with the same 2θ range. */
+  residual?: SeriesSource;
 }
+
+export type PlotInteraction = Pick<
+  InteractivePlotProps,
+  'markers' | 'onPlotClick' | 'hint' | 'onMarkerClick' | 'onMarkerDrag' | 'onMarkerDragEnd'
+>;
+
+const residualHeight = (width: number) => Math.round(Math.min(160, Math.max(90, width * 0.18)));
 
 const round = (value: number) => Number(value.toFixed(3));
 
@@ -50,6 +58,11 @@ export function PlotPanel(props: PlotPanelProps) {
 
   const minSpan = Math.max((hi - lo) / 2000, 1e-6);
   const axisLabels = labels(normalise);
+  const residual = props.residual;
+  const residualSeries = useMemo(
+    () => (residual ? prepareSeries([residual], { normalise: false, offsetFraction: 0 }) : null),
+    [residual],
+  );
   const setRange = (which: 0 | 1, text: string) => {
     const value = Number(text);
     if (!Number.isFinite(value)) return;
@@ -68,14 +81,16 @@ export function PlotPanel(props: PlotPanelProps) {
 
   return (
     <div class="plot-panel">
-      {series.length > 1 && (
+      {series.filter((s) => !s.quiet).length > 1 && (
         <ul class="plot-legend" aria-label="Legend">
-          {series.map((s) => (
-            <li key={s.id}>
-              <span class={`plot-swatch series-${s.colorIndex % 8}`} aria-hidden="true" />
-              {s.name}
-            </li>
-          ))}
+          {series
+            .filter((s) => !s.quiet)
+            .map((s) => (
+              <li key={s.id}>
+                <span class={`plot-swatch series-${s.colorIndex % 8}`} aria-hidden="true" />
+                {s.name}
+              </li>
+            ))}
         </ul>
       )}
 
@@ -87,11 +102,23 @@ export function PlotPanel(props: PlotPanelProps) {
         minSpan={minSpan}
         onDomainChange={setDomain}
         formatX={(x) => `${xName} ${round(x)}${xUnit}`}
-        {...(props.markers && { markers: props.markers })}
-        {...(props.onPlotClick && { onPlotClick: props.onPlotClick })}
-        {...(props.hint && { hint: props.hint })}
+        {...props.interaction}
         description={`Plot of intensity against ${xName}, ${series.length} pattern${series.length === 1 ? '' : 's'}.`}
       />
+      {residualSeries && (
+        <InteractivePlot
+          series={residualSeries}
+          labels={{ x: axisLabels.x, y: 'Residual' }}
+          domain={domain}
+          extent={extent}
+          minSpan={minSpan}
+          onDomainChange={setDomain}
+          formatX={(x) => `${xName} ${round(x)}${xUnit}`}
+          heightFor={residualHeight}
+          hideReadout
+          description="Residual: data minus fit."
+        />
+      )}
 
       <div class="plot-controls">
         <fieldset class="plot-range">

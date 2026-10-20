@@ -103,20 +103,31 @@ export function PlotSvg(props: PlotSvgProps) {
   const lines = series.map((s) => decimate(s.x, s.y, x0, x1, samples));
   const lineHeight = style.fontSize * 1.3;
   const legendHeight =
-    legend && series.length > 1 ? series.length * lineHeight + style.fontSize * 0.4 : 0;
+    legend && series.filter((s) => !s.quiet).length > 1
+      ? series.filter((s) => !s.quiet).length * lineHeight + style.fontSize * 0.4
+      : 0;
   const [y0, y1] =
     props.yDomain ??
     visibleYDomain(series, xDomain, legendHeight / Math.max(innerH - legendHeight, 1));
   const px = (x: number) => ((x - x0) / (x1 - x0)) * innerW;
   const py = (y: number) => innerH - ((y - y0) / (y1 - y0)) * innerH;
   const digits = style.print ? 3 : 1;
-  const pathOf = (line: Decimated) =>
-    line.x
-      .map(
-        (x, i) =>
-          `${i === 0 ? 'M' : 'L'}${px(x).toFixed(digits)} ${py(line.y[i] as number).toFixed(digits)}`,
-      )
-      .join('');
+  // NaN values leave a gap: the line stops and restarts after them.
+  const pathOf = (line: Decimated) => {
+    let d = '';
+    let move = true;
+    line.x.forEach((x, i) => {
+      const y = line.y[i] as number;
+      if (Number.isNaN(y)) {
+        move = true;
+        return;
+      }
+      d += `${move ? 'M' : 'L'}${px(x).toFixed(digits)} ${py(y).toFixed(digits)}`;
+      move = false;
+    });
+    return d;
+  };
+  const legendSeries = series.filter((s) => !s.quiet);
 
   const tickLength = style.fontSize * 0.45;
   const xTicks = niceTicks(x0, x1, Math.max(2, Math.round(innerW / (style.fontSize * 6))));
@@ -194,7 +205,7 @@ export function PlotSvg(props: PlotSvgProps) {
 
         {legendHeight > 0 && (
           <g class={print ? undefined : 'plot-text'} {...text} text-anchor="end">
-            {series.map((s, i) => {
+            {legendSeries.map((s, i) => {
               const y = style.fontSize * 0.4 + (i + 0.5) * lineHeight;
               const right = innerW - style.fontSize * 0.6;
               const swatch = style.fontSize * 1.6;

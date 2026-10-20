@@ -15,6 +15,8 @@ export interface PlotSeries {
   colorIndex: number;
   /** Draw as a dashed line (for example a background curve). */
   dashed?: boolean;
+  /** Leave out of the legend and the hover readout (for example the 2nd…nth fit component). */
+  quiet?: boolean;
 }
 
 /** A point drawn as a small circle, in data units. */

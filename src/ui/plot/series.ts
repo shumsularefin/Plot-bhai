@@ -9,6 +9,7 @@ export interface SeriesSource {
   /** Palette index; defaults to the series' position. */
   colorIndex?: number;
   dashed?: boolean;
+  quiet?: boolean;
 }
 
 export interface SeriesOptions {
@@ -45,6 +46,7 @@ export function prepareSeries(
       readoutUnit: s.unit,
       colorIndex: s.colorIndex ?? i,
       ...(s.dashed && { dashed: true }),
+      ...(s.quiet && { quiet: true }),
     };
   });
 }

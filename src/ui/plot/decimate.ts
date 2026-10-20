@@ -1,14 +1,6 @@
-/** Index of the first element ≥ value in an increasing array (binary search). */
-export function lowerBound(values: ArrayLike<number>, value: number): number {
-  let lo = 0;
-  let hi = values.length;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if ((values[mid] as number) < value) lo = mid + 1;
-    else hi = mid;
-  }
-  return lo;
-}
+import { lowerBoundIndex as lowerBound } from '../../core/xrd/peaks/search';
+
+export { lowerBound };
 
 /** Index of the element closest to value in an increasing array. */
 export function nearestIndex(values: ArrayLike<number>, value: number): number {
