@@ -1,5 +1,141 @@
 # Progress
 
+## Stage 1: XRD data import and plot (done)
+
+Branch `stage-1-import`, built on `stage-0-foundation`.
+
+### What was built
+
+- **Import** (wizard step 1, `src/modules/xrd/UploadStep.tsx`): drag and drop, file picker
+  (several files at once) and pasted text. Files are read in a web worker
+  (`src/workers/import.worker.ts`), so large files never block the page. Up to 8 patterns can be
+  loaded at once (one per plot colour).
+- **Parsers** (`src/core/xrd/`):
+  - Two- and three-column text (.xy, .xye, .dat, .txt, .csv, pasted). Detects tab, semicolon,
+    comma or space delimiters, decimal commas, header and comment lines, quoted fields, CRLF line
+    endings and UTF-16 files. The third column is read as the uncertainty (σ) only for .xye;
+    otherwise extra columns are ignored with a note.
+  - PANalytical .xrdml: `startPosition`/`endPosition`, `listPositions`, `<intensities>` and the
+    older `<counts>` with `beamAttenuationFactors`, counting time and the Kα1 wavelength written
+    in the file. Rocking curves (2θ held fixed) are refused with an explanation.
+  - Rigaku .ras (ASCII): first scan, with a note when the file has more.
+  - Binary or packed files (.raw, .brml, .rasx, .rd, .sd, or anything containing NUL bytes or a
+    zip header) are refused with a message saying to export .xy or .csv. Nothing is guessed.
+- **Validation** with plain-language messages shown on each pattern's card:
+  - Refused at import: 2θ not increasing (scans recorded high to low are reversed instead), 2θ
+    above 180°, fewer than 10 points, constant intensity.
+  - Warnings and notes: values that look like radians (with a one-click conversion), varying or
+    coarse step, few points, negative 2θ or intensity, and decimals while the unit is set to counts.
+  - Counts versus counts per second: taken from the file when it says so (XRDML, or a column
+    header such as "Intensity (cps)"). Otherwise it is guessed from whether all values are whole
+    numbers, labelled as a guess, and changeable.
+- **Data summary card:** 2θ range, step (marked "≈ … (varies)" when uneven), points, maximum
+  intensity and where it is, plus the counting time and wavelength when the file states them.
+  Patterns can be renamed and removed (with Undo).
+- **Plot** (`src/ui/plot/`, shared by all tools):
+  - SVG rendering.
+  - Zoom by wheel, pinch or buttons; pan by drag or one-finger swipe. Vertical swipes still scroll
+    the page.
+  - Keyboard control: arrows pan, + and − zoom, 0 shows all.
+  - Hover or tap readout and editable 2θ range inputs.
+  - Normalise option, overlay of several patterns with an adjustable vertical offset, and a legend.
+  - Publication-style axes: closed frame, inward ticks, "2*θ* (°)" with italic θ, and
+    "Intensity (a.u.)" with no intensity numbers.
+  - Large scans are reduced per pixel column with min/max decimation, which looks identical to
+    drawing every point.
+- **Figure export:** SVG, and PNG at 300 or 600 dpi (the dpi is written into the PNG's pHYs chunk).
+  Presets for single column (85 mm) and double column (180 mm), editable height, Arial or Times
+  New Roman, font size and line width in points. The export uses the range shown on screen.
+- **Example data:** "Try with example data" loads two synthetic patterns (narrow and broad
+  pseudo-Voigt peaks at arbitrary positions on a smooth background, with seeded counting noise).
+  The UI labels them "Synthetic, not real data", and each card explains they are generated and
+  not a measurement of any real material.
+- **Wizard:** step 1 is Upload; step 2 (Clean data) is a placeholder that shows the loaded
+  patterns. Saved state version is now 2, so Stage 0 sessions (sample name only) are discarded.
+- **Stage 0 fix:** the preview-deploy workflow read `.firebaserc` with `require()`, which fails
+  for a file without a `.json` extension. It now uses `JSON.parse`. That fix was pushed to
+  `stage-0-foundation`.
+
+### Format references
+
+I could not find official specifications for XRDML or RAS. The element and keyword layout was
+checked against the source code of two open-source readers, fetched during this stage:
+xrayutilities (`io/panalytical_xml.py`, `io/rigaku_ras.py`) and GSAS-II
+(`imports/G2pwd_Panalytical.py`, `imports/G2pwd_rigaku.py`). Points taken from them:
+
+- XRDML `<intensities>` already include attenuation; older `<counts>` are multiplied by
+  `beamAttenuationFactors` (xrayutilities does this).
+- `startPosition`/`endPosition` are spread evenly over the number of intensity values.
+- In RAS files, both readers take column 2 as the intensity and do not apply column 3 (the
+  attenuator factor). This reader does the same and shows a warning when column 3 is not 1.
+
+### Dependencies added
+
+| Package         | Kind    | Why                                                                                                                                       |
+| --------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| d3-array        | runtime | "Nice" tick positions (`ticks`, `tickStep`) for plot axes. It lives in the lazily loaded XRD chunk.                                       |
+| @types/d3-array | dev     | Types for d3-array.                                                                                                                       |
+| @types/node     | dev     | Lets tests read fixture files as bytes with `node:fs`. It is only in `tests/tsconfig.json`, so app code cannot use Node APIs by accident. |
+
+### Decisions
+
+- **Regex-based XRDML reader** rather than DOMParser, because DOMParser does not exist in web
+  workers.
+- **Intensity is stored as read.** No unit conversion is done; the unit is a label for now and
+  for later noise estimates.
+- **The y axis has no numbers.** Intensity is in arbitrary units, as in most published
+  diffraction figures. The readout shows exact values.
+- **Plot view is not saved.** The plot settings (normalise, offset, export options) are saved
+  with the session; the zoom range is not.
+- **The screen legend is HTML** (accessible, wraps on phones); exported figures draw the legend
+  inside the plot.
+
+### Verification (real results)
+
+- `npm run lint`: pass. `npm run typecheck` (app and tests): pass.
+- `npm test`: 97 tests pass and 1 is skipped (the real-file test, until you add a file). Every format has fixtures in `tests/fixtures/xrd/` (written by
+  `make_fixtures.py`, synthetic). Tests also cover every friendly error, UTF-16 files, decimation,
+  ticks, normalise and offset, the PNG CRC-32 and pHYs chunk, SVG export and the 50,000-point
+  import.
+- `npm run build`: pass. `npm run size`: initial JavaScript 8.2 KB gzipped (budget 150 KB). The
+  XRD chunk is 13.5 KB and the import worker 4.5 KB; both load on demand.
+- Browser check (headless Chromium, production build served with the `firebase.json` headers,
+  so the strict CSP applies):
+  - All 8 good fixtures load through the file picker. Every bad fixture, plus a binary .raw and a
+    .brml, shows its friendly message. Paste, drag and drop, radians conversion, remove and Undo
+    all work.
+  - Export works: SVG, PNG at 600 dpi (2008 × 1535 px, pHYs = 600 dpi) and a double-column PNG
+    at 300 dpi (2126 × 1181 px).
+  - A reload keeps the patterns and settings. Step 2 shows the plot.
+  - No console errors or CSP violations.
+- 50,000-point file: imported and drawn in about 0.1 to 0.2 s. During wheel zoom, drag pan and
+  hover, frame times were 16.7 ms at the median and the 95th percentile (60 fps), with no long
+  main-thread tasks.
+- Touch (360 px, emulated with Chrome DevTools touch events): two-finger pinch zooms, one-finger
+  swipe pans and a tap shows the readout.
+- No horizontal scroll at 360, 768, 1280 or 1920 px in light or dark, including with a help
+  popover open.
+
+### Known issues and to-dos
+
+- **Waiting on you:** put at least one real instrument file in `tests/fixtures-real/`.
+  `tests/realFiles.test.ts` checks that every file there loads. Until then it reports one skipped
+  test. The XRDML and RAS fixtures are modelled on the reference readers, not copied from
+  instruments, so a real file is the real test.
+- RAS attenuator factors are not applied (see Format references). Please confirm this with your
+  instrument documentation or a real file.
+- Only the first scan of multi-scan XRDML and RAS files is loaded.
+- Wheel zoom captures the mouse wheel over the plot, so scrolling the page with the pointer over
+  the plot zooms instead.
+- The wavelength from XRDML files is shown as written in the file; it is not used yet and has not
+  been checked.
+- Carried over from Stage 0: Okabe-Ito hex values to verify, no live-deploy workflow, CSP to widen
+  for Gemini.
+
+### Next stage
+
+Stage 2: not started. Waiting for your go-ahead and the stage brief.
+
 ## Stage 0: project foundation (done)
 
 Branch `stage-0-foundation`. No science code yet.
@@ -93,11 +229,10 @@ D3 submodules are not installed yet; they arrive with the first plot.
   Logic) is added in the last stage.
 - Below 1024 px the stepper is compact, so earlier steps are reached with Back rather than by
   tapping a step.
-- No "Try with example data" button yet. It needs real upload and parsing, so it arrives with the
-  XRD upload stage.
+- No "Try with example data" button yet (added in Stage 1).
 - Undo per processing step is not built yet; the wizard only has "Start over". Undo belongs with
   the first processing step.
 
 ### Next stage
 
-Stage 1: not started. Waiting for your go-ahead and the stage brief.
+Stage 1 (see above).

@@ -4,6 +4,10 @@ A free, fast web app that guides early-career researchers through analysing mate
 characterisation data, one step at a time. Four tools are planned: XRD, UV-Vis, FTIR and particle
 size from SEM/TEM images. XRD comes first.
 
+The XRD tool currently imports .xy, .xye, .dat, .txt, .csv, PANalytical .xrdml and Rigaku .ras
+files (or pasted text), checks them, and plots and exports them. "Try with example data" loads
+synthetic patterns that the site generates; they are not real measurements.
+
 Everything runs in your browser. Uploaded files never leave your device, there are no accounts,
 and the site uses no analytics or third-party resources.
 
@@ -34,7 +38,7 @@ src/ui/          app shell, wizard, help popover, design tokens and themes
 src/workers/     web workers for heavy computation
 data/reference/  generated reference pattern JSON (from the Crystallography Open Database)
 scripts/         build-time scripts (bundle-size check; later the reference library builder)
-tests/           unit tests and fixtures
+tests/           unit tests, synthetic fixtures (tests/fixtures/), real files (tests/fixtures-real/)
 docs/            PROGRESS.md and method notes
 ```
 
