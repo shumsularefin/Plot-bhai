@@ -1,5 +1,129 @@
 # Progress
 
+## Stage 3: peak detection and fitting (done)
+
+Branch `stage-3-peaks`, built on `stage-2-preprocess`.
+
+### What was built
+
+- **Science code** (`src/core/xrd/peaks/`, `src/core/math/levenbergMarquardt.ts`). Every formula
+  has a doc comment with the equation, the variables and the units.
+  - **Profiles** (`profiles.ts`): Gaussian, Lorentzian and pseudo-Voigt, all written as
+    f = A·[η L + (1 − η) G] with height A, centre x0, FWHM w and η. Includes analytic
+    derivatives, and closed-form area and integral breadth (with gradients, for propagating
+    uncertainties).
+  - **Detection** (`detect.ts`): topographic prominence (the SciPy `find_peaks` definition) as a
+    percentage of the intensity range, minimum separation, and width at half prominence. It
+    runs in O(n log n), using a monotonic stack for the nearest higher points and a sparse table
+    for range minima, so 50,000 noisy points take a few milliseconds.
+  - **Fit regions** (`fit.ts`): each peak covers centre ± 3 × width; overlapping ranges merge
+    into one region, fitted with its own straight background.
+  - **Levenberg–Marquardt** (`levenbergMarquardt.ts`): unweighted least squares with box bounds
+    (height ≥ 0, centre within one starting width, FWHM from one data step to the region width,
+    0 ≤ η ≤ 1).
+    - Uncertainties come from the covariance C = s² (JᵀJ)⁻¹, with s² = SSR / (n − m).
+    - R² is reported per region.
+    - Parameters that end on a bound are flagged.
+  - **Peak table** (`table.ts`), with σ for each:
+    - 2θ
+    - d from Bragg's law, d = λ / (2 sin θ) with λ = Kα1, and σ_d by propagation
+    - FWHM in degrees and radians
+    - integral breadth
+    - height and area
+    - I/Imax by height
+    - η
+- **Plain-language notes** at the peak or region concerned: width at its lower limit, fewer than
+  three points across the peak, height zero, centre at the edge of its range, η at 0 or 1, width
+  uncertain by more than 20 %, no convergence, R² below 0.9. The step also warns when Kα2 is
+  still in the data, and when smoothing is on (see Known issues).
+- **Fit peaks step** (wizard step 5, `src/modules/xrd/FitStep.tsx`):
+  - **Detection:** automatic on the first visit, with a prominence slider and a
+    minimum-separation control. Changing them detects again; Undo restores the previous list.
+  - **Plot editing modes:** Pan and zoom, Add (click), Remove (click a marker) and Move (drag a
+    marker sideways). There is also an "Add a peak at 2θ" field for keyboard users, and "Remove
+    all peaks".
+  - **Profile choice:** Gaussian, Lorentzian, or pseudo-Voigt with η free or fixed.
+  - **Fitting:** "Fit peaks" runs in a web worker (`src/workers/peaks.worker.ts`) with region
+    progress and a Cancel button. After a fit, the fitted positions and widths become the
+    starting values for the next fit. Changing peaks, profile, cleaning or radiation marks the
+    results out of date.
+  - **Plot overlay:** data, total fit and each component (dashed), with a residual panel below
+    that shares the zoom.
+  - **Results:** a region list with R², and a sortable peak table showing value ± σ. CSV export
+    has a header line stating λ and units, plus σ columns, R² and notes.
+- **Plot engine additions:** gaps for NaN values, series hidden from the legend and readout,
+  clickable and draggable markers, a residual panel, and props bundled into one `interaction`
+  object.
+- **Refactor:** the processing-worker logic moved into a shared `useProcessed` hook, which also
+  fixes a weak "same length means same pattern" check in Stage 2.
+- **Saved sessions:** the format version is now 4. Stage 1 and Stage 2 sessions are migrated
+  (tested).
+
+### Known-answer tests (`tests/xrd-peaks.test.ts`, `tests/fitSupport.test.ts`)
+
+Synthetic peaks on a flat background of 200 counts, step 0.01°, with seeded counting noise.
+
+| Test                                                                                                  | Tolerance                                                                                                                                                |
+| ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Single noisy peak, for each of Gaussian, Lorentzian, pseudo-Voigt (η free) and pseudo-Voigt (η fixed) | centre within 0.003°; FWHM, height and area within 3 %; η within 0.1; R² > 0.99; truth within 4σ                                                         |
+| Noise-free pseudo-Voigt                                                                               | centre within 0.001°, FWHM within 1 %, η within 0.02                                                                                                     |
+| Two overlapping peaks, 0.25° apart with FWHM 0.3° each                                                | grouped into one region; centres within 0.005°; FWHM and heights within 5 %                                                                              |
+| Calibration of σ (40 noisy repeats)                                                                   | true centre within 2σ in at least 33 of 40 (about 38 expected)                                                                                           |
+| Detection                                                                                             | finds exactly the 4 synthetic peaks in noise; a higher threshold drops the small ones; prominence matches the SciPy definition on a hand-checked example |
+| Linear least squares through Levenberg–Marquardt                                                      | parameters and σ match the closed-form textbook values                                                                                                   |
+| Area and integral breadth                                                                             | closed form matches numerical integration within 0.05 %; analytic derivatives match finite differences                                                   |
+| Bragg d                                                                                               | round trip exact; σ_d matches a finite difference                                                                                                        |
+| Speed                                                                                                 | 30 peaks on 46,667 points fitted in under 3 s (about 0.2 s in practice); detection on 50,000 points under 0.5 s                                          |
+
+### Decisions
+
+- **Unweighted least squares**, the usual default in Origin, so the results can be compared
+  with Origin.
+- **Height-based parameters** (A is the peak height). Area and integral breadth are derived,
+  with σ propagated through the full covariance matrix.
+- **Relative intensity** uses height. Area is in the table and CSV for anyone who needs area
+  ratios.
+- **Regions** span ± 3 × the starting width around each peak.
+- **No new dependencies.**
+
+### Verification (real results)
+
+- `npm run lint`: pass. `npm run typecheck`: pass.
+- `npm test`: 138 tests pass and 1 is skipped (the real-file test, until you add a file).
+- `npm run build`: pass. `npm run size`: initial JavaScript 8.2 KB gzipped (budget 150 KB). The
+  XRD chunk is 23 KB and the peaks worker 3.6 KB; both load on demand.
+- Browser check (headless Chromium, production build with the strict CSP):
+  - The example data, after smoothing, SNIP and Kα2 stripping, gave 8 detected peaks. The
+    prominence slider worked (5 peaks at 15 %, back to 8 at 3 %).
+  - Fit in 68–130 ms. 8 regions with R² ≥ 0.998. The table sorts.
+  - Add, Remove and drag (31 px) all worked. Three Undos restored the fitted state.
+  - Out-of-date results were flagged. The CSV downloaded. A reload kept the fit.
+  - No console errors.
+- 30 peaks on 46,667 points: all 30 detected and fitted in 205 ms in the browser, with no long
+  tasks on the main thread.
+- No horizontal page scroll at 360, 768, 1280 or 1920 px in light or dark; the table scrolls
+  inside its own box. All controls are at least 44 px tall.
+
+### Known issues and to-dos
+
+- **Waiting on you:** a real XRD file in `tests/fixtures-real/`, plus your Origin fit of the same
+  file, so the results can be compared. A comparison is not claimed until that exists.
+- **Smoothing makes the uncertainties too small.** The covariance assumes independent noise;
+  Savitzky–Golay smoothing correlates neighbouring points. The app warns about this when
+  smoothing is on.
+- **Kα2 still in the data:** if Kα2 is not stripped, each peak is fitted as a single profile,
+  so widths are too broad. The app warns about this; fitting Kα1/Kα2 doublets directly is not
+  implemented.
+- **Export:** the figure export does not include the residual panel yet.
+- **Detection on raw, noisy, finely stepped data** finds extra peaks on the flanks of tall ones
+  (38 instead of 30 in one test at 3 %). Smoothing first, or raising the prominence, avoids this.
+  The UI says so.
+- Carried over: wavelengths to verify; no Thermal card on the home page yet.
+
+### Next stage
+
+Stage 4: not started. Waiting for your go-ahead and the stage brief.
+
 ## Stage 2: XRD preprocessing (done)
 
 Branch `stage-2-preprocess`, built on `stage-1-import`. `CLAUDE.md` was replaced with the
@@ -137,7 +261,7 @@ through the 17 points around each maximum.
 
 ### Next stage
 
-Stage 3: not started. Waiting for your go-ahead and the stage brief.
+Stage 3 (see above).
 
 ## Stage 1: XRD data import and plot (done)
 
