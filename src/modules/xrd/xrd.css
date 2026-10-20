@@ -432,3 +432,125 @@
 .clean-view-note {
   flex: 1 1 16rem;
 }
+
+.fit-step {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.fit-step .process-step-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.slider-field input[type='range'] {
+  width: 14rem;
+  max-width: 100%;
+  min-height: var(--touch-target);
+  padding: 0;
+  border: 0;
+  background: none;
+  accent-color: var(--color-accent);
+}
+
+.add-peak {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.fit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.region-summary,
+.peak-table-section {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.region-list {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-4);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.region-list .message {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.region-list .message.is-warning {
+  color: var(--color-text);
+  font-weight: var(--weight-medium);
+}
+
+.peak-table-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+/* The table may be wider than a phone; it scrolls inside its own box, never the page. */
+.table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.peak-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.peak-table th,
+.peak-table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  text-align: right;
+}
+
+.peak-table th:first-child,
+.peak-table td:first-child,
+.peak-table .peak-notes {
+  text-align: left;
+}
+
+.peak-table .peak-notes {
+  min-width: 16rem;
+  white-space: normal;
+  color: var(--color-text-muted);
+}
+
+.peak-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--color-surface-muted);
+  font-weight: var(--weight-medium);
+}
+
+.sort-button {
+  min-height: var(--touch-target);
+  padding: 0;
+  border: 0;
+  background: none;
+  font-weight: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}

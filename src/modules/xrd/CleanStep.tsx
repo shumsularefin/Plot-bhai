@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useMemo, useRef, useState } from 'preact/hooks';
 import { formatNumber } from '../../core/xrd/parsers/numbers';
 import {
   DEFAULT_PROCESSING,
@@ -20,7 +20,7 @@ import type { SeriesSource } from '../../ui/plot/series';
 import type { StepContext } from '../../ui/wizard/types';
 import { processingFor, type XrdData } from './data';
 import { xrdLabels } from './labels';
-import { ProcessClient } from './processClient';
+import { useProcessed } from './useProcessed';
 import { StepSection } from './StepSection';
 
 type View = 'after' | 'before' | 'both';
@@ -53,34 +53,9 @@ export function CleanStep({ data, update }: StepContext<XrdData>) {
   const radiation = data.radiation;
 
   const [view, setView] = useState<View>('both');
-  const [result, setResult] = useState<ProcessingResult | null>(null);
-  const [busy, setBusy] = useState(false);
-  const client = useRef<ProcessClient | null>(null);
+  const { result: shown, busy } = useProcessed(pattern, settings, radiation);
   const history = useRef<Snapshot[]>([]);
   const [canUndo, setCanUndo] = useState(false);
-
-  useEffect(() => {
-    client.current = new ProcessClient((next) => {
-      setResult(next);
-      setBusy(false);
-    });
-    return () => client.current?.dispose();
-  }, []);
-
-  useEffect(() => {
-    if (!pattern) return;
-    setBusy(true);
-    client.current?.request({
-      twoTheta: pattern.twoTheta,
-      intensity: pattern.intensity,
-      settings,
-      radiation,
-    });
-  }, [pattern, settings, radiation]);
-
-  // Results from another pattern are not shown while the new one is processed.
-  const shown =
-    result && pattern && result.twoTheta.length === pattern.twoTheta.length ? result : null;
 
   if (!pattern) return <p>No patterns are loaded. Go back to Upload to add one.</p>;
 
@@ -570,11 +545,13 @@ function CleanPlot(props: CleanPlotProps) {
       xUnit="°"
       exportName={`${name}-processed`}
       showOverlayOptions={false}
-      markers={markers}
-      {...(onAddAnchor && {
-        onPlotClick: onAddAnchor,
-        hint: 'Click or tap to add a background point. Scroll or pinch to zoom, drag to pan.',
-      })}
+      interaction={{
+        markers,
+        ...(onAddAnchor && {
+          onPlotClick: onAddAnchor,
+          hint: 'Click or tap to add a background point. Scroll or pinch to zoom, drag to pan.',
+        }),
+      }}
     />
   );
 }
