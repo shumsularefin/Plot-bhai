@@ -1,3 +1,6 @@
+import { kAlpha2Position } from './process/kAlpha2';
+import { ANODES, DEFAULT_KALPHA2_RATIO } from './radiation';
+
 /*
  * Synthetic diffraction patterns for the example data and for tests. These are generated, not
  * measured, and do not represent any real material: the peak positions are arbitrary.
@@ -40,6 +43,11 @@ export interface SyntheticOptions {
   background: { constant: number; amplitude: number; decay: number };
   /** Adds counting noise (normal approximation to Poisson, σ = √counts) when given. */
   noiseSeed?: number;
+  /**
+   * Adds a Kα2 line for every peak: same shape and width, height × ratio, at the angle given
+   * by Bragg's law (see kAlpha2Position). Wavelengths in Å.
+   */
+  kAlpha2?: { lambda1: number; lambda2: number; ratio: number };
 }
 
 /** Small seeded pseudo-random generator (mulberry32) so examples and tests are repeatable. */
@@ -59,7 +67,17 @@ export function generatePattern(options: SyntheticOptions): {
   twoTheta: Float64Array;
   intensity: Float64Array;
 } {
-  const { start, end, step, peaks, background, noiseSeed } = options;
+  const { start, end, step, background, noiseSeed, kAlpha2 } = options;
+  const peaks = kAlpha2
+    ? options.peaks.flatMap((p) => [
+        p,
+        {
+          ...p,
+          center: kAlpha2Position(p.center, kAlpha2.lambda1, kAlpha2.lambda2),
+          height: p.height * kAlpha2.ratio,
+        },
+      ])
+    : options.peaks;
   const n = Math.floor((end - start) / step + 1e-9) + 1;
   const twoTheta = new Float64Array(n);
   const intensity = new Float64Array(n);
@@ -85,7 +103,8 @@ const EXAMPLE_HEIGHTS = [900, 3200, 8000, 1800, 1100, 2600, 3900, 900];
 
 /**
  * The "Try with example data" patterns: two synthetic scans with the same arbitrary peak
- * positions, one with narrow and one with broad peaks. Not a real material.
+ * positions, one with narrow and one with broad peaks, each with a Cu Kα2 line beside every
+ * Kα1 peak (ratio 0.5). Not a real material.
  */
 export function examplePatterns(): {
   name: string;
@@ -105,6 +124,11 @@ export function examplePatterns(): {
       })),
       background: { constant: 150, amplitude: 900, decay: 12 },
       noiseSeed: seed,
+      kAlpha2: {
+        lambda1: ANODES.Cu.kAlpha1,
+        lambda2: ANODES.Cu.kAlpha2,
+        ratio: DEFAULT_KALPHA2_RATIO,
+      },
     });
   return [
     { name: 'Synthetic example A (narrow peaks)', ...make(0.12, 1) },
