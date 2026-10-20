@@ -2,7 +2,7 @@ import { solve } from '../../math/linear';
 
 /**
  * Iterative polynomial background ("modified polyfit", C. A. Lieber and A. Mahadevan-Jansen,
- * Applied Spectroscopy 57 (2003)).
+ * Applied Spectroscopy 57 (2003) 1363–1367; checked against the paper).
  *
  *   1. Fit a polynomial of degree `degree` to the data by least squares.
  *   2. Replace every point above the fit by the fit value (peaks are clipped).
@@ -69,12 +69,19 @@ export function polynomialBackground(
 }
 
 /**
- * SNIP background (Statistics-sensitive Non-linear Iterative Peak-clipping; C. G. Ryan,
- * E. Clayton, W. L. Griffin, S. H. Sie and D. R. Cousens, Nucl. Instrum. Methods B 34 (1988)
- * 396–402), with the clipping window growing from 1 to `halfWidth` points.
+ * SNIP background (Statistics-sensitive Non-linear Iterative Peak-clipping), in the variant
+ * used by common implementations, which differs from the original paper in two ways.
  *
- * The data are first compressed with the log-log-square-root (LLS) operator so peaks of very
- * different heights clip alike:  v = ln(ln(√(y + 1) + 1) + 1)  (negative y treated as 0).
+ * Original (C. G. Ryan, E. Clayton, W. L. Griffin, S. H. Sie and D. R. Cousens, Nucl. Instrum.
+ * Methods B 34 (1988) 396–402, checked against the paper): compress with
+ * G(y) = log(log(y + 1) + 1), then clip each channel with z(x) ← min(z(x), [z(x+w) + z(x−w)]/2)
+ * at a FIXED width w (about twice the peak FWHM) for about 24 passes, reducing w by √2 over
+ * the final 8 or so passes.
+ *
+ * Here instead the width grows from 1 to `halfWidth` points, and the compression adds a square
+ * root (the "LLS" operator). Both changes appear in later SNIP implementations; their origin is
+ * not checked here. The data are compressed so peaks of very different heights clip alike:
+ *   v = ln(ln(√(y + 1) + 1) + 1)  (negative y treated as 0).
  * Then for p = 1 … halfWidth:  v_i ← min(v_i, (v_{i−p} + v_{i+p}) / 2).
  * The inverse operator gives the background:  y = (exp(exp(v) − 1) − 1)² − 1.
  *
@@ -98,9 +105,11 @@ export function snipBackground(y: Float64Array, halfWidth: number): Float64Array
 
 /**
  * Background through user-chosen anchor points by monotone piecewise cubic Hermite
- * interpolation (F. N. Fritsch and R. E. Carlson, SIAM J. Numer. Anal. 17 (1980) 238–246),
- * which passes through every anchor without overshooting between them. Slopes at the anchors
- * use the weighted harmonic mean of Fritsch and Butland. Outside the first and last anchor the
+ * interpolation (F. N. Fritsch and R. E. Carlson, SIAM J. Numer. Anal. 17 (1980) 238–246;
+ * checked against the paper), which passes through every anchor without overshooting between
+ * them. Slopes at the anchors use the weighted harmonic mean of Fritsch and Butland, a later
+ * slope rule that meets the Fritsch–Carlson monotonicity conditions (TODO(verify): Fritsch and
+ * Butland's own paper has not been read). Outside the first and last anchor the
  * background is held constant. Anchors are [2θ in degrees, intensity] pairs; at least two are
  * needed.
  */

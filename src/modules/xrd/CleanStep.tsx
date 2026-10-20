@@ -210,8 +210,10 @@ export function CleanStep({ data, update }: StepContext<XrdData>) {
         </div>
         <p class="field-hint">
           λ(Kα1) = {lines.kAlpha1} Å{!radiation.kAlpha1Only && <>, λ(Kα2) = {lines.kAlpha2} Å</>}.
-          Source: {lines.source}. These values are still to be verified against International Tables
-          for Crystallography.
+          Source: {lines.source}
+          {lines.source === 'Hölzer 1997'
+            ? ' (Phys. Rev. A 56, 4554).'
+            : '. Not yet checked against International Tables for Crystallography.'}
         </p>
         {wavelengthMismatch && (
           <p class="message is-warning">

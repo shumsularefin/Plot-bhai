@@ -28,7 +28,7 @@ import { seededRandom } from '../src/core/xrd/synthetic';
  */
 
 const DEG = Math.PI / 180;
-const LAMBDA = 0.154059292; // nm, Cu Kα1 as used by the app
+const LAMBDA = 0.15405929; // nm, Cu Kα1 (Hölzer et al. 1997)
 const K = 0.9;
 const D = 30; // nm
 const EPS = 1.5e-3;
@@ -187,7 +187,7 @@ describe('size–strain plot and Halder–Wagner recover size and strain', () =>
     expect(rel(hw.strain?.value as number, ssp.strain?.value as number)).toBeLessThan(1e-9);
   });
 
-  it('d from Bragg: 2θ = 30° with λ = 0.154059292 nm', () => {
+  it('d from Bragg: 2θ = 30° with λ = 0.15405929 nm', () => {
     expect(spacingNm(30, LAMBDA)).toBeCloseTo(LAMBDA / (2 * Math.sin(15 * DEG)), 14);
   });
 });

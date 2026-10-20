@@ -1,5 +1,70 @@
 # Progress
 
+## Reference check against the supplied papers (between Stage 5 and Stage 6)
+
+Branch `verify-references`, built on `stage-5-size-strain`. You supplied the PDFs on `main`
+(commit `eff6b39`). I read each one and compared it with the code. Stage 6 has not started,
+because `www.crystallography.net` and `cod.crystallography.net` are still refused (403) from
+this session.
+
+### Changed because of the papers
+
+- **Wavelengths (`radiation.ts`):** Cr, Fe, Co and Cu now use Hölzer et al., Phys. Rev. A 56
+  (1997) 4554–4568, Table IV, column "λ (nm) (this work)", converted to Å.
+  - The old Kα2 values (from xrayutilities and pymatgen) differed by up to 4 × 10⁻⁵ Å. For
+    example, Cu Kα2 was 1.544414 and is now 1.5444274.
+  - A test pins all eight values.
+  - Mo and Ag are not in Hölzer and are still unverified. The file named "Table 4.2.2.1" is
+    Vol. F (membrane-protein detergents), not the Vol. C wavelength table.
+- **SNIP (`background.ts`):** Ryan et al. (1988) use G(y) = log(log(y + 1) + 1) with a fixed
+  width w and reduce w by √2 over the last ~8 passes. The app uses the later variant, with a
+  growing window and an added square root. The code comment now says so instead of crediting
+  Ryan with the variant. The algorithm is unchanged.
+- **Dislocation density:** Williamson & Smallman (1956), eq. (1), give ρ = 3n/D², the total
+  line length per volume with n ≥ 1. The 1/D² the app reports counts lines crossing unit
+  area with n = 1, which is a third of their minimum. The code comment and an in-app help
+  note now explain this. The value itself is unchanged.
+- **Williamson–Hall UDM:** the original paper (eq. 4) writes β = 2ξ tan θ + λ/(t cos θ), with
+  ξ the integral breadth of the strain distribution and K = 1. The app's form,
+  β cos θ = Kλ/D + 4ε sin θ, is the one written by Mote et al. (eq. 5); ε = ξ/2. Comment
+  updated.
+- **Citations completed:**
+  - Lieber & Mahadevan-Jansen: pages 1363–1367.
+  - Scherrer: the session date is 26 July 1918, from his own footnote.
+
+### Confirmed as implemented (no change)
+
+| Source                                                      | What was checked                                                                                                                                           |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Savitzky & Golay, Anal. Chem. 36 (1964) 1627–1639           | citation                                                                                                                                                   |
+| Lieber & Mahadevan-Jansen, Appl. Spectrosc. 57 (2003)       | fit, clip points above the fit, repeat                                                                                                                     |
+| Rachinger, J. Sci. Instrum. 25 (1948) 254                   | point-by-point subtraction of the shifted, scaled Kα1 curve                                                                                                |
+| Fritsch & Carlson, SIAM J. Numer. Anal. 17 (1980) 238–246   | citation and pages                                                                                                                                         |
+| Thompson, Cox & Hastings, J. Appl. Cryst. 20 (1987) 79–83   | η coefficients 1.36603, 0.47719, 0.11116 (eq. 2); FWHM coefficients 2.69269, 2.42843, 4.47163, 0.07842 (eq. 3); Γ is the shared FWHM of both parts (eq. 1) |
+| Caglioti, Paoletti & Ricci, Nucl. Instrum. 3 (1958) 223–228 | eq. (11): the squared Gaussian FWHM is a quadratic in tan θ (neutron spectrometer)                                                                         |
+| Monshi et al., WJNSE 2 (2012) 154–160                       | free-slope least-squares line of ln β against ln(1/cos θ), D from the intercept, eqs. (11)–(12)                                                            |
+| Mote, Purushotham & Dole, JTAP 6 (2012) 6                   | UDM eq. (5), stress model eq. (6) (they call it UDSM), UDEDM eq. (8)                                                                                       |
+| Halder & Wagner, Acta Cryst. 20 (1966) 312–313              | eq. (5), b^P/b = 1 − (b^D/b)², which is the model used for SSP and HW                                                                                      |
+| Pal, arXiv:2512.00689v2                                     | corrected SSP eq. (10). The app's form is eq. (10) × λ², with Pal's σ = 4ε. Section 6 confirms that SSP and HW are the same relation                       |
+| Okabe & Ito, Color Universal Design (2008), Fig. 16         | all eight plot colours match the RGB (0–255) column exactly                                                                                                |
+
+### Still to verify
+
+- **Mo and Ag wavelengths:** please send International Tables Vol. C, Table 4.2.2.1 (the
+  wavelength table).
+- **Scherrer (1918):** pages 98–100 and the equation. The two pages supplied are from
+  Zsigmondy's Kolloidchemie and do not include the equation.
+- **Fritsch & Butland's slope rule** used for the manual anchors.
+- **The Halder–Wagner angle form as written in arXiv:2103.03521.** It is derived here
+  independently from eq. (5), so this only affects the citation.
+- **The origin of the SNIP variant** (growing window, LLS operator).
+
+### Verification
+
+- `npm run lint`: pass. `npm run typecheck`: pass.
+- `npm test`: 182 passed, 1 skipped.
+- `npm run build`: pass.
+
 ## Stage 5: size and strain (done)
 
 Branch `stage-5-size-strain`, built on `stage-4-instrument`.

@@ -17,8 +17,8 @@ import type { DataMessage } from '../types';
  *   d   interplanar spacing from Bragg's law, d = λ / (2 sin θ), nm
  *   E   Young's modulus, GPa (per peak direction E_hkl when given)
  *
- * TODO(verify): citations below were written from memory unless marked otherwise; the
- * primary papers could not be reached when this was written.
+ * Every citation below was checked against the paper itself, except where marked
+ * TODO(verify).
  */
 
 /** One selected peak. */
@@ -73,7 +73,9 @@ export interface ScherrerResult {
 
 /**
  * Scherrer equation, one size per peak: D = K λ / (β cos θ).
- * P. Scherrer, Nachr. Ges. Wiss. Göttingen (1918) 98–100. σ(D) = D σ(β) / β.
+ * P. Scherrer, Nachr. Ges. Wiss. Göttingen, session of 26 July 1918 (date from Scherrer's own
+ * citation in Zsigmondy, Kolloidchemie). TODO(verify): pages 98–100 and the equation itself are
+ * not in the two pages supplied. σ(D) = D σ(β) / β.
  * It attributes all broadening to size, so with strain present D is an underestimate.
  */
 export function scherrer(peaks: readonly SizePeak[], settings: SizeSettings): ScherrerResult {
@@ -190,10 +192,11 @@ function lineOf(
 /**
  * Monshi–Scherrer: ln β = ln(K λ / D) + ln(1 / cos θ). A least-squares line through
  * (ln(1/cos θ), ln β) gives D = K λ / e^intercept from all peaks at once.
- * Monshi, Foroughi & Monshi, World J. Nano Sci. Eng. 2 (2012) 154–160 (citation checked by
- * search; the full text could not be reached). σ(D) = D σ(intercept).
- * For pure size broadening the slope is 1; the slope is reported so a large difference can
- * be seen.
+ * Monshi, Foroughi & Monshi, World J. Nano Sci. Eng. 2 (2012) 154–160, eqs. (11)–(12): the
+ * line's slope is left free ("the least squares method gives the best slope and most accurate
+ * ln K/L") and only the intercept is used. σ(D) = D σ(intercept).
+ * For pure size broadening the slope is 1. The paper's own fits have slopes far from 1 (some
+ * negative), so the app only warns about it.
  */
 export function monshi(peaks: readonly SizePeak[], s: SizeSettings): LineResult {
   const { points, fit, messages } = lineOf(peaks, (p) => [
@@ -221,8 +224,10 @@ export function monshi(peaks: readonly SizePeak[], s: SizeSettings): LineResult 
 /**
  * Williamson–Hall, uniform deformation model (UDM):
  *   β cos θ = K λ / D + 4 ε sin θ.
- * Plot β cos θ against 4 sin θ: slope ε, intercept K λ / D.
- * Williamson & Hall, Acta Metall. 1 (1953) 22–31.
+ * Plot β cos θ against 4 sin θ: slope ε, intercept K λ / D. This is the form written by
+ * Mote, Purushotham & Dole (eq. 5, see USDM below). Williamson & Hall, Acta Metall. 1 (1953)
+ * 22–31, eq. (4), wrote β = 2ξ tan θ + λ / (t cos θ) with integral breadths, ξ the integral
+ * breadth of the strain distribution (Stokes & Wilson) and K = 1; so ε here equals ξ / 2.
  */
 export function williamsonHallUdm(peaks: readonly SizePeak[], s: SizeSettings): LineResult {
   const { points, fit, messages } = lineOf(peaks, (p) => [
@@ -246,12 +251,13 @@ const NEEDS_MODULUS =
   "Enter Young's modulus (GPa) for the material, or for every selected peak, to use this model.";
 
 /**
- * Williamson–Hall, uniform stress deformation model (USDM). Hooke's law ε = σ / E_hkl gives
+ * Williamson–Hall, uniform stress deformation model (USDM; Mote et al. call it UDSM). Hooke's
+ * law ε = σ / E_hkl gives
  *   β cos θ = K λ / D + 4 σ sin θ / E_hkl.
  * Plot β cos θ against 4 sin θ / E_hkl (GPa⁻¹): slope σ (GPa), intercept K λ / D.
  * Strain is reported as the mean of σ / E_hkl over the selected peaks.
- * As described by Mote, Purushotham & Dole, J. Theor. Appl. Phys. 6 (2012) 6
- * (doi:10.1186/2251-7235-6-6; citation checked by search, full text not reached).
+ * Mote, Purushotham & Dole, J. Theor. Appl. Phys. 6 (2012) 6, eq. (6)
+ * (doi:10.1186/2251-7235-6-6).
  */
 export function williamsonHallUsdm(peaks: readonly SizePeak[], s: SizeSettings): LineResult {
   const e = moduli(peaks, s);
@@ -293,7 +299,7 @@ export function williamsonHallUsdm(peaks: readonly SizePeak[], s: SizeSettings):
  *   β cos θ = K λ / D + 4 sin θ √(2u / E_hkl).
  * Plot β cos θ against 4 sin θ √(2 / E_hkl) (GPa^−½): slope √u (GPa^½), intercept K λ / D.
  * u is reported in kJ/m³ (1 GPa = 10⁶ kJ/m³); strain as the mean of √(2u / E_hkl) and stress
- * as the mean of √(2u E_hkl) (GPa) over the selected peaks. Same source as USDM.
+ * as the mean of √(2u E_hkl) (GPa) over the selected peaks. Mote et al., eq. (8).
  */
 export function williamsonHallUdedm(peaks: readonly SizePeak[], s: SizeSettings): LineResult {
   const e = moduli(peaks, s);
@@ -380,9 +386,10 @@ function lorentzGauss(
  * Size–strain plot (SSP), in the dimensionally consistent real-space form
  *   (d β cos θ)² = (K λ / D) · (d² β cos θ) + 4 ε² λ²
  * (d and λ in nm, so both axes are in nm²). Slope K λ / D; intercept 4 ε² λ², so
- * ε = √intercept / (2 λ). The widely quoted form "(K/D)(d²β cos θ) + (ε/2)²" omits λ and
- * reports the apparent strain η = 4ε (A. Pal, J. Alloys Compd. 1048 (2025) 185324,
- * arXiv:2512.00689, found by search; full text not reached).
+ * ε = √intercept / (2 λ). This is A. Pal's corrected eq. (10) multiplied by λ²
+ * (arXiv:2512.00689v2; J. Alloys Compd. 1048 (2025) 185324), whose strain σ is defined by a
+ * Gaussian reciprocal breadth β*_G = σ d* / 2, so σ = 4ε. The widely quoted form
+ * "(K/D)(d²β cos θ) + (ε/2)²" (Pal's eq. 8) leaves out λ and is dimensionally inconsistent.
  */
 export function sizeStrainPlot(peaks: readonly SizePeak[], s: SizeSettings): LineResult {
   return lorentzGauss(
@@ -402,9 +409,12 @@ export function sizeStrainPlot(peaks: readonly SizePeak[], s: SizeSettings): Lin
  * Halder–Wagner, in angle form:
  *   (β / tan θ)² = (K λ / D) · β / (tan θ sin θ) + 16 ε²
  * (both axes dimensionless). Slope K λ / D; intercept 16 ε², so ε = √intercept / 4.
- * Halder & Wagner, Acta Cryst. 20 (1966) 312–313; this form as written in arXiv:2103.03521
- * (found by search). Its axes are the SSP axes multiplied by 4 / λ², so an unweighted fit
- * gives exactly the same D and ε as the size–strain plot.
+ * Halder & Wagner, Acta Cryst. 20 (1966) 312–313, eq. (5): b^P / b = 1 − (b^D / b)², with b,
+ * b^P and b^D the integral breadths (total, size, strain) in reciprocal units; that is,
+ * β² = β β_D + β_ε² as used here. The angle form above is a rearrangement of it, as written in
+ * arXiv:2103.03521 (TODO(verify): that paper was found by search, not read). Its axes are the
+ * SSP axes multiplied by 4 / λ², so an unweighted fit gives exactly the same D and ε as the
+ * size–strain plot; Pal (2025, section 6) shows the same equivalence.
  */
 export function halderWagner(peaks: readonly SizePeak[], s: SizeSettings): LineResult {
   return lorentzGauss(
@@ -434,9 +444,12 @@ function unavailable(method: LineMethod, reason: string): LineResult {
 // ---------------------------------------------------------------- derived quantities
 
 /**
- * Dislocation density δ = 1 / D² (lines per m², D converted from nm to m), with
- * σ(δ) = 2 δ σ(D) / D. The usual estimate from crystallite size (often attributed to
- * Williamson and Smallman, 1956).
+ * Dislocation density δ = 1 / D² (lines crossing unit area, m⁻², D converted from nm to m),
+ * with σ(δ) = 2 δ σ(D) / D. This is the usual estimate in the literature, not the formula of
+ * Williamson & Smallman, Phil. Mag. 1 (1956) 34–46. Their eq. (1) is ρ = 3n / D² for the total
+ * dislocation line length per unit volume, with n ≥ 1 dislocations per block face (n = 1 gives
+ * a minimum). They note that counting lines crossing unit area gives n / D² instead, a third of
+ * theirs; 1 / D² is that count with n = 1.
  */
 export function dislocationDensity(size: Estimate): Estimate {
   if (!(size.value > 0)) return NOT_PHYSICAL;

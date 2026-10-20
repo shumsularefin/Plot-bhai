@@ -431,9 +431,16 @@ function Summary({
       <p class="field-hint">
         Scherrer: mean ± standard deviation over the peaks. Other methods: value ± standard
         uncertainty from the line fit. ε uses the Williamson–Hall convention. δ = 1/D² is the
-        dislocation density; S = 6/(ρD) the specific surface area. Blank: not defined by the method
-        or not physical (see the method below). Problems and checks for every method are listed here
-        too.
+        dislocation density as usually reported (lines crossing unit area);{' '}
+        <HelpTip term="dislocation density">
+          <p>
+            1/D² is the common estimate. Williamson and Smallman (1956) instead give 3n/D² for the
+            total dislocation length per volume, with n ≥ 1 dislocations per crystallite face, so
+            their minimum is three times 1/D². Say which one you report.
+          </p>
+        </HelpTip>{' '}
+        S = 6/(ρD) is the specific surface area. Blank: not defined by the method or not physical
+        (see the method below). Problems and checks for every method are listed here too.
       </p>
       <Messages messages={problems} />
       <TableBox label="Summary" onExport={exportCsv}>

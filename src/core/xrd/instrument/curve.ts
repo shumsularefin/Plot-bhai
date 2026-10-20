@@ -8,8 +8,9 @@ const DEG = Math.PI / 180;
  *
  * - constant: FWHM = b at every angle.
  * - caglioti: FWHM² = U tan²θ + V tanθ + W, with θ = 2θ / 2 and U, V, W in degrees² (2θ).
- *   Caglioti, Paoletti & Ricci, Nucl. Instrum. 3 (1958) 223–228.
- *   TODO(verify): citation written from memory; the paper could not be reached.
+ *   Caglioti, Paoletti & Ricci, Nucl. Instrum. 3 (1958) 223–228 (checked). Their eq. (11)
+ *   gives the squared Gaussian FWHM as a quadratic in a = tan θ / tan θ_M (θ_M the
+ *   monochromator angle) for a neutron spectrometer; U, V, W is that quadratic in tan θ.
  * - polynomial: FWHM = Σ a_k (2θ − pivot)^k, k = 0…degree, a_k in degrees^(1−k).
  *
  * `covariance` (row-major, from a fit to a standard) gives the uncertainty of the curve;

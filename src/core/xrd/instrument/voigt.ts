@@ -8,9 +8,9 @@
  * where Γ is the total FWHM and η the Lorentzian fraction (all widths in the same unit, here
  * degrees 2θ).
  *
- * TODO(verify): the coefficients match the GSAS-II source (GSASIIpwd.py, getgamFW) and a
- * published paper quoting TCH (arXiv 2106.08388), but the 1987 paper itself could not be
- * reached. Please check them against the original.
+ * Checked against the paper: η is eq. (2) and Γ is eq. (3), where Γ is the FWHM of a
+ * pseudo-Voigt whose Lorentzian and Gaussian parts share that FWHM (eq. 1). The same
+ * coefficients appear in GSAS-II (GSASIIpwd.py, getgamFW).
  */
 
 /** Total FWHM of a Voigt with Gaussian FWHM g and Lorentzian FWHM l (TCH, same unit). */

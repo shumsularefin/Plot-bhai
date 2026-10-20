@@ -338,3 +338,19 @@ describe('performance', () => {
     }
   });
 });
+
+describe('tabulated wavelengths', () => {
+  it('Cr, Fe, Co and Cu match Hölzer et al. (1997), Table IV, "this work" (nm × 10)', () => {
+    const table: Record<string, [number, number]> = {
+      Cr: [0.2289726, 0.2293651],
+      Fe: [0.1936041, 0.1939973],
+      Co: [0.1788996, 0.1792835],
+      Cu: [0.15405929, 0.15444274],
+    };
+    for (const [anode, [a1, a2]] of Object.entries(table)) {
+      const lines = ANODES[anode as keyof typeof ANODES];
+      expect(lines.kAlpha1).toBeCloseTo(a1 * 10, 9);
+      expect(lines.kAlpha2).toBeCloseTo(a2 * 10, 9);
+    }
+  });
+});
