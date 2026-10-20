@@ -76,3 +76,22 @@ describe('createPersistedStore', () => {
     expect(calls).toBe(1);
   });
 });
+
+describe('migration', () => {
+  it('upgrades data saved with an older version when a migrate function is given', async () => {
+    const old = createPersistedStore({ key: 'migrate', version: 1, initial: { n: 0 } });
+    await old.ready;
+    old.set({ n: 4 });
+    await old.flush();
+
+    const upgraded = createPersistedStore({
+      key: 'migrate',
+      version: 2,
+      initial: { n: 0, label: '' },
+      migrate: (saved, savedVersion) =>
+        savedVersion === 1 ? { ...(saved as { n: number }), label: 'upgraded' } : undefined,
+    });
+    await upgraded.ready;
+    expect(upgraded.get()).toEqual({ n: 4, label: 'upgraded' });
+  });
+});

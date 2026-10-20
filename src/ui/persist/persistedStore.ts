@@ -28,6 +28,11 @@ export interface PersistedStoreOptions<T> {
   initial: T;
   /** Delay before writing after a change, so fast typing causes one write. */
   debounceMs?: number;
+  /**
+   * Upgrades data saved with an older version. Return undefined to discard it. Without this,
+   * data from any other version is discarded.
+   */
+  migrate?: (saved: unknown, savedVersion: number) => T | undefined;
 }
 
 /**
@@ -35,7 +40,7 @@ export interface PersistedStoreOptions<T> {
  * If IndexedDB is unavailable the store keeps working in memory and reports "unavailable".
  */
 export function createPersistedStore<T>(options: PersistedStoreOptions<T>): PersistedStore<T> {
-  const { key, version, initial, debounceMs = 250 } = options;
+  const { key, version, initial, debounceMs = 250, migrate } = options;
   let state = initial;
   let status: StoreStatus = 'loading';
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -60,7 +65,11 @@ export function createPersistedStore<T>(options: PersistedStoreOptions<T>): Pers
   const ready = idbGet<Envelope<T>>(key)
     .then((saved) => {
       // A change made while loading wins over the saved copy.
-      if (saved?.version === version && !pendingWrite) state = saved.value;
+      if (saved && !pendingWrite) {
+        const value =
+          saved.version === version ? saved.value : migrate?.(saved.value, saved.version);
+        if (value !== undefined) state = value;
+      }
       status = 'ready';
     })
     .catch(() => {
