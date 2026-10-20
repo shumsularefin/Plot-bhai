@@ -1,3 +1,4 @@
+import { profile } from './peaks/profiles';
 import { kAlpha2Position } from './process/kAlpha2';
 import { ANODES, DEFAULT_KALPHA2_RATIO } from './radiation';
 
@@ -7,19 +8,11 @@ import { ANODES, DEFAULT_KALPHA2_RATIO } from './radiation';
  */
 
 /**
- * Pseudo-Voigt peak shape with height 1 at the centre:
- *
- *   pV(x) = η · L(x) + (1 − η) · G(x)
- *   L(x)  = 1 / (1 + 4 (x − x0)² / H²)              (Lorentzian)
- *   G(x)  = exp(−4 ln 2 · (x − x0)² / H²)           (Gaussian)
- *
- * x, x0 (centre) and H (full width at half maximum) share one unit, here degrees 2θ.
- * η (0 to 1) is the Lorentzian fraction. Both parts equal 1/2 at x = x0 ± H/2, so H is the
- * FWHM of the sum for any η.
+ * Pseudo-Voigt peak shape with height 1 at the centre (see peaks/profiles.ts for the equation).
+ * x, x0 (centre) and H (FWHM) share one unit, here degrees 2θ; η is the Lorentzian fraction.
  */
 export function pseudoVoigt(x: number, x0: number, fwhm: number, eta: number): number {
-  const u = (4 * (x - x0) ** 2) / (fwhm * fwhm);
-  return eta / (1 + u) + (1 - eta) * Math.exp(-Math.LN2 * u);
+  return profile(x, { height: 1, center: x0, fwhm, eta });
 }
 
 export interface SyntheticPeak {
