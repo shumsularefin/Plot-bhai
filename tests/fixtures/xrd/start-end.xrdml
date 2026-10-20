@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic test fixture, not a measurement. Layout follows the XRDML elements read by xrayutilities and GSAS-II. -->
+<xrdMeasurements xmlns="http://www.xrdml.com/XRDMeasurement/1.5" status="Completed">
+  <xrdMeasurement measurementType="Scan" status="Completed">
+    <usedWavelength intended="K-Alpha 1">
+      <kAlpha1 unit="Angstrom">1.5406</kAlpha1>
+    </usedWavelength>
+    <scan appendNumber="0" mode="Continuous" scanAxis="Gonio" status="Completed">
+      <dataPoints>
+        <positions axis="2Theta" unit="deg">
+          <startPosition>20.00</startPosition>
+          <endPosition>25.00</endPosition>
+        </positions>
+        <positions axis="Omega" unit="deg">
+          <startPosition>10.00</startPosition>
+          <endPosition>12.50</endPosition>
+        </positions>
+        <commonCountingTime unit="seconds">0.5</commonCountingTime>
+        <intensities unit="counts">100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 101 104 118 162 270 469 742 995 1100 995 742 469 270 162 118 104 101 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100</intensities>
+      </dataPoints>
+    </scan>
+  </xrdMeasurement>
+</xrdMeasurements>
