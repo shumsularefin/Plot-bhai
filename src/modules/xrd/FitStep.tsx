@@ -15,7 +15,7 @@ import { HelpTip } from '../../ui/HelpTip';
 import { PlotPanel, type PlotInteraction } from '../../ui/plot/PlotPanel';
 import type { SeriesSource } from '../../ui/plot/series';
 import type { StepContext } from '../../ui/wizard/types';
-import { peaksFor, processingFor, type PeakState, type XrdData } from './data';
+import { fitInputKey, peaksFor, processingFor, type PeakState, type XrdData } from './data';
 import { xrdLabels } from './labels';
 import { PeaksClient } from './peaksClient';
 import { PeakTable } from './PeakTable';
@@ -111,12 +111,7 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
   const radiation = data.radiation;
   const lambda = ANODES[radiation.anode].kAlpha1;
   const guesses = dragged ?? state.guesses;
-  const inputKey = JSON.stringify({
-    guesses: state.guesses,
-    fitOptions: state.fitOptions,
-    processing,
-    radiation,
-  });
+  const inputKey = fitInputKey(state.guesses, state.fitOptions, processing, radiation);
   const stale = state.fit !== null && state.fit.inputKey !== inputKey;
   const fitting = progress !== null;
   const kAlpha2Present = !radiation.kAlpha1Only && !processing.kAlpha2.enabled;
@@ -142,12 +137,7 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
       r.peaks.map((p) => ({ center: p.center, width: p.fwhm })),
     );
     const nextGuesses = fitted.length > 0 ? fitted : state.guesses;
-    const key = JSON.stringify({
-      guesses: nextGuesses,
-      fitOptions: state.fitOptions,
-      processing,
-      radiation,
-    });
+    const key = fitInputKey(nextGuesses, state.fitOptions, processing, radiation);
     setState({ ...state, guesses: nextGuesses, fit: { regions, inputKey: key } });
   };
   const cancelFit = () => {
@@ -497,7 +487,7 @@ function RegionSummary({ regions }: { regions: readonly RegionFit[] }) {
   );
 }
 
-interface FitPlotProps extends StepContext<XrdData> {
+export interface FitPlotProps extends StepContext<XrdData> {
   x: Float64Array;
   y: Float64Array;
   regions: readonly RegionFit[];
@@ -506,7 +496,8 @@ interface FitPlotProps extends StepContext<XrdData> {
   interaction: PlotInteraction;
 }
 
-function FitPlot({ data, update, x, y, regions, unit, name, interaction }: FitPlotProps) {
+/** Data with the fitted total, components and residual. Also used for the instrument standard. */
+export function FitPlot({ data, update, x, y, regions, unit, name, interaction }: FitPlotProps) {
   const { sources, residual } = useMemo(() => {
     const total = new Float64Array(x.length).fill(NaN);
     const resid = new Float64Array(x.length).fill(NaN);

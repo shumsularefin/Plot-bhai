@@ -2,6 +2,9 @@ import type { WizardStep } from '../../ui/wizard/types';
 import type { XrdData } from './data';
 import { CleanStep } from './CleanStep';
 import { FitStep } from './FitStep';
+import { instrumentProblem } from './instrument';
+import { InstrumentStep } from './InstrumentStep';
+import { ResultsStep } from './ResultsStep';
 import { UploadStep } from './UploadStep';
 
 function LaterStage() {
@@ -23,7 +26,12 @@ export const xrdSteps: readonly WizardStep<XrdData>[] = [
   { id: 'material', title: 'Choose material', render: () => <LaterStage /> },
   { id: 'phases', title: 'Compare reference phases', render: () => <LaterStage /> },
   { id: 'fit', title: 'Fit peaks', render: (context) => <FitStep {...context} /> },
-  { id: 'instrument', title: 'Instrument correction', render: () => <LaterStage /> },
-  { id: 'results', title: 'Results tables', render: () => <LaterStage /> },
+  {
+    id: 'instrument',
+    title: 'Instrument correction',
+    render: (context) => <InstrumentStep {...context} />,
+    validate: instrumentProblem,
+  },
+  { id: 'results', title: 'Results tables', render: (context) => <ResultsStep {...context} /> },
   { id: 'export', title: 'Export', render: () => <LaterStage /> },
 ];

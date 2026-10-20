@@ -1,3 +1,5 @@
+import type { CorrectionMethod } from '../../core/xrd/instrument/correction';
+import type { CurveKind } from '../../core/xrd/instrument/curve';
 import { DEFAULT_DETECTION, type DetectionOptions } from '../../core/xrd/peaks/detect';
 import type { FitOptions, PeakGuess, RegionFit } from '../../core/xrd/peaks/fit';
 import { DEFAULT_PROCESSING, type ProcessingSettings } from '../../core/xrd/process/pipeline';
@@ -17,7 +19,47 @@ export interface XrdData {
   processing: Record<string, ProcessingSettings>;
   /** Peak detection and fitting per pattern id. */
   peaks: Record<string, PeakState>;
+  /** One instrument for all patterns. */
+  instrument: InstrumentState;
 }
+
+/** Where the instrument width comes from, or 'skip' to leave widths uncorrected. */
+export type InstrumentSource = 'constant' | 'caglioti' | 'standard' | 'skip';
+
+export interface InstrumentState {
+  source: InstrumentSource;
+  /** Typed constant instrument FWHM, degrees 2θ. */
+  constantFwhm: number | null;
+  /**
+   * Typed Caglioti parameters. 'fwhm': FWHM² = U tan²θ + V tanθ + W in degrees²;
+   * 'gsas': GSAS-II Gaussian σ² in centidegrees².
+   */
+  caglioti: { u: number | null; v: number | null; w: number | null; convention: 'fwhm' | 'gsas' };
+  /** Instrument Lorentzian fraction η for the Voigt correction when the width is typed in. */
+  eta: number;
+  method: CorrectionMethod;
+  standard: StandardState | null;
+}
+
+/** A measured line-profile standard, cleaned and fitted like a sample. */
+export interface StandardState {
+  pattern: Pattern;
+  material: 'LaB6' | 'Si' | 'other';
+  processing: ProcessingSettings;
+  peaks: PeakState;
+  /** Fitted standard peaks (by position in the fitted list) left out of the curve. */
+  excluded: number[];
+  curve: CurveKind;
+}
+
+export const DEFAULT_INSTRUMENT: InstrumentState = {
+  source: 'constant',
+  constantFwhm: null,
+  caglioti: { u: null, v: null, w: null, convention: 'fwhm' },
+  eta: 0,
+  method: 'gaussian',
+  standard: null,
+};
 
 export interface PeakState {
   detection: DetectionOptions;
@@ -38,6 +80,16 @@ export const DEFAULT_PEAK_STATE: PeakState = {
   fit: null,
 };
 
+/** Identifies the inputs of a fit, so a later change to any of them marks the fit out of date. */
+export function fitInputKey(
+  guesses: readonly PeakGuess[],
+  fitOptions: FitOptions,
+  processing: ProcessingSettings,
+  radiation: RadiationSettings,
+): string {
+  return JSON.stringify({ guesses, fitOptions, processing, radiation });
+}
+
 export function peaksFor(data: XrdData, id: string): PeakState {
   return data.peaks[id] ?? DEFAULT_PEAK_STATE;
 }
@@ -48,17 +100,18 @@ export const initialXrdData: XrdData = {
   radiation: DEFAULT_RADIATION,
   processing: {},
   peaks: {},
+  instrument: DEFAULT_INSTRUMENT,
 };
 
 /** Version of the saved shape. Bump it, and extend migrateXrdData, when the shape changes. */
-export const XRD_STATE_VERSION = 4;
+export const XRD_STATE_VERSION = 5;
 
 /**
- * Upgrades saved sessions step by step: version 2 (Stage 1) had no radiation or processing
- * settings; version 3 (Stage 2) had no peak state.
+ * Upgrades saved sessions: version 2 (Stage 1) had no radiation or processing settings;
+ * version 3 (Stage 2) had no peak state; version 4 (Stage 3) had no instrument settings.
  */
 export function migrateXrdData(saved: unknown, version: number): WizardState<XrdData> | undefined {
-  if (version < 2 || version > 3) return undefined;
+  if (version < 2 || version > 4) return undefined;
   const state = saved as WizardState<Partial<XrdData> & Pick<XrdData, 'patterns' | 'plot'>>;
   return {
     ...state,
@@ -66,7 +119,8 @@ export function migrateXrdData(saved: unknown, version: number): WizardState<Xrd
       ...state.data,
       radiation: state.data.radiation ?? DEFAULT_RADIATION,
       processing: state.data.processing ?? {},
-      peaks: {},
+      peaks: state.data.peaks ?? {},
+      instrument: DEFAULT_INSTRUMENT,
     },
   };
 }

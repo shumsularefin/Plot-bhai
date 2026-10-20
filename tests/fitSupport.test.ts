@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { levenbergMarquardt } from '../src/core/math/levenbergMarquardt';
-import { migrateXrdData } from '../src/modules/xrd/data';
+import { DEFAULT_INSTRUMENT, migrateXrdData } from '../src/modules/xrd/data';
 import { formatWithSigma } from '../src/ui/format';
 
 describe('Levenberg–Marquardt', () => {
@@ -82,5 +82,19 @@ describe('session migration', () => {
     expect(fromStage2?.data.processing).toEqual({ a: 1 });
     expect(fromStage2?.data.radiation).toEqual({ anode: 'Co' });
     expect(migrateXrdData(base, 1)).toBeUndefined();
+  });
+
+  it('upgrades Stage 3 sessions, keeping their peak fits and adding instrument settings', () => {
+    const fromStage3 = migrateXrdData(
+      {
+        step: 4,
+        furthest: 4,
+        data: { patterns: [], plot: { normalise: false, offsetPercent: 20 }, peaks: { a: 1 } },
+      },
+      4,
+    );
+    expect(fromStage3?.data.peaks).toEqual({ a: 1 });
+    expect(fromStage3?.data.instrument).toEqual(DEFAULT_INSTRUMENT);
+    expect(migrateXrdData({}, 5)).toBeUndefined();
   });
 });

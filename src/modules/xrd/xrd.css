@@ -554,3 +554,33 @@
   white-space: nowrap;
   cursor: pointer;
 }
+
+.method-stack {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.method-option {
+  align-items: flex-start;
+}
+
+.method-option > span {
+  display: grid;
+  gap: var(--space-1);
+  padding-block: var(--space-2);
+}
+
+.method-text {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.standard-panel {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.peak-table tr.is-limited td {
+  background: var(--color-surface-muted);
+}

@@ -1,5 +1,151 @@
 # Progress
 
+## Stage 4: instrumental broadening correction (done)
+
+Branch `stage-4-instrument`, built on `stage-3-peaks`.
+
+### What was built
+
+- **Science code** (`src/core/xrd/instrument/`, no UI imports). Each formula has a doc comment
+  with the equation, the variables and the units (all widths are FWHM in degrees 2θ).
+  - **Instrument curves** (`curve.ts`):
+    - constant b;
+    - Caglioti, FWHM² = U tan²θ + V tanθ + W, with U, V, W in deg²;
+    - a straight line or quadratic in 2θ.
+    - Curves are fitted to standard peaks by ordinary least squares. Caglioti is fitted to
+      FWHM², which is linear in U, V and W; the polynomials are fitted to FWHM about the mean
+      2θ.
+    - The curve's σ comes from C = s² (XᵀX)⁻¹ and is propagated to b at every angle.
+    - With exactly as many points as parameters, no σ is given and the app says why.
+    - GSAS-II U, V, W (Gaussian σ² in centidegrees²) can be typed in and are converted with
+      FWHM = √(8 ln 2) σ, taken from the GSAS-II source (`getFWHM`).
+  - **Corrections** (`correction.ts`):
+    - Gaussian: β = √(B² − b²).
+    - Lorentzian: β = B − b.
+    - Approximate Voigt: each pseudo-Voigt (FWHM, η) is split into Gaussian and Lorentzian
+      widths with the Thompson–Cox–Hastings relations (`voigt.ts`). The Gaussian parts are
+      subtracted in quadrature and the Lorentzian parts linearly, then the two are joined
+      again. If one part would go negative it is set to 0, with a note.
+    - σ(β) combines σ(B) from the peak fit and σ(b) from the curve.
+  - **Warnings**, shown on the peak concerned. "Limited by instrument resolution, size is a
+    lower limit" appears when:
+    - the corrected width is zero or negative (no number is given), or
+    - b/B ≥ 0.8. At 0.8, a 1 % error in b already becomes a 1.8 % error in β.
+
+    The app also warns when a peak lies outside the standard's 2θ range (the curve is
+    extrapolated there) and when the curve has no valid width at an angle.
+- **Instrument correction step** (wizard step 6, `src/modules/xrd/InstrumentStep.tsx`):
+  - **Choosing the instrument width:**
+    - Choose (a) a typed constant FWHM, (b) typed Caglioti U, V, W (in the Caglioti or GSAS-II
+      convention), (c) a standard pattern, or skip the correction.
+    - Next is refused until an instrument width is given or Skip is chosen.
+  - **Standard pattern** (`StandardPanel.tsx`):
+    - Reads the same file formats as Upload, or "Try with example standard", which is clearly
+      marked synthetic. You choose the material (LaB₆, Si or other).
+    - The standard is cleaned with SNIP background and Kα2 stripping (each can be switched off),
+      then its peaks are found and fitted with the Stage 3 worker. The peak shape is selectable.
+    - A table lists each standard peak (2θ, FWHM ± σ, η, notes) with a tick box to leave
+      outliers out.
+    - You choose the curve type (Caglioti, straight line or quadratic). The curve's
+      parameters and RMS are shown.
+    - The instrument η used by the Voigt method is the mean fitted η of the included peaks.
+  - **Plot:** instrument FWHM against 2θ, with a numbered y axis and the standard's peaks as
+    points. It exports to SVG and PNG with the points.
+  - **Correction method:** Gaussian is the default. Each option has a plain-language
+    explanation of when it is appropriate. The Voigt method asks for the instrument η when
+    the width was typed in (default 0).
+  - **Before and after table**, per pattern: 2θ, observed B ± σ, instrument b ± σ,
+    corrected β ± σ, b/B and notes. Rows limited by resolution are shaded.
+    - CSV export. Its header line states the method and the instrument curve with its
+      parameters.
+    - Warnings appear when the sample fit is out of date, when Kα2 was stripped from only one
+      of the standard and the sample, and when the two were fitted with different peak
+      shapes.
+  - **Always visible:** a note that skipping this correction makes crystallite sizes come out
+    smaller than reality.
+  - **Skip:** a warning in the step, plus a persistent warning in step 7 (Results). Step 7 is
+    still a placeholder otherwise.
+- **Plot engine:**
+  - optional numbered y axis (`AxisLabels.yValues`);
+  - `points`, which are drawn and exported, unlike editing markers;
+  - markers now count towards the y range.
+- **Wizard:** after a refused Next, the message now disappears as soon as the problem is fixed
+  (it used to stay until Next was pressed again).
+- **Saved sessions:** the format version is now 5. Stage 1–3 sessions are migrated, and
+  Stage 3 peak fits are kept (tested).
+
+### Known-answer tests (`tests/xrd-instrument.test.ts`)
+
+Observed peaks are made by numerically convolving a chosen sample profile with a chosen
+instrument profile, on a 0.005° grid. Counting noise is added and the peaks are fitted with
+the Stage 3 fitter, so the tests run the same path as real data.
+
+| Test                                                                                    | Tolerance                                                                                                                                            |
+| --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Gaussian sample 0.25° ⊗ Gaussian instrument 0.10°, Gaussian correction                  | true width within 2 %                                                                                                                                |
+| Lorentzian sample 0.20° ⊗ Lorentzian instrument 0.08°, Lorentzian correction            | within 3 %                                                                                                                                           |
+| Voigt sample (G 0.12°, L 0.15°) ⊗ Voigt instrument (G 0.07°, L 0.03°), Voigt            | within 3 % of the numerically measured sample FWHM; the Gaussian and Lorentzian formulas bracket it                                                  |
+| End to end: noisy synthetic standard (11 peaks on a Caglioti curve)                     | detected, fitted, curve within 2 % of the true b at four angles                                                                                      |
+| … then sample peaks 0.15° broadened by that instrument, corrected with the fitted curve | within 3 %, with no warnings                                                                                                                         |
+| TCH relations                                                                           | η(0) = 0, η(1) = 1, ρ(η) inverts η(ρ), split then join returns the width, TCH width within 1 % of a convolved Voigt                                  |
+| Formulas                                                                                | exact inversion of the convolution laws; Voigt reduces to Gaussian or Lorentzian for η = 0 or 1                                                      |
+| Curves                                                                                  | exact U, V, W from exact points; straight-line σ matches the textbook formula; n = m gives no σ; GSAS-II conversion matches the GSAS-II formula      |
+| Warnings                                                                                | b ≥ B gives no width and the lower-limit flag; b/B = 0.85 flagged; 0.5 not flagged; extrapolation warned; Gaussian σ(β) matches the analytic formula |
+
+### Decisions
+
+- **Unweighted least squares for the instrument curve**, matching the peak fits. Caglioti is
+  fitted to FWHM², which gives the wider peaks a little more weight.
+- **Instrument η for Voigt:** the mean over the standard's peaks, not a curve in 2θ. If your
+  standard's η changes a lot with angle, tell me and I will add a curve for it.
+- **Resolution-limit threshold b/B = 0.8**, a judgement call explained in the code. Tell me if
+  you prefer another value.
+- **The standard is cleaned separately** (SNIP and Kα2 only), because manual anchors and
+  smoothing belong to one pattern. The app warns when Kα2 handling differs between the
+  standard and the sample.
+- **No new dependencies.**
+
+### Verification (real results)
+
+- `npm run lint`: pass. `npm run typecheck`: pass.
+- `npm test`: 158 tests pass and 1 is skipped (the real-file test, still waiting for your
+  file).
+- `npm run build`: pass. `npm run size`: initial JavaScript 8.2 KB gzipped (budget 150 KB). The
+  XRD chunk is now 31 KB gzipped and loads on demand.
+- Browser check (headless Chromium, production build with the strict CSP), on the example
+  data with SNIP and Kα2 stripping, all 8 peaks fitted:
+  - Next was refused until a width was given.
+  - Constant 0.08°: 8 rows. At 0.3°, all 8 were flagged as limited by resolution.
+  - Caglioti values were typed in, and the curve and table updated.
+  - Example standard: 11 peaks found and fitted in about 0.1–0.16 s. The Caglioti fit gave
+    U = 0.00972, V = −0.00376, W = 0.00295 deg², against the generating 0.01, −0.004 and
+    0.003. RMS was 0.0004°.
+  - Unticking a point re-fitted the curve. Voigt used η = 0.30 from the standard, the value
+    it was generated with.
+  - The CSV downloaded and a reload kept everything. Skip showed the warning in Results.
+  - No console errors. No horizontal scroll at 360, 768, 1280 or 1920 px in light or dark.
+    All visible controls are at least 44 px tall.
+
+### Known issues and to-dos
+
+- **Please verify:**
+  - the Thompson–Cox–Hastings coefficients (`voigt.ts`). They match the GSAS-II source and
+    a paper quoting TCH, but the 1987 paper itself could not be reached;
+  - the Caglioti citation (`curve.ts`), Nucl. Instrum. 3 (1958) 223–228, which was written
+    from memory;
+  - the 0.8 threshold.
+- **Lower limits aren't used yet.** The sizes that come out as lower limits are not computed
+  until the size stages; the flag is ready for them.
+- **Kα2 in the standard and the sample:** the app warns when they differ, but can't check
+  whether your Kα2 ratio suits your tube.
+- **Real-data check:** a real LaB₆ or Si file from your instrument would let me check the
+  standard path on real data.
+- Carried over: your real XRD file and Origin fit, wavelength verification, no Thermal card.
+
+### Next stage
+
+Stage 5: not started. Waiting for your go-ahead and the stage brief.
+
 ## Stage 3: peak detection and fitting (done)
 
 Branch `stage-3-peaks`, built on `stage-2-preprocess`.
@@ -122,7 +268,7 @@ Synthetic peaks on a flat background of 200 counts, step 0.01°, with seeded cou
 
 ### Next stage
 
-Stage 4: not started. Waiting for your go-ahead and the stage brief.
+Stage 4: done (see above).
 
 ## Stage 2: XRD preprocessing (done)
 
@@ -469,7 +615,7 @@ D3 submodules are not installed yet; they arrive with the first plot.
 
 - `npm run lint`: pass. `npm run typecheck`: pass.
 - `npm test`: 44 tests pass (store, wizard, help popover, colour contrast).
-- `npm run build`: pass. `npm run size`: initial JavaScript 8.1 KB gzipped (budget 150 KB); the
+- `npm run build`: pass. `npm run size`: initial JavaScript 8.2 KB gzipped (budget 150 KB); the
   XRD chunk (about 3 KB) is lazy-loaded.
 - Browser check in headless Chromium, serving `dist/` with the `firebase.json` headers, at 360,
   768, 1280 and 1920 px in light and dark: no horizontal scroll (including with the help popover

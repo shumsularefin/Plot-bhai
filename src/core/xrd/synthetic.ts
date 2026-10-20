@@ -128,3 +128,48 @@ export function examplePatterns(): {
     { name: 'Synthetic example B (broad peaks)', ...make(0.45, 2) },
   ];
 }
+
+/** Caglioti parameters (degrees², FWHM² = U tan²θ + V tanθ + W) of the example standard. */
+export const EXAMPLE_STANDARD_CAGLIOTI = { u: 0.01, v: -0.004, w: 0.003 };
+const EXAMPLE_STANDARD_POSITIONS = [
+  18.5, 26.2, 32.4, 38.9, 45.6, 51.3, 57.8, 63.1, 68.7, 75.2, 79.6,
+];
+const EXAMPLE_STANDARD_ETA = 0.3;
+
+/**
+ * A synthetic line-profile standard for "Try with example data": sharp peaks at arbitrary
+ * positions (not those of LaB6, Si or any real material) whose FWHM follows the Caglioti curve
+ * EXAMPLE_STANDARD_CAGLIOTI, with η = 0.3, a Cu Kα2 line unless kAlpha1Only, and counting noise.
+ */
+export function exampleStandard(kAlpha1Only: boolean): {
+  name: string;
+  twoTheta: Float64Array;
+  intensity: Float64Array;
+} {
+  const { u, v, w } = EXAMPLE_STANDARD_CAGLIOTI;
+  const width = (twoTheta: number) => {
+    const t = Math.tan((twoTheta / 2) * (Math.PI / 180));
+    return Math.sqrt(u * t * t + v * t + w);
+  };
+  const pattern = generatePattern({
+    start: 15,
+    end: 82,
+    step: 0.01,
+    peaks: EXAMPLE_STANDARD_POSITIONS.map((center, i) => ({
+      center,
+      fwhm: width(center),
+      height: 12000 - 700 * i,
+      eta: EXAMPLE_STANDARD_ETA,
+    })),
+    background: { constant: 120, amplitude: 600, decay: 15 },
+    noiseSeed: 7,
+    ...(!kAlpha1Only && {
+      kAlpha2: {
+        lambda1: ANODES.Cu.kAlpha1,
+        lambda2: ANODES.Cu.kAlpha2,
+        ratio: DEFAULT_KALPHA2_RATIO,
+      },
+    }),
+  });
+  return { name: 'Synthetic standard (not a real LaB6 or Si measurement)', ...pattern };
+}
