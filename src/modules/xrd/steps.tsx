@@ -1,53 +1,43 @@
-import { HelpTip } from '../../ui/HelpTip';
 import type { WizardStep } from '../../ui/wizard/types';
-
-/** Data saved for an XRD analysis. Later stages add the real fields. */
-export interface XrdData {
-  sampleName: string;
-}
-
-export const initialXrdData: XrdData = { sampleName: '' };
+import type { XrdData } from './data';
+import { UploadStep } from './UploadStep';
+import { XrdPlot } from './XrdPlot';
 
 function LaterStage() {
   return <p class="placeholder-note">This step is built in a later stage.</p>;
 }
 
-/**
- * The XRD wizard in its final order. Every step except the sample name is a placeholder
- * until its stage is built.
- */
+/** The XRD wizard in its final order. Steps without content yet are placeholders. */
 export const xrdSteps: readonly WizardStep<XrdData>[] = [
   {
     id: 'upload',
     title: 'Upload',
+    render: (context) => <UploadStep {...context} />,
+    validate: (data) =>
+      data.patterns.length === 0
+        ? 'Load at least one pattern to continue. "Try with example data" loads a synthetic one.'
+        : null,
+  },
+  {
+    id: 'clean',
+    title: 'Clean data',
     render: ({ data, update }) => (
       <>
-        <p>
-          Upload your diffraction pattern: intensity measured against the angle 2θ{' '}
-          <HelpTip term="2θ">
-            <p>
-              2θ (two-theta) is the angle between the incoming X-ray beam and the diffracted beam. A
-              diffractometer records intensity at each 2θ angle, usually in degrees.
-            </p>
-          </HelpTip>
+        <p class="placeholder-note">
+          Cleaning tools are built in the next stage. Your loaded patterns are shown below.
         </p>
-        <p class="placeholder-note">File upload arrives in a later stage.</p>
-        <div class="field">
-          <label for="xrd-sample-name">Sample name</label>
-          <input
-            id="xrd-sample-name"
-            type="text"
-            autocomplete="off"
-            value={data.sampleName}
-            onInput={(event) => update({ sampleName: event.currentTarget.value })}
+        {data.patterns.length > 0 ? (
+          <XrdPlot
+            patterns={data.patterns}
+            settings={data.plot}
+            onSettingsChange={(patch) => update({ plot: { ...data.plot, ...patch } })}
           />
-          <p class="field-hint">Used in table headings and exported file names.</p>
-        </div>
+        ) : (
+          <p>No patterns are loaded. Go back to Upload to add one.</p>
+        )}
       </>
     ),
-    validate: (data) => (data.sampleName.trim() === '' ? 'Enter a sample name to continue.' : null),
   },
-  { id: 'clean', title: 'Clean data', render: () => <LaterStage /> },
   { id: 'material', title: 'Choose material', render: () => <LaterStage /> },
   { id: 'phases', title: 'Compare reference phases', render: () => <LaterStage /> },
   { id: 'fit', title: 'Fit peaks', render: () => <LaterStage /> },
