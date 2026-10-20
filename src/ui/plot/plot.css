@@ -260,3 +260,8 @@
 .export-status.is-error {
   color: var(--color-danger);
 }
+
+.plot-marker {
+  fill: var(--color-surface);
+  stroke: var(--color-text);
+}

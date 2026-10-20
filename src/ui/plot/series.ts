@@ -6,6 +6,9 @@ export interface SeriesSource {
   x: Float64Array;
   y: Float64Array;
   unit: string;
+  /** Palette index; defaults to the series' position. */
+  colorIndex?: number;
+  dashed?: boolean;
 }
 
 export interface SeriesOptions {
@@ -40,7 +43,8 @@ export function prepareSeries(
       y: gap === 0 || i === 0 ? y : y.map((v) => v + i * gap),
       readoutY: s.y,
       readoutUnit: s.unit,
-      colorIndex: i,
+      colorIndex: s.colorIndex ?? i,
+      ...(s.dashed && { dashed: true }),
     };
   });
 }

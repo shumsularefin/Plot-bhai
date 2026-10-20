@@ -1,9 +1,9 @@
 import type { ComponentChildren, SVGAttributes } from 'preact';
 import { useId } from 'preact/hooks';
 import { niceTicks } from './axes';
-import { decimate, type Decimated } from './decimate';
+import { decimate, lowerBound, type Decimated } from './decimate';
 import { PRINT_COLORS } from './palette';
-import type { AxisLabels, Domain, PlotSeries } from './types';
+import type { AxisLabels, Domain, PlotMarker, PlotSeries } from './types';
 
 /** Visual settings. All lengths are in the SVG's own units (px on screen, pt for export). */
 export interface PlotStyle {
@@ -42,17 +42,29 @@ interface PlotSvgProps {
   samples: number;
   /** Draw a legend inside the plot (used for export; the screen shows an HTML legend). */
   legend?: boolean;
+  /** Fixed y range; computed from the visible data when omitted. */
+  yDomain?: Domain;
+  markers?: readonly PlotMarker[];
   /** Extra attributes for the root element, for example physical width and height for export. */
   svgAttributes?: SVGAttributes<SVGSVGElement>;
   children?: ComponentChildren;
 }
 
-/** Visible y range of the decimated data, padded a little so lines do not touch the frame. */
-function yDomainOf(lines: readonly Decimated[], extraTopFraction: number): Domain {
+/**
+ * y range of the data visible between xDomain[0] and xDomain[1], padded a little so lines do
+ * not touch the frame. extraTopFraction leaves room at the top (for a legend).
+ */
+export function visibleYDomain(
+  series: readonly PlotSeries[],
+  xDomain: Domain,
+  extraTopFraction = 0,
+): Domain {
   let lo = Infinity;
   let hi = -Infinity;
-  for (const line of lines) {
-    for (const v of line.y) {
+  for (const s of series) {
+    const end = Math.min(s.y.length, lowerBound(s.x, xDomain[1]) + 1);
+    for (let i = Math.max(0, lowerBound(s.x, xDomain[0]) - 1); i < end; i++) {
+      const v = s.y[i] as number;
       if (v < lo) lo = v;
       if (v > hi) hi = v;
     }
@@ -78,6 +90,7 @@ export function PlotSvg(props: PlotSvgProps) {
     labels,
     samples,
     legend,
+    markers,
     svgAttributes,
     children,
   } = props;
@@ -91,7 +104,9 @@ export function PlotSvg(props: PlotSvgProps) {
   const lineHeight = style.fontSize * 1.3;
   const legendHeight =
     legend && series.length > 1 ? series.length * lineHeight + style.fontSize * 0.4 : 0;
-  const [y0, y1] = yDomainOf(lines, legendHeight / Math.max(innerH - legendHeight, 1));
+  const [y0, y1] =
+    props.yDomain ??
+    visibleYDomain(series, xDomain, legendHeight / Math.max(innerH - legendHeight, 1));
   const px = (x: number) => ((x - x0) / (x1 - x0)) * innerW;
   const py = (y: number) => innerH - ((y - y0) / (y1 - y0)) * innerH;
   const digits = style.print ? 3 : 1;
@@ -111,6 +126,8 @@ export function PlotSvg(props: PlotSvgProps) {
   const text = print
     ? { 'font-family': print.fontFamily, 'font-size': style.fontSize, fill: ink }
     : {};
+  const dash = (s: PlotSeries) =>
+    s.dashed ? `${style.lineWidth * 4} ${style.lineWidth * 3}` : undefined;
   const color = (s: PlotSeries) =>
     print ? PRINT_COLORS[s.colorIndex % PRINT_COLORS.length] : undefined;
 
@@ -133,6 +150,19 @@ export function PlotSvg(props: PlotSvgProps) {
               class={print ? undefined : `plot-line series-${s.colorIndex % PRINT_COLORS.length}`}
               d={pathOf(lines[i] as Decimated)}
               stroke={color(s)}
+              stroke-width={style.lineWidth}
+              stroke-dasharray={dash(s)}
+            />
+          ))}
+          {markers?.map((m, i) => (
+            <circle
+              key={i}
+              class={print ? undefined : 'plot-marker'}
+              cx={px(m.x)}
+              cy={py(m.y)}
+              r={style.fontSize * 0.35}
+              fill={print ? '#ffffff' : undefined}
+              stroke={print ? ink : undefined}
               stroke-width={style.lineWidth}
             />
           ))}
@@ -180,6 +210,7 @@ export function PlotSvg(props: PlotSvgProps) {
                     d={`M${right - swatch} ${y}h${swatch}`}
                     stroke={color(s)}
                     stroke-width={style.lineWidth}
+                    stroke-dasharray={dash(s)}
                   />
                 </g>
               );

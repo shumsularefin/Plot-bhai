@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { nearestIndex } from './decimate';
-import { PlotSvg, plotMargins } from './PlotSvg';
-import type { AxisLabels, Domain, PlotSeries } from './types';
+import { PlotSvg, plotMargins, visibleYDomain } from './PlotSvg';
+import type { AxisLabels, Domain, PlotMarker, PlotSeries } from './types';
 import { clampDomain, panDomain, zoomDomain } from './view';
 
 const FONT_SIZE = 12;
@@ -18,6 +18,11 @@ interface InteractivePlotProps {
   formatX: (x: number) => string;
   /** Accessible description of the plot. */
   description: string;
+  /** Called with data coordinates when the plot is clicked or tapped without dragging. */
+  onPlotClick?: (x: number, y: number) => void;
+  markers?: readonly PlotMarker[];
+  /** Readout text shown before the first hover. */
+  hint?: string;
 }
 
 interface Pointer {
@@ -31,7 +36,18 @@ interface Pointer {
  * scroll the page on touch screens. Redraws at most once per animation frame.
  */
 export function InteractivePlot(props: InteractivePlotProps) {
-  const { series, labels, domain, extent, minSpan, onDomainChange, formatX, description } = props;
+  const {
+    series,
+    labels,
+    domain,
+    extent,
+    minSpan,
+    onDomainChange,
+    formatX,
+    description,
+    onPlotClick,
+    markers,
+  } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -40,6 +56,8 @@ export function InteractivePlot(props: InteractivePlotProps) {
   const height = Math.round(Math.min(520, Math.max(260, width * 0.6)));
   const m = plotMargins(FONT_SIZE);
   const innerW = Math.max(1, width - m.left - m.right);
+  const innerH = Math.max(1, height - m.top - m.bottom);
+  const yDomain = visibleYDomain(series, domain);
 
   // Latest values for event handlers that live across renders.
   const live = useRef({ domain, extent, minSpan, innerW, onDomainChange });
@@ -152,7 +170,15 @@ export function InteractivePlot(props: InteractivePlotProps) {
 
   const onPointerUp = (event: PointerEvent) => {
     const g = gesture.current;
-    if (g && !g.moved && pointers.current.size === 1) setHoverX(valueAt(event.clientX));
+    if (g && !g.moved && pointers.current.size === 1) {
+      const x = valueAt(event.clientX);
+      setHoverX(x);
+      if (onPlotClick) {
+        const top = (svgRef.current?.getBoundingClientRect().top ?? 0) + m.top;
+        const [y0, y1] = yDomain;
+        onPlotClick(x, y1 - ((event.clientY - top) / innerH) * (y1 - y0));
+      }
+    }
     pointers.current.delete(event.pointerId);
     if (pointers.current.size > 0) startGesture();
     else gesture.current = null;
@@ -191,7 +217,8 @@ export function InteractivePlot(props: InteractivePlotProps) {
       <p class="plot-readout" aria-live="off">
         {readoutX === undefined ? (
           <span class="plot-readout-hint">
-            Hover or tap the plot to read values. Scroll or pinch to zoom, drag to pan.
+            {props.hint ??
+              'Hover or tap the plot to read values. Scroll or pinch to zoom, drag to pan.'}
           </span>
         ) : (
           <>
@@ -230,6 +257,8 @@ export function InteractivePlot(props: InteractivePlotProps) {
             style={{ fontSize: FONT_SIZE, lineWidth: LINE_WIDTH }}
             labels={labels}
             samples={Math.ceil(innerW * (window.devicePixelRatio || 1))}
+            yDomain={yDomain}
+            {...(markers && { markers })}
           >
             {readoutX !== undefined && (
               <line
@@ -237,7 +266,7 @@ export function InteractivePlot(props: InteractivePlotProps) {
                 x1={((readoutX - domain[0]) / (domain[1] - domain[0])) * innerW}
                 x2={((readoutX - domain[0]) / (domain[1] - domain[0])) * innerW}
                 y1={0}
-                y2={height - m.top - m.bottom}
+                y2={innerH}
               />
             )}
           </PlotSvg>

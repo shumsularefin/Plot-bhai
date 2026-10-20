@@ -13,6 +13,14 @@ export interface PlotSeries {
   readoutUnit: string;
   /** Index into the plot palette. */
   colorIndex: number;
+  /** Draw as a dashed line (for example a background curve). */
+  dashed?: boolean;
+}
+
+/** A point drawn as a small circle, in data units. */
+export interface PlotMarker {
+  x: number;
+  y: number;
 }
 
 export interface AxisLabels {

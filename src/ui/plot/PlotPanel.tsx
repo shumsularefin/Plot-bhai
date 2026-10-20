@@ -4,7 +4,7 @@ import { ExportPanel } from './ExportPanel';
 import type { ExportSettings } from './export';
 import { InteractivePlot } from './InteractivePlot';
 import { prepareSeries, xExtent, type SeriesSource } from './series';
-import type { AxisLabels, Domain } from './types';
+import type { AxisLabels, Domain, PlotMarker } from './types';
 import { zoomDomain } from './view';
 import './plot.css';
 
@@ -24,6 +24,11 @@ interface PlotPanelProps {
   xName: string;
   xUnit: string;
   exportName: string;
+  /** Show the normalise and offset options (off for single-pattern views such as cleaning). */
+  showOverlayOptions?: boolean;
+  markers?: readonly PlotMarker[];
+  onPlotClick?: (x: number, y: number) => void;
+  hint?: string;
 }
 
 const round = (value: number) => Number(value.toFixed(3));
@@ -31,13 +36,12 @@ const round = (value: number) => Number(value.toFixed(3));
 /** Plot with range controls, normalise and offset options, legend and figure export. */
 export function PlotPanel(props: PlotPanelProps) {
   const { sources, settings, onSettingsChange, labels, xName, xUnit, exportName } = props;
+  const overlay = props.showOverlayOptions ?? true;
+  const normalise = overlay && settings.normalise;
+  const offsetFraction = overlay && sources.length > 1 ? settings.offsetPercent / 100 : 0;
   const series = useMemo(
-    () =>
-      prepareSeries(sources, {
-        normalise: settings.normalise,
-        offsetFraction: sources.length > 1 ? settings.offsetPercent / 100 : 0,
-      }),
-    [sources, settings.normalise, settings.offsetPercent],
+    () => prepareSeries(sources, { normalise, offsetFraction }),
+    [sources, normalise, offsetFraction],
   );
   const [lo, hi] = xExtent(series);
   const extent: Domain = useMemo(() => [lo, hi], [lo, hi]);
@@ -45,7 +49,7 @@ export function PlotPanel(props: PlotPanelProps) {
   useEffect(() => setDomain(extent), [extent]);
 
   const minSpan = Math.max((hi - lo) / 2000, 1e-6);
-  const axisLabels = labels(settings.normalise);
+  const axisLabels = labels(normalise);
   const setRange = (which: 0 | 1, text: string) => {
     const value = Number(text);
     if (!Number.isFinite(value)) return;
@@ -83,6 +87,9 @@ export function PlotPanel(props: PlotPanelProps) {
         minSpan={minSpan}
         onDomainChange={setDomain}
         formatX={(x) => `${xName} ${round(x)}${xUnit}`}
+        {...(props.markers && { markers: props.markers })}
+        {...(props.onPlotClick && { onPlotClick: props.onPlotClick })}
+        {...(props.hint && { hint: props.hint })}
         description={`Plot of intensity against ${xName}, ${series.length} pattern${series.length === 1 ? '' : 's'}.`}
       />
 
@@ -125,37 +132,39 @@ export function PlotPanel(props: PlotPanelProps) {
         </div>
       </div>
 
-      <div class="plot-options">
-        <label class="check">
-          <input
-            type="checkbox"
-            checked={settings.normalise}
-            onChange={(e) => onSettingsChange({ normalise: e.currentTarget.checked })}
-          />
-          Normalise
-        </label>
-        <HelpTip term="normalising">
-          <p>
-            Each pattern is divided by its own highest intensity, so every pattern peaks at 1. This
-            makes it easier to compare peak positions and shapes when overall intensities differ.
-            The stored data are not changed.
-          </p>
-        </HelpTip>
-        {sources.length > 1 && (
-          <label class="plot-offset">
-            Vertical offset
+      {overlay && (
+        <div class="plot-options">
+          <label class="check">
             <input
-              type="range"
-              min={0}
-              max={100}
-              step={5}
-              value={settings.offsetPercent}
-              onInput={(e) => onSettingsChange({ offsetPercent: Number(e.currentTarget.value) })}
+              type="checkbox"
+              checked={settings.normalise}
+              onChange={(e) => onSettingsChange({ normalise: e.currentTarget.checked })}
             />
-            <output>{settings.offsetPercent} %</output>
+            Normalise
           </label>
-        )}
-      </div>
+          <HelpTip term="normalising">
+            <p>
+              Each pattern is divided by its own highest intensity, so every pattern peaks at 1.
+              This makes it easier to compare peak positions and shapes when overall intensities
+              differ. The stored data are not changed.
+            </p>
+          </HelpTip>
+          {sources.length > 1 && (
+            <label class="plot-offset">
+              Vertical offset
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={settings.offsetPercent}
+                onInput={(e) => onSettingsChange({ offsetPercent: Number(e.currentTarget.value) })}
+              />
+              <output>{settings.offsetPercent} %</output>
+            </label>
+          )}
+        </div>
+      )}
 
       <ExportPanel
         series={series}
