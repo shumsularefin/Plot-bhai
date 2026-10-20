@@ -126,7 +126,7 @@ export function PlotPanel(props: PlotPanelProps) {
       <div class="plot-controls">
         <fieldset class="plot-range">
           <legend>
-            {xName} range ({xUnit})
+            {xName} range{xUnit && ` (${xUnit})`}
           </legend>
           <label>
             From

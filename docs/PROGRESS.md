@@ -1,5 +1,154 @@
 # Progress
 
+## Stage 5: size and strain (done)
+
+Branch `stage-5-size-strain`, built on `stage-4-instrument`.
+
+### What was built
+
+- **Science code** (`src/core/xrd/size/methods.ts`, `src/core/math/linearFit.ts`). Each method
+  has a doc comment with its equation, variables and units. β is the instrument-corrected
+  FWHM in radians, λ is Kα1 in nm, and D is in nm.
+  - **One strain convention everywhere:** ε as in Williamson–Hall, where strain broadening is
+    β_ε = 4ε tan θ. This lets the methods be compared directly.
+  - **Scherrer:** D = Kλ/(β cos θ) for each peak, with σ(D) = D σ(β)/β, and the mean and SD
+    over the peaks.
+  - **Monshi–Scherrer:** a least-squares line of ln β against ln(1/cos θ) gives
+    D = Kλ/e^intercept. The slope is shown, with a warning when it is more than 0.5 from 1.
+  - **Williamson–Hall:**
+    - UDM: β cos θ = Kλ/D + 4ε sin θ.
+    - USDM: β cos θ = Kλ/D + 4σ sin θ/E_hkl. It gives the stress σ in GPa and the strain as
+      the mean of σ/E_hkl.
+    - UDEDM: β cos θ = Kλ/D + 4 sin θ √(2u/E_hkl). It gives the energy density u in kJ/m³,
+      plus strain and stress.
+    - USDM and UDEDM use one Young's modulus, or a value per peak when given.
+  - **Size–strain plot:** the dimensionally consistent form
+    (dβ cos θ)² = (Kλ/D)(d²β cos θ) + 4ε²λ², with d from Bragg's law in nm.
+  - **Halder–Wagner:** (β/tan θ)² = (Kλ/D) β/(tan θ sin θ) + 16ε².
+  - **Derived quantities:**
+    - dislocation density δ = 1/D² in m⁻²;
+    - specific surface area S = 6000/(ρD) in m²/g, assuming dense, separate spheres;
+    - stress and energy density from USDM and UDEDM.
+  - **Uncertainties:** line fits are unweighted least squares with σ from the residuals.
+    Every derived value carries a propagated σ.
+  - **Physical checks.** These values are refused with a plain-language reason instead of
+    being shown:
+    - a negative or zero WH intercept (no size);
+    - a negative slope (no strain, stress or energy density);
+    - a negative SSP or HW intercept (no strain) or slope (no size).
+
+    The app also warns when R² is below 0.5, when only two peaks are used (no σ), and when
+    Monshi's slope is far from 1.
+- **Results step** (wizard step 7, `ResultsStep.tsx`, `MethodDetails.tsx`, `sizeResults.ts`):
+  - **Settings:** K (default 0.9), Young's modulus, density, and the instrument correction
+    method (the same setting as step 6).
+  - **Live updates:** every number is recomputed whenever K, the correction method, the
+    modulus, the density or the peak selection changes.
+  - **Peak table:** a tick box per peak, corrected β ± σ, an optional E_hkl per peak, and
+    notes. Peaks limited by resolution start unticked, and peaks with no corrected width
+    can't be used. Choices are kept per fit and dropped after a re-fit.
+  - **Summary table:** D, ε, stress, u, δ and S per method, with the mean ± SD for Scherrer
+    and value ± σ for the line methods, plus R² and the number of peaks. Every method's
+    problems and checks are listed above it.
+  - **Comparison charts:** bar charts of size and of strain by method, with error bars. Each
+    exports to SVG and PNG at 300 and 600 dpi.
+  - **One collapsible section per method:**
+    - Scherrer: a per-peak table. Limited peaks show "≥ D" as a lower limit.
+    - Each line method: its equation, the fitted intercept, slope, R² and n, the plot of
+      points with the least-squares line from x = 0 (exportable), and a table of points with
+      residuals.
+  - **Guidance:** "Which method suits my sample?" in plain language.
+  - **CSV for every table:** peaks, summary, Scherrer and each line method. Each file starts
+    with a header line stating the equation, K, λ and the fit.
+  - **Skip warning:** the warning from step 6 stays at the top.
+- **Plot engine and UI:**
+  - a bar chart component, `src/ui/plot/BarChart.tsx`;
+  - the export panel's ids and radio names are now unique, so several plots can share a page;
+  - range labels drop the empty "()" when there is no unit.
+- **Saved sessions:** the format version is now 6, with migration (tested).
+
+### Known-answer tests (`tests/xrd-size.test.ts`, `tests/sizeResults.test.ts`)
+
+The test data use D = 30 nm, ε = 1.5 × 10⁻³ and Cu Kα1. There are nine peaks from 25° to
+78° 2θ. Widths are built with the broadening model each method assumes.
+
+| Test                                                         | Tolerance and why                                                                                                                                                    |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Scherrer and Monshi on size-only widths                      | relative 1e-9: each method inverts its model exactly; Monshi slope = 1                                                                                               |
+| WH UDM on UDM widths                                         | D and ε to 1e-9                                                                                                                                                      |
+| USDM with nine different E_hkl (130–250 GPa) and σ = 0.3 GPa | D and σ to 1e-9; strain equals the mean σ/E                                                                                                                          |
+| UDEDM with nine E_hkl and u = 225 kJ/m³                      | D and u to 1e-9                                                                                                                                                      |
+| USDM and UDEDM with one common E                             | strain equals the UDM strain; stress = εE; u = ε²E/2                                                                                                                 |
+| SSP and HW on Lorentzian-size, Gaussian-strain widths        | D and ε to 1e-9; the two methods agree to 1e-9                                                                                                                       |
+| The same with 3 % random width noise (fixed seed)            | truth within 3 reported σ. σ comes from the residuals, so 3σ is the honest bound (about 0.3 % chance of a false failure per check)                                   |
+| With strain present                                          | Scherrer gives a smaller D than the truth, as expected                                                                                                               |
+| Meaningless results                                          | negative slope → no strain plus an error; negative intercept → no size; size-only data → negative SSP intercept refused; Monshi slope warning                        |
+| Straight-line fit                                            | slope, intercept and both σ match hand-computed textbook values                                                                                                      |
+| Derived quantities                                           | δ and S match hand calculations                                                                                                                                      |
+| Results layer                                                | doubling K doubles every size; the Lorentzian correction changes it; unticking a peak changes it; choices from an old fit are ignored; skip uses the observed widths |
+
+### Decisions
+
+- **One strain convention (Williamson–Hall ε) for every method**, so the summary compares
+  like with like. Papers that write the SSP or HW intercept as (ε/2)² report the apparent
+  strain η = 4ε. The app says so beside each method.
+- **SSP uses the dimensionally consistent form** with λ. The commonly printed form omits λ.
+  Pal, J. Alloys Compd. 1048 (2025) 185324, arXiv:2512.00689, reports this; I found it by
+  search but could not read the full text.
+- **SSP and Halder–Wagner are built as asked, but they are the same model.** Their axes
+  differ only by the constant factor λ²/4, so an unweighted fit gives identical D and ε. The
+  app says so; a test checks it.
+- **FWHM is used as β for every method**, matching the instrument correction. HW and SSP are
+  formally defined with integral breadths; tell me if you want an integral-breadth option.
+- **Monshi uses a free slope** (least-squares line, as the abstract describes). The slope is
+  reported and checked against 1.
+- **The summary's spread** is the SD over peaks for Scherrer and the fit standard
+  uncertainty for the line methods. Both are labelled.
+- **No new dependencies.**
+
+### Verification (real results)
+
+- `npm run lint`: pass. `npm run typecheck`: pass.
+- `npm test`: 181 tests pass and 1 is skipped (the real-file test).
+- `npm run build`: pass. `npm run size`: initial JavaScript 8.2 KB gzipped (budget 150 KB). The
+  XRD chunk is 40.8 KB gzipped and loads on demand.
+- Browser check (headless Chromium, production build, strict CSP). Setup: the example data
+  with SNIP and Kα2 stripping, all 8 peaks fitted, and the example standard with a Caglioti
+  curve.
+  - All seven methods produced results. USDM and UDEDM asked for Young's modulus until it was
+    entered.
+  - Each change updated the table at once:
+    - K 0.9 → 0.94 changed the Scherrer size from 53.2 to 55.5 nm.
+    - The Lorentzian correction gave 78.6 nm.
+    - Unticking a peak gave 76.3 nm with 7 peaks.
+    - Entering E = 200 GPa and ρ = 5 g/cm³ filled the USDM, UDEDM and surface-area columns.
+  - The low R² (0.18) of the WH plots on this synthetic example was flagged in the summary
+    and in each method.
+  - The summary CSV and the bar-chart SVG downloaded, and a reload kept everything.
+  - No console errors. No horizontal scroll at 360, 768, 1280 or 1920 px in light or dark.
+    All controls are at least 44 px tall.
+
+### Known issues and to-dos
+
+- **Please verify:**
+  - Citations written from memory: Scherrer (1918), Williamson & Hall (1953),
+    Halder & Wagner (1966), and Williamson & Smallman for δ.
+  - The USDM and UDEDM forms follow Mote, Purushotham & Dole (2012). I confirmed the paper
+    and its plot axes by search, but could not read the full text.
+  - Monshi et al. (2012) was confirmed by search; full text not reached.
+  - The HW angle form matches arXiv:2103.03521.
+- **Thresholds:** Monshi's slope tolerance (0.5) and the R² warning (0.5) are judgement calls.
+  Tell me if you prefer other values.
+- **E_hkl and hkl:** per-peak moduli are typed by hand. There is no hkl assignment yet; that
+  comes with the material and reference stage.
+- **Methods text:** the paragraph for papers is not generated yet (Export stage).
+- Carried over: your real XRD file and Origin fit, wavelength verification, the TCH and
+  Caglioti checks from Stage 4, and no Thermal card.
+
+### Next stage
+
+Stage 6: not started. Waiting for your go-ahead and the stage brief.
+
 ## Stage 4: instrumental broadening correction (done)
 
 Branch `stage-4-instrument`, built on `stage-3-peaks`.
@@ -144,7 +293,7 @@ the Stage 3 fitter, so the tests run the same path as real data.
 
 ### Next stage
 
-Stage 5: not started. Waiting for your go-ahead and the stage brief.
+Stage 5: done (see above).
 
 ## Stage 3: peak detection and fitting (done)
 

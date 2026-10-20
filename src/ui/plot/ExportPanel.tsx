@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useId, useState } from 'preact/hooks';
 import { HelpTip } from '../HelpTip';
 import {
   downloadBlob,
@@ -37,6 +37,8 @@ export function ExportPanel({
   points,
 }: ExportPanelProps) {
   const [status, setStatus] = useState<{ text: string; error: boolean } | null>(null);
+  // Several plots can be on one page, so ids and radio names must be unique.
+  const uid = useId();
   const size = figureSize(settings);
   const stem = fileStem(exportName);
 
@@ -86,8 +88,8 @@ export function ExportPanel({
   };
 
   return (
-    <section class="export-panel" aria-labelledby="export-heading">
-      <h3 id="export-heading" class="export-title">
+    <section class="export-panel" aria-labelledby={`${uid}-heading`}>
+      <h3 id={`${uid}-heading`} class="export-title">
         Export figure
       </h3>
       <p class="field-hint">
@@ -101,7 +103,7 @@ export function ExportPanel({
             <label key={key} class="check">
               <input
                 type="radio"
-                name="export-preset"
+                name={`${uid}-preset`}
                 checked={settings.preset === key}
                 onChange={() => onChange({ preset: key, heightMm: EXPORT_PRESETS[key].heightMm })}
               />

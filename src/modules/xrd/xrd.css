@@ -584,3 +584,87 @@
 .peak-table tr.is-limited td {
   background: var(--color-surface-muted);
 }
+
+.method-details {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.method-details > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  min-height: var(--touch-target);
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+}
+
+.method-summary-title {
+  font-weight: var(--weight-bold);
+}
+
+.method-summary-value {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.method-body {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.guidance p {
+  margin: 0;
+}
+
+.fit-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+}
+
+.fit-values div {
+  display: grid;
+}
+
+.fit-values dt {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.fit-values dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.table-box {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.table-box > .btn {
+  justify-self: end;
+}
+
+.table-input {
+  width: 7rem;
+  min-height: var(--touch-target);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  text-align: right;
+}
+
+.peak-table tbody th {
+  text-align: left;
+  font-weight: var(--weight-medium);
+}

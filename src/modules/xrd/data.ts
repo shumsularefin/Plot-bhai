@@ -21,7 +21,38 @@ export interface XrdData {
   peaks: Record<string, PeakState>;
   /** One instrument for all patterns. */
   instrument: InstrumentState;
+  /** Size and strain settings, shared by all patterns, plus each pattern's peak choices. */
+  results: ResultsSettings;
 }
+
+export interface ResultsSettings {
+  /** Scherrer shape factor K, dimensionless. */
+  k: number;
+  /** Young's modulus for USDM and UDEDM, GPa. */
+  modulusGPa: number | null;
+  /** Material density for the specific surface area, g/cm³. */
+  densityGcm3: number | null;
+  patterns: Record<string, PatternChoices>;
+}
+
+/**
+ * Per-pattern choices, by position in the sorted list of fitted peaks. They belong to one fit
+ * (fitKey) and are dropped when the peaks are fitted again.
+ */
+export interface PatternChoices {
+  fitKey: string;
+  /** Explicit include (true) or exclude (false); otherwise peaks limited by resolution are left out. */
+  use: Record<number, boolean>;
+  /** Young's modulus for this peak's direction, GPa. */
+  modulus: Record<number, number>;
+}
+
+export const DEFAULT_RESULTS: ResultsSettings = {
+  k: 0.9,
+  modulusGPa: null,
+  densityGcm3: null,
+  patterns: {},
+};
 
 /** Where the instrument width comes from, or 'skip' to leave widths uncorrected. */
 export type InstrumentSource = 'constant' | 'caglioti' | 'standard' | 'skip';
@@ -101,17 +132,19 @@ export const initialXrdData: XrdData = {
   processing: {},
   peaks: {},
   instrument: DEFAULT_INSTRUMENT,
+  results: DEFAULT_RESULTS,
 };
 
 /** Version of the saved shape. Bump it, and extend migrateXrdData, when the shape changes. */
-export const XRD_STATE_VERSION = 5;
+export const XRD_STATE_VERSION = 6;
 
 /**
  * Upgrades saved sessions: version 2 (Stage 1) had no radiation or processing settings;
- * version 3 (Stage 2) had no peak state; version 4 (Stage 3) had no instrument settings.
+ * version 3 (Stage 2) had no peak state; version 4 (Stage 3) had no instrument settings;
+ * version 5 (Stage 4) had no size and strain settings.
  */
 export function migrateXrdData(saved: unknown, version: number): WizardState<XrdData> | undefined {
-  if (version < 2 || version > 4) return undefined;
+  if (version < 2 || version > 5) return undefined;
   const state = saved as WizardState<Partial<XrdData> & Pick<XrdData, 'patterns' | 'plot'>>;
   return {
     ...state,
@@ -120,7 +153,8 @@ export function migrateXrdData(saved: unknown, version: number): WizardState<Xrd
       radiation: state.data.radiation ?? DEFAULT_RADIATION,
       processing: state.data.processing ?? {},
       peaks: state.data.peaks ?? {},
-      instrument: DEFAULT_INSTRUMENT,
+      instrument: state.data.instrument ?? DEFAULT_INSTRUMENT,
+      results: DEFAULT_RESULTS,
     },
   };
 }

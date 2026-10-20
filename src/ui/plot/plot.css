@@ -265,3 +265,14 @@
   fill: var(--color-surface);
   stroke: var(--color-text);
 }
+
+.plot-bar {
+  fill: var(--plot-1);
+}
+
+.bar-chart {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  margin: 0;
+}

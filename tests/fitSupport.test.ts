@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { levenbergMarquardt } from '../src/core/math/levenbergMarquardt';
-import { DEFAULT_INSTRUMENT, migrateXrdData } from '../src/modules/xrd/data';
+import { DEFAULT_INSTRUMENT, DEFAULT_RESULTS, migrateXrdData } from '../src/modules/xrd/data';
 import { formatWithSigma } from '../src/ui/format';
 
 describe('Levenberg–Marquardt', () => {
@@ -95,6 +95,13 @@ describe('session migration', () => {
     );
     expect(fromStage3?.data.peaks).toEqual({ a: 1 });
     expect(fromStage3?.data.instrument).toEqual(DEFAULT_INSTRUMENT);
-    expect(migrateXrdData({}, 5)).toBeUndefined();
+    expect(fromStage3?.data.results).toEqual(DEFAULT_RESULTS);
+    const fromStage4 = migrateXrdData(
+      { step: 5, furthest: 5, data: { patterns: [], plot: {}, instrument: { source: 'skip' } } },
+      5,
+    );
+    expect(fromStage4?.data.instrument).toEqual({ source: 'skip' });
+    expect(fromStage4?.data.results).toEqual(DEFAULT_RESULTS);
+    expect(migrateXrdData({}, 6)).toBeUndefined();
   });
 });
