@@ -33,6 +33,7 @@ Merge that pull request. From now on every session reads CLAUDE.md automatically
 6. Merge the pull request. Start the next stage.
 
 Tips:
+
 - Put a few of your own real files in `tests/fixtures-real/` when a stage asks for them (an XRD file, a UV-Vis file, an FTIR file, an SEM image, a TGA file, a DSC file). Compare Opus's numbers with Origin or ImageJ on the same file. This is the best check you have.
 - If a new session loses context, use the resume prompt in Part D.
 
