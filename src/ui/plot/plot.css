@@ -1,0 +1,278 @@
+.plot-panel {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.interactive-plot {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* Fixed height so the readout never pushes the plot around. */
+.plot-readout {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: var(--space-3);
+  height: 1.6em;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.plot-readout-x {
+  color: var(--color-text);
+  font-weight: var(--weight-medium);
+}
+
+.plot-readout-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.plot-readout-hint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plot-surface {
+  position: relative;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  cursor: grab;
+  /* Vertical swipes scroll the page; horizontal drags and pinches go to the plot. */
+  touch-action: pan-y;
+  user-select: none;
+  overflow: hidden;
+}
+
+.plot-surface:active {
+  cursor: grabbing;
+}
+
+.plot-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-sans);
+  font-size: 12px;
+}
+
+.plot-svg .plot-ink {
+  stroke: var(--color-text);
+}
+
+.plot-svg .plot-text {
+  fill: var(--color-text);
+}
+
+.plot-crosshair {
+  stroke: var(--color-text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.series-0 {
+  --series: var(--plot-1);
+}
+.series-1 {
+  --series: var(--plot-2);
+}
+.series-2 {
+  --series: var(--plot-3);
+}
+.series-3 {
+  --series: var(--plot-4);
+}
+.series-4 {
+  --series: var(--plot-5);
+}
+.series-5 {
+  --series: var(--plot-6);
+}
+.series-6 {
+  --series: var(--plot-7);
+}
+.series-7 {
+  --series: var(--plot-8);
+}
+
+.plot-line {
+  stroke: var(--series);
+}
+
+.plot-swatch {
+  display: inline-block;
+  flex: none;
+  width: 1.25rem;
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--series);
+  vertical-align: middle;
+}
+
+.plot-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.plot-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.plot-controls,
+.plot-options,
+.export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.plot-controls {
+  justify-content: space-between;
+}
+
+.plot-range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.plot-range legend {
+  margin-bottom: var(--space-1);
+  padding: 0;
+  font-weight: var(--weight-medium);
+}
+
+.plot-range label,
+.export-field {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+}
+
+.plot-range input,
+.export-field input,
+.export-field select {
+  width: 7.5rem;
+  min-height: var(--touch-target);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.plot-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch-target);
+  cursor: pointer;
+}
+
+.check input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  accent-color: var(--color-accent);
+}
+
+.plot-offset {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch-target);
+}
+
+.plot-offset input {
+  width: 10rem;
+  height: var(--touch-target);
+  max-width: 100%;
+  accent-color: var(--color-accent);
+}
+
+.plot-offset output {
+  min-width: 3.5em;
+  font-variant-numeric: tabular-nums;
+}
+
+.export-panel {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.export-title {
+  font-size: var(--text-lg);
+}
+
+.export-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3) var(--space-4);
+}
+
+.export-preset {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.export-preset legend {
+  padding: 0;
+  font-size: var(--text-sm);
+}
+
+.export-status {
+  min-height: 1.5em;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.export-status.is-error {
+  color: var(--color-danger);
+}
+
+.plot-marker {
+  fill: var(--color-surface);
+  stroke: var(--color-text);
+}
+
+.plot-bar {
+  fill: var(--plot-1);
+}
+
+.bar-chart {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  margin: 0;
+}

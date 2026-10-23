@@ -1,0 +1,175 @@
+import { profile } from './peaks/profiles';
+import { kAlpha2Position } from './process/kAlpha2';
+import { ANODES, DEFAULT_KALPHA2_RATIO } from './radiation';
+
+/*
+ * Synthetic diffraction patterns for the example data and for tests. These are generated, not
+ * measured, and do not represent any real material: the peak positions are arbitrary.
+ */
+
+/**
+ * Pseudo-Voigt peak shape with height 1 at the centre (see peaks/profiles.ts for the equation).
+ * x, x0 (centre) and H (FWHM) share one unit, here degrees 2θ; η is the Lorentzian fraction.
+ */
+export function pseudoVoigt(x: number, x0: number, fwhm: number, eta: number): number {
+  return profile(x, { height: 1, center: x0, fwhm, eta });
+}
+
+export interface SyntheticPeak {
+  /** Centre, degrees 2θ. */
+  center: number;
+  /** Full width at half maximum, degrees 2θ. */
+  fwhm: number;
+  /** Peak height above background, counts. */
+  height: number;
+  /** Lorentzian fraction η, 0 to 1. */
+  eta: number;
+}
+
+export interface SyntheticOptions {
+  /** First and last 2θ (degrees) and step (degrees). */
+  start: number;
+  end: number;
+  step: number;
+  peaks: readonly SyntheticPeak[];
+  /** Background, counts: constant + amplitude · exp(−2θ / decay), with decay in degrees. */
+  background: { constant: number; amplitude: number; decay: number };
+  /** Adds counting noise (normal approximation to Poisson, σ = √counts) when given. */
+  noiseSeed?: number;
+  /**
+   * Adds a Kα2 line for every peak: same shape and width, height × ratio, at the angle given
+   * by Bragg's law (see kAlpha2Position). Wavelengths in Å.
+   */
+  kAlpha2?: { lambda1: number; lambda2: number; ratio: number };
+}
+
+/** Small seeded pseudo-random generator (mulberry32) so examples and tests are repeatable. */
+export function seededRandom(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Builds a pattern in counts: background plus peaks, optionally with noise, rounded to whole counts. */
+export function generatePattern(options: SyntheticOptions): {
+  twoTheta: Float64Array;
+  intensity: Float64Array;
+} {
+  const { start, end, step, background, noiseSeed, kAlpha2 } = options;
+  const peaks = kAlpha2
+    ? options.peaks.flatMap((p) => [
+        p,
+        {
+          ...p,
+          center: kAlpha2Position(p.center, kAlpha2.lambda1, kAlpha2.lambda2),
+          height: p.height * kAlpha2.ratio,
+        },
+      ])
+    : options.peaks;
+  const n = Math.floor((end - start) / step + 1e-9) + 1;
+  const twoTheta = new Float64Array(n);
+  const intensity = new Float64Array(n);
+  const random = noiseSeed === undefined ? undefined : seededRandom(noiseSeed);
+  for (let i = 0; i < n; i++) {
+    // Rounded to 6 decimals so the axis reads cleanly, as instrument exports do.
+    const x = Math.round((start + i * step) * 1e6) / 1e6;
+    let y = background.constant + background.amplitude * Math.exp(-x / background.decay);
+    for (const p of peaks) y += p.height * pseudoVoigt(x, p.center, p.fwhm, p.eta);
+    if (random) {
+      // Box-Muller transform: a standard normal value from two uniform values.
+      const normal = Math.sqrt(-2 * Math.log(1 - random())) * Math.cos(2 * Math.PI * random());
+      y += Math.sqrt(y) * normal;
+    }
+    twoTheta[i] = x;
+    intensity[i] = Math.max(0, Math.round(y));
+  }
+  return { twoTheta, intensity };
+}
+
+const EXAMPLE_POSITIONS = [21.4, 30.2, 35.6, 43.3, 53.7, 57.2, 62.8, 74.3];
+const EXAMPLE_HEIGHTS = [900, 3200, 8000, 1800, 1100, 2600, 3900, 900];
+
+/**
+ * The "Try with example data" patterns: two synthetic scans with the same arbitrary peak
+ * positions, one with narrow and one with broad peaks, each with a Cu Kα2 line beside every
+ * Kα1 peak (ratio 0.5). Not a real material.
+ */
+export function examplePatterns(): {
+  name: string;
+  twoTheta: Float64Array;
+  intensity: Float64Array;
+}[] {
+  const make = (fwhm: number, seed: number) =>
+    generatePattern({
+      start: 10,
+      end: 80,
+      step: 0.02,
+      peaks: EXAMPLE_POSITIONS.map((center, i) => ({
+        center,
+        fwhm: fwhm * (1 + center / 100),
+        height: EXAMPLE_HEIGHTS[i] as number,
+        eta: 0.5,
+      })),
+      background: { constant: 150, amplitude: 900, decay: 12 },
+      noiseSeed: seed,
+      kAlpha2: {
+        lambda1: ANODES.Cu.kAlpha1,
+        lambda2: ANODES.Cu.kAlpha2,
+        ratio: DEFAULT_KALPHA2_RATIO,
+      },
+    });
+  return [
+    { name: 'Synthetic example A (narrow peaks)', ...make(0.12, 1) },
+    { name: 'Synthetic example B (broad peaks)', ...make(0.45, 2) },
+  ];
+}
+
+/** Caglioti parameters (degrees², FWHM² = U tan²θ + V tanθ + W) of the example standard. */
+export const EXAMPLE_STANDARD_CAGLIOTI = { u: 0.01, v: -0.004, w: 0.003 };
+const EXAMPLE_STANDARD_POSITIONS = [
+  18.5, 26.2, 32.4, 38.9, 45.6, 51.3, 57.8, 63.1, 68.7, 75.2, 79.6,
+];
+const EXAMPLE_STANDARD_ETA = 0.3;
+
+/**
+ * A synthetic line-profile standard for "Try with example data": sharp peaks at arbitrary
+ * positions (not those of LaB6, Si or any real material) whose FWHM follows the Caglioti curve
+ * EXAMPLE_STANDARD_CAGLIOTI, with η = 0.3, a Cu Kα2 line unless kAlpha1Only, and counting noise.
+ */
+export function exampleStandard(kAlpha1Only: boolean): {
+  name: string;
+  twoTheta: Float64Array;
+  intensity: Float64Array;
+} {
+  const { u, v, w } = EXAMPLE_STANDARD_CAGLIOTI;
+  const width = (twoTheta: number) => {
+    const t = Math.tan((twoTheta / 2) * (Math.PI / 180));
+    return Math.sqrt(u * t * t + v * t + w);
+  };
+  const pattern = generatePattern({
+    start: 15,
+    end: 82,
+    step: 0.01,
+    peaks: EXAMPLE_STANDARD_POSITIONS.map((center, i) => ({
+      center,
+      fwhm: width(center),
+      height: 12000 - 700 * i,
+      eta: EXAMPLE_STANDARD_ETA,
+    })),
+    background: { constant: 120, amplitude: 600, decay: 15 },
+    noiseSeed: 7,
+    ...(!kAlpha1Only && {
+      kAlpha2: {
+        lambda1: ANODES.Cu.kAlpha1,
+        lambda2: ANODES.Cu.kAlpha2,
+        ratio: DEFAULT_KALPHA2_RATIO,
+      },
+    }),
+  });
+  return { name: 'Synthetic standard (not a real LaB6 or Si measurement)', ...pattern };
+}
