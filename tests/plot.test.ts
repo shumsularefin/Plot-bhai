@@ -7,6 +7,7 @@ import {
   pixelSize,
   renderSvgString,
 } from '../src/ui/plot/export';
+import { placeLabels, type PlacedLabel } from '../src/ui/plot/peakLabels';
 import { wheelZooms } from '../src/ui/plot/InteractivePlot';
 import { PRINT_COLORS } from '../src/ui/plot/palette';
 import { crc32, setPngDpi } from '../src/ui/plot/png';
@@ -230,6 +231,38 @@ describe('SVG export', () => {
     expect(withResidual.match(/<svg/g)).toHaveLength(3);
   });
 
+  it('draws peak labels above their peaks, with their key, in the exported figure', () => {
+    const x = range(100, (i) => 20 + i * 0.1);
+    const [main] = prepareSeries(
+      [{ id: 'a', name: 'Data', x, y: range(100, (i) => i), unit: 'counts' }],
+      {
+        normalise: false,
+        offsetFraction: 0,
+      },
+    ) as [PlotSeries];
+    const svg = renderSvgString(
+      [main],
+      [20, 29.9],
+      { x: '2θ (°)', y: 'Intensity (a.u.)' },
+      DEFAULT_EXPORT_SETTINGS,
+      undefined,
+      undefined,
+      {
+        labels: [
+          { x: 25, y: 50, text: '(101)', strong: true },
+          { x: 27, y: 70, text: '(004)/(112)' },
+          { x: 40, y: 70, text: 'outside the range' },
+        ],
+        key: ['Anatase, COD 9009086'],
+      },
+    );
+    expect(svg).toContain('>(101)<');
+    expect(svg).toContain('>(004)/(112)<');
+    expect(svg).toContain('font-weight="bold"');
+    expect(svg).toContain('>Anatase, COD 9009086<');
+    expect(svg).not.toContain('outside the range');
+  });
+
   it('wheel zooms only with focus or Ctrl/Cmd held', () => {
     const plot = document.createElement('div');
     plot.tabIndex = 0;
@@ -245,5 +278,32 @@ describe('SVG export', () => {
   it('makes safe file names', () => {
     expect(fileStem('ZnO / 500 °C')).toBe('ZnO-500-C');
     expect(fileStem('***')).toBe('plot');
+  });
+});
+
+describe('placeLabels', () => {
+  const overlaps = (a: PlacedLabel, b: PlacedLabel, width: number, lineHeight: number) =>
+    Math.abs(a.x - b.x) < width && Math.abs(a.baseline - b.baseline) < lineHeight - 1e-6;
+
+  it('keeps a label directly above an isolated peak, without a leader line', () => {
+    const [label] = placeLabels([{ x: 100, y: 200, width: 30 }], 14);
+    expect(label?.leader).toBe(false);
+    expect(label?.x).toBe(100);
+    expect(label?.baseline).toBeLessThan(200);
+  });
+
+  it('stacks crowded labels so that none overlap, with leader lines for the raised ones', () => {
+    const items = [0, 8, 16, 24].map((dx) => ({ x: 100 + dx, y: 150, width: 40 }));
+    const placed = placeLabels(items, 14);
+    for (let i = 0; i < placed.length; i++)
+      for (let j = i + 1; j < placed.length; j++)
+        expect(overlaps(placed[i] as PlacedLabel, placed[j] as PlacedLabel, 40, 14)).toBe(false);
+    expect(placed.filter((p) => p.leader)).toHaveLength(3);
+  });
+
+  it('never rises above the top of the plot', () => {
+    const items = Array.from({ length: 12 }, (_, i) => ({ x: 100 + i, y: 40, width: 40 }));
+    const placed = placeLabels(items, 14, 0);
+    placed.forEach((p) => expect(p.baseline).toBeGreaterThanOrEqual(0));
   });
 });

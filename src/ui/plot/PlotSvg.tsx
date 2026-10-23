@@ -3,6 +3,7 @@ import { useId } from 'preact/hooks';
 import { niceTicks } from './axes';
 import { decimate, lowerBound, type Decimated } from './decimate';
 import { PRINT_COLORS } from './palette';
+import { labelRoom, placeLabels, textWidth, type PeakLabelSet } from './peakLabels';
 import type { AxisLabels, Domain, PlotMarker, PlotSeries } from './types';
 
 /** Visual settings. All lengths are in the SVG's own units (px on screen, pt for export). */
@@ -45,6 +46,8 @@ interface PlotSvgProps {
   /** Fixed y range; computed from the visible data when omitted. */
   yDomain?: Domain;
   markers?: readonly PlotMarker[];
+  /** Text labels above peaks, and the key explaining them (the key is drawn in exports only). */
+  peakLabels?: PeakLabelSet;
   /** Extra attributes for the root element, for example physical width and height for export. */
   svgAttributes?: SVGAttributes<SVGSVGElement>;
   children?: ComponentChildren;
@@ -97,6 +100,7 @@ export function PlotSvg(props: PlotSvgProps) {
     samples,
     legend,
     markers,
+    peakLabels,
     svgAttributes,
     children,
   } = props;
@@ -108,13 +112,14 @@ export function PlotSvg(props: PlotSvgProps) {
 
   const lines = series.map((s) => decimate(s.x, s.y, x0, x1, samples));
   const lineHeight = style.fontSize * 1.3;
-  const legendHeight =
-    legend && series.filter((s) => !s.quiet).length > 1
-      ? series.filter((s) => !s.quiet).length * lineHeight + style.fontSize * 0.4
-      : 0;
+  const legendSeries = legend ? series.filter((s) => !s.quiet) : [];
+  const legendKey = legend && peakLabels ? peakLabels.key : [];
+  const legendRows = (legendSeries.length > 1 ? legendSeries.length : 0) + legendKey.length;
+  const legendHeight = legendRows > 0 ? legendRows * lineHeight + style.fontSize * 0.4 : 0;
+  const reserved = legendHeight + (peakLabels ? labelRoom(style.fontSize) : 0);
   const [y0, y1] =
     props.yDomain ??
-    visibleYDomain(series, xDomain, legendHeight / Math.max(innerH - legendHeight, 1), markers);
+    visibleYDomain(series, xDomain, reserved / Math.max(innerH - reserved, 1), markers);
   const px = (x: number) => ((x - x0) / (x1 - x0)) * innerW;
   const py = (y: number) => innerH - ((y - y0) / (y1 - y0)) * innerH;
   const digits = style.print ? 3 : 1;
@@ -133,7 +138,23 @@ export function PlotSvg(props: PlotSvgProps) {
     });
     return d;
   };
-  const legendSeries = series.filter((s) => !s.quiet);
+
+  const placedLabels = (() => {
+    const visible = (peakLabels?.labels ?? []).filter((l) => l.x >= x0 && l.x <= x1);
+    const placements = placeLabels(
+      visible.map((l) => ({
+        x: px(l.x),
+        y: py(l.y),
+        width: textWidth(l.text, style.fontSize),
+      })),
+      lineHeight,
+      0,
+    );
+    return visible.map((label, i) => ({
+      label,
+      placed: placements[i] as (typeof placements)[number],
+    }));
+  })();
 
   const tickLength = style.fontSize * 0.45;
   const xTicks = niceTicks(x0, x1, Math.max(2, Math.round(innerW / (style.fontSize * 6))));
@@ -231,7 +252,7 @@ export function PlotSvg(props: PlotSvgProps) {
 
         {legendHeight > 0 && (
           <g class={print ? undefined : 'plot-text'} {...text} text-anchor="end">
-            {legendSeries.map((s, i) => {
+            {(legendSeries.length > 1 ? legendSeries : []).map((s, i) => {
               const y = style.fontSize * 0.4 + (i + 0.5) * lineHeight;
               const right = innerW - style.fontSize * 0.6;
               const swatch = style.fontSize * 1.6;
@@ -252,6 +273,42 @@ export function PlotSvg(props: PlotSvgProps) {
                 </g>
               );
             })}
+            {legendKey.map((entry, i) => (
+              <text
+                key={entry}
+                x={innerW - style.fontSize * 0.6}
+                y={
+                  style.fontSize * 0.4 +
+                  ((legendSeries.length > 1 ? legendSeries.length : 0) + i + 0.5) * lineHeight
+                }
+                dy="0.35em"
+              >
+                {entry}
+              </text>
+            ))}
+          </g>
+        )}
+        {placedLabels.length > 0 && (
+          <g class={print ? undefined : 'plot-text'} {...text} text-anchor="middle">
+            {placedLabels.map(({ label, placed }, i) => (
+              <g key={i}>
+                {placed.leader && (
+                  <path
+                    d={`M${placed.x.toFixed(2)} ${(placed.baseline + style.fontSize * 0.25).toFixed(2)}V${(py(label.y) - style.fontSize * 0.3).toFixed(2)}`}
+                    fill="none"
+                    stroke={ink ?? 'currentColor'}
+                    stroke-width={style.lineWidth * 0.5}
+                  />
+                )}
+                <text
+                  x={placed.x}
+                  y={placed.baseline}
+                  font-weight={label.strong ? 'bold' : undefined}
+                >
+                  {label.text}
+                </text>
+              </g>
+            ))}
           </g>
         )}
         {children}

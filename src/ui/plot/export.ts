@@ -1,4 +1,5 @@
 import { h, render } from 'preact';
+import type { PeakLabelSet } from './peakLabels';
 import { PlotSvg } from './PlotSvg';
 import { setPngDpi } from './png';
 import type { AxisLabels, Domain, PlotMarker, PlotSeries } from './types';
@@ -64,6 +65,7 @@ const RESIDUAL_SHARE = 0.25;
  * Renders the figure as a standalone SVG document string. Sizes are physical (mm) and the
  * drawing units are points, so the font size and line width come out exactly as chosen.
  * A residual curve, when given, is drawn in its own panel under the main plot, as on screen.
+ * Peak labels are drawn above their peaks, with their key in the legend.
  */
 export function renderSvgString(
   series: readonly PlotSeries[],
@@ -72,6 +74,7 @@ export function renderSvgString(
   settings: ExportSettings,
   markers?: readonly PlotMarker[],
   residual?: readonly PlotSeries[],
+  peakLabels?: PeakLabelSet,
 ): string {
   const size = figureSize(settings);
   const width = size.widthMm * PT_PER_MM;
@@ -91,6 +94,7 @@ export function renderSvgString(
     samples: VECTOR_SAMPLES,
     legend: true,
     ...(markers && { markers }),
+    ...(peakLabels && { peakLabels }),
     style,
     ...(residual
       ? { svgAttributes: { x: 0, y: 0, width, height: height - residualHeight } }

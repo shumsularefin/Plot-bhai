@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import { useMemo, useState } from 'preact/hooks';
 import {
   DEFAULT_MATCH,
   matchPhase,
@@ -14,7 +14,8 @@ import type { SeriesSource } from '../../ui/plot/series';
 import type { StepContext } from '../../ui/wizard/types';
 import type { MaterialState, XrdData } from './data';
 import { xrdLabels } from './labels';
-import { codUrl, formatHkl, loadReferenceFamily, loadReferenceIndex } from './referenceLibrary';
+import { codUrl, formatHkl } from './referenceLibrary';
+import { useReferencePhases } from './useReferencePhases';
 import { useMeasured } from './useMeasured';
 
 /** Palette indices for the phases; the measured pattern uses 7 (the dark colour). */
@@ -25,28 +26,7 @@ export function PhasesStep({ data, update }: StepContext<XrdData>) {
   const material = data.material;
   const [patternId, setPatternId] = useState(data.patterns[0]?.id);
   const { pattern, processed, detected } = useMeasured(data, patternId);
-  const [phases, setPhases] = useState<ReferencePhase[] | null>(null);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    if (!material.familyId) {
-      setPhases(null);
-      return;
-    }
-    let current = true;
-    loadReferenceIndex()
-      .then((index) => {
-        const family = index.families.find((f) => f.id === material.familyId);
-        return family ? loadReferenceFamily(family.file) : [];
-      })
-      .then(
-        (loaded) => current && setPhases(loaded),
-        () => current && setFailed(true),
-      );
-    return () => {
-      current = false;
-    };
-  }, [material.familyId]);
+  const { phases, failed } = useReferencePhases(material.familyId);
 
   const lambda = ANODES[data.radiation.anode].kAlpha1;
   const options = useMemo(

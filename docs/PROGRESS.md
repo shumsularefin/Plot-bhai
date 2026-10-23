@@ -1,5 +1,64 @@
 # Progress
 
+## Sub-stage 6c: hkl labels, combined table and lattice refinement (done)
+
+Branch `claude/ecstatic-einstein-mofaev`. Added to the Results step (wizard step 7).
+
+### What was built
+
+- `src/core/xrd/reference/assign.ts`: assigns each fitted peak to the nearest reference line of the
+  chosen phases within the tolerance, after the phase's zero shift. Unmatched peaks are
+  "unassigned". Lines at least 10 % as strong as the nearest one (`OVERLAP_FRACTION`) that are also
+  within tolerance are kept as overlaps and shown as (004)/(112) with a note.
+- `src/core/xrd/reference/lattice.ts`: weighted least squares on 1/d² for cubic (a), tetragonal
+  (a, c), hexagonal and trigonal (a, c; the library's trigonal cells all use hexagonal axes) and
+  orthorhombic (a, b, c), with an optional zero shift, standard uncertainties, cell volume and
+  a refusal with a plain reason when there are too few independent peaks. Monoclinic and triclinic
+  are not refined (stated in the interface).
+- `src/ui/plot/peakLabels.ts`: greedy non-overlapping label placement (strongest first, stacked
+  rows, leader lines when raised). The strongest peak is bold. Exports add the key
+  "Name, COD id" in the plot.
+- `src/modules/xrd/AssignmentSection.tsx`: labelled plot, "Assigned peaks" table (phase, COD ID,
+  JCPDS number labelled "entered by user, not verified", hkl, 2θ obs/ref, Δ2θ, d obs/ref, I/I0
+  obs/ref, FWHM) with CSV, and a lattice card per phase (refined against library cell, % difference,
+  volume, zero shift, degrees of freedom, RMS residual). Checkbox to refine a zero shift as well.
+- hkl is passed to the Results step peak table and its CSV.
+
+### Tests
+
+- `tests/reference-assign.test.ts`: formulas, volumes, exact recovery, refusal cases, and strained
+  (+0.3 %) noisy synthetic scans of Si, anatase, ZnO and brookite: cell recovered within 3σ and the
+  correct hkl for every peak.
+- `tests/assignment.test.ts`, `tests/plot.test.ts`: assignment on a fitted anatase pattern, label
+  placement and labelled SVG export.
+
+### Decisions and known issues
+
+- Covariance is scaled by max(1, χ²/dof) when peak uncertainties are known, else by χ²/dof.
+  Uncertainties are statistical only and say so on screen.
+- Without refining a zero shift the cell absorbs any residual shift: in the browser run on a
+  synthetic anatase scan the cell came out +0.17 % (a) from a −0.07° shift. Refining the shift
+  removes this; the checkbox is there for that case.
+- Open from earlier: SnO2 cross-check deviation, skipped phases, COD selection rule, Si and LaB6
+  entries to check against your certificate, unverified Mo and Ag wavelengths.
+
+### Verification
+
+- `npm run lint`: pass. `npm run typecheck`: pass.
+- `npm test`: 249 passed, 1 skipped (the real-file test, waiting for your file).
+- `npm run build`: pass. `npm run size`: within budget.
+- Headless Chromium at 360 and 1280 px, synthetic anatase scan through the full wizard: 11 peaks
+  assigned with labels (101) to (215), no horizontal scroll, no console errors.
+
+### You check
+
+Load your real file, choose the phase, and in Results check the hkl labels and the lattice cell
+against your own expectation.
+
+### Next
+
+Sub-stage 7a (see the tracker).
+
 ## Sub-stage 6b: choose material and compare phases (done)
 
 Branch `claude/ecstatic-einstein-mofaev`. Wizard steps 3 and 4, using `data/reference` from 6a.

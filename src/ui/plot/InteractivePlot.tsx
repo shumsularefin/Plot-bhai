@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { nearestIndex } from './decimate';
+import { labelRoom, type PeakLabelSet } from './peakLabels';
 import { PlotSvg, plotMargins, visibleYDomain } from './PlotSvg';
 import type { AxisLabels, Domain, PlotMarker, PlotSeries } from './types';
 import { clampDomain, panDomain, zoomDomain } from './view';
@@ -21,6 +22,8 @@ export interface InteractivePlotProps {
   /** Called with data coordinates when the plot is clicked or tapped without dragging. */
   onPlotClick?: (x: number, y: number) => void;
   markers?: readonly PlotMarker[];
+  /** Labels above peaks, for example (hkl) indices. */
+  peakLabels?: PeakLabelSet;
   /** Readout text shown before the first hover. */
   hint?: string;
   /** Called when a marker is clicked or tapped (instead of onPlotClick). */
@@ -68,6 +71,7 @@ export function InteractivePlot(props: InteractivePlotProps) {
     description,
     onPlotClick,
     markers,
+    peakLabels,
     onMarkerClick,
     onMarkerDrag,
     onMarkerDragEnd,
@@ -81,7 +85,8 @@ export function InteractivePlot(props: InteractivePlotProps) {
   const m = plotMargins(FONT_SIZE, labels.yValues);
   const innerW = Math.max(1, width - m.left - m.right);
   const innerH = Math.max(1, height - m.top - m.bottom);
-  const yDomain = visibleYDomain(series, domain, 0, markers);
+  const room = peakLabels ? labelRoom(FONT_SIZE) : 0;
+  const yDomain = visibleYDomain(series, domain, room / Math.max(innerH - room, 1), markers);
 
   // Latest values for event handlers that live across renders.
   const live = useRef({ domain, extent, minSpan, innerW, onDomainChange });
@@ -338,6 +343,7 @@ export function InteractivePlot(props: InteractivePlotProps) {
             samples={Math.ceil(innerW * (window.devicePixelRatio || 1))}
             yDomain={yDomain}
             {...(markers && { markers })}
+            {...(peakLabels && { peakLabels })}
           >
             {readoutX !== undefined && (
               <line
