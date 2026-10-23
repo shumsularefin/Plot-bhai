@@ -99,3 +99,10 @@ Full Rietveld refinement, reliable identification of complex mixtures, any claim
 - At the end of each stage update docs/PROGRESS.md with what was built, decisions made, known issues and the next stage.
 - If a requirement is unclear or cannot be verified, ask me instead of guessing.
 - Prefer simple, readable code over clever code. No dead code, no unused dependencies.
+
+## 11. Starting a session
+
+If I say "work", "continue", "next stage" or similar without naming a task: read docs/EXECUTION-PLAN.md, find
+the first sub-stage in its status tracker that is not done, apply the guardrail block, and do that sub-stage
+using its prompt in that file (and docs/STAGE-PROMPTS.md where it points there). Before finishing, set its
+tracker row to done (or "blocked: reason") and update docs/PROGRESS.md in the same pull request.

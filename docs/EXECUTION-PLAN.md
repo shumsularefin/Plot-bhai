@@ -9,21 +9,61 @@ Checked on 2026-10-23 in a cloud session.
 
 ---
 
+## Status tracker (the session updates this table)
+
+The next sub-stage is the first row that is not `done`. At the end of every session, the session
+sets its row to `done` (or `blocked: reason`) in the same PR.
+
+| Sub-stage | What                                                         | Status  |
+| --------- | ------------------------------------------------------------ | ------- |
+| 0–5       | Foundation, import, cleaning, peaks, instrument, size/strain | done    |
+| 5.9       | Catch-up fixes                                               | todo    |
+| 6a        | Reference library build (COD + cross-check)                  | todo    |
+| 6b        | Choose material, compare phases                              | todo    |
+| 6c        | hkl labels, combined table, lattice refinement               | todo    |
+| 7a        | Texture, crystallinity, pattern character                    | todo    |
+| 7b        | Figure builder, methods text, export, e2e                    | todo    |
+| 8a        | UV-Vis import, conversions, cleaning                         | todo    |
+| 8b        | Tauc, Urbach, results                                        | todo    |
+| 9         | FTIR                                                         | todo    |
+| 10a       | Particles: image, scale, manual                              | todo    |
+| 10b       | Particles: automatic detection                               | todo    |
+| 10c       | Particles: distribution, export                              | todo    |
+| 11a       | TGA: import to step detection (Stage 11 items 1–5)           | todo    |
+| 11b       | TGA: events, theory, calcination (items 6–9)                 | todo    |
+| 12a       | DSC (Stage 12 items 1–6)                                     | todo    |
+| 12b       | Combined TGA-DSC (items 7–8)                                 | todo    |
+| 13        | Kinetics (optional; skip unless asked)                       | skipped |
+| 14a       | Polish: responsive, Lighthouse, a11y, states (items 1–4)     | todo    |
+| 14b       | About page, PWA, deploy, final status (items 5–8)            | todo    |
+| 15        | Gemini (optional; only when asked)                           | skipped |
+
+## The one prompt you paste in every new session
+
+```text
+Continue the project. Do the next sub-stage from the status tracker in docs/EXECUTION-PLAN.md,
+following its prompt and the guardrail block in that file.
+```
+
+Or simply say "work" or "next stage": `CLAUDE.md` section 11 tells the session to do the same.
+Then use the review prompt (section 3), test it yourself, and merge the PR into `main`.
+
+---
+
 ## 0. Where the project stands (verified)
 
-| Item                          | State                                                                                                                                                     |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `main`                        | Only the 19 reference PDFs. **No app code.**                                                                                                              |
+| Item                          | State                                                                                                                                                               |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `main`                        | Stages 0–5 merged (was: papers only). Papers in `docs/papers/`.                                                                                                     |
 | Stages 0–5                    | Built, on stacked branches: `stage-0-foundation` → `stage-1-import` → … → `stage-5-size-strain` → `verify-references`. Each branch contains all the ones before it. |
-| Open pull requests            | #1 to #8, all open, none merged. Each PR targets the branch before it, not `main`.                                                                        |
-| Health of `verify-references` | `npm ci` OK, lint OK, type check OK, **182 tests pass / 1 skipped** (the real-file test, waiting for your file), build OK, bundle size within budget.     |
-| `CLAUDE.md` on the branches   | Identical to the version you uploaded.                                                                                                                    |
-| COD network access            | `www.crystallography.net` now answers **200** from this environment and returns real CIF files. Earlier sessions got 403. **Stage 6 is no longer blocked.** |
-| Materials Project             | Needs a personal API key, so we use **COD only**. That is enough and fits your "cite the reference ID" requirement.                                       |
+| Old pull requests             | #1 to #8 superseded by the consolidation merge and closed.                                                                                                          |
+| Health of `verify-references` | `npm ci` OK, lint OK, type check OK, **182 tests pass / 1 skipped** (the real-file test, waiting for your file), build OK, bundle size within budget.               |
+| `CLAUDE.md` on the branches   | Identical to the version you uploaded.                                                                                                                              |
+| COD network access            | `www.crystallography.net` now answers **200** from this environment and returns real CIF files. Earlier sessions got 403. **Stage 6 is no longer blocked.**         |
+| Materials Project             | Needs a personal API key, so we use **COD only**. That is enough and fits your "cite the reference ID" requirement.                                                 |
 
-**The most important problem:** every cloud session starts from a fresh clone of `main`. Right now
-`main` has no code. Until Stages 0–5 are merged into `main`, a new session cannot see your earlier
-work and would start again from zero. Section 2 fixes this.
+Every cloud session starts from a fresh clone of `main`, so always merge a sub-stage's PR before
+starting the next one.
 
 ### Your open question: UV-Vis "UV plot mechanism"
 
@@ -56,36 +96,11 @@ one session, then go back to Sonnet.
 
 ## 2. One-time clean-up (do this first, once)
 
-### Step 2.1: Put Stages 0–5 into `main`
+### Step 2.1: Put Stages 0–5 into `main` — DONE
 
-**The easy way (recommended):** ask a session to do it. Start a new session on this repo and send:
-
-```text
-Consolidate the stacked stage branches into main, without changing any app code.
-1. Create a branch "consolidate-stages-0-5" from origin/verify-references, then merge origin/main into it
-   (a normal merge commit, no rebase), so the reference PDFs are kept.
-2. Move every PDF from the repository root into docs/papers/ with git mv. Add docs/papers/README.md that
-   lists each file with its full citation, taken from docs/PROGRESS.md. Do not invent citations: if a PDF is
-   not identified in PROGRESS.md, write "not yet identified" for it.
-3. Copy docs/EXECUTION-PLAN.md and docs/STAGE-PROMPTS.md from origin/claude/zen-edison-acnmco into docs/.
-4. Add a SessionStart hook in .claude/settings.json that runs "npm ci" when node_modules is missing,
-   so every cloud session can run lint, tests and build right away.
-5. Run npm ci, npm run lint, npm run typecheck, npm test, npm run build, npm run size and paste the summary lines.
-6. Push and open ONE pull request into main titled "Stages 0-5 consolidated". In the body, list PRs #1-#8 as
-   superseded by this one.
-Do nothing else.
-```
-
-Then on GitHub:
-
-1. Open the new PR. Wait for the **CI** check to go green.
-2. Click **Create a merge commit** (not squash, so the history of each stage is kept).
-3. Close PRs #1–#8 with the comment "Included in the consolidation PR." Do not merge them.
-4. You can delete the old `stage-*`, `setup-claude-md` and `verify-references` branches. Their
-   commits are now in `main`.
-
-**The manual way:** merge PR #2 into `main`. Then edit PR #3, change its base to `main`, and merge
-it. Repeat for #4 … #8. PR #1 can be closed because `CLAUDE.md` is already in #2.
+Stages 0–5 and the reference check are merged into `main` (PRs #1–#8 are superseded and closed). The
+papers are in `docs/papers/`. A SessionStart hook (`.claude/settings.json`) runs `npm ci` in each new
+cloud session, so lint, tests and build work right away.
 
 ### Step 2.2: Give the project your real files (the best check you have)
 
@@ -487,16 +502,16 @@ extract-based sample. The step mass losses should match your instrument software
 
 ## 12. Things that cause errors, and how this plan avoids them
 
-| Risk                                                 | Prevention                                                                              |
-| ---------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| New session cannot see earlier work                  | Merge every PR into `main` before the next sub-stage (section 2.1, section 3 step 7).  |
-| Invented COD IDs, constants or citations             | Guardrail block; 6a downloads and checks every CIF and cross-checks with pymatgen.     |
-| Wrong hkl or reference intensities                   | 6a cross-check table; you check anatase (101) and rutile (110) by hand.                |
-| Model does too much at once and breaks things        | One sub-stage per session; plan first; tests after each piece.                          |
-| Bundle grows and the site gets slow                  | Lazy-loaded modules; `npm run size` in CI fails the PR when over budget.               |
-| Numbers look right on synthetic data, wrong on real  | Your real files in `tests/fixtures-real/` plus your Origin/ImageJ numbers.             |
-| Session ends before pushing                          | "Commit in small steps, push" is in the guardrail; ask "push now" if a session is long. |
-| COD blocked in a new environment                     | Use this same environment, or allow `www.crystallography.net` in its network settings. |
+| Risk                                                | Prevention                                                                              |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| New session cannot see earlier work                 | Merge every PR into `main` before the next sub-stage (section 2.1, section 3 step 7).   |
+| Invented COD IDs, constants or citations            | Guardrail block; 6a downloads and checks every CIF and cross-checks with pymatgen.      |
+| Wrong hkl or reference intensities                  | 6a cross-check table; you check anatase (101) and rutile (110) by hand.                 |
+| Model does too much at once and breaks things       | One sub-stage per session; plan first; tests after each piece.                          |
+| Bundle grows and the site gets slow                 | Lazy-loaded modules; `npm run size` in CI fails the PR when over budget.                |
+| Numbers look right on synthetic data, wrong on real | Your real files in `tests/fixtures-real/` plus your Origin/ImageJ numbers.              |
+| Session ends before pushing                         | "Commit in small steps, push" is in the guardrail; ask "push now" if a session is long. |
+| COD blocked in a new environment                    | Use this same environment, or allow `www.crystallography.net` in its network settings.  |
 
 ## 13. Order at a glance
 
