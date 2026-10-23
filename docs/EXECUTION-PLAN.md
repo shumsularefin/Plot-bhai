@@ -19,7 +19,7 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 0–5       | Foundation, import, cleaning, peaks, instrument, size/strain | done    |
 | 5.9       | Catch-up fixes                                               | done    |
 | 6a        | Reference library build (COD + cross-check)                  | done    |
-| 6b        | Choose material, compare phases                              | todo    |
+| 6b        | Choose material, compare phases                              | done    |
 | 6c        | hkl labels, combined table, lattice refinement               | todo    |
 | 7a        | Texture, crystallinity, pattern character                    | todo    |
 | 7b        | Figure builder, methods text, export, e2e                    | todo    |

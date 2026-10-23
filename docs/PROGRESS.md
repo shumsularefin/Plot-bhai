@@ -1,5 +1,80 @@
 # Progress
 
+## Sub-stage 6b: choose material and compare phases (done)
+
+Branch `claude/ecstatic-einstein-mofaev`. Wizard steps 3 and 4, using `data/reference` from 6a.
+
+### What was built
+
+- **Core (`src/core/xrd/reference/match.ts`, doc comments with equations):**
+  - `referenceLines`: 2θ from d by Bragg's law for the selected anode's Kα1, and relative
+    intensities recomputed from the stored Σ|F|² with the Lorentz-polarisation factor (for Cu they
+    equal the stored values, tested).
+  - `searchFamilies`: search by name, alias, formula or phase name, ignoring case, spaces and
+    hyphens ("titania", "TiO2", "tio 2", "anatase" all find titanium dioxide).
+  - `matchPhase`: the score from the plan: intensity-weighted fraction of the reference lines
+    stronger than 5 % that have a detected peak within the tolerance (default 0.15°), after the
+    best single zero shift from −0.3° to +0.3° in 0.01° steps. Lines outside the measured range
+    (shrunk by 0.3° at both ends) are not scored. Ties go to the shift with the smaller mean
+    distance, then the smaller |shift|.
+- **Step 3, Choose material (`MaterialStep.tsx`):** searchable list of 25 material families; after
+  a choice, its phases with crystal system, space group and a link to the COD entry; tick the
+  phases you want to use; optional "JCPDS/ICDD card number (typed by you, not verified)" per ticked
+  phase; "I don't know" ranks every family by the score of its best phase against your detected
+  peaks (guide only, top eight). The step never blocks Next.
+- **Step 4, Compare reference phases (`PhasesStep.tsx`):** the cleaned pattern with the detected
+  peaks (circles) and one stick lane per phase under it (`ReferenceLanes.tsx`, same 2θ range, zoom
+  and pan as the plot). Found lines are solid, unmatched lines dashed and faint. One card per phase
+  with the score bar, zero shift used, a toggle for the lane, "Use this phase", and a table of
+  matched and unmatched lines (hkl, shifted reference 2θ, d, I, measured 2θ). The tolerance is
+  adjustable. The text "A guide only. Works for simple, well-separated phases; not reliable for
+  mixtures." is shown on the step.
+- **Library loading:** `referenceLibrary.ts` loads `index.json` and one JSON file per family on
+  demand (Vite lazy chunks). Nothing is added to the app shell: initial JS is unchanged at 8.18 kB
+  gzipped (limit 150 kB).
+- **Saved sessions:** version 7 adds `material` (family, chosen phases, hidden lanes, JCPDS text,
+  tolerance). Sessions of versions 2 to 6 are migrated, and a v6 session keeps its size and strain
+  settings (the old migration reset them; tested).
+
+### Tests
+
+- `tests/reference-match.test.ts`: exact-position known answers for the score and the shift;
+  patterns built from the library itself (Cu Kα1, 0.15° wide lines, counting noise, peaks found by
+  the app's detector): anatase with a 0.05° shift scores highest of anatase, rutile and brookite and
+  the shift comes back as 0.02° to 0.08°; a 50/50 anatase + rutile mixture scores both above 0.5.
+- `tests/materialStep.test.tsx` (search, phases, JCPDS field, switching family) and the v6 migration
+  test in `tests/fitSupport.test.ts`.
+- By hand in Chromium at 360 and 1280 px wide with a generated anatase pattern (0.05° shift, noise):
+  anatase 100 % with shift +0.05°, rutile 25 %, brookite 33 %; "I don't know" ranks titanium dioxide
+  first; no horizontal page scroll; no console errors.
+
+### Decisions and known issues
+
+- The match uses peaks detected on the cleaned pattern with the detection settings of step 5
+  (default 3 % prominence), not the fitted peaks, because fitting comes after this step.
+- Chance matches are real: a phase with few strong lines can score 50 % or more against a pattern
+  of another phase (nickel oxide scored 57 % on the anatase test pattern). That is why every score
+  is labelled a guide. Check the lanes and the line table before choosing a phase.
+- The exported figure does not yet include the reference sticks (stage 7b: figure builder).
+- The zero shift found here is shown but not applied to anything yet; stage 6c uses it to assign
+  hkl to fitted peaks.
+- The chosen phases are saved, but nothing downstream reads them until 6c.
+
+### Verification
+
+- `npm run lint`: pass. `npm run typecheck`: pass.
+- `npm test`: 223 passed, 1 skipped (the real-file test, waiting for your file).
+- `npm run build`: pass. `npm run size`: within budget.
+
+### You check
+
+Load your real TiO2 or ZnO file, choose the material in step 3, and in step 4 the correct phase
+should score highest with its sticks lining up with your peaks.
+
+### Next
+
+Sub-stage 6c: hkl labels, combined table and lattice refinement.
+
 ## Sub-stage 6a: reference library build (done, one cross-check failure and two skipped phases)
 
 Branch `claude/ecstatic-einstein-mofaev`. Data and build scripts only, no UI.

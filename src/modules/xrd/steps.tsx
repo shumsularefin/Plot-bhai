@@ -4,6 +4,8 @@ import { CleanStep } from './CleanStep';
 import { FitStep } from './FitStep';
 import { instrumentProblem } from './instrument';
 import { InstrumentStep } from './InstrumentStep';
+import { MaterialStep } from './MaterialStep';
+import { PhasesStep } from './PhasesStep';
 import { ResultsStep } from './ResultsStep';
 import { UploadStep } from './UploadStep';
 
@@ -23,8 +25,12 @@ export const xrdSteps: readonly WizardStep<XrdData>[] = [
         : null,
   },
   { id: 'clean', title: 'Clean data', render: (context) => <CleanStep {...context} /> },
-  { id: 'material', title: 'Choose material', render: () => <LaterStage /> },
-  { id: 'phases', title: 'Compare reference phases', render: () => <LaterStage /> },
+  { id: 'material', title: 'Choose material', render: (context) => <MaterialStep {...context} /> },
+  {
+    id: 'phases',
+    title: 'Compare reference phases',
+    render: (context) => <PhasesStep {...context} />,
+  },
   { id: 'fit', title: 'Fit peaks', render: (context) => <FitStep {...context} /> },
   {
     id: 'instrument',
