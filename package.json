@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p tests",
     "test": "vitest run",
     "test:watch": "vitest",
-    "size": "node scripts/check-bundle-size.mjs"
+    "size": "node scripts/check-bundle-size.mjs",
+    "build:refs": "NODE_USE_ENV_PROXY=1 node scripts/build-reference-library.ts"
   },
   "dependencies": {
     "d3-array": "^3.2.4",

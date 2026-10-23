@@ -2,3 +2,6 @@ dist
 coverage
 package-lock.json
 CLAUDE.md
+data/reference
+scripts/cif-cache
+scripts/source-cache

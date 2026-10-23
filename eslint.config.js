@@ -22,7 +22,7 @@ export default tseslint.config(
     languageOptions: { globals: globals.browser, sourceType: 'script' },
   },
   {
-    files: ['scripts/**/*.{js,mjs}', '*.config.{js,ts}'],
+    files: ['scripts/**/*.{js,mjs,ts}', '*.config.{js,ts}'],
     languageOptions: { globals: globals.node },
   },
   prettier,

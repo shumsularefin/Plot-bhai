@@ -1,5 +1,198 @@
 # Progress
 
+## Sub-stage 6a: reference library build (done, one cross-check failure and two skipped phases)
+
+Branch `claude/ecstatic-einstein-mofaev`. Data and build scripts only, no UI.
+
+### What was built
+
+- **Library:** `data/reference/` holds one JSON file per material family (`tio2.json`, …),
+  `index.json` (family names, aliases and formulas for search, phases with COD IDs) and
+  `scattering-factors.json`. 33 phases in 25 families, 196 KB in total. Nothing imports it yet,
+  so the app bundle is unchanged (stage 6b lazy-loads it).
+- **Each peak** stores d (Å), multiplicity, Σ|F|² (`mf2`), the relative intensity for Cu Kα1
+  (strongest = 100) and one (hkl) per symmetry-distinct family in the line. The app recomputes
+  intensities for another anode from `mf2` with the Lorentz-polarisation factor. Each phase also
+  stores the COD ID, space group (Hermann–Mauguin and number), crystal system, cell, and the
+  journal reference taken from the CIF.
+- **Code (`src/core/xrd/reference/`, pure TypeScript, doc comments with equations and units):**
+  `cif.ts` (CIF reader), `symmetry.ts` (operators, systematic absences, reflection families),
+  `powder.ts` (structure factor with isotropic or anisotropic displacement parameters,
+  Lorentz-polarisation factor for a Bragg–Brentano diffractometer without monochromator,
+  grouping of reflections into powder lines), `types.ts` (JSON shapes).
+- **Build script:** `npm run build:refs` (`scripts/build-reference-library.ts`, phases listed in
+  `scripts/reference-phases.ts`). It searches COD by elements, filters, downloads and checks each
+  CIF, picks one entry per phase, and writes the JSON. The CIFs of the chosen entries and the
+  choice itself are kept in `scripts/cif-cache/`, so a rebuild without `--refresh` works offline
+  and gives byte-identical files (checked). `--refresh` searches COD again. The script needs
+  Node 22.18 or later and sets `NODE_USE_ENV_PROXY=1` so that it works behind the session proxy.
+- **Cross-check:** `scripts/crosscheck-refs.py` recomputes every pattern with pymatgen's
+  `XRDCalculator` from the same CIFs and compares the 10 strongest lines (2θ within 0.01°,
+  intensity within 5 points).
+- **Tests:** `tests/reference-powder.test.ts` (known answers, below) and
+  `tests/reference-library.test.ts` (checks on the generated files). 28 new tests.
+
+### How a COD entry is chosen
+
+For every phase the script asks COD for all entries with exactly the phase's elements and keeps
+those that pass all of these:
+
+1. reduced formula equals the requested one;
+2. the space-group number (and, for named minerals, the mineral name) match the request;
+3. not retracted, on hold or a duplicate; cell and diffraction temperature 283–305 K or not
+   stated; pressure at most 120 kPa or not stated;
+4. the CIF has symmetry operators and coordinates, all occupancies equal 1, and the atoms in the
+   cell computed from the symmetry operators equal COD's own cell formula;
+5. every displacement parameter U is between 0 and 0.06 Å² (a sanity filter I added after the
+   first attempt picked a nanocrystalline silicon entry with U = 0.32 Å²).
+
+Of the entries that pass, the one with the lowest R factor listed by COD is used. Most entries have
+no R factor in COD; then entries with displacement parameters come before entries without, and the
+newest comes first. **That second rule is arbitrary, so please look at the "no R listed" rows.**
+
+### Chosen entries
+
+| Phase             | COD ID                                                      | Space group         | Year | R factor (from COD)                     |
+| ----------------- | ----------------------------------------------------------- | ------------------- | ---- | --------------------------------------- |
+| anatase           | [9015929](https://www.crystallography.net/cod/9015929.html) | I 41/a m d :1 (141) | 1991 | no R listed                             |
+| rutile            | [9004141](https://www.crystallography.net/cod/9004141.html) | P 42/m n m (136)    | 1979 | no R listed                             |
+| brookite          | [9004137](https://www.crystallography.net/cod/9004137.html) | P b c a (61)        | 1979 | no R listed                             |
+| zno-wurtzite      | [2300116](https://www.crystallography.net/cod/2300116.html) | P 63 m c (186)      | 2006 | R = 0.014                               |
+| magnetite         | [7228110](https://www.crystallography.net/cod/7228110.html) | F d -3 m :1 (227)   | 2013 | no R listed                             |
+| hematite          | [5910082](https://www.crystallography.net/cod/5910082.html) | R -3 c :H (167)     | 1980 | R = 0.026                               |
+| tenorite          | [7212242](https://www.crystallography.net/cod/7212242.html) | C 1 2/c 1 (15)      | 2010 | R = 0.032                               |
+| cuprite           | [9007497](https://www.crystallography.net/cod/9007497.html) | P n -3 m :1 (224)   | 1990 | no R listed                             |
+| nio               | [9008693](https://www.crystallography.net/cod/9008693.html) | F m -3 m (225)      | 1963 | no R listed; no displacement parameters |
+| co3o4             | [1538531](https://www.crystallography.net/cod/1538531.html) | F d -3 m :1 (227)   | 1964 | no R listed                             |
+| ceo2              | [4343161](https://www.crystallography.net/cod/4343161.html) | F m -3 m (225)      | 2015 | no R listed                             |
+| sno2              | [1000062](https://www.crystallography.net/cod/1000062.html) | P 42/m n m (136)    | 1971 | R = 0.036                               |
+| wo3-monoclinic    | [1563541](https://www.crystallography.net/cod/1563541.html) | P 1 21/c 1 (14)     | 2010 | no R listed                             |
+| corundum          | [5000092](https://www.crystallography.net/cod/5000092.html) | R -3 c :H (167)     | 1978 | R = 0.03                                |
+| alpha-quartz      | [5000035](https://www.crystallography.net/cod/5000035.html) | P 32 2 1 (154)      | 1988 | R = 0.022                               |
+| cds-hexagonal     | [9011663](https://www.crystallography.net/cod/9011663.html) | P 63 m c (186)      | 1993 | no R listed; no displacement parameters |
+| cds-cubic         | [9000108](https://www.crystallography.net/cod/9000108.html) | F -4 3 m (216)      | 1961 | no R listed; no displacement parameters |
+| zns-sphalerite    | [1539414](https://www.crystallography.net/cod/1539414.html) | F -4 3 m (216)      | 1969 | no R listed                             |
+| zns-wurtzite      | [1100044](https://www.crystallography.net/cod/1100044.html) | P 63 m c (186)      | 1989 | R = 0.0575                              |
+| batio3-tetragonal | [1513252](https://www.crystallography.net/cod/1513252.html) | P 4 m m (99)        | 2009 | R = 0.0524                              |
+| batio3-cubic      | [1571502](https://www.crystallography.net/cod/1571502.html) | P m -3 m (221)      | 2024 | no R listed                             |
+| srtio3            | [1577245](https://www.crystallography.net/cod/1577245.html) | P m -3 m (221)      | 2026 | no R listed                             |
+| calcite           | [9014415](https://www.crystallography.net/cod/9014415.html) | R -3 c :H (167)     | 2010 | no R listed                             |
+| aragonite         | [9014355](https://www.crystallography.net/cod/9014355.html) | P m c n (62)        | 2010 | no R listed                             |
+| mos2-2h           | [1531960](https://www.crystallography.net/cod/1531960.html) | P 63/m m c (194)    | 2002 | no R listed                             |
+| graphite          | [9011577](https://www.crystallography.net/cod/9011577.html) | P 63/m m c (194)    | 1975 | no R listed                             |
+| si                | [2104737](https://www.crystallography.net/cod/2104737.html) | F d -3 m (227)      | 2010 | no R listed                             |
+| lab6              | [2104736](https://www.crystallography.net/cod/2104736.html) | P m -3 m (221)      | 2010 | no R listed                             |
+| au                | [9013035](https://www.crystallography.net/cod/9013035.html) | F m -3 m (225)      | 1988 | no R listed; no displacement parameters |
+| ag                | [1509146](https://www.crystallography.net/cod/1509146.html) | F m -3 m (225)      | 1954 | no R listed                             |
+| cu                | [4105681](https://www.crystallography.net/cod/4105681.html) | F m -3 m (225)      | 2011 | no R listed                             |
+| pt                | [4334349](https://www.crystallography.net/cod/4334349.html) | F m -3 m (225)      | 2013 | R = 0.01834                             |
+| ni                | [2100637](https://www.crystallography.net/cod/2100637.html) | F m -3 m (225)      | 2006 | no R listed                             |
+
+Both checks you named hold. The strongest anatase line is (101) at 25.30° 2θ and the strongest
+rutile line is (110) at 27.44° 2θ for Cu Kα1 (also pinned in `tests/reference-library.test.ts`).
+
+### Independent cross-check against pymatgen (Cu Kα1, d ≥ 0.8 Å)
+
+| Phase             | COD ID  | Largest 2θ difference (°) | Largest intensity difference (points) | Result   |
+| ----------------- | ------- | ------------------------- | ------------------------------------- | -------- |
+| anatase           | 9015929 | 0.0006                    | 0.73                                  | pass     |
+| rutile            | 9004141 | 0.0015                    | 1.32                                  | pass     |
+| brookite          | 9004137 | 0.0002                    | 0.57                                  | pass     |
+| zno-wurtzite      | 2300116 | 0.0005                    | 0.22                                  | pass     |
+| magnetite         | 7228110 | 0.0009                    | 0.62                                  | pass     |
+| hematite          | 5910082 | 0.0013                    | 0.31                                  | pass     |
+| tenorite          | 7212242 | 0.0001                    | 0.88                                  | pass     |
+| cuprite           | 9007497 | 0.0012                    | 0.17                                  | pass     |
+| nio               | 9008693 | 0.0006                    | 0.93                                  | pass     |
+| co3o4             | 1538531 | 0.0007                    | 0.47                                  | pass     |
+| ceo2              | 4343161 | 0.0017                    | 0.47                                  | pass     |
+| sno2              | 1000062 | 0.0024                    | 5.77                                  | **FAIL** |
+| wo3-monoclinic    | 1563541 | 0.0000                    | 0.58                                  | pass     |
+| corundum          | 5000092 | 0.0013                    | 1.50                                  | pass     |
+| alpha-quartz      | 5000035 | 0.0002                    | 0.06                                  | pass     |
+| cds-hexagonal     | 9011663 | 0.0003                    | 0.11                                  | pass     |
+| cds-cubic         | 9000108 | 0.0013                    | 0.14                                  | pass     |
+| zns-sphalerite    | 1539414 | 0.0009                    | 0.23                                  | pass     |
+| zns-wurtzite      | 1100044 | 0.0014                    | 0.37                                  | pass     |
+| batio3-tetragonal | 1513252 | 0.0019                    | 1.00                                  | pass     |
+| batio3-cubic      | 1571502 | 0.0014                    | 0.66                                  | pass     |
+| srtio3            | 1577245 | 0.0006                    | 0.15                                  | pass     |
+| calcite           | 9014415 | 0.0001                    | 0.12                                  | pass     |
+| aragonite         | 9014355 | 0.0001                    | 0.47                                  | pass     |
+| mos2-2h           | 1531960 | 0.0004                    | 0.30                                  | pass     |
+| graphite          | 9011577 | 0.0016                    | 1.19                                  | pass     |
+| si                | 2104737 | 0.0013                    | 0.47                                  | pass     |
+| lab6              | 2104736 | 0.0018                    | 1.54                                  | pass     |
+| au                | 9013035 | 0.0012                    | 0.19                                  | pass     |
+| ag                | 1509146 | 0.0007                    | 0.16                                  | pass     |
+| cu                | 4105681 | 0.0017                    | 0.38                                  | pass     |
+| pt                | 4334349 | 0.0021                    | 0.72                                  | pass     |
+| ni                | 2100637 | 0.0011                    | 0.25                                  | pass     |
+
+**One failure: SnO2 (5.77 points, limit 5).** The cause is the scattering factors, not the
+geometry. pymatgen computes X-ray scattering factors from electron-scattering parameters
+(Z − 41.78214 s² Σ aᵢ exp(−bᵢ s²), s = sin θ/λ). For oxygen this agrees with the International
+Tables values used here to 0.1 %, but for tin it is 2.5 % higher at s = 0.2 Å⁻¹, 5.4 % at 0.3 and
+13 % at 0.5 Å⁻¹. Tin is the heaviest element that is a strong scatterer in this list, so SnO2
+lines at higher angle differ the most. I did not change the tolerance or the table. Decide
+whether this is acceptable. The other 32 phases pass, with at most 0.0024° and 1.5 points
+difference.
+
+Notes on the check: lines closer than 0.005° are summed in both patterns before comparing;
+pymatgen only accepts one displacement value per element, so I gave it the mean of each
+element's values (for anisotropic atoms the mean of U11, U22, U33). The library itself uses the
+full anisotropic values.
+
+### Data sources
+
+- **Structures:** Crystallography Open Database, https://www.crystallography.net/cod/ (CIF files in
+  `scripts/cif-cache/`; each file keeps its own header with the original authors).
+- **Scattering factors:** International Tables for Crystallography Vol. C (1992), Table of
+  four-Gaussian coefficients, as listed in the gemmi source file
+  `include/gemmi/it92.hpp` (https://raw.githubusercontent.com/project-gemmi/gemmi/master/include/gemmi/it92.hpp),
+  downloaded and parsed by the build script (not typed by hand), 98 neutral atoms H to Cf.
+  I could not open the original book table, so the numbers are as published by gemmi.
+- **Wavelength:** Cu Kα1 = 1.5405929 Å from `radiation.ts` (Hölzer et al. 1997, already checked).
+
+### Decisions and limits
+
+- Kinematic model only: anomalous dispersion (f′, f″), absorption, preferred orientation,
+  extinction and instrument broadening are not modelled. Relative intensities are guides.
+- Neutral-atom scattering factors are used for every site, even if the CIF gives ions.
+- Reflections with d ≥ 0.8 Å and relative intensity ≥ 0.05 are stored.
+- Reflections from different symmetry families with the same d are one line, with several (hkl).
+- The space-group numbers and mineral names in `scripts/reference-phases.ts` are search filters
+  typed by me; the library stores what COD reports for the chosen entry. Please check the names
+  and space groups in the table above against what you know.
+- The crystal system is derived from the COD space-group number with the ranges of the
+  International Tables.
+
+### Skipped phases (no usable COD entry)
+
+- **γ-Fe2O3 (maghemite):** the only entries named maghemite have partial occupancy (vacancies),
+  and the rule is "fully occupied".
+- **γ-Al2O3:** no entry with the requested formula and space group (Fd-3m) passed the filters.
+
+### Known issues and for you to verify
+
+- SnO2 cross-check difference (above).
+- The "no R listed" choices (arbitrary newest-first rule) for 24 phases, especially the line
+  position standards **Si (COD 2104737) and LaB6 (COD 2104736)**: please compare their cell
+  parameters with the certificate of your standard before using them for instrument correction.
+- Hematite uses the rhombohedral setting (R-3c, hexagonal axes); labels will follow that setting.
+- Mo and Ag wavelengths are still unverified (see the earlier section).
+
+### Verification
+
+- `npm run lint`: pass. `npm run typecheck`: pass.
+- `npm test`: 210 passed, 1 skipped (the real-file test, waiting for your file).
+- `npm run build`: pass. `npm run size`: within budget.
+- `python scripts/crosscheck-refs.py`: 32 of 33 phases pass, SnO2 fails (above).
+
+### Next
+
+Sub-stage 6b: choose material and compare phases (wizard steps 3 and 4).
+
 ## Sub-stage 5.9: catch-up fixes (done)
 
 Branch `claude/ecstatic-einstein-mofaev`. No new science.

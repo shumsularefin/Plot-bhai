@@ -4,3 +4,5 @@ coverage
 .firebase
 *.log
 .DS_Store
+__pycache__
+scripts/source-cache
