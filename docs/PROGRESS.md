@@ -1,5 +1,23 @@
 # Progress
 
+## Sub-stage 5.9: catch-up fixes (done)
+
+Branch `claude/ecstatic-einstein-mofaev`. No new science.
+
+- **Home page:** a fifth card, "TGA and DSC" (coming soon), so all five tools of `CLAUDE.md` show.
+  Only XRD opens. Test: `tests/home.test.tsx`.
+- **Plot wheel:** the wheel zooms only when the plot has keyboard focus or Ctrl/Cmd is held
+  (a trackpad pinch arrives as Ctrl + wheel). Otherwise the page scrolls. The hints now say
+  "Pinch or Ctrl + scroll to zoom". Test for `wheelZooms`.
+- **Figure export:** SVG and PNG now include the residual panel (25 % of the figure height,
+  same 2θ range) when the Fit peaks step shows one. Test in `tests/plot.test.ts`.
+- **Compact stepper (below 1024 px):** one numbered 44 px button per step; reached steps jump
+  back, later steps are disabled. Test in `tests/wizard.test.tsx`.
+- **Real files:** `tests/fixtures-real/` still holds only its README, so there is nothing to
+  load or report. **Needed from you:** the real XRD file(s) described in step 2.2 of the plan.
+
+Verification: see the pull request description.
+
 ## Reference check against the supplied papers (between Stage 5 and Stage 6)
 
 Branch `verify-references`, built on `stage-5-size-strain`. You supplied the PDFs on `main`

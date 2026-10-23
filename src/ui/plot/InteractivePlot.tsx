@@ -38,13 +38,21 @@ export interface InteractivePlotProps {
 const HIT_MOUSE = 12;
 const HIT_TOUCH = 22;
 
+/**
+ * The wheel zooms only when the plot has keyboard focus or Ctrl/Cmd is held (a trackpad pinch
+ * arrives as Ctrl + wheel). Otherwise the page scrolls as usual.
+ */
+export function wheelZooms(event: Pick<WheelEvent, 'ctrlKey' | 'metaKey'>, plot: Element): boolean {
+  return event.ctrlKey || event.metaKey || plot.ownerDocument.activeElement === plot;
+}
+
 interface Pointer {
   x: number;
   y: number;
 }
 
 /**
- * Screen plot with zoom and pan along x: mouse wheel, drag, two-finger pinch, keyboard
+ * Screen plot with zoom and pan along x: mouse wheel (when focused or with Ctrl/Cmd), drag, two-finger pinch, keyboard
  * (arrows pan, + and − zoom, 0 resets) and a hover or tap readout. Vertical swipes still
  * scroll the page on touch screens. Redraws at most once per animation frame.
  */
@@ -125,6 +133,7 @@ export function InteractivePlot(props: InteractivePlotProps) {
     const element = svgRef.current;
     if (!element) return;
     const onWheel = (event: WheelEvent) => {
+      if (!wheelZooms(event, element)) return;
       event.preventDefault();
       const factor = Math.exp(-event.deltaY * (event.deltaMode === 1 ? 0.05 : 0.002));
       commit(zoomDomain(pending.current ?? live.current.domain, factor, valueAt(event.clientX)));
@@ -287,7 +296,7 @@ export function InteractivePlot(props: InteractivePlotProps) {
           {readoutX === undefined ? (
             <span class="plot-readout-hint">
               {props.hint ??
-                'Hover or tap the plot to read values. Scroll or pinch to zoom, drag to pan.'}
+                'Hover or tap the plot to read values. Pinch or Ctrl + scroll to zoom, drag to pan.'}
             </span>
           ) : (
             <>

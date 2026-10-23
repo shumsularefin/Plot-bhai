@@ -57,9 +57,13 @@ export function pixelSize(size: FigureSize, dpi: number): { width: number; heigh
   };
 }
 
+/** Share of the figure height given to the residual panel when one is exported. */
+const RESIDUAL_SHARE = 0.25;
+
 /**
  * Renders the figure as a standalone SVG document string. Sizes are physical (mm) and the
  * drawing units are points, so the font size and line width come out exactly as chosen.
+ * A residual curve, when given, is drawn in its own panel under the main plot, as on screen.
  */
 export function renderSvgString(
   series: readonly PlotSeries[],
@@ -67,28 +71,55 @@ export function renderSvgString(
   labels: AxisLabels,
   settings: ExportSettings,
   markers?: readonly PlotMarker[],
+  residual?: readonly PlotSeries[],
 ): string {
   const size = figureSize(settings);
+  const width = size.widthMm * PT_PER_MM;
+  const height = size.heightMm * PT_PER_MM;
+  const residualHeight = residual ? height * RESIDUAL_SHARE : 0;
+  const style = {
+    fontSize: settings.fontSizePt,
+    lineWidth: settings.lineWidthPt,
+    print: { fontFamily: EXPORT_FONTS[settings.font].family },
+  };
+  const main = h(PlotSvg, {
+    series,
+    xDomain,
+    width,
+    height: height - residualHeight,
+    labels,
+    samples: VECTOR_SAMPLES,
+    legend: true,
+    ...(markers && { markers }),
+    style,
+    ...(residual
+      ? { svgAttributes: { x: 0, y: 0, width, height: height - residualHeight } }
+      : { svgAttributes: { width: `${size.widthMm}mm`, height: `${size.heightMm}mm` } }),
+  });
+  const root = residual
+    ? h(
+        'svg',
+        {
+          xmlns: 'http://www.w3.org/2000/svg',
+          viewBox: `0 0 ${width} ${height}`,
+          width: `${size.widthMm}mm`,
+          height: `${size.heightMm}mm`,
+        },
+        main,
+        h(PlotSvg, {
+          series: residual,
+          xDomain,
+          width,
+          height: residualHeight,
+          labels: { x: labels.x, y: 'Residual' },
+          samples: VECTOR_SAMPLES,
+          style,
+          svgAttributes: { x: 0, y: height - residualHeight, width, height: residualHeight },
+        }),
+      )
+    : main;
   const host = document.createElement('div');
-  render(
-    h(PlotSvg, {
-      series,
-      xDomain,
-      width: size.widthMm * PT_PER_MM,
-      height: size.heightMm * PT_PER_MM,
-      labels,
-      samples: VECTOR_SAMPLES,
-      legend: true,
-      ...(markers && { markers }),
-      style: {
-        fontSize: settings.fontSizePt,
-        lineWidth: settings.lineWidthPt,
-        print: { fontFamily: EXPORT_FONTS[settings.font].family },
-      },
-      svgAttributes: { width: `${size.widthMm}mm`, height: `${size.heightMm}mm` },
-    }),
-    host,
-  );
+  render(root, host);
   const svg = host.firstElementChild;
   const markup = svg ? new XMLSerializer().serializeToString(svg) : '';
   render(null, host);

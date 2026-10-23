@@ -24,6 +24,8 @@ interface ExportPanelProps {
   exportName: string;
   /** Data points drawn as circles in the exported figure. */
   points?: readonly PlotMarker[] | undefined;
+  /** Residual curve drawn in a panel under the exported figure. */
+  residual?: readonly PlotSeries[] | undefined;
 }
 
 /** Figure export: journal width presets, font, sizes, and SVG or PNG (300 or 600 dpi) download. */
@@ -35,6 +37,7 @@ export function ExportPanel({
   onChange,
   exportName,
   points,
+  residual,
 }: ExportPanelProps) {
   const [status, setStatus] = useState<{ text: string; error: boolean } | null>(null);
   // Several plots can be on one page, so ids and radio names must be unique.
@@ -63,7 +66,7 @@ export function ExportPanel({
   );
 
   const exportSvg = () => {
-    const svg = renderSvgString(series, domain, labels, settings, points);
+    const svg = renderSvgString(series, domain, labels, settings, points, residual);
     downloadBlob(new Blob([svg], { type: 'image/svg+xml' }), `${stem}.svg`);
     setStatus({ text: `Saved ${stem}.svg.`, error: false });
   };
@@ -71,7 +74,7 @@ export function ExportPanel({
   const exportPng = async (dpi: number) => {
     setStatus({ text: `Creating the ${dpi} dpi image…`, error: false });
     try {
-      const svg = renderSvgString(series, domain, labels, settings, points);
+      const svg = renderSvgString(series, domain, labels, settings, points, residual);
       downloadBlob(await svgToPng(svg, size, dpi), `${stem}-${dpi}dpi.png`);
       setStatus({ text: `Saved ${stem}-${dpi}dpi.png.`, error: false });
     } catch {
