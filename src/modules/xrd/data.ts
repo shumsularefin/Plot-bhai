@@ -23,7 +23,31 @@ export interface XrdData {
   instrument: InstrumentState;
   /** Size and strain settings, shared by all patterns, plus each pattern's peak choices. */
   results: ResultsSettings;
+  /** Reference phases chosen in steps 3 and 4. */
+  material: MaterialState;
 }
+
+/** The chosen reference material and phases (library in data/reference). */
+export interface MaterialState {
+  /** Library family id such as "tio2", or null before a choice. */
+  familyId: string | null;
+  /** Phases the user selected to use for labels and results. */
+  phaseIds: string[];
+  /** Phases whose stick patterns are switched off in the comparison. */
+  hidden: string[];
+  /** JCPDS/ICDD card numbers typed by the user, by phase id. Never checked by the app. */
+  jcpds: Record<string, string>;
+  /** A reference line counts as found within this many degrees 2θ. */
+  toleranceDeg: number;
+}
+
+export const DEFAULT_MATERIAL: MaterialState = {
+  familyId: null,
+  phaseIds: [],
+  hidden: [],
+  jcpds: {},
+  toleranceDeg: 0.15,
+};
 
 export interface ResultsSettings {
   /** Scherrer shape factor K, dimensionless. */
@@ -133,19 +157,22 @@ export const initialXrdData: XrdData = {
   peaks: {},
   instrument: DEFAULT_INSTRUMENT,
   results: DEFAULT_RESULTS,
+  material: DEFAULT_MATERIAL,
 };
 
 /** Version of the saved shape. Bump it, and extend migrateXrdData, when the shape changes. */
-export const XRD_STATE_VERSION = 6;
+export const XRD_STATE_VERSION = 7;
 
 /**
  * Upgrades saved sessions: version 2 (Stage 1) had no radiation or processing settings;
  * version 3 (Stage 2) had no peak state; version 4 (Stage 3) had no instrument settings;
- * version 5 (Stage 4) had no size and strain settings.
+ * version 5 (Stage 4) had no size and strain settings; version 6 (Stage 5) had no reference
+ * material choice.
  */
 export function migrateXrdData(saved: unknown, version: number): WizardState<XrdData> | undefined {
-  if (version < 2 || version > 5) return undefined;
+  if (version < 2 || version > 6) return undefined;
   const state = saved as WizardState<Partial<XrdData> & Pick<XrdData, 'patterns' | 'plot'>>;
+  if (!state || typeof state !== 'object' || !state.data) return undefined;
   return {
     ...state,
     data: {
@@ -154,7 +181,8 @@ export function migrateXrdData(saved: unknown, version: number): WizardState<Xrd
       processing: state.data.processing ?? {},
       peaks: state.data.peaks ?? {},
       instrument: state.data.instrument ?? DEFAULT_INSTRUMENT,
-      results: DEFAULT_RESULTS,
+      results: state.data.results ?? DEFAULT_RESULTS,
+      material: DEFAULT_MATERIAL,
     },
   };
 }

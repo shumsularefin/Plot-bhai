@@ -1,7 +1,12 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { levenbergMarquardt } from '../src/core/math/levenbergMarquardt';
-import { DEFAULT_INSTRUMENT, DEFAULT_RESULTS, migrateXrdData } from '../src/modules/xrd/data';
+import {
+  DEFAULT_INSTRUMENT,
+  DEFAULT_MATERIAL,
+  DEFAULT_RESULTS,
+  migrateXrdData,
+} from '../src/modules/xrd/data';
 import { formatWithSigma } from '../src/ui/format';
 
 describe('Levenberg–Marquardt', () => {
@@ -103,5 +108,24 @@ describe('session migration', () => {
     expect(fromStage4?.data.instrument).toEqual({ source: 'skip' });
     expect(fromStage4?.data.results).toEqual(DEFAULT_RESULTS);
     expect(migrateXrdData({}, 6)).toBeUndefined();
+    expect(migrateXrdData({}, 7)).toBeUndefined();
+    expect(fromStage4?.data.material).toEqual(DEFAULT_MATERIAL);
+  });
+
+  it('upgrades Stage 5 sessions, keeping size and strain settings and adding the material choice', () => {
+    const results = { k: 0.94, modulusGPa: 210, densityGcm3: null, patterns: {} };
+    const fromStage5 = migrateXrdData(
+      { step: 6, furthest: 6, data: { patterns: [], plot: {}, results } },
+      6,
+    );
+    expect(fromStage5?.step).toBe(6);
+    expect(fromStage5?.data.results).toEqual(results);
+    expect(fromStage5?.data.material).toEqual({
+      familyId: null,
+      phaseIds: [],
+      hidden: [],
+      jcpds: {},
+      toleranceDeg: 0.15,
+    });
   });
 });

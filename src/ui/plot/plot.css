@@ -276,3 +276,31 @@
   min-width: 0;
   margin: 0;
 }
+
+.reference-lanes {
+  min-width: 0;
+}
+
+.reference-lanes svg {
+  display: block;
+  font-family: var(--font-sans);
+}
+
+.reference-lanes .plot-line {
+  stroke-width: 2;
+}
+
+.reference-lanes .lane-missing {
+  stroke-dasharray: 2 2;
+  opacity: 0.45;
+}
+
+.reference-lanes .lane-base {
+  stroke: var(--color-border-strong);
+  stroke-width: 1;
+}
+
+.reference-lanes .lane-name {
+  fill: var(--color-text-muted);
+  font-size: 11px;
+}

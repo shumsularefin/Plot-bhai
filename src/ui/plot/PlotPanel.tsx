@@ -3,6 +3,7 @@ import { HelpTip } from '../HelpTip';
 import { ExportPanel } from './ExportPanel';
 import type { ExportSettings } from './export';
 import { InteractivePlot, type InteractivePlotProps } from './InteractivePlot';
+import { ReferenceLanes, type ReferenceLane } from './ReferenceLanes';
 import { prepareSeries, xExtent, type SeriesSource } from './series';
 import type { AxisLabels, Domain, PlotMarker } from './types';
 import { zoomDomain } from './view';
@@ -32,6 +33,8 @@ interface PlotPanelProps {
   residual?: SeriesSource;
   /** Data points drawn as circles, on screen and in the exported figure (unlike markers). */
   points?: readonly PlotMarker[];
+  /** Reference stick patterns drawn under the plot on the same 2θ range (screen only). */
+  lanes?: readonly ReferenceLane[];
 }
 
 export type PlotInteraction = Pick<
@@ -108,6 +111,9 @@ export function PlotPanel(props: PlotPanelProps) {
         {...props.interaction}
         description={`Plot of intensity against ${xName}, ${series.length} pattern${series.length === 1 ? '' : 's'}.`}
       />
+      {props.lanes && props.lanes.length > 0 && (
+        <ReferenceLanes lanes={props.lanes} domain={domain} />
+      )}
       {residualSeries && (
         <InteractivePlot
           series={residualSeries}

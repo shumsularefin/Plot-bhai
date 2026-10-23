@@ -668,3 +668,150 @@
   text-align: left;
   font-weight: var(--weight-medium);
 }
+
+/* Steps 3 and 4: reference material and phases. */
+.material-step,
+.phases-step {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.material-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.material-search .inline-field {
+  flex: 1 1 16rem;
+}
+
+.family-list,
+.phase-list,
+.phase-cards {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.family-list {
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+}
+
+.family-button {
+  display: grid;
+  gap: var(--space-1);
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.family-button[aria-pressed='true'] {
+  border-color: var(--color-accent);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+
+.family-name {
+  font-weight: var(--weight-medium);
+}
+
+.family-formula,
+.family-count {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.phase-choice,
+.unknown-guide {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.phase-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+.phase-jcpds {
+  flex: 1 1 100%;
+}
+
+.phase-source {
+  font-size: var(--text-sm);
+}
+
+.phase-card {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+
+.phase-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.phase-card-title {
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+}
+
+.phase-card-system {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.phase-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+}
+
+.score-row {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.score-bar {
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+  overflow: hidden;
+}
+
+.score-fill {
+  height: 100%;
+  background: var(--color-accent);
+}
+
+.score-text {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.phase-card summary {
+  min-height: var(--touch-target);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
