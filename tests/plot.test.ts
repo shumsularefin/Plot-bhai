@@ -7,10 +7,12 @@ import {
   pixelSize,
   renderSvgString,
 } from '../src/ui/plot/export';
+import { wheelZooms } from '../src/ui/plot/InteractivePlot';
 import { PRINT_COLORS } from '../src/ui/plot/palette';
 import { crc32, setPngDpi } from '../src/ui/plot/png';
 import { prepareSeries, xExtent } from '../src/ui/plot/series';
 import { clampDomain, zoomDomain } from '../src/ui/plot/view';
+import type { PlotSeries } from '../src/ui/plot/types';
 import tokens from '../src/ui/tokens.css?raw';
 
 const range = (n: number, f: (i: number) => number) =>
@@ -200,6 +202,44 @@ describe('SVG export', () => {
     expect(svg).toContain('stroke="#e69f00"');
     expect(svg).toContain('>Sample B<');
     expect(svg).not.toContain('class=');
+  });
+
+  it('adds a residual panel under the figure when a residual is given', () => {
+    const x = range(100, (i) => 20 + i * 0.1);
+    const [main, residual] = prepareSeries(
+      [
+        { id: 'a', name: 'Data', x, y: range(100, (i) => i), unit: 'counts' },
+        { id: 'residual', name: 'Residual', x, y: range(100, (i) => i % 3), unit: 'counts' },
+      ],
+      { normalise: false, offsetFraction: 0 },
+    ) as [PlotSeries, PlotSeries];
+    const labels = { x: '2θ (°)', y: 'Intensity (a.u.)' };
+    const without = renderSvgString([main], [20, 29.9], labels, DEFAULT_EXPORT_SETTINGS);
+    const withResidual = renderSvgString(
+      [main],
+      [20, 29.9],
+      labels,
+      DEFAULT_EXPORT_SETTINGS,
+      undefined,
+      [residual],
+    );
+    expect(without).not.toContain('>Residual<');
+    expect(withResidual).toContain('>Residual<');
+    expect(withResidual).toContain('width="85mm"');
+    expect(withResidual).toContain('height="65mm"');
+    expect(withResidual.match(/<svg/g)).toHaveLength(3);
+  });
+
+  it('wheel zooms only with focus or Ctrl/Cmd held', () => {
+    const plot = document.createElement('div');
+    plot.tabIndex = 0;
+    document.body.append(plot);
+    expect(wheelZooms({ ctrlKey: false, metaKey: false }, plot)).toBe(false);
+    expect(wheelZooms({ ctrlKey: true, metaKey: false }, plot)).toBe(true);
+    expect(wheelZooms({ ctrlKey: false, metaKey: true }, plot)).toBe(true);
+    plot.focus();
+    expect(wheelZooms({ ctrlKey: false, metaKey: false }, plot)).toBe(true);
+    plot.remove();
   });
 
   it('makes safe file names', () => {

@@ -27,6 +27,11 @@ const TOOLS: readonly ToolCard[] = [
     name: 'Particle size',
     description: 'Measure particles in SEM or TEM images and build a size distribution.',
   },
+  {
+    name: 'TGA and DSC',
+    description:
+      'Mass loss steps, thermal events, enthalpies and glass transition, with calcination suggestions.',
+  },
 ];
 
 export function Home() {

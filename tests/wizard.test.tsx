@@ -70,10 +70,23 @@ describe('Wizard', () => {
   it('lets the user jump back to a reached step from the stepper', async () => {
     const store = await renderWizard('stepper');
     act(() => store.set((s) => ({ ...s, step: 2, furthest: 2 })));
-    fireEvent.click(screen.getByRole('button', { name: /First step/ }));
+    fireEvent.click(screen.getAllByRole('button', { name: /First step/ })[0] as HTMLElement);
     expect(heading().textContent).toBe('First step');
     // Reached steps stay clickable after going back.
-    expect(screen.getByRole('button', { name: /Third step/ })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: /Third step/ }).length).toBeGreaterThan(0);
+  });
+
+  it('compact stepper: completed steps can be tapped, later ones cannot', async () => {
+    const store = await renderWizard('compact');
+    act(() => store.set((s) => ({ ...s, step: 1, furthest: 1 })));
+    expect(screen.getByRole('button', { name: 'Go to step 3: Third step' })).toHaveProperty(
+      'disabled',
+      true,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Go to step 1: First step' }));
+    expect(heading().textContent).toBe('First step');
+    fireEvent.click(screen.getByRole('button', { name: 'Go to step 2: Second step' }));
+    expect(heading().textContent).toBe('Second step');
   });
 
   it('restores the step and data after a refresh', async () => {

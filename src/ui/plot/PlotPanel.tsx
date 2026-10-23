@@ -204,6 +204,7 @@ export function PlotPanel(props: PlotPanelProps) {
         onChange={(patch) => onSettingsChange({ export: { ...settings.export, ...patch } })}
         exportName={exportName}
         points={props.points}
+        residual={residualSeries ?? undefined}
       />
     </div>
   );

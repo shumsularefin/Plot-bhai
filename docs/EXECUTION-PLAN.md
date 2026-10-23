@@ -17,7 +17,7 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | Sub-stage | What                                                         | Status  |
 | --------- | ------------------------------------------------------------ | ------- |
 | 0–5       | Foundation, import, cleaning, peaks, instrument, size/strain | done    |
-| 5.9       | Catch-up fixes                                               | todo    |
+| 5.9       | Catch-up fixes                                               | done    |
 | 6a        | Reference library build (COD + cross-check)                  | todo    |
 | 6b        | Choose material, compare phases                              | todo    |
 | 6c        | hkl labels, combined table, lattice refinement               | todo    |

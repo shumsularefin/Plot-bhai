@@ -551,7 +551,7 @@ function CleanPlot(props: CleanPlotProps) {
         markers,
         ...(onAddAnchor && {
           onPlotClick: onAddAnchor,
-          hint: 'Click or tap to add a background point. Scroll or pinch to zoom, drag to pan.',
+          hint: 'Click or tap to add a background point. Pinch or Ctrl + scroll to zoom, drag to pan.',
         }),
       }}
     />

@@ -7,7 +7,7 @@ interface StepperProps {
 
 /**
  * Progress indicator. Wide screens show every step; narrow screens show a compact
- * "Step 2 of 8" line with a progress bar. Steps already reached can be revisited.
+ * "Step 2 of 8" line, a progress bar and one tap target per step. Steps already reached can be revisited.
  */
 export function Stepper({ titles, current, furthest, onSelect }: StepperProps) {
   const total = titles.length;
@@ -33,6 +33,22 @@ export function Stepper({ titles, current, furthest, onSelect }: StepperProps) {
         >
           <div class="stepper-bar-fill" style={{ width: `${percent}%` }} />
         </div>
+        <ol class="stepper-jump">
+          {titles.map((title, index) => (
+            <li key={title}>
+              <button
+                type="button"
+                class={`stepper-jump-button${index === current ? ' is-current' : ''}`}
+                aria-label={`Go to step ${index + 1}: ${title}`}
+                aria-current={index === current ? 'step' : undefined}
+                disabled={index > furthest}
+                onClick={() => onSelect(index)}
+              >
+                {index + 1}
+              </button>
+            </li>
+          ))}
+        </ol>
       </div>
 
       <ol class="stepper-list">
