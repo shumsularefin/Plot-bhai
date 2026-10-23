@@ -3,6 +3,7 @@ import { HelpTip } from '../HelpTip';
 import { ExportPanel } from './ExportPanel';
 import type { ExportSettings } from './export';
 import { InteractivePlot, type InteractivePlotProps } from './InteractivePlot';
+import type { PeakLabelSet } from './peakLabels';
 import { ReferenceLanes, type ReferenceLane } from './ReferenceLanes';
 import { prepareSeries, xExtent, type SeriesSource } from './series';
 import type { AxisLabels, Domain, PlotMarker } from './types';
@@ -35,6 +36,8 @@ interface PlotPanelProps {
   points?: readonly PlotMarker[];
   /** Reference stick patterns drawn under the plot on the same 2θ range (screen only). */
   lanes?: readonly ReferenceLane[];
+  /** Labels above peaks (for example hkl), on screen and in the exported figure. */
+  peakLabels?: PeakLabelSet;
 }
 
 export type PlotInteraction = Pick<
@@ -99,6 +102,14 @@ export function PlotPanel(props: PlotPanelProps) {
         </ul>
       )}
 
+      {props.peakLabels && props.peakLabels.key.length > 0 && (
+        <ul class="plot-legend" aria-label="Peak labels">
+          {props.peakLabels.key.map((entry) => (
+            <li key={entry}>{entry}</li>
+          ))}
+        </ul>
+      )}
+
       <InteractivePlot
         series={series}
         labels={axisLabels}
@@ -108,6 +119,7 @@ export function PlotPanel(props: PlotPanelProps) {
         onDomainChange={setDomain}
         formatX={(x) => `${xName} ${round(x)}${xUnit}`}
         {...(props.points && { markers: props.points })}
+        {...(props.peakLabels && { peakLabels: props.peakLabels })}
         {...props.interaction}
         description={`Plot of intensity against ${xName}, ${series.length} pattern${series.length === 1 ? '' : 's'}.`}
       />
@@ -211,6 +223,7 @@ export function PlotPanel(props: PlotPanelProps) {
         exportName={exportName}
         points={props.points}
         residual={residualSeries ?? undefined}
+        peakLabels={props.peakLabels}
       />
     </div>
   );

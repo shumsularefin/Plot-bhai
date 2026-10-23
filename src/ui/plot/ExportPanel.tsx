@@ -13,6 +13,7 @@ import {
   type ExportPreset,
   type ExportSettings,
 } from './export';
+import type { PeakLabelSet } from './peakLabels';
 import type { AxisLabels, Domain, PlotMarker, PlotSeries } from './types';
 
 interface ExportPanelProps {
@@ -26,6 +27,8 @@ interface ExportPanelProps {
   points?: readonly PlotMarker[] | undefined;
   /** Residual curve drawn in a panel under the exported figure. */
   residual?: readonly PlotSeries[] | undefined;
+  /** Labels above peaks, drawn in the exported figure with their key. */
+  peakLabels?: PeakLabelSet | undefined;
 }
 
 /** Figure export: journal width presets, font, sizes, and SVG or PNG (300 or 600 dpi) download. */
@@ -38,6 +41,7 @@ export function ExportPanel({
   exportName,
   points,
   residual,
+  peakLabels,
 }: ExportPanelProps) {
   const [status, setStatus] = useState<{ text: string; error: boolean } | null>(null);
   // Several plots can be on one page, so ids and radio names must be unique.
@@ -66,7 +70,7 @@ export function ExportPanel({
   );
 
   const exportSvg = () => {
-    const svg = renderSvgString(series, domain, labels, settings, points, residual);
+    const svg = renderSvgString(series, domain, labels, settings, points, residual, peakLabels);
     downloadBlob(new Blob([svg], { type: 'image/svg+xml' }), `${stem}.svg`);
     setStatus({ text: `Saved ${stem}.svg.`, error: false });
   };
@@ -74,7 +78,7 @@ export function ExportPanel({
   const exportPng = async (dpi: number) => {
     setStatus({ text: `Creating the ${dpi} dpi image…`, error: false });
     try {
-      const svg = renderSvgString(series, domain, labels, settings, points, residual);
+      const svg = renderSvgString(series, domain, labels, settings, points, residual, peakLabels);
       downloadBlob(await svgToPng(svg, size, dpi), `${stem}-${dpi}dpi.png`);
       setStatus({ text: `Saved ${stem}-${dpi}dpi.png.`, error: false });
     } catch {

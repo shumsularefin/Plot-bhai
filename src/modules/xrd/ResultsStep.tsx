@@ -6,9 +6,12 @@ import { formatWithSigma } from '../../ui/format';
 import { HelpTip } from '../../ui/HelpTip';
 import { BarChart } from '../../ui/plot/BarChart';
 import type { StepContext } from '../../ui/wizard/types';
+import { assignmentFor } from './assignment';
+import { AssignmentSection } from './AssignmentSection';
 import { downloadCsv } from './csv';
 import type { PatternChoices, ResultsSettings, XrdData } from './data';
 import { LineDetails, Messages, ScherrerDetails, TableBox } from './MethodDetails';
+import { useReferencePhases } from './useReferencePhases';
 import {
   choicesFor,
   LINE_METHODS,
@@ -34,9 +37,19 @@ export function ResultsStep({ data, update }: StepContext<XrdData>) {
   const setResults = (patch: Partial<ResultsSettings>) =>
     update({ results: { ...settings, ...patch } });
   const skipped = data.instrument.source === 'skip';
+  const [refineZeroShift, setRefineZeroShift] = useState(false);
+  const { phases, failed } = useReferencePhases(data.material.familyId);
 
   if (!pattern) return <p>No patterns are loaded. Go back to Upload to add one.</p>;
   const results = sizeResults(data, pattern.id);
+  const assignment = phases ? assignmentFor(data, pattern.id, phases, refineZeroShift) : null;
+  const assignmentReason = !data.material.phaseIds.length
+    ? 'No reference phase is chosen, so peaks are not labelled with (hkl). Choose a material in step 3 and tick "Use this phase" in step 4 to get labels, the combined table and lattice parameters.'
+    : failed
+      ? 'The reference lines could not be loaded. Reload the page to try again.'
+      : !phases
+        ? 'Loading the reference lines…'
+        : 'This pattern has no fitted peaks yet. Fit them in step 5 to assign (hkl).';
   const setChoices = (fitKey: string, patch: Partial<PatternChoices>) =>
     setResults({
       patterns: {
@@ -152,6 +165,15 @@ export function ResultsStep({ data, update }: StepContext<XrdData>) {
 
       <Guidance />
 
+      <AssignmentSection
+        data={data}
+        update={update}
+        patternId={pattern.id}
+        result={assignment ?? { reason: assignmentReason }}
+        refineZeroShift={refineZeroShift}
+        onRefineZeroShift={setRefineZeroShift}
+      />
+
       {results.kind === 'none' ? (
         <p class="message is-warning">
           <strong>Check:</strong> {results.reason}
@@ -162,6 +184,7 @@ export function ResultsStep({ data, update }: StepContext<XrdData>) {
             peaks={results.peaks}
             patternName={pattern.name}
             skipped={results.skipped}
+            hkl={assignment?.peaks.map((p) => p.hklText)}
             setUse={(index, use) => {
               const c = choicesFor(data, pattern.id, results.fitKey);
               setChoices(results.fitKey, { use: { ...c.use, [index]: use } });
@@ -286,11 +309,13 @@ interface PeakChoicesProps {
   peaks: readonly ResultPeak[];
   patternName: string;
   skipped: boolean;
+  /** (hkl) text of each peak by position, when peaks were assigned in the section above. */
+  hkl: readonly string[] | undefined;
   setUse: (index: number, use: boolean) => void;
   setModulus: (index: number, value: number | null) => void;
 }
 
-function PeakChoices({ peaks, patternName, skipped, setUse, setModulus }: PeakChoicesProps) {
+function PeakChoices({ peaks, patternName, skipped, hkl, setUse, setModulus }: PeakChoicesProps) {
   const exportCsv = () =>
     downloadCsv(
       `${patternName}-size-peaks`,
@@ -298,6 +323,7 @@ function PeakChoices({ peaks, patternName, skipped, setUse, setModulus }: PeakCh
       peaks,
       [
         { header: '2θ (°)', value: (p) => p.twoTheta },
+        ...(hkl ? [{ header: '(hkl)', value: (p: ResultPeak) => hkl[p.index] ?? '' }] : []),
         { header: 'Observed FWHM (°)', value: (p) => p.observed },
         { header: 'Corrected β (°)', value: (p) => p.corrected },
         { header: 'σ β (°)', value: (p) => p.correctedSigma },
@@ -320,6 +346,7 @@ function PeakChoices({ peaks, patternName, skipped, setUse, setModulus }: PeakCh
           <tr>
             <th scope="col">Use</th>
             <th scope="col">2θ (°)</th>
+            {hkl && <th scope="col">(hkl)</th>}
             <th scope="col">β (°)</th>
             <th scope="col">E_hkl (GPa)</th>
             <th scope="col">Notes</th>
@@ -340,6 +367,7 @@ function PeakChoices({ peaks, patternName, skipped, setUse, setModulus }: PeakCh
                 </label>
               </td>
               <td>{p.twoTheta.toFixed(3)}</td>
+              {hkl && <td>{hkl[p.index] || '–'}</td>}
               <td>{formatWithSigma(p.corrected, p.correctedSigma)}</td>
               <td>
                 <input
