@@ -1,5 +1,76 @@
 # Progress
 
+## Sub-stage 11b: TGA events, theory, calcination, results (done)
+
+Branch `claude/hopeful-dirac-72ak86`, stacked on 11a (pull request 18 is still not merged into `main`).
+
+### What was built
+
+- Steps 4 to 6 of the thermal wizard replace the placeholders:
+  - **Assign events** (`AssignStep.tsx`, `src/core/thermal/events.ts`): up to three ranked
+    suggestions per step with a plain-language reason and a confidence label (low or medium, never
+    high). The user accepts, picks another event, types their own, or rejects all. The note that TGA
+    alone cannot identify the evolved species is at the top.
+  - **Theory check** (`TheoryCheck.tsx`, `src/core/thermal/formula.ts`): formula parser (brackets,
+    hydrates, subscript digits), molar mass, theoretical loss `100·(M_pre − ν·M_prod)/M_pre`, seven ready
+    examples, comparison with a chosen step.
+  - **Calcination suggestion** (`CalcinationStep.tsx`, `src/core/thermal/calcination.ts`): endset of the
+    last step losing at least a threshold (default 1 %) plus a margin (default 50 °C), three temperatures
+    to test (minimum, +50, +100 °C), the plateau above it shaded in the plot, warnings (unfinished last
+    step, run ends too early, plateau not flat), and the permanent warning about heating rate, hold time
+    and "starting point, not optimal".
+  - **Results and export** (`ResultsStep.tsx`): run description, steps table with suggested events,
+    T5/T10/T50, residue, theory and calcination lines, CSV, figure (SVG/PNG) with shaded step regions and
+    numbered steps with a key, methods text from the real settings
+    (`src/core/thermal/methods.ts`), and the JSON session file (`session.ts`, saved state version 2,
+    migration from 1).
+- The plot engine got `bands` (shaded x ranges) on screen and in the SVG/PNG export.
+- `data/thermal/atomic-weights.json`: built by `scripts/build-atomic-weights.mjs` from the saved
+  CIAAW page `data/thermal/source/abridged-atomic-weights.html` (Abridged Standard Atomic Weights 2024,
+  https://ciaaw.org/abridged-atomic-weights.htm). 84 elements; radioactive elements without a
+  standard value are not in it.
+- `data/thermal/events.json`: see "Needs from you" below.
+- Tests: `thermal-theory` (18: hand-worked mass losses from the table values, formula parser, event
+  ranking, calcination on a synthetic curve with known endset), `thermalEvents` (8: the three steps, the
+  results, session round trip, migration), a plot test for bands; e2e walks steps 4 to 6 and checks 360 px.
+
+### Decisions (my own conventions, please confirm)
+
+- Ranking score = 0.5·(share of the step inside the range) + 0.3·(peak inside) + 0.2·(sample kind
+  matches); "medium" only when the peak is inside and the kind matches. Rules without a range are never
+  suggested; oxidising rules are skipped in nitrogen or argon.
+- Calcination candidates are minimum, +50 and +100 °C; flat plateau means a change below 0.5 percentage
+  points. A step is "unfinished" when its endset is within 20 °C of the end of the run.
+- A decision about an event is stored under the step's DTG peak temperature in whole °C, so it is lost
+  if the peak moves to another whole degree (for example when the DTG window changes).
+- Shaded bands and step numbers appear in the top panel only; the DTG panel in the export has none.
+
+### Known issues
+
+- **The event table is incomplete.** Only four events have a temperature range, all copied from one
+  open-access review of cellulosic natural fibres (Polymers 13 (2021) 2710, doi 10.3390/polym13162710,
+  CC BY 4.0), each with the quoted sentence. The moisture range 110 to 150 °C is a single observation in
+  that review. The other seven (bound water, capping agents, polymer degradation, dehydroxylation, nitrate
+  or acetate salts, carbonates, carbon oxidation) have `range: null` and status `todo`: I could not open a
+  free source in this session (MDPI and Springer refused the download, searches found vendor notes and
+  paywalled papers). They are never suggested but can be chosen by hand. For a hydroxide or salt sample,
+  most steps therefore get no suggestion yet.
+- Step shading of the DTG panel, the DSC exotherm check of the calcination suggestion, and combined
+  TGA-DSC are the DSC sub-stages (12a, 12b).
+
+### Needs from you
+
+- Textbook or paper ranges, with page numbers, for the seven `todo` events (and for the moisture range),
+  so I can fill `data/thermal/events.json`. Please say which sources I may cite.
+- Check a few elements of `atomic-weights.json` against the current CIAAW table.
+- Confirm the ranking weights, the calcination spacing and flat-plateau threshold above.
+- Still open from 11a: merge PR 18; a real TGA export with instrument-software numbers; the conventions of
+  11a; the real UV-Vis, FTIR and SEM/TEM files and checks listed in earlier sections.
+
+### Next
+
+Sub-stage 12a: DSC (Stage 12 items 1 to 6).
+
 ## Sub-stage 11a: TGA import to step detection (done)
 
 Branch `claude/hopeful-dirac-72ak86`, stacked on 10c (pull request 18 is still not merged into `main`).

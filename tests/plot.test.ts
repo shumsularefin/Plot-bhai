@@ -205,6 +205,36 @@ describe('SVG export', () => {
     expect(svg).not.toContain('class=');
   });
 
+  it('draws shaded bands and numbered step labels in the exported figure', () => {
+    const [series] = prepareSeries(
+      [
+        {
+          id: 'm',
+          name: 'Mass',
+          x: range(100, (i) => i * 10),
+          y: range(100, (i) => 100 - i / 4),
+          unit: '%',
+        },
+      ],
+      { normalise: false, offsetFraction: 0 },
+    );
+    const svg = renderSvgString(
+      series ? [series] : [],
+      [0, 990],
+      { x: 'Temperature (°C)', y: 'Mass (%)', yValues: true },
+      DEFAULT_EXPORT_SETTINGS,
+      undefined,
+      undefined,
+      { labels: [{ x: 300, y: 90, text: '1' }], key: ['1: 10.0 % loss'] },
+      undefined,
+      undefined,
+      [{ from: 200, to: 400 }],
+    );
+    expect(svg).toContain('fill-opacity="0.08"');
+    expect(svg).toContain('>1: 10.0 % loss<');
+    expect(svg).not.toContain('class=');
+  });
+
   it('labels a reversed axis with the positive value, high on the left', () => {
     // Wavenumber 500 to 4000, plotted as −wavenumber so x still increases.
     const [series] = prepareSeries(

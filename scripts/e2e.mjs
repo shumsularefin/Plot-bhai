@@ -367,6 +367,41 @@ try {
   await page.getByRole('button', { name: 'Use the automatic limits again' }).click();
   step('Thermal: example run, ramp cut, three steps, marker drag updates the loss live');
 
+  // Events, calcination and results, and no sideways scroll on each at phone width.
+  const sideways = async (name, width) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.waitForTimeout(500);
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    assert.ok(overflow <= 0, `${name} scrolls sideways by ${overflow}px at ${width}px`);
+    await page.setViewportSize({ width: 1280, height: 900 });
+  };
+  await next('Assign events');
+  await page
+    .getByText(/TGA alone cannot tell which substance/)
+    .first()
+    .waitFor();
+  await page
+    .getByRole('button', { name: 'Accept' })
+    .first()
+    .click()
+    .catch(() => {});
+  await page.getByLabel('Ready example').selectOption({ index: 1 });
+  await page.getByText(/Theoretical loss 30\.89 %/).waitFor();
+  await sideways('Assign events', 360);
+  await next('Calcination suggestion');
+  await page
+    .getByText(/starting point, not an optimal temperature/)
+    .first()
+    .waitFor();
+  await sideways('Calcination suggestion', 360);
+  await next('Results and export');
+  const methodsText = await page.getByLabel('Methods paragraph').inputValue();
+  assert.ok(methodsText.includes('synthetic example'), 'methods text names the synthetic data');
+  await sideways('Results', 360);
+  step('Thermal: assign events, theory check, calcination suggestion, results, 360 px layout');
+
   await page
     .getByRole('button', { name: 'Start over' })
     .click()
