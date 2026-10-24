@@ -4,7 +4,7 @@ import { niceTicks } from './axes';
 import { decimate, lowerBound, type Decimated } from './decimate';
 import { PRINT_COLORS } from './palette';
 import { labelRoom, placeLabels, textWidth, type PeakLabelSet } from './peakLabels';
-import type { AxisLabels, Domain, PlotMarker, PlotSeries } from './types';
+import type { AxisLabels, Domain, PlotBand, PlotMarker, PlotSeries } from './types';
 
 /** Visual settings. All lengths are in the SVG's own units (px on screen, pt for export). */
 export interface PlotStyle {
@@ -46,6 +46,8 @@ interface PlotSvgProps {
   /** Fixed y range; computed from the visible data when omitted. */
   yDomain?: Domain;
   markers?: readonly PlotMarker[];
+  /** Shaded x ranges drawn behind the lines. */
+  bands?: readonly PlotBand[];
   /** Text labels above peaks, and the key explaining them (the key is drawn in exports only). */
   peakLabels?: PeakLabelSet;
   /** Extra attributes for the root element, for example physical width and height for export. */
@@ -100,6 +102,7 @@ export function PlotSvg(props: PlotSvgProps) {
     samples,
     legend,
     markers,
+    bands,
     peakLabels,
     svgAttributes,
     children,
@@ -188,6 +191,19 @@ export function PlotSvg(props: PlotSvgProps) {
           <rect width={innerW} height={innerH} />
         </clipPath>
         <g clip-path={`url(#${clipId})`} fill="none" stroke-linejoin="round" stroke-linecap="round">
+          {bands?.map((band, i) => (
+            <rect
+              key={i}
+              class={print ? undefined : 'plot-band'}
+              x={px(band.from)}
+              y={0}
+              width={Math.max(0, px(band.to) - px(band.from))}
+              height={innerH}
+              fill={print ? '#000000' : undefined}
+              fill-opacity={print ? 0.08 : undefined}
+              stroke="none"
+            />
+          ))}
           {series.map((s, i) => (
             <path
               key={s.id}

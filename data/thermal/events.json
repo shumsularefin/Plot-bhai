@@ -1,0 +1,121 @@
+{
+  "source": {
+    "id": "natural-fibre-review-2021",
+    "citation": "Thermogravimetric Analysis Properties of Cellulosic Natural Fiber Polymer Composites: A Review on Influence of Chemical Treatments, Polymers 13 (2021) 2710",
+    "doi": "10.3390/polym13162710",
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8399699/",
+    "licence": "CC BY 4.0, https://creativecommons.org/licenses/by/4.0/",
+    "retrieved": "2026-10-24",
+    "note": "The only source opened in this session. Every range below is copied from a sentence of that review and quoted next to it. The review is about cellulosic natural fibres and their composites, so the ranges describe those materials."
+  },
+  "verification": "TODO, verify: the whole table is incomplete and needs your review. Rules with status \"todo\" have no temperature range because I could not open a source for one in this session (open-access pages for inorganic salts, hydroxides, carbonates and polymers were not found, and MDPI and Springer pages refused the download). Please send textbook or paper ranges, with page numbers, for those rows. Never use these ranges in a paper without checking the original sources.",
+  "rules": [
+    {
+      "id": "adsorbed-moisture",
+      "name": "Loss of adsorbed moisture and volatile solvents",
+      "range": { "fromC": 110, "toC": 150 },
+      "atmosphere": "any",
+      "categories": ["biomass", "polymer", "composite", "hydroxide-or-salt", "other"],
+      "status": "sourced",
+      "quote": "A slight mass loss was initially observed at 110 to 150 °C due to water loss due to elevated temperature.",
+      "overlap": "This is one example from the review; water is often lost below 110 °C as well. Treat the range as a single observation, not a limit.",
+      "sourceId": "natural-fibre-review-2021"
+    },
+    {
+      "id": "biomass-main",
+      "name": "Main decomposition of plant fibre or biomass (hemicellulose and cellulose region)",
+      "range": { "fromC": 215, "toC": 470 },
+      "atmosphere": "any",
+      "categories": ["biomass", "composite"],
+      "status": "sourced",
+      "quote": "It can be seen that natural fibers usually degrade in three main stages with most of the thermal decomposition occurring in the range of 215 to 470 °C.",
+      "overlap": "Hemicellulose, cellulose and lignin overlap strongly in this range and can seldom be separated on a TGA curve alone.",
+      "sourceId": "natural-fibre-review-2021"
+    },
+    {
+      "id": "hemicellulose-cellulose",
+      "name": "Decomposition of hemicellulose and cellulose",
+      "range": { "fromC": 250, "toC": 400 },
+      "atmosphere": "any",
+      "categories": ["biomass", "composite"],
+      "status": "sourced",
+      "quote": "The thermal degradation of hybrid composites was discovered at 250 to 400 °C due to the decomposition of the cellulosic and hemicellulose components.",
+      "overlap": "Overlaps with lignin decomposition, which starts in the same region.",
+      "sourceId": "natural-fibre-review-2021"
+    },
+    {
+      "id": "lignin",
+      "name": "Decomposition of lignin",
+      "range": { "fromC": 280, "toC": 520 },
+      "atmosphere": "any",
+      "categories": ["biomass", "composite"],
+      "status": "sourced",
+      "quote": "[...] lignin would thermally decompose with peaks from 280 to 520 °C and up to 229 kJ/mol for activation energy [73].",
+      "overlap": "A broad, weak step that starts under the cellulose step and continues far above it.",
+      "sourceId": "natural-fibre-review-2021"
+    },
+    {
+      "id": "bound-water",
+      "name": "Loss of bound or crystal water",
+      "range": null,
+      "atmosphere": "any",
+      "categories": ["hydroxide-or-salt", "other"],
+      "status": "todo",
+      "overlap": "TODO: needs a cited range."
+    },
+    {
+      "id": "capping-agents",
+      "name": "Decomposition of organic capping agents and plant-extract biomolecules",
+      "range": null,
+      "atmosphere": "any",
+      "categories": ["biomass", "composite", "other"],
+      "status": "todo",
+      "overlap": "TODO: needs a cited range."
+    },
+    {
+      "id": "polymer-degradation",
+      "name": "Polymer degradation",
+      "range": null,
+      "atmosphere": "any",
+      "categories": ["polymer", "composite"],
+      "status": "todo",
+      "overlap": "TODO: depends strongly on the polymer; needs a cited range per polymer."
+    },
+    {
+      "id": "dehydroxylation",
+      "name": "Dehydroxylation of a metal hydroxide",
+      "range": null,
+      "atmosphere": "any",
+      "categories": ["hydroxide-or-salt"],
+      "status": "todo",
+      "overlap": "TODO: depends on the metal; needs a cited range per hydroxide."
+    },
+    {
+      "id": "nitrate-acetate",
+      "name": "Decomposition of a nitrate, acetate or other precursor salt",
+      "range": null,
+      "atmosphere": "any",
+      "categories": ["hydroxide-or-salt"],
+      "status": "todo",
+      "overlap": "TODO: depends on the salt; needs a cited range per salt."
+    },
+    {
+      "id": "carbonate",
+      "name": "Decomposition of a carbonate",
+      "range": null,
+      "atmosphere": "any",
+      "categories": ["hydroxide-or-salt", "composite", "other"],
+      "status": "todo",
+      "overlap": "TODO: depends on the carbonate; needs a cited range per carbonate."
+    },
+    {
+      "id": "carbon-oxidation",
+      "name": "Oxidation (burning) of carbon",
+      "range": null,
+      "atmosphere": "oxidising",
+      "categories": ["biomass", "composite", "other"],
+      "status": "todo",
+      "overlap": "TODO: only possible in air or oxygen; needs a cited range."
+    }
+  ]
+}

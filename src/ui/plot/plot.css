@@ -266,6 +266,11 @@
   stroke: var(--color-text);
 }
 
+.plot-band {
+  fill: var(--color-text);
+  fill-opacity: 0.08;
+}
+
 .plot-bar {
   fill: var(--plot-1);
 }

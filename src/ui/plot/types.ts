@@ -19,6 +19,12 @@ export interface PlotSeries {
   quiet?: boolean;
 }
 
+/** A shaded x range, in data units (for example a mass loss step). */
+export interface PlotBand {
+  from: number;
+  to: number;
+}
+
 /** A point drawn as a small circle, in data units. */
 export interface PlotMarker {
   x: number;

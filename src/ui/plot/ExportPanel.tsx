@@ -16,7 +16,7 @@ import {
 } from './export';
 import type { PeakLabelSet } from './peakLabels';
 import type { ReferenceLane } from './ReferenceLanes';
-import type { AxisLabels, Domain, PlotMarker, PlotSeries } from './types';
+import type { AxisLabels, Domain, PlotBand, PlotMarker, PlotSeries } from './types';
 
 interface ExportPanelProps {
   series: readonly PlotSeries[];
@@ -35,6 +35,8 @@ interface ExportPanelProps {
   lanes?: readonly ReferenceLane[] | undefined;
   /** Y axis of the panel under the plot when it is not a residual. */
   lowerAxis?: LowerAxis | undefined;
+  /** Shaded x ranges drawn behind the lines of the exported figure. */
+  bands?: readonly PlotBand[] | undefined;
 }
 
 /** Figure export: journal width presets, font, sizes, and SVG or PNG (300 or 600 dpi) download. */
@@ -50,6 +52,7 @@ export function ExportPanel({
   peakLabels,
   lanes,
   lowerAxis,
+  bands,
 }: ExportPanelProps) {
   const [status, setStatus] = useState<{ text: string; error: boolean } | null>(null);
   // Several plots can be on one page, so ids and radio names must be unique.
@@ -88,6 +91,7 @@ export function ExportPanel({
       peakLabels,
       lanes,
       lowerAxis,
+      bands,
     );
     downloadBlob(new Blob([svg], { type: 'image/svg+xml' }), `${stem}.svg`);
     setStatus({ text: `Saved ${stem}.svg.`, error: false });
@@ -106,6 +110,7 @@ export function ExportPanel({
         peakLabels,
         lanes,
         lowerAxis,
+        bands,
       );
       downloadBlob(await svgToPng(svg, size, dpi), `${stem}-${dpi}dpi.png`);
       setStatus({ text: `Saved ${stem}-${dpi}dpi.png.`, error: false });
