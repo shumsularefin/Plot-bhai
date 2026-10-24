@@ -1,5 +1,64 @@
 # Progress
 
+## Sub-stage 11a: TGA import to step detection (done)
+
+Branch `claude/hopeful-dirac-72ak86`, stacked on 10c (pull request 18 is still not merged into `main`).
+
+### What was built
+
+- Thermal tool at `#/thermal` (lazy-loaded; the TGA and DSC cards on the home page link to it). Six
+  wizard steps; steps 4 to 6 (events, combined interpretation, results and export) are placeholders
+  for 11b.
+- Core in `src/core/thermal/`: `import.ts` (text files with header lines, comma, semicolon, tab or
+  space delimiters, decimal commas, column guess and manual mapping, K to °C by −273.15, s to min),
+  `process.ts` (ramp range, blank subtraction by interpolation, smoothing, normalising at a chosen
+  temperature, heating-rate estimate), `smooth.ts` (local quadratic least squares on uneven x, window
+  in °C), `steps.ts` (DTG, step detection, onset, peak, endset, mass loss, T5, T10, T50, residue),
+  `deconvolve.ts` (Gaussian split of overlapping DTG peaks, via the existing `fitRegion`),
+  `synthetic.ts` (example data and known-answer curves).
+- Step 1 describes the run (atmosphere, heating rate, initial mass, sample type) and shows a preview.
+  Step 2 cleans (range, blank, smoothing, normalising, undo and reset, before and after plot).
+  Step 3 shows mass and DTG, steps with draggable limits, editable From and To, add and remove a step,
+  CSV download, T5/T10/T50, residue at the end and at a chosen temperature.
+- The export figure now supports a labelled lower panel (`LowerAxis`) for DTG.
+- Tests: `thermal-core` (24, known answers from synthetic curves), `thermalSteps` (9); `npm run e2e`
+  has a thermal block (example run, marker drag, 10,000-point file with decimal commas, no horizontal
+  scroll at 360 and 1280 px).
+
+### Decisions (my own conventions, please confirm)
+
+- DTG = −dm/dT in %/°C from a local quadratic fit; the window is set in °C (default 20).
+- Extrapolated onset and endset: Tp ∓ the mass change on that side divided by the DTG at the peak
+  (tangent at the steepest point). Tested on Gaussian-DTG curves, where the true values are
+  Tp ∓ σ√(2π)/2.
+- Step limits default to where DTG falls to 2 % of the peak, or to the valley towards a neighbour.
+- Two steps count as overlapping when the valley DTG is above 10 % of the smaller peak; they are
+  reported as one region with a note, and can be split into Gaussian components (labelled an
+  approximation).
+- Peak prominence is a percentage of the tallest peak (default 5 %, minimum separation 20 °C).
+- T5/T10/T50 are the first downward crossings of 95, 90 and 50 % by interpolation.
+- The app says that TGA alone cannot tell which substance is lost in a step.
+
+### Known issues
+
+- No real TGA file or instrument export was available, so the importer is generic and makes no vendor
+  claim. Real exports may need column mapping by hand.
+- DTG runs on the main thread (about 250 to 300 ms for 10,000 points).
+- Deconvolved components are in a table only, not drawn. Step shading, thermal session file and
+  export of the figure with annotations come in 11b.
+
+### Needs from you
+
+- Merge pull request 18 into `main`.
+- Real UV-Vis, FTIR and SEM/TEM files (and ImageJ numbers) in `tests/fixtures-real/`; check the FTIR
+  ranges against a textbook; confirm the %R reference-correction convention.
+- A real TGA text or CSV export, with instrument-software or Origin numbers, to verify the importer
+  and the step numbers; confirm the 2 %, 10 % and onset/endset conventions above.
+
+### Next
+
+Sub-stage 11b: events, theory and calcination suggestion (Stage 11 items 6 to 9).
+
 ## Sub-stage 10c: particles, distribution and export (done)
 
 Branch `claude/hopeful-dirac-72ak86`, stacked on 10b (pull request 18 is still not merged into `main`).

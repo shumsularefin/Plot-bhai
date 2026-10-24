@@ -30,7 +30,7 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 10a       | Particles: image, scale, manual                              | done    |
 | 10b       | Particles: automatic detection                               | done    |
 | 10c       | Particles: distribution, export                              | done    |
-| 11a       | TGA: import to step detection (Stage 11 items 1–5)           | todo    |
+| 11a       | TGA: import to step detection (Stage 11 items 1–5)           | done    |
 | 11b       | TGA: events, theory, calcination (items 6–9)                 | todo    |
 | 12a       | DSC (Stage 12 items 1–6)                                     | todo    |
 | 12b       | Combined TGA-DSC (items 7–8)                                 | todo    |

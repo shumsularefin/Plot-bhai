@@ -340,6 +340,78 @@ try {
   assert.match(await page.getByLabel('Methods paragraph').inputValue(), /generated example/);
   step('Particles: distribution numbers, histogram SVG, summary CSV, annotated PNG, pooling');
 
+  // Thermal: example run, then a 10,000-point semicolon/decimal-comma file typed up here.
+  await page.goto(`http://localhost:${PORT}/#/thermal`);
+  await heading().waitFor();
+  await page.getByRole('button', { name: 'Try with example data' }).click();
+  await page.getByRole('heading', { name: 'Describe the run', exact: true }).waitFor();
+  await next('Clean data');
+  await page.getByText(/points were left out/).waitFor();
+  await next('Mass loss steps');
+  const stepRows = page.locator('tr', { has: page.getByLabel(/start \(°C\)/) });
+  await stepRows.first().waitFor();
+  assert.equal(await stepRows.count(), 3);
+  const firstLoss = async () => Number(await stepRows.first().locator('td').nth(5).textContent());
+  const before = await firstLoss();
+  assert.ok(before > 8.5 && before < 9.1, `first step loses ${before} %`);
+  // A real drag of the first limit marker changes the number live.
+  const marker = page.locator('svg circle').first();
+  const box = await marker.boundingBox();
+  assert.ok(box, 'a draggable limit marker is drawn');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await page.getByText(/You edited the step limits by hand/).waitFor();
+  assert.notEqual(await firstLoss(), before);
+  await page.getByRole('button', { name: 'Use the automatic limits again' }).click();
+  step('Thermal: example run, ramp cut, three steps, marker drag updates the loss live');
+
+  await page
+    .getByRole('button', { name: 'Start over' })
+    .click()
+    .catch(() => {});
+  const rows = [];
+  for (let i = 0; i < 10000; i++) {
+    const t = 30 + (i * 770) / 9999;
+    const loss = 40 / (1 + Math.exp(-(t - 350) / 15));
+    rows.push(
+      `${t.toFixed(3).replace('.', ',')};${(i * 0.077).toFixed(3).replace('.', ',')};${(10 - loss / 10).toFixed(4).replace('.', ',')}`,
+    );
+  }
+  const bigText = `Sample;big\nTemp./°C;Time/min;Mass/mg\n${rows.join('\n')}\n`;
+  page.once('dialog', (d) => d.accept());
+  await page.getByRole('button', { name: 'Start over' }).click();
+  await heading().waitFor();
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'big.txt',
+    mimeType: 'text/plain',
+    buffer: Buffer.from(bigText, 'latin1'),
+  });
+  await page.getByRole('heading', { name: 'Describe the run', exact: true }).waitFor();
+  assert.equal(await page.getByLabel('Time column (optional)').inputValue(), '1');
+  const started = Date.now();
+  await next('Clean data');
+  await next('Mass loss steps');
+  await stepRows.first().waitFor();
+  const elapsed = Date.now() - started;
+  assert.equal(await stepRows.count(), 1);
+  assert.ok(elapsed < 4000, `10,000 points took ${elapsed} ms to reach the steps table`);
+  step(`Thermal: 10,000-point semicolon file with decimal commas, steps table after ${elapsed} ms`);
+
+  // No horizontal page scroll at phone width.
+  for (const width of [360, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    // Plots resize through a ResizeObserver, which needs a frame or two.
+    await page.waitForTimeout(500);
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    assert.ok(overflow <= 0, `page scrolls sideways by ${overflow}px at ${width}px`);
+  }
+  await page.setViewportSize({ width: 1280, height: 900 });
+  step('Thermal: no horizontal page scroll at 360 and 1280 px');
+
   assert.deepEqual(problems, [], `browser errors: ${problems.join('; ')}`);
   console.log('E2E passed.');
 } catch (error) {
