@@ -1,5 +1,75 @@
 # Progress
 
+## Sub-stage 7b: figure builder, methods text, export, full flow (done)
+
+Branch `claude/ecstatic-einstein-mofaev`.
+
+### What was built
+
+- Step 8 "Export" (`src/modules/xrd/ExportStep.tsx`), replacing the placeholder:
+  - Figure: all patterns in one plot with the existing normalise and offset options, journal width
+    presets (85 and 180 mm), Arial or Times, font size, line width, inward ticks, 2θ (italic θ, degrees)
+    and Intensity (a.u.) axis titles, SVG and PNG at 300 and 600 dpi (the existing export panel).
+    New: reference stick lanes (one per chosen phase, named "phase, COD id") and (hkl) peak labels
+    are printed in the exported figure (`src/ui/plot/LanesSvg.tsx`, `renderSvgString(..., lanes)`,
+    `src/modules/xrd/figure.ts`). Lines with no fitted peak are thinner and lighter.
+  - Methods text (`src/core/xrd/report/methods.ts`, `src/modules/xrd/methodsText.ts`): one paragraph
+    written only from the saved settings (radiation and wavelengths, scan and step, zero shift,
+    smoothing, background, Kα2 stripping, normalisation, profile function, instrument correction and
+    standard, K, methods that produced a size, reference phases with COD IDs, matching tolerance,
+    software). Steps not used are left out. Example data produce a sentence saying they are not a
+    measurement. Copy button.
+  - Tables (`src/modules/xrd/tables.ts`): pure builders now shared by the step components and the
+    Export step: fitted peaks, assigned peaks, peaks used for size and strain, size and strain
+    summary, per pattern. Export offers one CSV per table and all tables in one CSV (`## name` line
+    before each). `src/modules/xrd/csv.ts` has `makeTable`, `downloadTable`.
+  - Session file (`src/modules/xrd/session.ts`): versioned JSON (`app`, `kind`, `version`, `state`);
+    Float64Arrays and non-finite numbers are tagged so they survive JSON; import migrates older
+    versions with `migrateXrdData` and refuses foreign, damaged or newer files with a plain message.
+    Importing replaces the current analysis.
+- Wizard order is unchanged and already matched CLAUDE.md; "Try with example data" now runs from
+  step 1 to step 8.
+- End-to-end test `scripts/e2e.mjs` (`npm run e2e`, after `npm run build`): starts `vite preview`,
+  drives Chromium through example data, all eight steps, the SVG, PNG, combined CSV and session
+  downloads, a session round trip (state cleared, example walked, session imported, exported again,
+  data compared with `deepEqual`) and a refusal of a foreign JSON file. Playwright is not a project
+  dependency (no new dependency was added); the script finds a global install
+  (`/opt/node-tools/node_modules` or `PLAYWRIGHT_PATH`; `CHROMIUM_PATH` for the browser binary).
+- Tests: `tests/report.test.ts` (methods text, session round trip, migration, refusals),
+  `tests/tables.test.ts` (tables, combined CSV, lanes), lanes case in `tests/plot.test.ts`.
+
+### Decisions
+
+- Lanes are drawn in a panel under the plot (same 2θ range and margins) rather than inside it, so
+  the sticks never hide data.
+- Hkl labels and lanes come from the first pattern that has fitted peaks and a chosen phase; the
+  step says which pattern. The methods text describes the first pattern's processing and fit
+  settings; with several patterns it says how many were analysed.
+- The session file stores the whole wizard state; on import only the data are restored and the user
+  stays on the Export step.
+
+### Known issues
+
+- Texture, crystallinity and the per-method line-fit tables are still downloaded from their own
+  sections in step 7; they are not in the Export step's list.
+- The software version is not recorded in the methods text ("version not recorded").
+- The e2e script is not run in CI (it needs a browser and a global Playwright); run it locally.
+- Example data are synthetic with arbitrary peak positions, so the e2e flow with ZnO assigns few
+  peaks; it checks the plumbing, not the science. No real measured file has been tried in the
+  Export step.
+
+### What I need from you
+
+- Try a real measured file through all eight steps, and check the figure against your journal's
+  guidelines (fonts, widths, line widths).
+- No citation for COD is in the repository and none was added from memory. If your journal wants a
+  COD citation in the methods text, give me the reference to use.
+- Say whether CI should run the e2e test (that would add Playwright as a dev dependency).
+
+### Next sub-stage
+
+8a, when you say so.
+
 ## Sub-stage 6a-fix: library screening and 7a corrections (done)
 
 Branch `claude/ecstatic-einstein-mofaev`.

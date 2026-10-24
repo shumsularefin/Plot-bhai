@@ -25,5 +25,10 @@ export default tseslint.config(
     files: ['scripts/**/*.{js,mjs,ts}', '*.config.{js,ts}'],
     languageOptions: { globals: globals.node },
   },
+  {
+    // Callbacks passed to page.evaluate and page.waitForFunction run in the browser.
+    files: ['scripts/e2e.mjs'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+  },
   prettier,
 );
