@@ -211,6 +211,11 @@
   min-width: 0;
 }
 
+/* A wide table inside a section scrolls in its own box instead of widening the page. */
+.clean-step > * {
+  min-width: 0;
+}
+
 .clean-toolbar,
 .clean-actions,
 .clean-view,
@@ -505,6 +510,8 @@
 
 /* The table may be wider than a phone; it scrolls inside its own box, never the page. */
 .table-scroll {
+  /* Keeps visually hidden labels inside the scrolling box instead of widening the page. */
+  position: relative;
   max-width: 100%;
   overflow-x: auto;
   border: 1px solid var(--color-border);
@@ -858,6 +865,8 @@
 }
 
 .methods-text {
+  box-sizing: border-box;
+  width: 100%;
   max-width: 70ch;
   padding: 0.75rem;
   border: 1px solid var(--color-border);

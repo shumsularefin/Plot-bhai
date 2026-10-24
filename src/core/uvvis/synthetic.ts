@@ -28,50 +28,88 @@ function wavelengthGrid({ startNm, endNm, stepNm }: SyntheticSpectrumOptions): F
   return Float64Array.from({ length: n }, (_, i) => startNm + i * stepNm);
 }
 
-/** Normal noise by the Box–Muller method from a seeded uniform generator. */
-function noiseSource(options: SyntheticSpectrumOptions): () => number {
-  if (options.noiseSeed === undefined || !options.noiseSd) return () => 0;
-  const random = seededRandom(options.noiseSeed);
-  const sd = options.noiseSd;
+/** Seeded normal noise with standard deviation sd (Box–Muller from a seeded uniform generator). */
+export function seededNoise(seed: number, sd: number): () => number {
+  const random = seededRandom(seed);
   return () => sd * Math.sqrt(-2 * Math.log(1 - random())) * Math.cos(2 * Math.PI * random());
 }
 
+function noiseSource(options: SyntheticSpectrumOptions): () => number {
+  if (options.noiseSeed === undefined || !options.noiseSd) return () => 0;
+  return seededNoise(options.noiseSeed, options.noiseSd);
+}
+
 /**
- * Absorbance of a direct allowed transition: A = slope · √(E − Eg) / E for E > Eg, else 0, plus
- * a constant baseline. E = hc/λ in eV. Because A·E = slope · √(E − Eg), the Tauc quantity
- * (A·E)² = slope² · (E − Eg) is exactly linear above the gap, with its line meeting zero at Eg.
- * slope in eV^(1/2), baseline unitless.
+ * Shape of the absorption edge for a transition with Tauc exponent n (1/2 direct allowed,
+ * 2 indirect allowed, 3/2 direct forbidden, 3 indirect forbidden): c · (E − Eg)^n / E for
+ * E > Eg, else 0. E = hc/λ in eV. Because (shape · E)^(1/n) = c^(1/n) · (E − Eg), the Tauc
+ * quantity is exactly linear above the gap and its line meets zero at Eg. c is in eV^(n−1).
  */
+export function edgeShape(energyEv: number, bandGapEv: number, n: number, c: number): number {
+  return (c * Math.max(energyEv - bandGapEv, 0) ** n) / energyEv;
+}
+
+export type EdgeOptions = SyntheticSpectrumOptions & {
+  /** Tauc exponent n; default 1/2 (direct allowed). */
+  n?: number;
+  /** Strength c of the edge; default 8 for n = 1/2 and 1.5 otherwise. */
+  strength?: number;
+};
+
+const defaultStrength = (n: number) => (n === 0.5 ? 8 : 1.5);
+
+/**
+ * Absorbance with an absorption edge of the chosen transition type plus a constant baseline
+ * (see edgeShape for the shape). Baseline is unitless.
+ */
+export function bandEdgeAbsorbance(options: EdgeOptions & { baseline?: number }): {
+  wavelengthNm: Float64Array;
+  values: Float64Array;
+} {
+  const { bandGapEv, n = 0.5, baseline = 0 } = options;
+  const c = options.strength ?? defaultStrength(n);
+  const wavelengthNm = wavelengthGrid(options);
+  const noise = noiseSource(options);
+  const values = wavelengthNm.map(
+    (w) => edgeShape(energyFromWavelength(w), bandGapEv, n, c) + baseline + noise(),
+  );
+  return { wavelengthNm, values };
+}
+
+/** Direct allowed edge (n = 1/2) with a small default baseline, used by the example data. */
 export function directGapAbsorbance(
   options: SyntheticSpectrumOptions & { slope?: number; baseline?: number },
 ): { wavelengthNm: Float64Array; values: Float64Array } {
-  const { bandGapEv, slope = 8, baseline = 0.02 } = options;
+  const { slope = 8, baseline = 0.02, ...rest } = options;
+  return bandEdgeAbsorbance({ ...rest, n: 0.5, strength: slope, baseline });
+}
+
+/**
+ * Percent diffuse reflectance whose Kubelka–Munk function is F(R) = floor + edgeShape(E).
+ * Inverting F(R) = (1 − R)² / (2R) gives R = 1 + F − √(F² + 2F), as a fraction; the result is
+ * multiplied by 100.
+ */
+export function bandEdgeReflectance(options: EdgeOptions & { floor?: number }): {
+  wavelengthNm: Float64Array;
+  values: Float64Array;
+} {
+  const { bandGapEv, n = 0.5, floor = 0.01 } = options;
+  const c = options.strength ?? defaultStrength(n);
   const wavelengthNm = wavelengthGrid(options);
   const noise = noiseSource(options);
   const values = wavelengthNm.map((w) => {
-    const energy = energyFromWavelength(w);
-    return (slope * Math.sqrt(Math.max(energy - bandGapEv, 0))) / energy + baseline + noise();
+    const f = floor + edgeShape(energyFromWavelength(w), bandGapEv, n, c);
+    return 100 * (1 + f - Math.sqrt(f * f + 2 * f)) + noise();
   });
   return { wavelengthNm, values };
 }
 
-/**
- * Percent diffuse reflectance whose Kubelka–Munk function is F(R) = floor + slope · √(E − Eg) / E
- * above the gap (floor alone below it). Inverting F(R) = (1 − R)² / (2R) gives
- * R = 1 + F − √(F² + 2F), as a fraction; the result is multiplied by 100.
- */
+/** Direct allowed diffuse reflectance, used by the example data. */
 export function directGapReflectance(
   options: SyntheticSpectrumOptions & { slope?: number; floor?: number },
 ): { wavelengthNm: Float64Array; values: Float64Array } {
-  const { bandGapEv, slope = 8, floor = 0.01 } = options;
-  const wavelengthNm = wavelengthGrid(options);
-  const noise = noiseSource(options);
-  const values = wavelengthNm.map((w) => {
-    const energy = energyFromWavelength(w);
-    const f = floor + (slope * Math.sqrt(Math.max(energy - bandGapEv, 0))) / energy;
-    return 100 * (1 + f - Math.sqrt(f * f + 2 * f)) + noise();
-  });
-  return { wavelengthNm, values };
+  const { slope = 8, ...rest } = options;
+  return bandEdgeReflectance({ ...rest, n: 0.5, strength: slope });
 }
 
 /** A smooth absorbance baseline such as a solvent blank: a + b·(800 − λ), λ in nm. */

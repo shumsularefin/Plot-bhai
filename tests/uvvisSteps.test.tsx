@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/preact';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { BandGapStep } from '../src/modules/uvvis/BandGapStep';
 import { CleanStep } from '../src/modules/uvvis/CleanStep';
+import { ResultsStep } from '../src/modules/uvvis/ResultsStep';
 import { exampleSpectra, initialUvvisData, type UvvisData } from '../src/modules/uvvis/data';
 import { UploadStep } from '../src/modules/uvvis/UploadStep';
 
@@ -14,7 +16,10 @@ beforeAll(() => {
 });
 
 /** Renders a step with a small stand-in for the wizard's data store. */
-function setup(Step: typeof UploadStep | typeof CleanStep, start: Partial<UvvisData> = {}) {
+function setup(
+  Step: typeof UploadStep | typeof CleanStep | typeof BandGapStep | typeof ResultsStep,
+  start: Partial<UvvisData> = {},
+) {
   let data: UvvisData = { ...initialUvvisData, ...start };
   const view = render(<Step data={data} update={() => {}} />);
   const update = (patch: Partial<UvvisData>) => {
@@ -91,5 +96,59 @@ describe('UV-Vis cleaning step', () => {
   it('asks the user to go back when nothing is loaded', () => {
     setup(CleanStep);
     expect(screen.getByText(/No spectra are loaded/)).toBeTruthy();
+  });
+});
+
+describe('UV-Vis band gap step', () => {
+  it('shows the band gap near the value the example was built with', () => {
+    setup(BandGapStep, { spectra: exampleSpectra() });
+    const result = screen.getByLabelText('Band gap result');
+    const text = result.textContent ?? '';
+    const gap = Number(/(\d\.\d+) ±/.exec(text)?.[1]);
+    expect(Math.abs(gap - 3.2)).toBeLessThan(0.03);
+    expect(screen.getByText(/Guide only/)).toBeTruthy();
+  });
+
+  it('stores the transition type and film thickness, and offers a way back to the suggestion', () => {
+    const spectra = exampleSpectra();
+    const sample = spectra[0];
+    if (!sample) throw new Error('missing');
+    const store = setup(BandGapStep, { spectra });
+    fireEvent.change(screen.getByLabelText('Transition type'), {
+      target: { value: 'indirect-allowed' },
+    });
+    expect(store.get().bandGap[sample.id]?.transition).toBe('indirect-allowed');
+    fireEvent.input(screen.getByLabelText(/Film thickness/), { target: { value: '250' } });
+    expect(store.get().bandGap[sample.id]?.thicknessNm).toBe(250);
+    // Choosing from the comparison table switches the transition.
+    fireEvent.click(screen.getByRole('button', { name: /Use\s*Direct allowed/ }));
+    expect(store.get().bandGap[sample.id]?.transition).toBe('direct-allowed');
+  });
+
+  it('switches on the Urbach energy and the derivative method', () => {
+    const spectra = exampleSpectra();
+    const sample = spectra[0];
+    if (!sample) throw new Error('missing');
+    const store = setup(BandGapStep, { spectra });
+    fireEvent.click(screen.getByLabelText('Urbach energy'));
+    expect(store.get().bandGap[sample.id]?.urbach.enabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('Derivative method'), { target: { value: 'linear' } });
+    expect(screen.getByText(/Steepest rise of/)).toBeTruthy();
+  });
+
+  it('asks the user to go back when nothing is loaded', () => {
+    setup(BandGapStep);
+    expect(screen.getByText(/No spectra are loaded/)).toBeTruthy();
+  });
+});
+
+describe('UV-Vis results step', () => {
+  it('lists every spectrum with its band gap and gives methods text that says it is synthetic', () => {
+    setup(ResultsStep, { spectra: exampleSpectra() });
+    expect(screen.getAllByRole('row')).toHaveLength(1 + 3);
+    const methods = screen.getByLabelText('Methods paragraph') as HTMLTextAreaElement;
+    expect(methods.value).toContain('generated example data');
+    expect(screen.getByRole('button', { name: 'Download results (CSV)' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Download session (JSON)' })).toBeTruthy();
   });
 });

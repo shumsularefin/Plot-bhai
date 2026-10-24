@@ -175,6 +175,11 @@ button.stepper-target:hover .stepper-title {
   gap: var(--space-4);
 }
 
+/* Grid items default to their content width; a wide table must scroll inside its box instead. */
+.wizard-content > * {
+  min-width: 0;
+}
+
 .wizard-footer {
   display: grid;
   gap: var(--space-3);

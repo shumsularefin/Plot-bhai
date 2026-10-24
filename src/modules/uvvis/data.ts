@@ -9,6 +9,7 @@ import {
   directGapReflectance,
   EXAMPLE_BAND_GAP_EV,
 } from '../../core/uvvis/synthetic';
+import type { TransitionId } from '../../core/uvvis/tauc';
 import type { Spectrum } from '../../core/uvvis/types';
 import { DEFAULT_EXPORT_SETTINGS } from '../../ui/plot/export';
 import type { PlotSettings } from '../../ui/plot/PlotPanel';
@@ -27,6 +28,27 @@ export interface LambdaRange {
   toNm: number | null;
 }
 
+/** Band gap settings of one spectrum. */
+export interface BandGapChoice {
+  transition: TransitionId;
+  /** Film thickness in nm; null when unknown (the Tauc axis is then only proportional to α). */
+  thicknessNm: number | null;
+  /** Fit region in eV per transition type; a missing entry means the automatic suggestion. */
+  regions: Partial<Record<TransitionId, [number, number]>>;
+  /** Urbach energy from the tail below the edge. */
+  urbach: { enabled: boolean; region: [number, number] | null };
+  /** Derivative method: off, or the peak of dS/dE (linear) or d ln S/dE (log). */
+  derivative: 'off' | 'linear' | 'log';
+}
+
+export const DEFAULT_BAND_GAP: BandGapChoice = {
+  transition: 'direct-allowed',
+  thicknessNm: null,
+  regions: {},
+  urbach: { enabled: false, region: null },
+  derivative: 'off',
+};
+
 /** Everything saved for a UV-Vis analysis. */
 export interface UvvisData {
   spectra: Spectrum[];
@@ -35,6 +57,8 @@ export interface UvvisData {
   cleaning: Record<string, CleaningSettings>;
   view: ViewSettings;
   lambdaRange: LambdaRange;
+  /** Band gap settings per spectrum id. Missing means the defaults. */
+  bandGap: Record<string, BandGapChoice>;
 }
 
 export const initialUvvisData: UvvisData = {
@@ -43,14 +67,25 @@ export const initialUvvisData: UvvisData = {
   cleaning: {},
   view: { quantity: 'measured', xUnit: 'nm' },
   lambdaRange: { fromNm: null, toNm: null },
+  bandGap: {},
 };
 
-/** Version of the saved shape. Bump it, and add a migration, when the shape changes. */
-export const UVVIS_STATE_VERSION = 1;
+/** Version of the saved shape. Bump it, and extend migrateUvvisData, when the shape changes. */
+export const UVVIS_STATE_VERSION = 2;
 
-/** No older versions exist yet, so older or newer saved data are discarded. */
-export function migrateUvvisData(): WizardState<UvvisData> | undefined {
-  return undefined;
+/** Upgrades saved sessions: version 1 (sub-stage 8a) had no band gap settings. */
+export function migrateUvvisData(
+  saved: unknown,
+  version: number,
+): WizardState<UvvisData> | undefined {
+  if (version !== 1) return undefined;
+  const state = saved as WizardState<Partial<UvvisData> & Pick<UvvisData, 'spectra' | 'plot'>>;
+  if (!state || typeof state !== 'object' || !state.data) return undefined;
+  return { ...state, data: { ...initialUvvisData, ...state.data, bandGap: {} } };
+}
+
+export function bandGapFor(data: Pick<UvvisData, 'bandGap'>, id: string): BandGapChoice {
+  return data.bandGap[id] ?? DEFAULT_BAND_GAP;
 }
 
 export function cleaningFor(data: Pick<UvvisData, 'cleaning'>, id: string): CleaningSettings {

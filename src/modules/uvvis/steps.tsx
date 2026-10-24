@@ -1,10 +1,11 @@
 import type { WizardStep } from '../../ui/wizard/types';
 import { CleanStep } from './CleanStep';
 import type { UvvisData } from './data';
-import { PlaceholderStep } from './PlaceholderStep';
+import { BandGapStep } from './BandGapStep';
+import { ResultsStep } from './ResultsStep';
 import { UploadStep } from './UploadStep';
 
-/** The UV-Vis wizard. Steps 3 and 4 are filled in by sub-stage 8b. */
+/** The UV-Vis wizard. */
 export const uvvisSteps: readonly WizardStep<UvvisData>[] = [
   {
     id: 'upload',
@@ -23,15 +24,11 @@ export const uvvisSteps: readonly WizardStep<UvvisData>[] = [
   {
     id: 'bandgap',
     title: 'Band gap',
-    render: () => (
-      <PlaceholderStep what="The Tauc plot, band gap fit and Urbach energy will be here." />
-    ),
+    render: (context) => <BandGapStep {...context} />,
   },
   {
     id: 'results',
     title: 'Results and export',
-    render: () => (
-      <PlaceholderStep what="The results table, figures, methods text and export will be here." />
-    ),
+    render: (context) => <ResultsStep {...context} />,
   },
 ];

@@ -1,5 +1,82 @@
 # Progress
 
+## Sub-stage 8b: Tauc, Urbach, results (done)
+
+Branch `claude/hopeful-dirac-72ak86`, stacked on 8a (pull request 18 was not merged into `main` when
+this started; `main` was merged into the branch). Steps 3 and 4 of the UV-Vis wizard are now real.
+
+### What was built
+
+- Core (`src/core/uvvis/tauc.ts`): signal for the Tauc axis (α = ln(10)·A/t in cm⁻¹ when a film
+  thickness is given, otherwise A; F(R) for reflectance), (αhν)^(1/n) for n = 1/2, 2, 3/2, 3,
+  straight-line band gap fit with the uncertainty from the fit covariance (error propagation,
+  formula in the doc comment), automatic region suggestion, comparison of all four transitions,
+  Urbach energy (ln α against E, Eu = 1/slope, with automatic tail suggestion) and the derivative
+  method (peak of dS/dE or d ln S/dE). `methods.ts` writes the methods paragraph.
+- Step 3 "Band gap": transition type, optional film thickness, Tauc plot with the fit line and two
+  draggable markers for the fit region (also keyboard-free touch drag via the existing plot),
+  result card (Eg ± σ, edge in nm, R², region, points), plain-language warnings (few points, low R²,
+  long extrapolation, no thickness, F(R) assumptions), all four transitions side by side marked
+  "guide only, choose from the literature", optional Urbach energy with its own plot and markers,
+  optional derivative method. Every plot has the shared SVG/PNG export panel.
+- Step 4 "Results and export": results table (sample, λmax, edge, Eg ± σ, transition, R², method,
+  Eu) with CSV (all fields, full precision), methods text with copy button, session file (JSON) to
+  save and re-open the analysis.
+- Saved state version 2 with a migration from version 1; generic session JSON codec moved to
+  `src/ui/persist/sessionJson.ts` (XRD uses it too).
+- Layout fixes found at 360 px: wide tables no longer widen the page (`.wizard-content > *` and
+  `.clean-step > *` get `min-width: 0`, `.table-scroll` is positioned, the methods box is
+  full-width).
+- Tests: `tests/uvvis-tauc.test.ts`, `uvvis-analysis.test.ts`, extended `uvvisSteps.test.tsx`.
+
+### Known-answer results
+
+- Spectra built from a chosen Eg (3.1 eV) with the right edge shape recover Eg to 0.001 eV
+  noise-free for all four transition types from absorbance, and for direct and indirect from
+  diffuse reflectance (exact when the F(R) floor is 0; within 0.02 eV with the generator's default
+  floor of 0.01, which bends the curve). With noise (sd 0.002 to 0.005 absorbance, 20 seeds each)
+  the worst error of the automatic region was 0.0010 eV.
+- The built-in example (Eg 3.2 eV, blank corrected) gives 3.200 eV (absorbance) and 3.202 eV
+  (reflectance); without blank subtraction the absorbance example gives 3.175 eV, so cleaning
+  matters.
+- Urbach: Eu = 0.12 eV exponential tail recovered exactly; with 2 % noise within 5 %.
+- Derivative: steepest point of a logistic edge at 3.2 eV found to 0.1 eV.
+
+### Decisions
+
+- Region suggestion: first version picked the steepest window and followed noise (errors up to
+  0.1 eV over 20 seeds). It now takes the widest window (0.1 to 0.6 eV) with R² ≥ 0.995 and the
+  highest R². Because the straightest window is chosen the printed ± is somewhat too small; the
+  step says it is the line fit only.
+- α uses exact ln(10) rather than the rounded 2.303 from the plan.
+- Absorption edge in the table is hc/Eg (the wavelength with the gap energy), not a tangent
+  construction.
+- Derivative method searches within 0.3 eV of the Tauc fit region and reports a steepest-rise
+  energy, which sits above Eg for real spectra; it is labelled a cross-check.
+- Wrong transition types still produce fits (for example the direct-forbidden fit of a direct-gap
+  example gives 0.9 eV with R² 0.998). The comparison is labelled a guide only for that reason.
+
+### Known issues
+
+- No real UV-Vis file and no Origin Tauc result have been tried (none in `tests/fixtures-real/`),
+  so agreement within 0.05 eV with your own fit is untested.
+- The Urbach tail has no automatic quality check beyond a warning; the example has no real tail.
+- Texture of the figure: Tauc and Urbach axis labels use raised spans (not Unicode superscripts);
+  check the exported SVG and PNG in your journal's workflow.
+- Spectra figures (step 2) and Tauc figures (step 3) export from their own steps; step 4 only points
+  to them.
+- 8a items still open: Cary-style paired-column files are not read, %R reference correction needs
+  your confirmation.
+
+### What I need from you
+
+- A real UV-Vis file and your Origin Tauc number for it, in `tests/fixtures-real/`.
+- Merge pull request 18 (8a) into `main`, then this one.
+
+### Next sub-stage
+
+9 (FTIR), when you say so.
+
 ## Sub-stage 8a: UV-Vis import, conversions, cleaning (done)
 
 Branch `claude/hopeful-dirac-72ak86`. The UV-Vis card on the home page is enabled (`#/uvvis`).

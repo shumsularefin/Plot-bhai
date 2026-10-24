@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState } from 'preact/hooks';
 import {
   availableQuantities,
-  cleanSpectrum,
   DEFAULT_CLEANING,
   DISPLAY_LABELS,
   lambdaMax,
@@ -12,6 +11,7 @@ import {
 import { formatNumber } from '../../core/xrd/parsers/numbers';
 import { HelpTip } from '../../ui/HelpTip';
 import type { StepContext } from '../../ui/wizard/types';
+import { cleanAll } from './analysis';
 import { cleaningFor, type UvvisData, type ViewSettings } from './data';
 import { downloadCsv } from '../xrd/csv';
 import { NumberInput } from '../xrd/NumberInput';
@@ -33,17 +33,7 @@ export function CleanStep({ data, update }: StepContext<UvvisData>) {
   const [canUndo, setCanUndo] = useState(false);
 
   const { cleaning } = data;
-  const cleaned = useMemo(
-    () =>
-      spectra.map((s) => {
-        const settings = cleaningFor({ cleaning }, s.id);
-        const blank = settings.blank.blankId
-          ? spectra.find((b) => b.id === settings.blank.blankId && b.id !== s.id)
-          : undefined;
-        return cleanSpectrum(s, settings, blank);
-      }),
-    [spectra, cleaning],
-  );
+  const cleaned = useMemo(() => cleanAll(spectra, cleaning), [spectra, cleaning]);
   const view = data.view;
   const index = spectrum ? spectra.indexOf(spectrum) : -1;
   const selectedCleaned = cleaned[index];

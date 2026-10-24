@@ -1,4 +1,5 @@
 import { DISPLAY_LABELS, type DisplayQuantity } from '../../core/uvvis/process';
+import type { SignalUnit, TransitionId } from '../../core/uvvis/tauc';
 import type { SpectrumKind } from '../../core/uvvis/types';
 import type { AxisLabels } from '../../ui/plot/types';
 import type { ViewSettings } from './data';
@@ -34,3 +35,53 @@ export function uvvisLabels(view: ViewSettings, quantity: DisplayQuantity | null
     };
   };
 }
+
+/** Superscript that survives SVG and PNG export: a smaller, raised span, then back down. */
+const Sup = ({ children }: { children: string }) => (
+  <>
+    <tspan dy="-0.45em" font-size="70%">
+      {children}
+    </tspan>
+    <tspan dy="0.45em"> </tspan>
+  </>
+);
+
+/** Axis labels of the Tauc plot, for example (αhν)² (eV cm⁻¹)². */
+export function taucLabels(transition: TransitionId, unit: SignalUnit): AxisLabels {
+  const power = EXPONENT_TEXT[transition];
+  const symbol = unit === 'kubelka-munk' ? 'F(R)' : unit === 'alpha' ? 'α' : 'A';
+  const units = unit === 'alpha' ? '(eV cm⁻¹)' : unit === 'kubelka-munk' ? '(eV)' : '(eV a.u.)';
+  return {
+    x: 'Photon energy (eV)',
+    y: (
+      <>
+        (<tspan font-style="italic">{symbol}</tspan>h<tspan font-style="italic">ν</tspan>)
+        <Sup>{power}</Sup>
+        {units}
+        <Sup>{power}</Sup>
+      </>
+    ),
+    yValues: true,
+  };
+}
+
+/** Axis labels of the Urbach plot: ln of the absorption quantity against photon energy. */
+export function urbachLabels(unit: SignalUnit): AxisLabels {
+  const symbol = unit === 'kubelka-munk' ? 'F(R)' : unit === 'alpha' ? 'α' : 'A';
+  return {
+    x: 'Photon energy (eV)',
+    y: (
+      <>
+        ln <tspan font-style="italic">{symbol}</tspan>
+      </>
+    ),
+    yValues: true,
+  };
+}
+
+const EXPONENT_TEXT: Record<TransitionId, string> = {
+  'direct-allowed': '2',
+  'indirect-allowed': '1/2',
+  'direct-forbidden': '2/3',
+  'indirect-forbidden': '1/3',
+};

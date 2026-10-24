@@ -25,7 +25,7 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 6a-fix    | Library entry screening, WK cross-check, 7a corrections      | done    |
 | 7b        | Figure builder, methods text, export, e2e                    | done    |
 | 8a        | UV-Vis import, conversions, cleaning                         | done    |
-| 8b        | Tauc, Urbach, results                                        | todo    |
+| 8b        | Tauc, Urbach, results                                        | done    |
 | 9         | FTIR                                                         | todo    |
 | 10a       | Particles: image, scale, manual                              | todo    |
 | 10b       | Particles: automatic detection                               | todo    |
