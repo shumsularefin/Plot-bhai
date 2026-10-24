@@ -5,7 +5,11 @@ import { DEFAULT_DETECTION, detectPeaks } from '../src/core/xrd/peaks/detect';
 import { fitPeaks } from '../src/core/xrd/peaks/fit';
 import { ANODES } from '../src/core/xrd/radiation';
 import { referenceLines } from '../src/core/xrd/reference/match';
-import type { ReferenceFamilyFile, ReferenceIndex } from '../src/core/xrd/reference/types';
+import type {
+  ReferenceFamilyFile,
+  ReferenceIndex,
+  ReferencePhase,
+} from '../src/core/xrd/reference/types';
 import { generatePattern } from '../src/core/xrd/synthetic';
 import { assignmentFor } from '../src/modules/xrd/assignment';
 import { DEFAULT_PEAK_STATE, initialXrdData, type XrdData } from '../src/modules/xrd/data';
@@ -18,11 +22,12 @@ const index = read<ReferenceIndex>('index.json');
 const zno = read<ReferenceFamilyFile>(
   (index.families.find((f) => f.id === 'zno') as { file: string }).file,
 ).phases;
-const wurtzite = zno.find((p) => p.id === 'zno-wurtzite');
-if (!wurtzite) throw new Error('library has no zno-wurtzite');
+const found = zno.find((p) => p.id === 'zno-wurtzite');
+if (!found) throw new Error('library has no zno-wurtzite');
+const wurtzite: ReferencePhase = found;
 
 function fitted(): XrdData {
-  const lines = referenceLines(wurtzite!, ANODES.Cu.kAlpha1).filter(
+  const lines = referenceLines(wurtzite, ANODES.Cu.kAlpha1).filter(
     (l) => l.intensity >= 5 && l.twoTheta < 75,
   );
   const { twoTheta, intensity } = generatePattern({
@@ -84,7 +89,7 @@ describe('export tables and lanes', () => {
     if (!assignment) throw new Error('no assignment');
     const lanes = referenceLanesFor(data, assignment);
     expect(lanes).toHaveLength(1);
-    expect(lanes[0]?.name).toBe(`${wurtzite!.name}, COD ${wurtzite!.codId}`);
+    expect(lanes[0]?.name).toBe(`${wurtzite.name}, COD ${wurtzite.codId}`);
     expect(lanes[0]?.lines.some((l) => l.found)).toBe(true);
     const hidden = referenceLanesFor(
       { ...data, material: { ...data.material, hidden: ['zno-wurtzite'] } },
