@@ -1,4 +1,5 @@
 import { migrateXrdData, XRD_STATE_VERSION, type XrdData } from './data';
+import { sessionReplacer, sessionReviver } from '../../ui/persist/sessionJson';
 import type { WizardState } from '../../ui/wizard/types';
 
 /** Marks a file as an XRD Toolkit session, so other JSON files are refused with a clear message. */
@@ -14,28 +15,6 @@ export interface SessionFile {
   state: WizardState<XrdData>;
 }
 
-/**
- * JSON cannot hold typed arrays or non-finite numbers, so these are written as small tagged
- * objects and restored on import.
- */
-function replacer(_key: string, value: unknown): unknown {
-  if (value instanceof Float64Array) return { $f64: Array.from(value, encodeNumber) };
-  if (typeof value === 'number' && !Number.isFinite(value)) return { $num: encodeNumber(value) };
-  return value;
-}
-
-const encodeNumber = (v: number): number | string => (Number.isFinite(v) ? v : String(v));
-const decodeNumber = (v: unknown): number => (typeof v === 'string' ? Number(v) : (v as number));
-
-function reviver(_key: string, value: unknown): unknown {
-  if (value && typeof value === 'object') {
-    const tagged = value as { $f64?: unknown; $num?: unknown };
-    if (Array.isArray(tagged.$f64)) return Float64Array.from(tagged.$f64, decodeNumber);
-    if ('$num' in tagged) return decodeNumber(tagged.$num);
-  }
-  return value;
-}
-
 /** The whole analysis as a JSON string that `parseSession` restores. */
 export function serialiseSession(state: WizardState<XrdData>, now: Date = new Date()): string {
   const file: SessionFile = {
@@ -45,7 +24,7 @@ export function serialiseSession(state: WizardState<XrdData>, now: Date = new Da
     savedAt: now.toISOString(),
     state,
   };
-  return JSON.stringify(file, replacer);
+  return JSON.stringify(file, sessionReplacer);
 }
 
 export type ParsedSession =
@@ -65,7 +44,7 @@ const isPattern = (p: unknown): boolean => {
 export function parseSession(text: string): ParsedSession {
   let file: Partial<SessionFile>;
   try {
-    file = JSON.parse(text, reviver) as Partial<SessionFile>;
+    file = JSON.parse(text, sessionReviver) as Partial<SessionFile>;
   } catch {
     return { ok: false, reason: 'This file is not valid JSON, so it cannot be a session file.' };
   }

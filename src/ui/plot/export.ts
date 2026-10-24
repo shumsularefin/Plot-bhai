@@ -60,6 +60,13 @@ export function pixelSize(size: FigureSize, dpi: number): { width: number; heigh
   };
 }
 
+/** Y axis of the panel under the main plot, when it is not a residual (for example the DTG curve). */
+export interface LowerAxis {
+  y: AxisLabels['y'];
+  /** Number the axis. */
+  yValues?: boolean;
+}
+
 /** Share of the figure height given to the residual panel when one is exported. */
 const RESIDUAL_SHARE = 0.25;
 
@@ -79,6 +86,7 @@ export function renderSvgString(
   residual?: readonly PlotSeries[],
   peakLabels?: PeakLabelSet,
   lanes?: readonly ReferenceLane[],
+  lowerAxis?: LowerAxis,
 ): string {
   const size = figureSize(settings);
   const width = size.widthMm * PT_PER_MM;
@@ -123,7 +131,11 @@ export function renderSvgString(
             xDomain,
             width,
             height: residualHeight,
-            labels: { x: labels.x, y: 'Residual' },
+            labels: {
+              x: labels.x,
+              y: lowerAxis?.y ?? 'Residual',
+              ...(lowerAxis?.yValues && { yValues: true }),
+            },
             samples: VECTOR_SAMPLES,
             style,
             svgAttributes: {

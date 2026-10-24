@@ -17,20 +17,24 @@ const TOOLS: readonly ToolCard[] = [
   {
     name: 'UV-Vis',
     description: 'Absorbance, transmittance and reflectance spectra, with Tauc band gap estimates.',
+    href: '#/uvvis',
   },
   {
     name: 'FTIR',
     description:
       'Absorbance and transmittance spectra, peak tables and functional group suggestions.',
+    href: '#/ftir',
   },
   {
     name: 'Particle size',
     description: 'Measure particles in SEM or TEM images and build a size distribution.',
+    href: '#/particles',
   },
   {
     name: 'TGA and DSC',
     description:
       'Mass loss steps, thermal events, enthalpies and glass transition, with calcination suggestions.',
+    href: '#/thermal',
   },
 ];
 

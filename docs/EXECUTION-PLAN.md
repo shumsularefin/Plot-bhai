@@ -24,13 +24,13 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 7a        | Texture, crystallinity, pattern character                    | done    |
 | 6a-fix    | Library entry screening, WK cross-check, 7a corrections      | done    |
 | 7b        | Figure builder, methods text, export, e2e                    | done    |
-| 8a        | UV-Vis import, conversions, cleaning                         | todo    |
-| 8b        | Tauc, Urbach, results                                        | todo    |
-| 9         | FTIR                                                         | todo    |
-| 10a       | Particles: image, scale, manual                              | todo    |
-| 10b       | Particles: automatic detection                               | todo    |
-| 10c       | Particles: distribution, export                              | todo    |
-| 11a       | TGA: import to step detection (Stage 11 items 1–5)           | todo    |
+| 8a        | UV-Vis import, conversions, cleaning                         | done    |
+| 8b        | Tauc, Urbach, results                                        | done    |
+| 9         | FTIR                                                         | done    |
+| 10a       | Particles: image, scale, manual                              | done    |
+| 10b       | Particles: automatic detection                               | done    |
+| 10c       | Particles: distribution, export                              | done    |
+| 11a       | TGA: import to step detection (Stage 11 items 1–5)           | done    |
 | 11b       | TGA: events, theory, calcination (items 6–9)                 | todo    |
 | 12a       | DSC (Stage 12 items 1–6)                                     | todo    |
 | 12b       | Combined TGA-DSC (items 7–8)                                 | todo    |

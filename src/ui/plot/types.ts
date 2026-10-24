@@ -30,6 +30,11 @@ export interface AxisLabels {
   y: ComponentChildren;
   /** Number the y axis, for quantities with real units such as a width in degrees. */
   yValues?: boolean;
+  /**
+   * Reversed x axis, as for wavenumber (high on the left). The series are given as −x so x still
+   * increases; tick labels, the readout and the range boxes show the positive value.
+   */
+  reversed?: boolean;
 }
 
 export type Domain = readonly [number, number];

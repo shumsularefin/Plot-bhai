@@ -157,7 +157,10 @@ export function PlotSvg(props: PlotSvgProps) {
   })();
 
   const tickLength = style.fontSize * 0.45;
-  const xTicks = niceTicks(x0, x1, Math.max(2, Math.round(innerW / (style.fontSize * 6))));
+  const xTickCount = Math.max(2, Math.round(innerW / (style.fontSize * 6)));
+  const xTicks = labels.reversed
+    ? niceTicks(-x1, -x0, xTickCount).map((t) => ({ value: -t.value, label: t.label }))
+    : niceTicks(x0, x1, xTickCount);
   const yTicks = labels.yValues
     ? niceTicks(y0, y1, Math.max(2, Math.round(innerH / (style.fontSize * 5))))
     : [];

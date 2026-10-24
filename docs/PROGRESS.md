@@ -1,5 +1,512 @@
 # Progress
 
+## Sub-stage 11a: TGA import to step detection (done)
+
+Branch `claude/hopeful-dirac-72ak86`, stacked on 10c (pull request 18 is still not merged into `main`).
+
+### What was built
+
+- Thermal tool at `#/thermal` (lazy-loaded; the TGA and DSC cards on the home page link to it). Six
+  wizard steps; steps 4 to 6 (events, combined interpretation, results and export) are placeholders
+  for 11b.
+- Core in `src/core/thermal/`: `import.ts` (text files with header lines, comma, semicolon, tab or
+  space delimiters, decimal commas, column guess and manual mapping, K to °C by −273.15, s to min),
+  `process.ts` (ramp range, blank subtraction by interpolation, smoothing, normalising at a chosen
+  temperature, heating-rate estimate), `smooth.ts` (local quadratic least squares on uneven x, window
+  in °C), `steps.ts` (DTG, step detection, onset, peak, endset, mass loss, T5, T10, T50, residue),
+  `deconvolve.ts` (Gaussian split of overlapping DTG peaks, via the existing `fitRegion`),
+  `synthetic.ts` (example data and known-answer curves).
+- Step 1 describes the run (atmosphere, heating rate, initial mass, sample type) and shows a preview.
+  Step 2 cleans (range, blank, smoothing, normalising, undo and reset, before and after plot).
+  Step 3 shows mass and DTG, steps with draggable limits, editable From and To, add and remove a step,
+  CSV download, T5/T10/T50, residue at the end and at a chosen temperature.
+- The export figure now supports a labelled lower panel (`LowerAxis`) for DTG.
+- Tests: `thermal-core` (24, known answers from synthetic curves), `thermalSteps` (9); `npm run e2e`
+  has a thermal block (example run, marker drag, 10,000-point file with decimal commas, no horizontal
+  scroll at 360 and 1280 px).
+
+### Decisions (my own conventions, please confirm)
+
+- DTG = −dm/dT in %/°C from a local quadratic fit; the window is set in °C (default 20).
+- Extrapolated onset and endset: Tp ∓ the mass change on that side divided by the DTG at the peak
+  (tangent at the steepest point). Tested on Gaussian-DTG curves, where the true values are
+  Tp ∓ σ√(2π)/2.
+- Step limits default to where DTG falls to 2 % of the peak, or to the valley towards a neighbour.
+- Two steps count as overlapping when the valley DTG is above 10 % of the smaller peak; they are
+  reported as one region with a note, and can be split into Gaussian components (labelled an
+  approximation).
+- Peak prominence is a percentage of the tallest peak (default 5 %, minimum separation 20 °C).
+- T5/T10/T50 are the first downward crossings of 95, 90 and 50 % by interpolation.
+- The app says that TGA alone cannot tell which substance is lost in a step.
+
+### Known issues
+
+- No real TGA file or instrument export was available, so the importer is generic and makes no vendor
+  claim. Real exports may need column mapping by hand.
+- DTG runs on the main thread (about 250 to 300 ms for 10,000 points).
+- Deconvolved components are in a table only, not drawn. Step shading, thermal session file and
+  export of the figure with annotations come in 11b.
+
+### Needs from you
+
+- Merge pull request 18 into `main`.
+- Real UV-Vis, FTIR and SEM/TEM files (and ImageJ numbers) in `tests/fixtures-real/`; check the FTIR
+  ranges against a textbook; confirm the %R reference-correction convention.
+- A real TGA text or CSV export, with instrument-software or Origin numbers, to verify the importer
+  and the step numbers; confirm the 2 %, 10 % and onset/endset conventions above.
+
+### Next
+
+Sub-stage 11b: events, theory and calcination suggestion (Stage 11 items 6 to 9).
+
+## Sub-stage 10c: particles, distribution and export (done)
+
+Branch `claude/hopeful-dirac-72ak86`, stacked on 10b (pull request 18 is still not merged into `main`).
+
+### What was built
+
+- Step 5 "Distribution and export" replaces the placeholder. Pure maths in
+  `src/core/particles/distribution.ts`: percentiles (linear interpolation between sorted values, as
+  NumPy and `PERCENTILE.INC`), mean, sample SD (n − 1), median, D10, D50, D90 (by number), span
+  (D90 − D10) / D50, histogram bins by Freedman–Diaconis (2·IQR/n^(1/3), Sturges fallback when IQR is
+  0), Sturges (⌈log2 n⌉ + 1) or a manual count (1 to 200), cumulative curve, normal and lognormal fits
+  by maximum likelihood (σ with divisor n, log-likelihood reported; the higher one is named as a hint,
+  not as proof), and the warning below 100 particles.
+- Size measure: equal-area diameter, longest or shortest Feret diameter. Hand measurements from step 4
+  can be added.
+- Pooling: "Save this image for pooling" stores the diameters of the image in the saved state; the
+  pool survives loading another image. Images with and without a scale (nm and px) are never mixed;
+  the ones left out are listed. The image on screen is counted once even after it was saved.
+- Histogram figure (`HistogramChart.tsx`): bars, fitted curve scaled to counts, optional cumulative
+  curve on a right axis, inward ticks; SVG and PNG at 300 and 600 dpi, single or double column,
+  Arial or Times. CSV: summary, all sizes with their image, detected particles (the 10b table).
+  Annotated image PNG (outlines and numbers on the working copy, dashed crop frame).
+- Methods text (`src/core/particles/methods.ts`) written only from the settings used (scale, detection
+  settings, filters, hand edits, measure, bins, fits). It says nothing about the microscope.
+- Saved state version 3 (migration from 2 and 1).
+- Tests: `particles-distribution` (percentiles, bins and fits against hand-computed values; samples of
+  20 000 from a known lognormal and normal recover the parameters within 1 to 2 %),
+  `particlesDistribution` (sizes, pooling, migration, methods text, the step). `npm run e2e` runs the
+  step in a real browser; the example's mean and median are within 3 % of the true values.
+
+### Decisions
+
+- Percentile definition, bin rules and ML formulas are standard textbook ones, written in the doc
+  comments. Nothing was taken from memory as a published number.
+- D10, D50 and D90 are number-based, not volume-based; the help text and methods text say so.
+- A saved pool entry with the same file name as the image on screen is replaced when saved again and
+  not counted twice. Two different files with the same name are treated as one.
+
+### Known issues
+
+- No JSON session file for particles yet (the image itself lives in IndexedDB and is not in the file).
+- Circularity of a digital disc reads about 0.9 (see 10b).
+- Heights of the exported histogram follow the preset (65 mm single, 100 mm double); no free height.
+- Not tried with a real SEM or TEM image.
+
+### Needs from you
+
+- Merge pull request 18 into `main`.
+- A real SEM or TEM image with its scale bar, and ImageJ numbers for the same particles, in
+  `tests/fixtures-real/`.
+
+### Next sub-stage
+
+11a (TGA: import to step detection).
+
+## Sub-stage 10b: particles, automatic detection (done)
+
+Branch `claude/hopeful-dirac-72ak86`, stacked on UV-Vis, FTIR and 10a (pull request 18 is still not
+merged into `main`).
+
+### What was built
+
+- Wizard is now 1 Upload, 2 Crop and scale, 3 Detect particles, 4 Measure by hand, 5 Distribution and
+  export (placeholder until 10c). The hand tools of 10a are unchanged.
+- Pure TypeScript pipeline (`src/core/particles/detect/`), no OpenCV, run in a Web Worker
+  (`src/workers/detect.worker.ts`, `detectClient.ts`; cancel button; the page stays responsive):
+  grayscale (BT.601 weights), optional invert, Gaussian blur or median filter, threshold (Otsu from
+  the histogram of the crop area only, adaptive by local mean, or manual), the analysis area, opening
+  and closing by a disc (exact Euclidean distance transform), fill holes, 8-connected labelling, and
+  a watershed split of touching particles.
+- Splitting: marker watershed on the distance transform. Every local maximum starts a basin; basins
+  are merged again unless the neck between them is narrower than a chosen percentage (default 70 %)
+  of the smaller basin's radius. Equal discs overlapping by 2 px are split; a rod and a heavily
+  overlapped pair stay whole.
+- Per particle (`regions.ts`): area, area-equivalent diameter, longest and shortest Feret diameter
+  (from the convex hull of the pixel outline), aspect ratio (longest / shortest Feret), perimeter,
+  circularity (4π area / perimeter², at most 1), centroid. Particles are stored as pixel runs, which
+  makes merging, cutting and re-measuring exact.
+- Review and editing: outlines with ID numbers over the image (vector layer), threshold preview
+  (pink), Select tool (click, Shift or Ctrl for several) and a select checkbox in every table row,
+  Delete selected, Merge selected, Cut (drag a line across a neck), Add a circle or an ellipse for
+  missed particles, Undo (30 steps). IDs are never reused.
+- Filters that hide without deleting: diameter limits in px, nm or µm, lowest circularity, leave out
+  particles touching the edge (the crop area or image edge); counts say how many were left out and
+  why. Table with sizes in px, nm or µm and a CSV with all columns, in px and nm.
+- Warnings: no particles found, more than half the image marked as particles (probably dark particles
+  and "darker than the background" not ticked), result out of date after a setting or crop change, and
+  the required note: "Automatic detection works best on well separated particles with good contrast.
+  Review the outlines."
+- Saved state version 2 with a migration from version 1.
+- Tests: `particles-detect` (primitives and whole-pipeline accuracy), `particles-view`
+  (working-copy mapping, filters, migration), `particlesDetect` (component, worker mocked); `npm run e2e`
+  detects the example in a real browser.
+
+### Known-answer results
+
+- Synthetic images of 7 discs of 30 to 60 px, noise sd 10 grey levels: all found, equivalent diameters
+  within 3 % (the real worst error was below 1 %). A touching pair of equal discs (4 px overlap) and an
+  unequal pair are split and measured within 5 to 6 %; without splitting they are one blob. Dark
+  particles need the invert option. Particles outside the crop (a black data bar) are ignored, and
+  Otsu is computed without the bar. Detection on a half-size copy, diameters mapped back, within 3 %.
+  Edge-touching particles are flagged.
+- In a real browser the example image (12 discs, crop off the data bar) gave all 12 diameters within
+  0.8 % of the true ones, in about 0.9 s.
+- Speed: 4 MP (node) 3.4 s; a 20 megapixel PNG in a real browser (working copy 4096 × 2731) took 10.3 s
+  to detect 341 particles, with the page responsive (longest frame gap 17 ms while it ran). This is
+  acceptable with the progress note and Cancel button, so OpenCV.js was not added.
+
+### Decisions
+
+- Circularity is a corner-cutting estimate: a circle drawn in pixels reads about 0.90 and a square
+  0.83 (true 0.785). The perimeter joins midpoints of the outline's unit edges, which leaves round
+  shapes about 5 % long. The help text and the CSV note say so. Equivalent diameter and area use the
+  pixel count and are accurate to about 1 %.
+- Aspect ratio is longest over shortest Feret diameter, not the ratio of fitted ellipse axes.
+- The default settings (Gaussian blur 1 px, Otsu, opening and closing by 1 px, split at 70 %) are my own.
+- Settings radii are in pixels of the working copy (the note says so when the image was shrunk);
+  everything stored and exported is in original pixels or nm.
+- Merging joins the pixel sets; two particles that are far apart become one particle in two pieces.
+- Cut applies to every visible particle the drawn segment touches, along the straight line through it.
+- The stored particles keep their pixel runs (a few numbers per row), so saving after each edit
+  rewrites a few hundred kilobytes for a thousand particles.
+
+### Known issues
+
+- No real SEM or TEM image has been tried; real images with uneven backgrounds, charging or shadows
+  will need the adaptive threshold and probably manual edits.
+- Shapes drawn by hand have axes parallel to the image edges; merged and cut particles keep their
+  pixels exactly.
+- Computing shapes for several thousand particles blocks the page for a moment after detection.
+- Detection and manual measurements are separate lists; step 5 (10c) will decide how they combine.
+- Particle outlines are drawn for visible particles only; very many (thousands) can feel slow to pan.
+
+### What I need from you
+
+- A real SEM or TEM image with its scale bar and ImageJ numbers for the same particles.
+- Merge pull request 18 into `main`.
+
+### Next sub-stage
+
+10c (particles: distribution, export), when you say so.
+
+## Sub-stage 10a: particles, image, scale, manual measuring (done)
+
+Branch `claude/hopeful-dirac-72ak86`, stacked on UV-Vis and FTIR (pull request 18 is still not merged into
+`main`). The particle size card on the home page is enabled (`#/particles`).
+
+### What was built
+
+- Wizard: 1 Upload, 2 Crop and scale, 3 Measure, 4 Distribution and export (placeholder until 10c).
+- Image import: PNG and JPEG with the browser decoder, TIFF with a lazily loaded decoder (8 or 16 bit
+  grayscale and RGB; 16-bit data are stretched from the page's lowest to highest value for display
+  only). The file type is read from the first bytes, so a wrong extension does not matter. Gatan .dm3
+  and .dm4, damaged files and other types get a plain message with an export hint. Multi-page TIFFs
+  use the first page and say so. Images over 150 megapixels are refused (memory).
+- Large images: when the long side is over 4096 px a smaller working copy is shown and (in 10b) used
+  for detection; everything is stored in pixels of the original image and mapped back
+  (`workingScale`, `toWorking`, `toOriginal` in `src/core/particles/geometry.ts`).
+- Viewer (`ImageViewer.tsx`): canvas for the image plus an SVG overlay for crop, scale bar and
+  measurements (dark outline under a coloured line so it shows on any image). Mouse and touch: drag
+  to move or to draw, two-finger pinch to zoom (a second finger cancels a drawing), the wheel zooms
+  with Ctrl or Cmd or when the viewer has focus, keyboard arrows, + and −, 0 to fit. Zoom up to 40
+  times the fitted size.
+- Crop: draw a rectangle or remove a strip from the bottom (data bar). It is non-destructive: it marks
+  the analysis area, and the scale bar can still be drawn on the data bar.
+- Scale calibration: drag along the scale bar, type its length and unit (nm or µm); shows pixels per
+  unit and nm per pixel, warns when the bar is shorter than 50 pixels. Saved with the analysis.
+- Manual tools: line (length), circle drawn along a diameter, ellipse drawn as a box (axes parallel
+  to the image edges). Each gets an ID that is never reused; table with length or long axis, short
+  axis, area, aspect ratio, in nm or µm (or px without a scale); undo last, delete one or all, CSV
+  with pixel coordinates and sizes in px and nm.
+- Keyboard alternative to drawing: "Enter coordinates instead of drawing" for the scale bar and for
+  measurements.
+- Example image: drawn by the site (12 discs, 60 to 120 px, scale bar 200 px = 100 nm), marked
+  synthetic everywhere; a button sets its scale bar.
+- The image file is stored once in IndexedDB (`particles-image`), not inside the saved state, so
+  state writes stay small; a reload restores image and measurements (checked in a browser).
+- Tests: `particles-geometry` (calibration, conversions, measurement formulas, working copy,
+  crop, view maths, and a real TIFF written by the test and decoded), `particlesSteps` (components).
+  `npm run e2e` now also covers particles.
+
+### Dependency added
+
+- `tiff` 7.1.3 (image-js, MIT; depends on `fflate` and `iobuffer`). Chosen over `utif` because it is
+  typed, maintained, and decodes 16-bit grayscale, which SEM TIFFs often are. It is loaded only when
+  a TIFF is opened (its own 29 KB chunk, not in the 8.4 KB initial bundle). Its decoder already
+  inverts white-is-zero files, so the display conversion does not invert again (a test caught my
+  first, doubled inversion). It refuses TIFFs with an orientation other than 1; the message says so.
+
+### Known-answer results
+
+- 200 px bar of 100 nm gives 2 px per nm; 500 px for 1 µm gives 0.5 px per nm; a 100 px circle at
+  that scale is 50 nm with area π·50²/4 = 1963.5 nm²; a 100 × 60 px ellipse is 50 × 30 nm, aspect
+  1.667. A scale drawn on a working copy and mapped back gives the same pixels per nm.
+- In a browser (360 and 1280 px) a scale bar drawn with the mouse on the example gave 2.014 and
+  2.006 px per nm (true 2): the error is the mouse position, about one screen pixel at fit zoom.
+
+### Decisions
+
+- The limit of 4096 px for the working copy and of 150 megapixels are my own choices, not standards.
+- Step 2 does not require a scale (an image with no scale bar can still be measured in pixels); step 3
+  warns instead. If the pixel size is known, enter two points a known number of pixels apart.
+- Ellipses have axes parallel to the image edges; rotated ellipses are not drawn yet.
+- Pixels are assumed square.
+- `ParticlesTool` imports `../xrd/xrd.css` and reuses `NumberInput` from the XRD module, as the
+  UV-Vis and FTIR tools do.
+
+### Known issues
+
+- No real SEM or TEM image has been tried (none in `tests/fixtures-real/`).
+- Measurements cannot be moved or edited after drawing, only deleted and redrawn.
+- Metadata scale (for example the pixel size inside a TIFF) is not read.
+- The viewer is 70 % of the screen height at most; on a phone a tall image leaves empty space.
+- "Start over" in the wizard clears the analysis but leaves the stored image file in the browser
+  until another image is loaded or it is removed in step 1.
+
+### What I need from you
+
+- A real SEM or TEM image (PNG, JPEG or TIFF) with its scale bar, and ImageJ numbers for a few
+  particles of it, in `tests/fixtures-real/`.
+- Merge pull request 18 into `main`.
+
+### Next sub-stage
+
+10b (particles: automatic detection), when you say so.
+
+## Stage 9: FTIR (done)
+
+Branch `claude/hopeful-dirac-72ak86`, stacked on 8a and 8b (pull request 18 was still not merged into
+`main`). The FTIR card on the home page is enabled (`#/ftir`).
+
+### What was built
+
+- Core (`src/core/ftir`): import of csv, txt, dpt (read as text) and JCAMP-DX (`jcamp.ts`), data type
+  suggestion, baselines (rubber band, iterative polynomial reused from XRD, asymmetric least squares
+  with a banded Cholesky solver), the processing pipeline (baseline, smoothing, normalisation, always
+  on absorbance), prominence peak picking with parabolic refinement, group suggestions, methods text,
+  synthetic example generator.
+- Wizard: 1 Upload, 2 Clean data (data type is on the cards of step 1; here view before, after, both
+  or all spectra, absorbance or transmittance axis, whole range or fingerprint region, baseline,
+  smoothing, normalisation, undo, reset, apply to all), 3 Pick peaks (prominence slider, search range,
+  labelled plot, peak table, CSV), 4 Assign groups (ranked suggestions with a plain reason, accept,
+  edit, remove, "accept the best for every peak", the whole reference table in a collapsible section),
+  5 Results and export (peak table with assignments, peaks CSV, processed spectra CSV, overlay figure
+  with offset, methods text, session file).
+- Plot engine: a reversed x axis (`AxisLabels.reversed`) so wavenumber runs high to low. Series are
+  plotted as −wavenumber; tick labels, the readout and the range boxes show the positive value; the
+  exported SVG and PNG use the same code. `PlotPanel` also has a `focusRange` prop (fingerprint zoom).
+- Group table `data/ftir/groups.json`, built by `npm run build:ftir` from two tables of an open-access
+  review (CC BY 4.0): S. Pasieczna-Patkowska, M. Cichy, J. Flieger, Molecules 30 (2025) 684,
+  doi:10.3390/molecules30030684, Table 3 (65 ranges for functional group vibrations) and Table 2
+  (band positions of 13 metal oxides, including TiO2 anatase and rutile). The tables were read from
+  the Europe PMC full text and cached in `data/ftir/source/tables.xml`; the JSON is generated from
+  that cache and a test checks they agree. Attribution is shown in the app.
+- Shared: `src/ui/persist/sessionFile.ts` (session codec) and `src/ui/SessionSection.tsx`, now used by
+  UV-Vis and FTIR (XRD still has its own copy).
+- `scripts/e2e.mjs` now walks UV-Vis and FTIR happy paths after the XRD one (all pass).
+- Tests: `ftir-core`, `ftir-groups`, `ftirSteps`, a reversed-axis case in `plot.test.ts`.
+
+### Known-answer results
+
+- %T 10 gives A = 1, %T 1 gives A = 2 (and back). A generated JCAMP-DX file with a Y factor gives the
+  expected x and y. Rubber band recovers a straight baseline to 0.001; asymmetric least squares
+  follows a curved baseline to within 0.02 absorbance away from bands; the banded solver agrees with
+  the dense solver. Peaks of a noisy synthetic spectrum are found at their true positions to a
+  twentieth of the band width (at least 2 cm⁻¹); a 4 cm⁻¹ step is refined to within 0.5 cm⁻¹.
+
+### Decisions
+
+- The functional group source: no textbook was openable in this session. The review article above is
+  openable and licensed for reuse, so every range comes from its tables. The table is flagged
+  "TODO, verify" in the JSON and on screen; please check ranges against your own literature or
+  Socrates' or Larkin's textbooks before using them in a paper. Metal–oxide entries are discrete
+  band positions, not ranges.
+- Single printed values (for example "~1660") are matched like ranges of zero width. The suggestion
+  distance (default 15 cm⁻¹) is my own choice, shown as adjustable, not a published value.
+- Suggestions rank by distance, then by narrower range. Nothing is assigned until the user accepts it,
+  and the methods text only mentions assignments if some were accepted.
+- Everything is analysed as absorbance. Transmittance is converted first and shown again as %T in
+  step 2 and the final figure (not when normalised).
+- ALS defaults (λ = 10^5, p = 0.01) are my own starting values. The algorithm follows the published
+  description from memory and was not checked against the paper (comment in `baseline.ts`).
+- JCAMP-DX: only plain-number XYDATA (X++(Y..Y)) and XYPOINTS are read; the compressed forms (SQZ,
+  DIF, DUP) are refused with an export hint rather than guessed. The reader was written from the
+  format as I know it and tested on generated files only, not on instrument files.
+- Binary files (.spa, .spc, .sp, OPUS) are refused with an export hint. `.dpt` is treated as text.
+- `UvvisTool` and `FtirTool` still import `../xrd/xrd.css` and reuse `StepSection` and `NumberInput`
+  from the XRD module; these should move to `src/ui`.
+
+### Known issues
+
+- No real FTIR file has been tried (none in `tests/fixtures-real/`). Peak positions of broad bands
+  (for example O–H near 3400 cm⁻¹) shift with noise and smoothing; the table shows the maximum.
+- The assignment suggestions are position-only: no intensity, width or band-shape information.
+- Plot peak labels show wavenumbers only (rounded); assignments appear in the tables.
+- Spectra with unevenly spaced wavenumbers skip smoothing and the asymmetric least squares baseline,
+  with a message.
+- Several XRD-facing CSS rules now also serve UV-Vis and FTIR; a stylesheet split is still to do.
+
+### What I need from you
+
+- A real FTIR spectrum (and ideally a JCAMP-DX export from your instrument) in `tests/fixtures-real/`.
+- Check the typical ranges against a textbook (see Decisions) and tell me which to correct or add.
+- Merge pull request 18 (UV-Vis and FTIR) into `main`.
+
+### Next sub-stage
+
+10a (particles: image, scale, manual), when you say so.
+
+## Sub-stage 8b: Tauc, Urbach, results (done)
+
+Branch `claude/hopeful-dirac-72ak86`, stacked on 8a (pull request 18 was not merged into `main` when
+this started; `main` was merged into the branch). Steps 3 and 4 of the UV-Vis wizard are now real.
+
+### What was built
+
+- Core (`src/core/uvvis/tauc.ts`): signal for the Tauc axis (α = ln(10)·A/t in cm⁻¹ when a film
+  thickness is given, otherwise A; F(R) for reflectance), (αhν)^(1/n) for n = 1/2, 2, 3/2, 3,
+  straight-line band gap fit with the uncertainty from the fit covariance (error propagation,
+  formula in the doc comment), automatic region suggestion, comparison of all four transitions,
+  Urbach energy (ln α against E, Eu = 1/slope, with automatic tail suggestion) and the derivative
+  method (peak of dS/dE or d ln S/dE). `methods.ts` writes the methods paragraph.
+- Step 3 "Band gap": transition type, optional film thickness, Tauc plot with the fit line and two
+  draggable markers for the fit region (also keyboard-free touch drag via the existing plot),
+  result card (Eg ± σ, edge in nm, R², region, points), plain-language warnings (few points, low R²,
+  long extrapolation, no thickness, F(R) assumptions), all four transitions side by side marked
+  "guide only, choose from the literature", optional Urbach energy with its own plot and markers,
+  optional derivative method. Every plot has the shared SVG/PNG export panel.
+- Step 4 "Results and export": results table (sample, λmax, edge, Eg ± σ, transition, R², method,
+  Eu) with CSV (all fields, full precision), methods text with copy button, session file (JSON) to
+  save and re-open the analysis.
+- Saved state version 2 with a migration from version 1; generic session JSON codec moved to
+  `src/ui/persist/sessionJson.ts` (XRD uses it too).
+- Layout fixes found at 360 px: wide tables no longer widen the page (`.wizard-content > *` and
+  `.clean-step > *` get `min-width: 0`, `.table-scroll` is positioned, the methods box is
+  full-width).
+- Tests: `tests/uvvis-tauc.test.ts`, `uvvis-analysis.test.ts`, extended `uvvisSteps.test.tsx`.
+
+### Known-answer results
+
+- Spectra built from a chosen Eg (3.1 eV) with the right edge shape recover Eg to 0.001 eV
+  noise-free for all four transition types from absorbance, and for direct and indirect from
+  diffuse reflectance (exact when the F(R) floor is 0; within 0.02 eV with the generator's default
+  floor of 0.01, which bends the curve). With noise (sd 0.002 to 0.005 absorbance, 20 seeds each)
+  the worst error of the automatic region was 0.0010 eV.
+- The built-in example (Eg 3.2 eV, blank corrected) gives 3.200 eV (absorbance) and 3.202 eV
+  (reflectance); without blank subtraction the absorbance example gives 3.175 eV, so cleaning
+  matters.
+- Urbach: Eu = 0.12 eV exponential tail recovered exactly; with 2 % noise within 5 %.
+- Derivative: steepest point of a logistic edge at 3.2 eV found to 0.1 eV.
+
+### Decisions
+
+- Region suggestion: first version picked the steepest window and followed noise (errors up to
+  0.1 eV over 20 seeds). It now takes the widest window (0.1 to 0.6 eV) with R² ≥ 0.995 and the
+  highest R². Because the straightest window is chosen the printed ± is somewhat too small; the
+  step says it is the line fit only.
+- α uses exact ln(10) rather than the rounded 2.303 from the plan.
+- Absorption edge in the table is hc/Eg (the wavelength with the gap energy), not a tangent
+  construction.
+- Derivative method searches within 0.3 eV of the Tauc fit region and reports a steepest-rise
+  energy, which sits above Eg for real spectra; it is labelled a cross-check.
+- Wrong transition types still produce fits (for example the direct-forbidden fit of a direct-gap
+  example gives 0.9 eV with R² 0.998). The comparison is labelled a guide only for that reason.
+
+### Known issues
+
+- No real UV-Vis file and no Origin Tauc result have been tried (none in `tests/fixtures-real/`),
+  so agreement within 0.05 eV with your own fit is untested.
+- The Urbach tail has no automatic quality check beyond a warning; the example has no real tail.
+- Texture of the figure: Tauc and Urbach axis labels use raised spans (not Unicode superscripts);
+  check the exported SVG and PNG in your journal's workflow.
+- Spectra figures (step 2) and Tauc figures (step 3) export from their own steps; step 4 only points
+  to them.
+- 8a items still open: Cary-style paired-column files are not read, %R reference correction needs
+  your confirmation.
+
+### What I need from you
+
+- A real UV-Vis file and your Origin Tauc number for it, in `tests/fixtures-real/`.
+- Merge pull request 18 (8a) into `main`, then this one.
+
+### Next sub-stage
+
+9 (FTIR), when you say so.
+
+## Sub-stage 8a: UV-Vis import, conversions, cleaning (done)
+
+Branch `claude/hopeful-dirac-72ak86`. The UV-Vis card on the home page is enabled (`#/uvvis`).
+
+### What was built
+
+- Core (`src/core/uvvis`, no UI imports): `conversions.ts` (A = 2 − log10(%T), %T = 100·10^−A,
+  Kubelka–Munk F(R) = (1 − R)²/(2R), E = hc/λ), `import.ts` (wavelength in nm plus one or more
+  spectrum columns; delimiter, decimal comma, headers, footers, long-to-short scans, column names),
+  `kind.ts` (data type suggestion from header words or value range; checks that type and scale fit
+  the values), `process.ts` (blank subtraction, baseline offset, Savitzky–Golay smoothing, display
+  conversion, λmax), `synthetic.ts` (example generators with a chosen band gap).
+- Constants: h, c and e are the exact 2019 SI values, read on 2026-10-24 from the NIST CODATA 2022
+  pages (physics.nist.gov/cgi-bin/cuu/Value?h, ?c, ?e) and cited in `conversions.ts`. hc/e gives
+  1239.84198… eV nm; the rounded 1240 is not used. Please verify (flagged in the code comment).
+- Wizard (`src/modules/uvvis`): 1 Upload, 2 Data type and cleaning, 3 Band gap (placeholder),
+  4 Results and export (placeholder). Upload: drop, pick, paste, "Try with example data" (three
+  synthetic spectra labelled not real: an absorbance sample with a solvent baseline, the blank, and a
+  diffuse reflectance sample; made-up band gap 3.2 eV). Each spectrum card shows the data type
+  (absorbance, %T, %R; percent or fraction), with the reason it was chosen, and the user can change it.
+  Step 2: view as measured / absorbance / %T / %R / F(R), x axis nm or eV, before/after of one
+  spectrum or all spectra overlaid, blank subtraction, baseline offset, smoothing, undo, reset, "use
+  for all", and a λmax table (search range, CSV).
+- Persisted store key `uvvis-session`, version 1 (no older versions, so no migration yet).
+- Refactor: delimiter detection moved from the XRD parser to `src/core/text/delimitedTable.ts`, and
+  byte decoding to `src/core/text/bytes.ts`, so both tools share them. XRD tests unchanged and green.
+- Tests: `tests/uvvis-conversions.test.ts`, `uvvis-import.test.ts`, `uvvis-process.test.ts`
+  (known answers: %T 10 → A 1, K-M(0.5) = 0.25, blank subtraction recovers the true curve, a
+  transmittance blank equals T/T_blank, smoothing lowers noise), `uvvisSteps.test.tsx`
+  (components), home test updated.
+
+### Decisions
+
+- Blank and offset work on −log10(value). For absorbance that is plain subtraction. For %T it equals
+  dividing by the blank. For %R I used the same ratio (sample relative to a reference); please confirm
+  this matches how you correct diffuse reflectance.
+- λmax is the highest data point (no curve fit) of A, or of F(R) for reflectance; the table says so.
+  Ends of a scan can win because of detector noise; the range boxes handle that. The synthetic
+  edge-shaped examples have their maximum at the short-wavelength end by construction.
+- UV-Vis files are parsed on the main thread (small files, limit 10 MB); the XRD reader uses a worker.
+- `UvvisTool` imports `../xrd/xrd.css` and reuses `StepSection` and `NumberInput` from the XRD
+  module. These should move to `src/ui` at some point (known issue).
+- Wavelength must be nm: a first column ending below 20 is refused (probably eV or µm); above 3300 nm
+  gives a warning (probably wavenumber).
+
+### Known issues
+
+- Agilent Cary files with a wavelength column per sample (pairs of columns) are read as one wavelength
+  column plus the rest, which is wrong for them; no real file was available to test. Only text
+  exports with a shared wavelength column are supported.
+- No real UV-Vis file has been tried (none in `tests/fixtures-real/`).
+- Steps 3 and 4 are placeholders until 8b; the session cannot be exported yet.
+
+### What I need from you
+
+- A real UV-Vis file (absorbance and, if possible, a diffuse reflectance one) in `tests/fixtures-real/`.
+- Confirmation of the reflectance reference correction above.
+
+### Next sub-stage
+
+8b (Tauc, Urbach, results), when you say so.
+
 ## Sub-stage 7b: figure builder, methods text, export, full flow (done)
 
 Branch `claude/ecstatic-einstein-mofaev`.

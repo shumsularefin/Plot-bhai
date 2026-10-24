@@ -205,6 +205,42 @@ describe('SVG export', () => {
     expect(svg).not.toContain('class=');
   });
 
+  it('labels a reversed axis with the positive value, high on the left', () => {
+    // Wavenumber 500 to 4000, plotted as −wavenumber so x still increases.
+    const [series] = prepareSeries(
+      [
+        {
+          id: 'w',
+          name: 'Spectrum',
+          x: range(8, (i) => -(4000 - i * 500)),
+          y: range(8, (i) => i),
+          unit: 'a.u.',
+        },
+      ],
+      { normalise: false, offsetFraction: 0 },
+    );
+    const svg = renderSvgString(
+      [series as PlotSeries],
+      [-4000, -500],
+      { x: 'Wavenumber (cm⁻¹)', y: 'Absorbance', reversed: true },
+      DEFAULT_EXPORT_SETTINGS,
+    );
+    const labels = [...svg.matchAll(/<text[^>]*x="([\d.]+)"[^>]*>(\d+)<\/text>/g)].map((m) => ({
+      x: Number(m[1]),
+      value: Number(m[2]),
+    }));
+    expect(labels.length).toBeGreaterThanOrEqual(3);
+    labels.sort((a, b) => a.x - b.x);
+    for (let i = 1; i < labels.length; i++) {
+      // Further right means a smaller wavenumber.
+      expect((labels[i] as { x: number }).x).toBeGreaterThan((labels[i - 1] as { x: number }).x);
+      expect((labels[i] as { value: number }).value).toBeLessThan(
+        (labels[i - 1] as { value: number }).value,
+      );
+    }
+    expect(svg).not.toContain('>−');
+  });
+
   it('adds a residual panel under the figure when a residual is given', () => {
     const x = range(100, (i) => 20 + i * 0.1);
     const [main, residual] = prepareSeries(

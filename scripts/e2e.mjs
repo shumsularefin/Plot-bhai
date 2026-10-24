@@ -194,6 +194,224 @@ try {
   await page.getByText('This is not an XRD Toolkit session file.').waitFor();
   step('8 Export: a foreign JSON file is refused');
 
+  // UV-Vis: example data, blank subtraction, Tauc band gap, results, methods text.
+  await page.goto(`http://localhost:${PORT}/#/uvvis`);
+  await heading().waitFor();
+  await page.getByRole('button', { name: 'Try with example data' }).click();
+  await page.getByText('Example absorbance (synthetic)').first().waitFor();
+  await next('Data type and cleaning');
+  await page.getByRole('switch', { name: 'Blank subtraction' }).check();
+  await page.getByLabel('Blank spectrum').selectOption({ label: 'Example blank (synthetic)' });
+  await next('Band gap');
+  const gapText = await page.getByLabel('Band gap result').textContent();
+  const gap = Number(/(\d\.\d+)\s*±/.exec(gapText)?.[1]);
+  assert.ok(Math.abs(gap - 3.2) < 0.02, `band gap ${gap} should be near the 3.2 eV of the example`);
+  step('UV-Vis: Tauc band gap of the example is near 3.2 eV');
+  await next('Results and export');
+  const uvText = await page.getByLabel('Methods paragraph').inputValue();
+  assert.match(uvText, /generated example data/);
+  assert.match(uvText, /Tauc/);
+  const [uvCsv] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Download results (CSV)' }).click(),
+  ]);
+  assert.match(readFileSync(await uvCsv.path(), 'utf8'), /Eg \(eV\)/);
+  step('UV-Vis: results CSV and methods text');
+
+  // FTIR: example data, baseline, peaks, accepted assignments, results, methods text, session.
+  await page.goto(`http://localhost:${PORT}/#/ftir`);
+  await heading().waitFor();
+  await page.getByRole('button', { name: 'Try with example data' }).click();
+  await page.getByText('Example absorbance (synthetic)').first().waitFor();
+  await next('Clean data');
+  await page.getByRole('switch', { name: 'Baseline correction' }).check();
+  await next('Pick peaks');
+  await page.locator('.peak-table tbody tr').first().waitFor();
+  assert.equal(await page.locator('.peak-table tbody tr').count(), 6);
+  step('FTIR: six peaks found in the example spectrum');
+  await next('Assign groups');
+  await page.getByRole('button', { name: /Accept the best suggestion for every peak/ }).click();
+  await next('Results and export');
+  const ftirText = await page.getByLabel('Methods paragraph').inputValue();
+  assert.match(ftirText, /generated example data/);
+  assert.match(ftirText, /not proof of the groups present/);
+  const [ftirCsv] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Download peaks (CSV)' }).click(),
+  ]);
+  assert.match(readFileSync(await ftirCsv.path(), 'utf8'), /Assignment/);
+  const [ftirSession] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Download session (JSON)' }).click(),
+  ]);
+  const ftirFile = JSON.parse(readFileSync(await ftirSession.path(), 'utf8'));
+  assert.equal(ftirFile.kind, 'ftir-session');
+  assert.ok(Object.values(ftirFile.state.data.assignments).flat().length > 0);
+  step('FTIR: peaks, accepted assignments, methods text and session file');
+
+  // Particle size: example image, the example's scale bar, a typed circle and a drawn one.
+  await page.goto(`http://localhost:${PORT}/#/particles`);
+  await heading().waitFor();
+  await page.getByRole('button', { name: 'Try with example data' }).click();
+  await page.getByText('Shown at').waitFor({ timeout: 15_000 });
+  await next('Crop and scale');
+  await page.getByRole('button', { name: /Use the example's scale bar/ }).click();
+  await page.getByText(/2 pixels per nm/).waitFor();
+  // Keep the data bar out of the analysis area, then detect the 12 example particles.
+  await page.getByLabel(/Remove a strip from the bottom/).fill('96');
+  await page.getByRole('button', { name: 'Apply', exact: true }).click();
+  await next('Detect particles');
+  await page.locator('button.btn-primary', { hasText: 'Detect particles' }).click();
+  await page.getByText(/12 of 12 particles shown/).waitFor({ timeout: 30_000 });
+  const detected = await page
+    .locator('.peak-table tbody tr')
+    .evaluateAll((rows) =>
+      rows.map((row) => parseFloat(row.querySelectorAll('td, th')[3].textContent)),
+    );
+  const truth = [60, 70, 80, 90, 100, 110, 120, 80, 90, 100, 70, 85]
+    .map((d) => d / 2)
+    .sort((a, b) => a - b);
+  detected
+    .sort((a, b) => a - b)
+    .forEach((d, i) => {
+      assert.ok(
+        Math.abs(d - truth[i]) / truth[i] < 0.03,
+        `particle ${i}: ${d} nm should be near ${truth[i]} nm`,
+      );
+    });
+  step('Particles: 12 particles detected, every diameter within 3 % of the true one');
+  await next('Measure by hand');
+  await page.getByText('Enter coordinates instead of drawing').click();
+  await page.getByLabel('First point x (px)').fill('300');
+  await page.getByLabel('First point y (px)').fill('300');
+  await page.getByLabel('Second point x (px)').fill('400');
+  await page.getByLabel('Second point y (px)').fill('300');
+  await page.getByRole('button', { name: 'Add the measurement' }).click();
+  await page.getByRole('button', { name: 'Line', exact: true }).click();
+  await page.locator('.image-viewer').scrollIntoViewIfNeeded();
+  const viewerBox = await page.locator('.image-viewer').boundingBox();
+  const fitScale = Math.min(viewerBox.width / 1024, viewerBox.height / 864);
+  const at = (x, y) => [
+    viewerBox.x + (viewerBox.width - 1024 * fitScale) / 2 + x * fitScale,
+    viewerBox.y + (viewerBox.height - 864 * fitScale) / 2 + y * fitScale,
+  ];
+  const [x0, y0] = at(500, 400);
+  const [x1, y1] = at(600, 400);
+  await page.mouse.move(x0, y0);
+  await page.mouse.down();
+  await page.mouse.move(x1, y1, { steps: 5 });
+  await page.mouse.up();
+  await page.getByText('Measurements (2)').waitFor();
+  const cells = await page.locator('.peak-table tbody tr').allInnerTexts();
+  assert.match(cells[0], /Circle\s+50 nm/);
+  assert.match(cells[1], /Line\s+5\d(\.\d+)? nm/);
+  step('Particles: example image, scale, a typed circle (50 nm) and a drawn line (about 50 nm)');
+
+  // Distribution: the true diameters are 30 … 60 nm (mean 43.96 nm, median 43.75 nm by hand).
+  await next('Distribution and export');
+  await page.getByText(/Only 12 particles/).waitFor();
+  const numbers = await page.locator('.dist-step .peak-table tbody tr').first().allInnerTexts();
+  const [count, mean, , median] = numbers[0].split('\t').map(parseFloat);
+  assert.equal(count, 12);
+  assert.ok(Math.abs(mean - 43.958) / 43.958 < 0.03, `mean ${mean} nm`);
+  assert.ok(Math.abs(median - 43.75) / 43.75 < 0.03, `median ${median} nm`);
+  const [histogramSvg] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Download SVG' }).click(),
+  ]);
+  assert.match(readFileSync(await histogramSvg.path(), 'utf8'), /Number of particles/);
+  const [summaryCsv] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Summary (CSV)' }).click(),
+  ]);
+  assert.match(readFileSync(await summaryCsv.path(), 'utf8'), /D90/);
+  const [annotated] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Annotated image (PNG)' }).click(),
+  ]);
+  assert.equal(
+    readFileSync(await annotated.path())
+      .subarray(1, 4)
+      .toString(),
+    'PNG',
+  );
+  await page.getByRole('button', { name: 'Save this image for pooling' }).click();
+  await page.getByText(/example-particles-synthetic.png: 12 particles \(nm\)/).waitFor();
+  assert.match(await page.getByLabel('Methods paragraph').inputValue(), /generated example/);
+  step('Particles: distribution numbers, histogram SVG, summary CSV, annotated PNG, pooling');
+
+  // Thermal: example run, then a 10,000-point semicolon/decimal-comma file typed up here.
+  await page.goto(`http://localhost:${PORT}/#/thermal`);
+  await heading().waitFor();
+  await page.getByRole('button', { name: 'Try with example data' }).click();
+  await page.getByRole('heading', { name: 'Describe the run', exact: true }).waitFor();
+  await next('Clean data');
+  await page.getByText(/points were left out/).waitFor();
+  await next('Mass loss steps');
+  const stepRows = page.locator('tr', { has: page.getByLabel(/start \(°C\)/) });
+  await stepRows.first().waitFor();
+  assert.equal(await stepRows.count(), 3);
+  const firstLoss = async () => Number(await stepRows.first().locator('td').nth(5).textContent());
+  const before = await firstLoss();
+  assert.ok(before > 8.5 && before < 9.1, `first step loses ${before} %`);
+  // A real drag of the first limit marker changes the number live.
+  const marker = page.locator('svg circle').first();
+  const box = await marker.boundingBox();
+  assert.ok(box, 'a draggable limit marker is drawn');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await page.getByText(/You edited the step limits by hand/).waitFor();
+  assert.notEqual(await firstLoss(), before);
+  await page.getByRole('button', { name: 'Use the automatic limits again' }).click();
+  step('Thermal: example run, ramp cut, three steps, marker drag updates the loss live');
+
+  await page
+    .getByRole('button', { name: 'Start over' })
+    .click()
+    .catch(() => {});
+  const rows = [];
+  for (let i = 0; i < 10000; i++) {
+    const t = 30 + (i * 770) / 9999;
+    const loss = 40 / (1 + Math.exp(-(t - 350) / 15));
+    rows.push(
+      `${t.toFixed(3).replace('.', ',')};${(i * 0.077).toFixed(3).replace('.', ',')};${(10 - loss / 10).toFixed(4).replace('.', ',')}`,
+    );
+  }
+  const bigText = `Sample;big\nTemp./°C;Time/min;Mass/mg\n${rows.join('\n')}\n`;
+  page.once('dialog', (d) => d.accept());
+  await page.getByRole('button', { name: 'Start over' }).click();
+  await heading().waitFor();
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'big.txt',
+    mimeType: 'text/plain',
+    buffer: Buffer.from(bigText, 'latin1'),
+  });
+  await page.getByRole('heading', { name: 'Describe the run', exact: true }).waitFor();
+  assert.equal(await page.getByLabel('Time column (optional)').inputValue(), '1');
+  const started = Date.now();
+  await next('Clean data');
+  await next('Mass loss steps');
+  await stepRows.first().waitFor();
+  const elapsed = Date.now() - started;
+  assert.equal(await stepRows.count(), 1);
+  assert.ok(elapsed < 4000, `10,000 points took ${elapsed} ms to reach the steps table`);
+  step(`Thermal: 10,000-point semicolon file with decimal commas, steps table after ${elapsed} ms`);
+
+  // No horizontal page scroll at phone width.
+  for (const width of [360, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    // Plots resize through a ResizeObserver, which needs a frame or two.
+    await page.waitForTimeout(500);
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    assert.ok(overflow <= 0, `page scrolls sideways by ${overflow}px at ${width}px`);
+  }
+  await page.setViewportSize({ width: 1280, height: 900 });
+  step('Thermal: no horizontal page scroll at 360 and 1280 px');
+
   assert.deepEqual(problems, [], `browser errors: ${problems.join('; ')}`);
   console.log('E2E passed.');
 } catch (error) {
