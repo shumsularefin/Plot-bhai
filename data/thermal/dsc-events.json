@@ -1,0 +1,84 @@
+{
+  "verification": "TODO, verify: NOT YET CHECKED AGAINST ANY SOURCE. No open table of typical DSC event temperatures could be opened when this file was written, so every range below is a broad, general-knowledge placeholder (wide on purpose). Replace each range with a value from a source you can cite, fill in its 'source' field, and then remove the TODO. Real temperatures depend on the material, scan rate, atmosphere and sample mass.",
+  "rangesFor": "Dynamic DSC at about 10 K/min. Temperatures are the peak temperature of an event, in degrees C.",
+  "events": [
+    {
+      "id": "melting",
+      "name": "Melting",
+      "direction": "endo",
+      "scans": ["heating"],
+      "fromC": 50,
+      "toC": 400,
+      "atmosphere": "any",
+      "categories": ["polymer", "composite", "other"],
+      "shape": "narrow",
+      "notes": "Melting of a crystalline phase absorbs heat and gives an endotherm without any mass loss. A pure, well-ordered phase usually gives a narrow peak; a broad one points to a range of crystal sizes or to impurities.",
+      "source": "TODO, verify"
+    },
+    {
+      "id": "dehydration-evaporation",
+      "name": "Dehydration or evaporation (loss of water or solvent)",
+      "direction": "endo",
+      "scans": ["heating"],
+      "fromC": 25,
+      "toC": 250,
+      "atmosphere": "any",
+      "categories": ["hydroxide-or-salt", "biomass", "composite"],
+      "shape": "broad",
+      "notes": "Loss of water or solvent absorbs heat and is accompanied by a mass loss in TGA. In an open pan the peak is often broad; in a sealed pan it can shift.",
+      "source": "TODO, verify"
+    },
+    {
+      "id": "crystallisation",
+      "name": "Crystallisation (cold crystallisation on heating, or from the melt on cooling)",
+      "direction": "exo",
+      "scans": ["heating", "cooling"],
+      "fromC": 50,
+      "toC": 350,
+      "atmosphere": "any",
+      "categories": ["polymer", "composite", "other"],
+      "shape": "any",
+      "notes": "Crystallisation releases heat and gives an exotherm without any mass loss. On heating it is called cold crystallisation and follows the glass transition; on cooling it appears when the melt crystallises.",
+      "source": "TODO, verify"
+    },
+    {
+      "id": "oxidation",
+      "name": "Oxidation or combustion",
+      "direction": "exo",
+      "scans": ["heating"],
+      "fromC": 150,
+      "toC": 800,
+      "atmosphere": "oxidising",
+      "categories": [],
+      "shape": "any",
+      "notes": "Needs oxygen: an exotherm with a mass loss (burning of organic material) or a mass gain (oxidation of a metal or lower oxide) in TGA. Not expected in nitrogen or argon.",
+      "source": "TODO, verify"
+    },
+    {
+      "id": "solid-solid",
+      "name": "Solid-solid phase transition",
+      "direction": "either",
+      "scans": ["heating", "cooling"],
+      "fromC": 25,
+      "toC": 800,
+      "atmosphere": "any",
+      "categories": [],
+      "shape": "any",
+      "notes": "A change of crystal structure without melting and without mass change. It can be endothermic or exothermic and often shows a thermal lag between heating and cooling.",
+      "source": "TODO, verify"
+    },
+    {
+      "id": "decomposition",
+      "name": "Decomposition",
+      "direction": "either",
+      "scans": ["heating"],
+      "fromC": 150,
+      "toC": 900,
+      "atmosphere": "any",
+      "categories": ["hydroxide-or-salt", "polymer", "biomass", "composite"],
+      "shape": "any",
+      "notes": "Usually accompanied by a mass loss in TGA. Often endothermic in an inert gas; in air the products can burn, which adds an exotherm.",
+      "source": "TODO, verify"
+    }
+  ]
+}
