@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { HelpTip } from '../HelpTip';
 import { ExportPanel } from './ExportPanel';
-import type { ExportSettings } from './export';
+import type { ExportSettings, LowerAxis } from './export';
 import { InteractivePlot, type InteractivePlotProps } from './InteractivePlot';
 import type { PeakLabelSet } from './peakLabels';
 import { ReferenceLanes, type ReferenceLane } from './ReferenceLanes';
@@ -30,8 +30,10 @@ interface PlotPanelProps {
   showOverlayOptions?: boolean;
   /** Clicking, marker and hint options passed to the plot. */
   interaction?: PlotInteraction;
-  /** Optional residual curve, drawn in a small panel under the plot with the same 2θ range. */
+  /** Optional curve drawn in a small panel under the plot with the same x range (a residual unless `lowerAxis` says otherwise). */
   residual?: SeriesSource;
+  /** Y axis label and description of the lower panel when it is not a residual (for example DTG). */
+  lowerAxis?: LowerAxis & { description: string };
   /** Data points drawn as circles, on screen and in the exported figure (unlike markers). */
   points?: readonly PlotMarker[];
   /** Reference stick patterns drawn under the plot on the same 2θ range (on screen and in the exported figure). */
@@ -141,7 +143,11 @@ export function PlotPanel(props: PlotPanelProps) {
       {residualSeries && (
         <InteractivePlot
           series={residualSeries}
-          labels={{ x: axisLabels.x, y: 'Residual' }}
+          labels={{
+            x: axisLabels.x,
+            y: props.lowerAxis?.y ?? 'Residual',
+            ...(props.lowerAxis?.yValues && { yValues: true }),
+          }}
           domain={domain}
           extent={extent}
           minSpan={minSpan}
@@ -149,7 +155,7 @@ export function PlotPanel(props: PlotPanelProps) {
           formatX={(x) => `${xName} ${round(shown(x))}${xUnit}`}
           heightFor={residualHeight}
           hideReadout
-          description="Residual: data minus fit."
+          description={props.lowerAxis?.description ?? 'Residual: data minus fit.'}
         />
       )}
 
@@ -237,6 +243,7 @@ export function PlotPanel(props: PlotPanelProps) {
         residual={residualSeries ?? undefined}
         peakLabels={props.peakLabels}
         lanes={props.lanes}
+        lowerAxis={props.lowerAxis}
       />
     </div>
   );

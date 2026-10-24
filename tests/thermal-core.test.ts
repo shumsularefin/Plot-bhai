@@ -20,31 +20,13 @@ import {
   temperatureAtMass,
 } from '../src/core/thermal/steps';
 import type { ThermalRun } from '../src/core/thermal/types';
+import { deconvolveSteps } from '../src/core/thermal/deconvolve';
+import { EXAMPLE_STEPS, exampleTgaTable, normalCdf } from '../src/core/thermal/synthetic';
+import type { SyntheticStep } from '../src/core/thermal/synthetic';
 import { seededRandom } from '../src/core/xrd/synthetic';
 
-/** Error function (Abramowitz–Stegun 7.1.26 is too coarse for tests); series for the normal CDF. */
-function normalCdf(z: number): number {
-  // Numerical integration of the Gaussian by Simpson's rule: accurate to ~1e-12 for |z| ≤ 8.
-  const upper = Math.max(-8, Math.min(8, z));
-  const steps = 400;
-  const h = (upper + 8) / steps;
-  let sum = 0;
-  for (let i = 0; i <= steps; i++) {
-    const x = -8 + i * h;
-    const w = i === 0 || i === steps ? 1 : i % 2 === 1 ? 4 : 2;
-    sum += w * Math.exp(-0.5 * x * x);
-  }
-  return (sum * h) / 3 / Math.sqrt(2 * Math.PI);
-}
-
-interface TrueStep {
-  loss: number;
-  peak: number;
-  sigma: number;
-}
-
 /** Mass (%) = 100 − Σ loss·Φ((T − peak)/σ): each step has a Gaussian DTG with area = loss. */
-function syntheticMass(T: Float64Array, steps: TrueStep[], noise = 0, seed = 1): Float64Array {
+function syntheticMass(T: Float64Array, steps: SyntheticStep[], noise = 0, seed = 1): Float64Array {
   const random = seededRandom(seed);
   return T.map((t) => {
     let m = 100;
@@ -87,7 +69,7 @@ describe('local polynomial slope', () => {
 
 describe('synthetic TGA with known steps', () => {
   const T = grid(30, 800, 3851); // 0.2 °C spacing
-  const truth: TrueStep[] = [
+  const truth: SyntheticStep[] = [
     { loss: 12, peak: 150, sigma: 12 },
     { loss: 30, peak: 420, sigma: 25 },
     { loss: 8, peak: 650, sigma: 20 },
@@ -102,7 +84,7 @@ describe('synthetic TGA with known steps', () => {
     expect(regions).toHaveLength(0);
     let expectedResidue = 100;
     steps.forEach((step, k) => {
-      const t = truth[k] as TrueStep;
+      const t = truth[k] as SyntheticStep;
       expectedResidue -= t.loss;
       expect(step.peakC).toBeCloseTo(t.peak, 0);
       expect(step.lossPct).toBeGreaterThan(t.loss * 0.98);
@@ -117,7 +99,7 @@ describe('synthetic TGA with known steps', () => {
   });
 
   it('finds T5, T10, T50 and the mass at a chosen temperature', () => {
-    const only: TrueStep[] = [{ loss: 40, peak: 300, sigma: 20 }];
+    const only: SyntheticStep[] = [{ loss: 40, peak: 300, sigma: 20 }];
     const m = syntheticMass(T, only);
     // 5 % lost: 100 − 40·Φ(z) = 95 → Φ(z) = 0.125 → z = −1.1503494; 50 % lost never reached.
     expect(temperatureAtMass(T, m, 95)).toBeCloseTo(300 - 1.1503494 * 20, 1);
@@ -134,7 +116,7 @@ describe('synthetic TGA with known steps', () => {
     expect(limits).toHaveLength(3);
     const { steps } = analyseSteps(T, noisy, d, limits, null);
     steps.forEach((step, k) => {
-      const t = truth[k] as TrueStep;
+      const t = truth[k] as SyntheticStep;
       expect(Math.abs(step.peakC - t.peak)).toBeLessThan(3);
       expect(Math.abs(step.lossPct - t.loss)).toBeLessThan(0.6);
       expect(step.lossMg).toBeNull();
@@ -142,7 +124,7 @@ describe('synthetic TGA with known steps', () => {
   });
 
   it('reports two steps that run into each other as one region', () => {
-    const close: TrueStep[] = [
+    const close: SyntheticStep[] = [
       { loss: 20, peak: 300, sigma: 20 },
       { loss: 20, peak: 350, sigma: 20 },
     ];
@@ -157,7 +139,7 @@ describe('synthetic TGA with known steps', () => {
   });
 
   it('merges peaks closer than the minimum separation', () => {
-    const close: TrueStep[] = [
+    const close: SyntheticStep[] = [
       { loss: 20, peak: 300, sigma: 8 },
       { loss: 10, peak: 312, sigma: 8 },
     ];
@@ -368,5 +350,58 @@ describe('import', () => {
     const base = guessMapping(result.table);
     expect(buildRun('a', result.table, { ...base, mass: base.temperature }).ok).toBe(false);
     expect(buildRun('a', result.table, { ...base, mass: null, heatFlow: null }).ok).toBe(false);
+  });
+});
+
+describe('DTG deconvolution', () => {
+  it('splits two overlapping Gaussian steps into their known losses', () => {
+    const T = grid(30, 800, 3851);
+    const close: SyntheticStep[] = [
+      { loss: 25, peak: 300, sigma: 20 },
+      { loss: 15, peak: 360, sigma: 20 },
+    ];
+    const m = syntheticMass(T, close, 0.01, 3);
+    const d = dtg(T, m, 10);
+    const limits = detectSteps(T, d, { prominencePercent: 3, minSeparationC: 20 });
+    const { steps, regions } = analyseSteps(T, m, d, limits, null);
+    const region = regions[0];
+    if (!region) throw new Error('expected an overlap region');
+    const result = deconvolveSteps(T, d, steps, region.fromC, region.toC);
+    if (!result) throw new Error('no fit');
+    expect(result.components).toHaveLength(2);
+    result.components.forEach((c, k) => {
+      const t = close[k] as SyntheticStep;
+      expect(Math.abs(c.centerC - t.peak)).toBeLessThan(2);
+      expect(Math.abs(c.lossPct - t.loss)).toBeLessThan(t.loss * 0.05);
+      expect(c.fwhmC).toBeCloseTo(t.sigma * 2.3548, 0);
+    });
+    expect(result.rSquared).toBeGreaterThan(0.99);
+  });
+});
+
+describe('example run', () => {
+  it('goes through import, mapping, cleaning and detection and finds its three steps', () => {
+    const table = exampleTgaTable();
+    const mapping = guessMapping(table);
+    expect(mapping).toMatchObject({ temperature: 0, time: 1, mass: 2, massUnit: 'mg' });
+    const built = buildRun('example', table, mapping);
+    if (!built.ok) throw new Error(built.error);
+    expect(estimateHeatingRate(built.run)).toBeCloseTo(10, 6);
+    const cleaned = cleanRun(built.run, null, { initialMassMg: 10 }, DEFAULT_CLEAN);
+    if (!cleaned.ok) throw new Error(cleaned.error);
+    const { temperatureC, massPct } = cleaned.curve;
+    expect(temperatureC[temperatureC.length - 1]).toBeCloseTo(800, 6);
+    const d = dtg(temperatureC, massPct, 20);
+    const { steps } = analyseSteps(
+      temperatureC,
+      massPct,
+      d,
+      detectSteps(temperatureC, d, DEFAULT_DETECT),
+      10,
+    );
+    expect(steps).toHaveLength(EXAMPLE_STEPS.length);
+    steps.forEach((s, k) => {
+      expect(Math.abs(s.lossPct - (EXAMPLE_STEPS[k]?.loss as number))).toBeLessThan(0.5);
+    });
   });
 });

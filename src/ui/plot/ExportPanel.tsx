@@ -12,6 +12,7 @@ import {
   type ExportFont,
   type ExportPreset,
   type ExportSettings,
+  type LowerAxis,
 } from './export';
 import type { PeakLabelSet } from './peakLabels';
 import type { ReferenceLane } from './ReferenceLanes';
@@ -32,6 +33,8 @@ interface ExportPanelProps {
   peakLabels?: PeakLabelSet | undefined;
   /** Reference stick patterns drawn in lanes under the exported figure. */
   lanes?: readonly ReferenceLane[] | undefined;
+  /** Y axis of the panel under the plot when it is not a residual. */
+  lowerAxis?: LowerAxis | undefined;
 }
 
 /** Figure export: journal width presets, font, sizes, and SVG or PNG (300 or 600 dpi) download. */
@@ -46,6 +49,7 @@ export function ExportPanel({
   residual,
   peakLabels,
   lanes,
+  lowerAxis,
 }: ExportPanelProps) {
   const [status, setStatus] = useState<{ text: string; error: boolean } | null>(null);
   // Several plots can be on one page, so ids and radio names must be unique.
@@ -83,6 +87,7 @@ export function ExportPanel({
       residual,
       peakLabels,
       lanes,
+      lowerAxis,
     );
     downloadBlob(new Blob([svg], { type: 'image/svg+xml' }), `${stem}.svg`);
     setStatus({ text: `Saved ${stem}.svg.`, error: false });
@@ -100,6 +105,7 @@ export function ExportPanel({
         residual,
         peakLabels,
         lanes,
+        lowerAxis,
       );
       downloadBlob(await svgToPng(svg, size, dpi), `${stem}-${dpi}dpi.png`);
       setStatus({ text: `Saved ${stem}-${dpi}dpi.png.`, error: false });
