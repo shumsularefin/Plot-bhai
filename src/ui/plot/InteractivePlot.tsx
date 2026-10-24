@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { nearestIndex } from './decimate';
 import { labelRoom, type PeakLabelSet } from './peakLabels';
 import { PlotSvg, plotMargins, visibleYDomain } from './PlotSvg';
-import type { AxisLabels, Domain, PlotMarker, PlotSeries } from './types';
+import type { AxisLabels, Domain, PlotBand, PlotMarker, PlotSeries } from './types';
 import { clampDomain, panDomain, zoomDomain } from './view';
 
 const FONT_SIZE = 12;
@@ -22,6 +22,8 @@ export interface InteractivePlotProps {
   /** Called with data coordinates when the plot is clicked or tapped without dragging. */
   onPlotClick?: (x: number, y: number) => void;
   markers?: readonly PlotMarker[];
+  /** Shaded x ranges behind the curves. */
+  bands?: readonly PlotBand[];
   /** Labels above peaks, for example (hkl) indices. */
   peakLabels?: PeakLabelSet;
   /** Readout text shown before the first hover. */
@@ -71,6 +73,7 @@ export function InteractivePlot(props: InteractivePlotProps) {
     description,
     onPlotClick,
     markers,
+    bands,
     peakLabels,
     onMarkerClick,
     onMarkerDrag,
@@ -343,6 +346,7 @@ export function InteractivePlot(props: InteractivePlotProps) {
             samples={Math.ceil(innerW * (window.devicePixelRatio || 1))}
             yDomain={yDomain}
             {...(markers && { markers })}
+            {...(bands && { bands })}
             {...(peakLabels && { peakLabels })}
           >
             {readoutX !== undefined && (

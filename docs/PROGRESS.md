@@ -1,5 +1,67 @@
 # Progress
 
+## Sub-stage 11b: TGA events, theory, calcination (done)
+
+Branch `claude/friendly-cray-f64dgw`, started from the merge of pull request 18 (11a is in `main`).
+
+### What was built
+
+- Wizard steps 4 to 6 of the thermal tool replace the placeholders: **Assign events**, **Calcination
+  suggestion**, **Results and export**.
+- `data/thermal/atomic-weights.json`: 84 elements, parsed by `npm run build:weights`
+  (`scripts/build-atomic-weights.ts`) from the CIAAW "Abridged Standard Atomic Weights 2024" page
+  (https://ciaaw.org/abridged-atomic-weights.htm). The page is cached in `data/thermal/source/`, so
+  the build is repeatable offline. Values are the table cells, in g/mol, with the page's ±.
+- `src/core/thermal/formula.ts`: formula parser (brackets, hydrate dots, subscript digits), molar
+  mass, theoretical mass loss `(ν_A·M_A − ν_B·M_B)/(ν_A·M_A)`, and five ready examples (Zn(OH)₂,
+  Fe(OH)₃, CaCO₃, Cu(NO₃)₂·3H₂O, CuSO₄·5H₂O).
+- `src/core/thermal/events.ts` and `data/thermal/events.json`: rule table and ranking. Up to three
+  candidates per step with a plain-language reason and a low/medium/high confidence label. Rules that
+  need oxygen are dropped in nitrogen or argon. "High" needs the peak inside the range, a matching
+  sample category and a theoretical loss that agrees. The user accepts, writes their own, or rejects.
+- `src/core/thermal/calcination.ts`: minimum = endset of the last step losing at least the threshold
+  (default 1 %) plus a margin (default 50 °C); three candidates spaced 100 °C apart that lie inside
+  the data; plateau change above the minimum; the "starting point, not an optimal temperature"
+  warning is always shown.
+- `src/core/thermal/methods.ts`: methods paragraph from the real settings only.
+- Shared plot: new `bands` option (shaded x ranges with a label), drawn on screen and in SVG/PNG
+  export. Steps are shaded and numbered on the mass curve in steps 4 to 6.
+- Results step: table (onset, peak, endset, loss, residual, your event), CSV, T5/T10/T50, figure with
+  DTG, methods text, and a JSON session file (`thermal-session`, state version 2 with a migration
+  from version 1).
+- Tests: `thermal-events` (19: formulas, hand-computed theoretical losses, ranking rules,
+  calcination on known-endset curves, methods text) and `thermalEvents` (10: the three steps, session
+  round trip, migration). `npm run e2e` has a block for steps 4 to 6.
+
+### Decisions (my own conventions, please confirm)
+
+- Ranking score = 0.6 · temperature fit + 0.3 · sample category + 0.1; it only orders candidates and
+  is not a probability. Candidates more than 50 °C outside a range are dropped.
+- Measured loss is compared with theory as a percentage of the mass just before the step.
+- Candidate calcination temperatures: minimum, +100 and +200 °C (spacing adjustable).
+- Atomic weights are the abridged ones (about five significant figures), not the interval values.
+
+### Known issues
+
+- **`data/thermal/events.json` is NOT verified.** No open table of typical event ranges could be
+  opened in this session, so every range is a broad general-knowledge placeholder and every `source`
+  says "TODO, verify". The app says this on the Assign events step. Possible leads to check (not
+  opened here): a pyrolysis paper giving hemicellulose 220–315 °C, cellulose 315–400 °C and lignin
+  160–900 °C, and a date palm TGA paper giving free water up to about 110 °C.
+- DSC is not loaded yet, so exothermic events above the last mass loss are not marked (12b).
+- Deconvolved components are still table-only.
+- No real TGA file yet.
+
+### Needs from you
+
+- Replace the ranges and sources in `data/thermal/events.json` with values you have checked.
+- A real TGA text/CSV export with instrument-software or Origin numbers.
+- Confirm the conventions above.
+
+### Next sub-stage
+
+12a: DSC (Stage 12 items 1 to 6).
+
 ## Sub-stage 11a: TGA import to step detection (done)
 
 Branch `claude/hopeful-dirac-72ak86`, stacked on 10c (pull request 18 is still not merged into `main`).

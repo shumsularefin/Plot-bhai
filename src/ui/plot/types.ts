@@ -25,6 +25,13 @@ export interface PlotMarker {
   y: number;
 }
 
+/** A shaded x range (for example one mass loss step) with a short label at its top, in data units. */
+export interface PlotBand {
+  fromX: number;
+  toX: number;
+  label: string;
+}
+
 export interface AxisLabels {
   x: ComponentChildren;
   y: ComponentChildren;

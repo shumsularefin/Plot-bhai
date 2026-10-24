@@ -4,7 +4,7 @@ import { niceTicks } from './axes';
 import { decimate, lowerBound, type Decimated } from './decimate';
 import { PRINT_COLORS } from './palette';
 import { labelRoom, placeLabels, textWidth, type PeakLabelSet } from './peakLabels';
-import type { AxisLabels, Domain, PlotMarker, PlotSeries } from './types';
+import type { AxisLabels, Domain, PlotBand, PlotMarker, PlotSeries } from './types';
 
 /** Visual settings. All lengths are in the SVG's own units (px on screen, pt for export). */
 export interface PlotStyle {
@@ -46,6 +46,8 @@ interface PlotSvgProps {
   /** Fixed y range; computed from the visible data when omitted. */
   yDomain?: Domain;
   markers?: readonly PlotMarker[];
+  /** Shaded x ranges drawn behind the curves, each with its label at the top. */
+  bands?: readonly PlotBand[];
   /** Text labels above peaks, and the key explaining them (the key is drawn in exports only). */
   peakLabels?: PeakLabelSet;
   /** Extra attributes for the root element, for example physical width and height for export. */
@@ -100,6 +102,7 @@ export function PlotSvg(props: PlotSvgProps) {
     samples,
     legend,
     markers,
+    bands,
     peakLabels,
     svgAttributes,
     children,
@@ -188,6 +191,18 @@ export function PlotSvg(props: PlotSvgProps) {
           <rect width={innerW} height={innerH} />
         </clipPath>
         <g clip-path={`url(#${clipId})`} fill="none" stroke-linejoin="round" stroke-linecap="round">
+          {bands?.map((b, i) => (
+            <rect
+              key={`band-${i}`}
+              class={print ? undefined : 'plot-band'}
+              x={px(Math.min(b.fromX, b.toX))}
+              width={Math.max(0, px(Math.max(b.fromX, b.toX)) - px(Math.min(b.fromX, b.toX)))}
+              y={0}
+              height={innerH}
+              fill={print ? (i % 2 === 0 ? '#e6e6e6' : '#f2f2f2') : undefined}
+              stroke="none"
+            />
+          ))}
           {series.map((s, i) => (
             <path
               key={s.id}
@@ -197,6 +212,20 @@ export function PlotSvg(props: PlotSvgProps) {
               stroke-width={style.lineWidth}
               stroke-dasharray={dash(s)}
             />
+          ))}
+          {bands?.map((b, i) => (
+            <text
+              key={`band-label-${i}`}
+              class={print ? undefined : 'plot-text'}
+              {...text}
+              x={(px(Math.min(b.fromX, b.toX)) + px(Math.max(b.fromX, b.toX))) / 2}
+              y={style.fontSize * 1.1}
+              text-anchor="middle"
+              stroke="none"
+              fill={print ? ink : undefined}
+            >
+              {b.label}
+            </text>
           ))}
           {markers?.map((m, i) => (
             <circle

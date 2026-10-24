@@ -367,6 +367,33 @@ try {
   await page.getByRole('button', { name: 'Use the automatic limits again' }).click();
   step('Thermal: example run, ramp cut, three steps, marker drag updates the loss live');
 
+  // Steps 4 to 6: suggestions, calcination, results, session file round trip.
+  await next('Assign events');
+  await page.getByText(/TGA alone cannot identify the evolved species/).waitFor();
+  const firstCard = page.getByRole('article').first();
+  await firstCard.getByRole('button', { name: 'Accept this' }).first().click();
+  await firstCard.getByText(/Your choice:/).waitFor();
+  await page.getByLabel('Compare with step').selectOption('1');
+  await page.getByText(/Difference, measured/).waitFor();
+  step('Thermal: suggestions listed, one accepted, theoretical loss compared');
+  await next('Calcination suggestion');
+  await page.getByText(/not an optimal temperature/).waitFor();
+  const minimum = await page.getByText(/Lowest temperature worth trying/).textContent();
+  assert.match(minimum ?? '', /\d{3} °C/);
+  step(`Thermal: calcination suggestion shown (${minimum?.slice(0, 50)})`);
+  await next('Results and export');
+  const acceptedEvents = await page.locator('table tbody tr').first().textContent();
+  assert.ok(!/not assigned/.test(acceptedEvents ?? ''), 'accepted event is in the results table');
+  assert.match(await page.getByLabel('Methods paragraph').inputValue(), /generated example data/);
+  const [session] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Download session (JSON)' }).click(),
+  ]);
+  const saved = JSON.parse(readFileSync(await session.path(), 'utf8'));
+  assert.equal(saved.kind, 'thermal-session');
+  assert.equal(Object.keys(saved.state.data.assignments).length, 1);
+  step('Thermal: results table, methods text and session file');
+
   await page
     .getByRole('button', { name: 'Start over' })
     .click()

@@ -1,0 +1,96 @@
+{
+  "verification": "TODO, verify: NOT YET CHECKED AGAINST ANY SOURCE. No open textbook or review table of these ranges could be opened when this file was written, so every range below is a broad, general-knowledge placeholder (wide on purpose). Replace each range with a value from a source you can cite, fill in its 'source' field, and then remove the TODO. Real temperatures depend on heating rate, atmosphere, particle size and sample mass.",
+  "rangesFor": "Dynamic TGA at about 10 K/min. Temperatures are the DTG peak of a step, in degrees C.",
+  "events": [
+    {
+      "id": "moisture",
+      "name": "Loss of adsorbed moisture and volatile solvents",
+      "fromC": 25,
+      "toC": 150,
+      "atmosphere": "any",
+      "categories": [],
+      "notes": "Usually the first, small step. Strongly bound water can come off higher (see bound water).",
+      "source": "TODO, verify"
+    },
+    {
+      "id": "bound-water",
+      "name": "Loss of bound or crystal water (hydrates)",
+      "fromC": 80,
+      "toC": 250,
+      "atmosphere": "any",
+      "categories": ["hydroxide-or-salt"],
+      "notes": "Hydrates often lose water in several steps; this overlaps with moisture loss and early organic loss.",
+      "source": "TODO, verify"
+    },
+    {
+      "id": "capping-agents",
+      "name": "Decomposition of organic capping agents or plant-extract biomolecules",
+      "fromC": 150,
+      "toC": 500,
+      "atmosphere": "any",
+      "categories": ["biomass", "composite"],
+      "notes": "Broad and often several overlapping steps. In air the organic residue burns off, which can also add an exotherm in DSC.",
+      "source": "TODO, verify"
+    },
+    {
+      "id": "polymer-degradation",
+      "name": "Polymer degradation",
+      "fromC": 250,
+      "toC": 550,
+      "atmosphere": "any",
+      "categories": ["polymer", "composite"],
+      "notes": "Depends strongly on the polymer type. In air degradation usually starts lower than in an inert gas.",
+      "source": "TODO, verify"
+    },
+    {
+      "id": "dehydroxylation",
+      "name": "Dehydroxylation of a metal hydroxide (loss of water from OH groups)",
+      "fromC": 150,
+      "toC": 500,
+      "atmosphere": "any",
+      "categories": ["hydroxide-or-salt"],
+      "notes": "The temperature depends on the metal. The mass loss can be compared with the theoretical value in the next section.",
+      "source": "TODO, verify"
+    },
+    {
+      "id": "nitrate",
+      "name": "Decomposition of a nitrate precursor (loses water, NOx and oxygen)",
+      "fromC": 150,
+      "toC": 500,
+      "atmosphere": "any",
+      "categories": ["hydroxide-or-salt"],
+      "notes": "Hydrated nitrates lose water first, so the nitrate step often follows a water step.",
+      "source": "TODO, verify"
+    },
+    {
+      "id": "acetate",
+      "name": "Decomposition of an acetate precursor",
+      "fromC": 200,
+      "toC": 500,
+      "atmosphere": "any",
+      "categories": ["hydroxide-or-salt"],
+      "notes": "May leave a carbonate or carbon-containing intermediate that decomposes at a higher temperature.",
+      "source": "TODO, verify"
+    },
+    {
+      "id": "carbonate",
+      "name": "Decomposition of a carbonate (loses CO2)",
+      "fromC": 350,
+      "toC": 900,
+      "atmosphere": "any",
+      "categories": ["hydroxide-or-salt"],
+      "notes": "Alkaline-earth carbonates decompose at the high end of this range; transition-metal carbonates lower.",
+      "source": "TODO, verify"
+    },
+    {
+      "id": "carbon-oxidation",
+      "name": "Oxidation of carbon (soot, char or carbonaceous residue)",
+      "fromC": 350,
+      "toC": 750,
+      "atmosphere": "oxidising",
+      "categories": ["biomass", "composite"],
+      "notes": "Only possible when oxygen is present (air or oxygen). In nitrogen or argon the carbon stays as residue.",
+      "source": "TODO, verify"
+    }
+  ]
+}
