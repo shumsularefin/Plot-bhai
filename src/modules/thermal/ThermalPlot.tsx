@@ -1,7 +1,8 @@
 import { useMemo } from 'preact/hooks';
 import { PlotPanel, type PlotInteraction, type PlotSettings } from '../../ui/plot/PlotPanel';
+import type { PeakLabelSet } from '../../ui/plot/peakLabels';
 import type { SeriesSource } from '../../ui/plot/series';
-import type { AxisLabels } from '../../ui/plot/types';
+import type { AxisLabels, PlotBand } from '../../ui/plot/types';
 
 /** One mass curve to draw: mass against temperature (°C). */
 export interface MassCurve {
@@ -31,6 +32,10 @@ interface ThermalPlotProps {
   onSettingsChange: (patch: Partial<PlotSettings>) => void;
   exportName: string;
   interaction?: PlotInteraction;
+  /** Shaded temperature ranges, for example the mass loss steps. */
+  bands?: readonly PlotBand[];
+  /** Numbers or short labels above points of the mass curve. */
+  peakLabels?: PeakLabelSet;
 }
 
 const temperatureLabel = 'Temperature (°C)';
@@ -83,6 +88,8 @@ export function ThermalPlot(props: ThermalPlotProps) {
       exportName={props.exportName}
       showOverlayOptions={false}
       {...(props.interaction && { interaction: props.interaction })}
+      {...(props.bands && { bands: props.bands })}
+      {...(props.peakLabels && { peakLabels: props.peakLabels })}
       {...(lower &&
         dtg && {
           residual: lower,

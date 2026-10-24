@@ -18,7 +18,8 @@
     "size": "node scripts/check-bundle-size.mjs",
     "e2e": "node scripts/e2e.mjs",
     "build:refs": "NODE_USE_ENV_PROXY=1 node scripts/build-reference-library.ts",
-    "build:ftir": "NODE_USE_ENV_PROXY=1 node scripts/build-ftir-groups.ts"
+    "build:ftir": "NODE_USE_ENV_PROXY=1 node scripts/build-ftir-groups.ts",
+    "build:weights": "NODE_USE_ENV_PROXY=1 node scripts/build-atomic-weights.ts"
   },
   "dependencies": {
     "d3-array": "^3.2.4",

@@ -16,7 +16,7 @@ import {
 } from './export';
 import type { PeakLabelSet } from './peakLabels';
 import type { ReferenceLane } from './ReferenceLanes';
-import type { AxisLabels, Domain, PlotMarker, PlotSeries } from './types';
+import type { AxisLabels, Domain, PlotBand, PlotMarker, PlotSeries } from './types';
 
 interface ExportPanelProps {
   series: readonly PlotSeries[];
@@ -27,6 +27,8 @@ interface ExportPanelProps {
   exportName: string;
   /** Data points drawn as circles in the exported figure. */
   points?: readonly PlotMarker[] | undefined;
+  /** Shaded x ranges drawn behind the curves in the exported figure. */
+  bands?: readonly PlotBand[] | undefined;
   /** Residual curve drawn in a panel under the exported figure. */
   residual?: readonly PlotSeries[] | undefined;
   /** Labels above peaks, drawn in the exported figure with their key. */
@@ -46,6 +48,7 @@ export function ExportPanel({
   onChange,
   exportName,
   points,
+  bands,
   residual,
   peakLabels,
   lanes,
@@ -88,6 +91,7 @@ export function ExportPanel({
       peakLabels,
       lanes,
       lowerAxis,
+      bands,
     );
     downloadBlob(new Blob([svg], { type: 'image/svg+xml' }), `${stem}.svg`);
     setStatus({ text: `Saved ${stem}.svg.`, error: false });
@@ -106,6 +110,7 @@ export function ExportPanel({
         peakLabels,
         lanes,
         lowerAxis,
+        bands,
       );
       downloadBlob(await svgToPng(svg, size, dpi), `${stem}-${dpi}dpi.png`);
       setStatus({ text: `Saved ${stem}-${dpi}dpi.png.`, error: false });

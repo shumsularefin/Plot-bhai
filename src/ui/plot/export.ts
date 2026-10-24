@@ -4,7 +4,7 @@ import { LANE_HEIGHT_EM, LanesSvg } from './LanesSvg';
 import { PlotSvg } from './PlotSvg';
 import type { ReferenceLane } from './ReferenceLanes';
 import { setPngDpi } from './png';
-import type { AxisLabels, Domain, PlotMarker, PlotSeries } from './types';
+import type { AxisLabels, Domain, PlotBand, PlotMarker, PlotSeries } from './types';
 
 /** Journal figure widths. Heights are a starting point and can be changed. */
 export const EXPORT_PRESETS = {
@@ -76,6 +76,7 @@ const RESIDUAL_SHARE = 0.25;
  * A residual curve, when given, is drawn in its own panel under the main plot, as on screen.
  * Peak labels are drawn above their peaks, with their key in the legend. Reference lanes
  * (stick patterns, one per phase) are drawn under the plot over the same 2θ range.
+ * Bands are shaded x ranges with a label, drawn behind the curves of the main plot.
  */
 export function renderSvgString(
   series: readonly PlotSeries[],
@@ -87,6 +88,7 @@ export function renderSvgString(
   peakLabels?: PeakLabelSet,
   lanes?: readonly ReferenceLane[],
   lowerAxis?: LowerAxis,
+  bands?: readonly PlotBand[],
 ): string {
   const size = figureSize(settings);
   const width = size.widthMm * PT_PER_MM;
@@ -109,6 +111,7 @@ export function renderSvgString(
     samples: VECTOR_SAMPLES,
     legend: true,
     ...(markers && { markers }),
+    ...(bands && { bands }),
     ...(peakLabels && { peakLabels }),
     style,
     ...(stacked

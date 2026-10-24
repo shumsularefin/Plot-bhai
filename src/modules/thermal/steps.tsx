@@ -1,19 +1,12 @@
 import type { WizardStep } from '../../ui/wizard/types';
 import { mappingProblem, runOf } from './analysis';
+import { AssignStep } from './AssignStep';
+import { CalcinationStep } from './CalcinationStep';
 import { CleanStep } from './CleanStep';
 import type { ThermalData } from './data';
+import { ResultsStep } from './ResultsStep';
 import { StepsStep } from './StepsStep';
 import { UploadStep } from './UploadStep';
-
-/** Shown for the steps that come in the next sub-stage. */
-function Soon({ what }: { what: string }) {
-  return (
-    <p class="message is-info">
-      {what} is not built yet; it comes in the next sub-stage. Your mass loss steps from step 3 are
-      saved and will be used here.
-    </p>
-  );
-}
 
 /** The thermal analysis wizard. */
 export const thermalSteps: readonly WizardStep<ThermalData>[] = [
@@ -45,16 +38,16 @@ export const thermalSteps: readonly WizardStep<ThermalData>[] = [
   {
     id: 'assign',
     title: 'Assign events',
-    render: () => <Soon what="Assigning events to the steps" />,
+    render: (context) => <AssignStep {...context} />,
   },
   {
     id: 'calcination',
     title: 'Calcination suggestion',
-    render: () => <Soon what="The calcination temperature suggestion" />,
+    render: (context) => <CalcinationStep {...context} />,
   },
   {
     id: 'results',
     title: 'Results and export',
-    render: () => <Soon what="The combined results and export" />,
+    render: (context) => <ResultsStep {...context} />,
   },
 ];

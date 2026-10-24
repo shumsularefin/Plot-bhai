@@ -6,7 +6,7 @@ import { InteractivePlot, type InteractivePlotProps } from './InteractivePlot';
 import type { PeakLabelSet } from './peakLabels';
 import { ReferenceLanes, type ReferenceLane } from './ReferenceLanes';
 import { prepareSeries, xExtent, type SeriesSource } from './series';
-import type { AxisLabels, Domain, PlotMarker } from './types';
+import type { AxisLabels, Domain, PlotBand, PlotMarker } from './types';
 import { zoomDomain } from './view';
 import './plot.css';
 
@@ -36,6 +36,8 @@ interface PlotPanelProps {
   lowerAxis?: LowerAxis & { description: string };
   /** Data points drawn as circles, on screen and in the exported figure (unlike markers). */
   points?: readonly PlotMarker[];
+  /** Shaded x ranges behind the curves with a label each, on screen and in the exported figure. */
+  bands?: readonly PlotBand[];
   /** Reference stick patterns drawn under the plot on the same 2θ range (on screen and in the exported figure). */
   lanes?: readonly ReferenceLane[];
   /** Labels above peaks (for example hkl), on screen and in the exported figure. */
@@ -133,6 +135,7 @@ export function PlotPanel(props: PlotPanelProps) {
         onDomainChange={setDomain}
         formatX={(x) => `${xName} ${round(shown(x))}${xUnit}`}
         {...(props.points && { markers: props.points })}
+        {...(props.bands && { bands: props.bands })}
         {...(props.peakLabels && { peakLabels: props.peakLabels })}
         {...props.interaction}
         description={`Plot of intensity against ${xName}, ${series.length} pattern${series.length === 1 ? '' : 's'}.`}
@@ -240,6 +243,7 @@ export function PlotPanel(props: PlotPanelProps) {
         onChange={(patch) => onSettingsChange({ export: { ...settings.export, ...patch } })}
         exportName={exportName}
         points={props.points}
+        bands={props.bands}
         residual={residualSeries ?? undefined}
         peakLabels={props.peakLabels}
         lanes={props.lanes}
