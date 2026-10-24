@@ -5,6 +5,7 @@ import { ThemeToggle } from './ThemeToggle';
 
 // Defined once at module level so LazyTool does not reload it on every render.
 const loadXrd = () => import('../modules/xrd/XrdTool');
+const loadUvvis = () => import('../modules/uvvis/UvvisTool');
 
 export function App() {
   const path = useHashPath();
@@ -20,7 +21,15 @@ export function App() {
         </div>
       </header>
       <main class="site-main">
-        <div class="container">{path === '/xrd' ? <LazyTool load={loadXrd} /> : <Home />}</div>
+        <div class="container">
+          {path === '/xrd' ? (
+            <LazyTool load={loadXrd} />
+          ) : path === '/uvvis' ? (
+            <LazyTool load={loadUvvis} />
+          ) : (
+            <Home />
+          )}
+        </div>
       </main>
       <footer class="site-footer">
         <div class="container">

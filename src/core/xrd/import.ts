@@ -1,3 +1,4 @@
+import { decodeText, hasNulBytes, isZip } from '../text/bytes';
 import { parseDelimited } from './parsers/delimited';
 import { looksLikeRas, parseRas } from './parsers/ras';
 import { looksLikeXrdml, parseXrdml } from './parsers/xrdml';
@@ -29,26 +30,6 @@ export function baseName(name: string): string {
   return (dot > 0 ? name.slice(0, dot) : name).trim() || 'Pattern';
 }
 
-/** Decodes file bytes to text, honouring a UTF-16 or UTF-8 byte-order mark. */
-function decode(bytes: Uint8Array, fallback: 'utf-8' | 'latin1'): string {
-  if (bytes[0] === 0xff && bytes[1] === 0xfe) return new TextDecoder('utf-16le').decode(bytes);
-  if (bytes[0] === 0xfe && bytes[1] === 0xff) return new TextDecoder('utf-16be').decode(bytes);
-  if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
-    return new TextDecoder('utf-8').decode(bytes);
-  }
-  return new TextDecoder(fallback).decode(bytes);
-}
-
-function isZip(bytes: Uint8Array): boolean {
-  return bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04;
-}
-
-function hasNulBytes(bytes: Uint8Array): boolean {
-  const end = Math.min(bytes.length, 4096);
-  for (let i = 0; i < end; i++) if (bytes[i] === 0) return true;
-  return false;
-}
-
 /** Imports a file's bytes. `name` is the file name, used for the format and the pattern name. */
 export function importFile(name: string, bytes: Uint8Array): ImportResult {
   const extension = extensionOf(name);
@@ -69,7 +50,7 @@ export function importFile(name: string, bytes: Uint8Array): ImportResult {
   }
 
   // Rigaku headers are often not UTF-8; Latin-1 never fails and keeps the numbers intact.
-  const text = decode(bytes, extension === 'ras' ? 'latin1' : 'utf-8');
+  const text = decodeText(bytes, extension === 'ras' ? 'latin1' : 'utf-8');
   return importText(name, text, formatFromExtension(extension));
 }
 

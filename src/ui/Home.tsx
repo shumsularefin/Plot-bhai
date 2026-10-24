@@ -17,6 +17,7 @@ const TOOLS: readonly ToolCard[] = [
   {
     name: 'UV-Vis',
     description: 'Absorbance, transmittance and reflectance spectra, with Tauc band gap estimates.',
+    href: '#/uvvis',
   },
   {
     name: 'FTIR',

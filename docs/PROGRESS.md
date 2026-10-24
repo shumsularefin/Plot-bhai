@@ -1,5 +1,67 @@
 # Progress
 
+## Sub-stage 8a: UV-Vis import, conversions, cleaning (done)
+
+Branch `claude/hopeful-dirac-72ak86`. The UV-Vis card on the home page is enabled (`#/uvvis`).
+
+### What was built
+
+- Core (`src/core/uvvis`, no UI imports): `conversions.ts` (A = 2 − log10(%T), %T = 100·10^−A,
+  Kubelka–Munk F(R) = (1 − R)²/(2R), E = hc/λ), `import.ts` (wavelength in nm plus one or more
+  spectrum columns; delimiter, decimal comma, headers, footers, long-to-short scans, column names),
+  `kind.ts` (data type suggestion from header words or value range; checks that type and scale fit
+  the values), `process.ts` (blank subtraction, baseline offset, Savitzky–Golay smoothing, display
+  conversion, λmax), `synthetic.ts` (example generators with a chosen band gap).
+- Constants: h, c and e are the exact 2019 SI values, read on 2026-10-24 from the NIST CODATA 2022
+  pages (physics.nist.gov/cgi-bin/cuu/Value?h, ?c, ?e) and cited in `conversions.ts`. hc/e gives
+  1239.84198… eV nm; the rounded 1240 is not used. Please verify (flagged in the code comment).
+- Wizard (`src/modules/uvvis`): 1 Upload, 2 Data type and cleaning, 3 Band gap (placeholder),
+  4 Results and export (placeholder). Upload: drop, pick, paste, "Try with example data" (three
+  synthetic spectra labelled not real: an absorbance sample with a solvent baseline, the blank, and a
+  diffuse reflectance sample; made-up band gap 3.2 eV). Each spectrum card shows the data type
+  (absorbance, %T, %R; percent or fraction), with the reason it was chosen, and the user can change it.
+  Step 2: view as measured / absorbance / %T / %R / F(R), x axis nm or eV, before/after of one
+  spectrum or all spectra overlaid, blank subtraction, baseline offset, smoothing, undo, reset, "use
+  for all", and a λmax table (search range, CSV).
+- Persisted store key `uvvis-session`, version 1 (no older versions, so no migration yet).
+- Refactor: delimiter detection moved from the XRD parser to `src/core/text/delimitedTable.ts`, and
+  byte decoding to `src/core/text/bytes.ts`, so both tools share them. XRD tests unchanged and green.
+- Tests: `tests/uvvis-conversions.test.ts`, `uvvis-import.test.ts`, `uvvis-process.test.ts`
+  (known answers: %T 10 → A 1, K-M(0.5) = 0.25, blank subtraction recovers the true curve, a
+  transmittance blank equals T/T_blank, smoothing lowers noise), `uvvisSteps.test.tsx`
+  (components), home test updated.
+
+### Decisions
+
+- Blank and offset work on −log10(value). For absorbance that is plain subtraction. For %T it equals
+  dividing by the blank. For %R I used the same ratio (sample relative to a reference); please confirm
+  this matches how you correct diffuse reflectance.
+- λmax is the highest data point (no curve fit) of A, or of F(R) for reflectance; the table says so.
+  Ends of a scan can win because of detector noise; the range boxes handle that. The synthetic
+  edge-shaped examples have their maximum at the short-wavelength end by construction.
+- UV-Vis files are parsed on the main thread (small files, limit 10 MB); the XRD reader uses a worker.
+- `UvvisTool` imports `../xrd/xrd.css` and reuses `StepSection` and `NumberInput` from the XRD
+  module. These should move to `src/ui` at some point (known issue).
+- Wavelength must be nm: a first column ending below 20 is refused (probably eV or µm); above 3300 nm
+  gives a warning (probably wavenumber).
+
+### Known issues
+
+- Agilent Cary files with a wavelength column per sample (pairs of columns) are read as one wavelength
+  column plus the rest, which is wrong for them; no real file was available to test. Only text
+  exports with a shared wavelength column are supported.
+- No real UV-Vis file has been tried (none in `tests/fixtures-real/`).
+- Steps 3 and 4 are placeholders until 8b; the session cannot be exported yet.
+
+### What I need from you
+
+- A real UV-Vis file (absorbance and, if possible, a diffuse reflectance one) in `tests/fixtures-real/`.
+- Confirmation of the reflectance reference correction above.
+
+### Next sub-stage
+
+8b (Tauc, Urbach, results), when you say so.
+
 ## Sub-stage 7b: figure builder, methods text, export, full flow (done)
 
 Branch `claude/ecstatic-einstein-mofaev`.
