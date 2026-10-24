@@ -21,24 +21,8 @@ import type { StepContext } from '../../ui/wizard/types';
 import { NumberInput } from '../xrd/NumberInput';
 import { mappingProblem, runOf } from './analysis';
 import type { LoadedTable, ThermalData } from './data';
+import { ATMOSPHERES, CATEGORIES } from './names';
 import { ThermalPlot } from './ThermalPlot';
-
-const ATMOSPHERES: Record<Atmosphere, string> = {
-  nitrogen: 'Nitrogen',
-  argon: 'Argon',
-  air: 'Air',
-  oxygen: 'Oxygen',
-  other: 'Other gas',
-};
-
-const CATEGORIES: Record<SampleCategory, string> = {
-  unspecified: 'Not specified',
-  'hydroxide-or-salt': 'Metal hydroxide or salt precursor',
-  polymer: 'Polymer',
-  biomass: 'Biomass or plant extract',
-  composite: 'Composite',
-  other: 'Other',
-};
 
 /** The most points a table preview shows. */
 const PREVIEW_ROWS = 5;

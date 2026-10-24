@@ -1,4 +1,5 @@
 import { useMemo } from 'preact/hooks';
+import { suggestCalcination, type CalcinationSuggestion } from '../../core/thermal/calcination';
 import { buildRun } from '../../core/thermal/import';
 import { cleanRun, type CleanResult } from '../../core/thermal/process';
 import { dtg } from '../../core/thermal/smooth';
@@ -80,4 +81,22 @@ export function useStepsView(data: ThermalData, cleaned: CleanResult | null): St
       residuePct: residueAtC === null ? null : massAtTemperature(T, massPct, residueAtC),
     };
   }, [curve, slope, limits, residueAtC]);
+}
+
+/** The calcination suggestion for the cleaned curve and its steps, or null without a curve. */
+export function useCalcination(
+  data: ThermalData,
+  cleaned: CleanResult | null,
+  view: StepsView | null,
+): CalcinationSuggestion | null {
+  const curve = cleaned?.ok ? cleaned.curve : null;
+  const steps = view?.analysis.steps;
+  const settings = data.calcination;
+  return useMemo(
+    () =>
+      curve && steps
+        ? suggestCalcination(steps, curve.temperatureC, curve.massPct, settings)
+        : null,
+    [curve, steps, settings],
+  );
 }

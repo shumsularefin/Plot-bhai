@@ -223,6 +223,7 @@ export function StepsStep({ data, update }: StepContext<ThermalData>) {
           },
         ]}
         massUnit="%"
+        steps={sorted}
         dtg={{ temperatureC: curve.temperatureC, values: dtgScaled, unit: dtgUnit }}
         settings={data.plot}
         onSettingsChange={(p) => update({ plot: { ...data.plot, ...p } })}

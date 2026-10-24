@@ -1,7 +1,9 @@
 import { useMemo } from 'preact/hooks';
 import { PlotPanel, type PlotInteraction, type PlotSettings } from '../../ui/plot/PlotPanel';
 import type { SeriesSource } from '../../ui/plot/series';
-import type { AxisLabels } from '../../ui/plot/types';
+import type { PeakLabelSet } from '../../ui/plot/peakLabels';
+import type { AxisLabels, PlotBand } from '../../ui/plot/types';
+import type { StepResult } from '../../core/thermal/steps';
 
 /** One mass curve to draw: mass against temperature (°C). */
 export interface MassCurve {
@@ -31,6 +33,12 @@ interface ThermalPlotProps {
   onSettingsChange: (patch: Partial<PlotSettings>) => void;
   exportName: string;
   interaction?: PlotInteraction;
+  /** Steps to shade and number (only for a curve in %). */
+  steps?: readonly StepResult[];
+  /** Further x ranges to shade, for example the plateau above the calcination minimum. */
+  shade?: readonly PlotBand[];
+  /** Extra text for a step in the key, for example its assigned event. */
+  stepNote?: (step: StepResult) => string;
 }
 
 const temperatureLabel = 'Temperature (°C)';
@@ -72,6 +80,25 @@ export function ThermalPlot(props: ThermalPlotProps) {
         : undefined,
     [dtg],
   );
+  const bands = useMemo<PlotBand[] | undefined>(
+    () => [
+      ...(props.steps ?? []).map((s) => ({ from: s.fromC, to: s.toC })),
+      ...(props.shade ?? []),
+    ],
+    [props.steps, props.shade],
+  );
+  const { stepNote } = props;
+  const peakLabels = useMemo<PeakLabelSet | undefined>(() => {
+    const steps = props.steps;
+    if (!steps || steps.length === 0 || massUnit !== '%') return undefined;
+    return {
+      labels: steps.map((s) => ({ x: s.peakC, y: s.massBeforePct, text: String(s.id) })),
+      key: steps.map(
+        (s) =>
+          `${s.id}: ${s.lossPct.toFixed(1)} % loss, ${s.onsetC.toFixed(0)} to ${s.endsetC.toFixed(0)} °C${stepNote ? stepNote(s) : ''}`,
+      ),
+    };
+  }, [props.steps, massUnit, stepNote]);
   return (
     <PlotPanel
       sources={sources}
@@ -83,6 +110,8 @@ export function ThermalPlot(props: ThermalPlotProps) {
       exportName={props.exportName}
       showOverlayOptions={false}
       {...(props.interaction && { interaction: props.interaction })}
+      {...(bands && bands.length > 0 && { bands })}
+      {...(peakLabels && { peakLabels })}
       {...(lower &&
         dtg && {
           residual: lower,
