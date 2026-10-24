@@ -8,6 +8,7 @@ const loadXrd = () => import('../modules/xrd/XrdTool');
 const loadUvvis = () => import('../modules/uvvis/UvvisTool');
 const loadFtir = () => import('../modules/ftir/FtirTool');
 const loadParticles = () => import('../modules/particles/ParticlesTool');
+const loadThermal = () => import('../modules/thermal/ThermalTool');
 
 export function App() {
   const path = useHashPath();
@@ -32,6 +33,8 @@ export function App() {
             <LazyTool load={loadFtir} />
           ) : path === '/particles' ? (
             <LazyTool load={loadParticles} />
+          ) : path === '/thermal' ? (
+            <LazyTool load={loadThermal} />
           ) : (
             <Home />
           )}
