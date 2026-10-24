@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
-#$Date: 2024-05-16 09:36:09 +0300 (Thu, 16 May 2024) $
-#$Revision: 291877 $
-#$URL: file:///home/coder/svn-repositories/_RELOADED_COD/cod-reloaded/cif/9/01/16/9011663.cif $
+#$Date: 2024-05-06 10:39:41 +0300 (Mon, 06 May 2024) $
+#$Revision: 291735 $
+#$URL: file:///home/coder/svn-repositories/_RELOADED_COD/cod-reloaded/cif/9/00/88/9008862.cif $
 #------------------------------------------------------------------------------
 #
 # This file is available in the Crystallography Open Database (COD),
@@ -13,21 +13,20 @@
 # proper attribution is given to the journal article from which the
 # data were obtained.
 #
-data_9011663
+data_9008862
 loop_
 _publ_author_name
-'Xu, Y. N.'
-'Ching, W. Y.'
+'Wyckoff, R. W. G.'
 _publ_section_title
 ;
- Electronic, optical, and structural properties of some wurtzite crystals
+ Second edition. Interscience Publishers, New York, New York
+ Note: wurtzite structure
 ;
-_journal_name_full               'Physical Review B'
-_journal_page_first              4335
-_journal_page_last               4351
-_journal_paper_doi               10.1103/PhysRevB.48.4335
-_journal_volume                  48
-_journal_year                    1993
+_journal_name_full               'Crystal Structures'
+_journal_page_first              85
+_journal_page_last               237
+_journal_volume                  1
+_journal_year                    1963
 _chemical_formula_sum            'Cd S'
 _chemical_name_mineral           Greenockite
 _space_group_IT_number           186
@@ -36,14 +35,14 @@ _symmetry_space_group_name_H-M   'P 63 m c'
 _cell_angle_alpha                90
 _cell_angle_beta                 90
 _cell_angle_gamma                120
-_cell_length_a                   4.137
-_cell_length_b                   4.137
-_cell_length_c                   6.7144
+_cell_length_a                   4.1348
+_cell_length_b                   4.1348
+_cell_length_c                   6.7490
 _cell_formula_units_Z            2
-_cell_volume                     99.520
-_database_code_amcsd             0015177
-_exptl_crystal_density_diffrn    4.821
-_cod_database_code               9011663
+_cell_volume                     99.926
+_database_code_amcsd             0011540
+_exptl_crystal_density_diffrn    4.802
+_cod_database_code               9008862
 loop_
 _space_group_symop_operation_xyz
 x,y,z
@@ -63,10 +62,10 @@ _atom_site_label
 _atom_site_fract_x
 _atom_site_fract_y
 _atom_site_fract_z
-Cd 0.66667 0.33333 0.00000
-S 0.66667 0.33333 0.37500
+Cd 0.33333 0.66667 0.00000
+S 0.33333 0.66667 0.38500
 loop_
 _cod_related_entry_id
 _cod_related_entry_database
 _cod_related_entry_code
-1 AMCSD 0015177
+1 AMCSD 0011540

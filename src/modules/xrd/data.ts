@@ -62,7 +62,7 @@ export const DEFAULT_CRYSTALLINITY: CrystallinityChoice = {
   anchors: '',
 };
 
-export const DEFAULT_ANALYSIS: AnalysisSettings = { textureBasis: 'height', crystallinity: {} };
+export const DEFAULT_ANALYSIS: AnalysisSettings = { textureBasis: 'area', crystallinity: {} };
 
 export function crystallinityFor(data: XrdData, id: string): CrystallinityChoice {
   return data.analysis.crystallinity[id] ?? DEFAULT_CRYSTALLINITY;

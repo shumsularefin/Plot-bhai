@@ -1,5 +1,71 @@
 # Progress
 
+## Sub-stage 6a-fix: library screening and 7a corrections (done)
+
+Branch `claude/ecstatic-einstein-mofaev`.
+
+### What was built
+
+- `scripts/build-reference-library.ts`: COD entries are rejected when the title, COD record or CIF
+  notes mention high pressure, compression, kbar, GPa, diamond anvil, low or high temperature,
+  solid solution or doped (also the German "feste Lösung"), or give `T = x` outside 283 to 305 K.
+  Entries whose sorted cell lengths differ by more than 0.3 % from the per-axis median of all usable
+  candidates are rejected (only with at least 3 candidates). `--explain=<phase id>` prints why each
+  candidate was kept or dropped. Partial occupancy is allowed only for maghemite and gamma-Al2O3
+  (`partialOccupancy` in `scripts/reference-phases.ts`). Rhombohedral phases (hematite, corundum,
+  calcite) take the hexagonal-axes setting (`hexagonalAxes`). Library rebuilt with `--refresh`: 35
+  phases, 0 skipped; an offline rebuild gives identical files.
+- `scripts/crosscheck-refs.py`: second cross-check against Waasmaier-Kirfel factors (`xraydb`). It
+  decides the exit status; the pymatgen columns are informational. All 35 phases pass; SnO2 differs
+  from pymatgen only because pymatgen uses another scattering parametrisation (WK: 0.02 points).
+- `src/core/xrd/radiation.ts`: Mo Ka2 = 0.713607 A; Mo and Ag cite NIST (Deslattes et al., Rev. Mod.
+  Phys. 75, 35 (2003)); "unverified" removed.
+- Texture: default basis is now area. A strong reference line without a fitted peak is flagged when
+  the data rise at least 3 times the local noise there (`src/core/xrd/analysis/signal.ts`).
+- Crystallinity: anchors use the minimum in their window; the hump is clipped to the data (a 0.25
+  degree moving mean, so noise does not bias it); a warning appears when background removal is on.
+
+### Library changes (old COD ID -> new, cell in angstrom)
+
+- Ag 1509146 (4.0710) -> 9008459 (4.0862); Au 9013035 (4.0720) -> 9008463 (4.0782)
+- Aragonite 9014355 (4.9653 8.0088 5.7847) -> 9013799 (4.9606 7.9701 5.7418)
+- BaTiO3 tetragonal 1513252 (c 4.0412) -> 1559964 (c 4.0230)
+- Brookite 9004137 -> 9009087 (9.1840 5.4470 5.1450); Rutile 9004141 -> 9007531 (4.5941 / 2.9589)
+- Calcite 9014415 (4.9748 / 17.2700) -> 9015390 (4.9903 / 17.0687, hexagonal axes)
+- CdS hexagonal 9011663 (4.1370 / 6.7144) -> 9008862 (4.1348 / 6.7490)
+- CeO2 4343161 (5.4097) -> 9009008 (5.4110); Cu 4105681 (3.6154) -> 7101264 (3.6170)
+- Corundum 5000092 -> 1000032 (4.7605 / 12.9956)
+- Hematite 5910082 (5.0079 / 13.6467) -> 9000139 (5.0380 / 13.7720)
+- Magnetite 7228110 (8.3600) -> 9013529 (8.3967); Ni 2100637 (3.5451) -> 4320486 (3.5229)
+- NiO 9008693 (4.1684) -> 4329323 (4.1786)
+- WO3 1563541 (5.2610 5.1280 7.6500) -> 2106382 (P 1 21/n 1, 7.3060 7.5400 7.6920)
+- ZnO 2300116 (3.1950 / 5.1027, a diamond-anvil entry) -> 1577381 (3.2510 / 5.2090)
+- ZnS sphalerite 1539414 (5.4750) -> 9000107 (5.4093)
+- New: maghemite 1528611 (8.4053), gamma-Al2O3 1200015 (7.9060)
+
+### Tests
+
+- Texture/crystallinity tests updated (anchor index within 5 %, trough clipping, minimum anchors,
+  signal at an expected position, unfitted lines flagged and absent lines not flagged).
+- `tests/reference-library.test.ts`: 35 phases, maghemite and gamma-Al2O3 present, ZnO strongest
+  line positions.
+
+### Decisions and known issues (please check)
+
+- CdS hexagonal: with only 3 candidates the literal 0.3 % median rule dropped 9011663 and moved to a
+  worse entry (c = 6.7490).
+- Maghemite 1528611 has a = 8.4053, which looks magnetite-like; the other candidate (9006316) has
+  8.33. With 2 candidates the rule cannot decide. Please verify against a source you trust.
+- Several chosen entries come from papers about other materials (Ni, NiO, Pt, Si, LaB6). Cells look
+  plausible; please check.
+- Clipping uses a moving mean, not the raw point (a literal point clip biases the hump with noise).
+  The unfitted-signal threshold (3 times noise on a 3-point mean) is my own heuristic.
+- Saved-state version is unchanged (8); older sessions keep their saved texture basis.
+
+### Next
+
+Sub-stage 7b (figure builder, methods text, export, e2e) when you say so.
+
 ## Sub-stage 7a: texture, crystallinity, pattern character (done)
 
 Branch `claude/ecstatic-einstein-mofaev`. Added to the Results step (wizard step 7), below the

@@ -23,14 +23,14 @@
     {
      "id": "rutile",
      "name": "Rutile",
-     "codId": 9004141,
+     "codId": 9007531,
      "spaceGroup": "P 42/m n m",
      "crystalSystem": "tetragonal"
     },
     {
      "id": "brookite",
      "name": "Brookite",
-     "codId": 9004137,
+     "codId": 9009087,
      "spaceGroup": "P b c a",
      "crystalSystem": "orthorhombic"
     }
@@ -50,7 +50,7 @@
     {
      "id": "zno-wurtzite",
      "name": "Zincite (wurtzite)",
-     "codId": 2300116,
+     "codId": 1577381,
      "spaceGroup": "P 63 m c",
      "crystalSystem": "hexagonal"
     }
@@ -73,16 +73,23 @@
     {
      "id": "magnetite",
      "name": "Magnetite",
-     "codId": 7228110,
-     "spaceGroup": "F d -3 m :1",
+     "codId": 9013529,
+     "spaceGroup": "F d -3 m :2",
      "crystalSystem": "cubic"
     },
     {
      "id": "hematite",
      "name": "Hematite (α-Fe2O3)",
-     "codId": 5910082,
+     "codId": 9000139,
      "spaceGroup": "R -3 c :H",
      "crystalSystem": "trigonal"
+    },
+    {
+     "id": "maghemite",
+     "name": "Maghemite (γ-Fe2O3)",
+     "codId": 1528611,
+     "spaceGroup": "F d -3 m :2",
+     "crystalSystem": "cubic"
     }
    ]
   },
@@ -129,7 +136,7 @@
     {
      "id": "nio",
      "name": "Bunsenite (NiO)",
-     "codId": 9008693,
+     "codId": 4329323,
      "spaceGroup": "F m -3 m",
      "crystalSystem": "cubic"
     }
@@ -170,7 +177,7 @@
     {
      "id": "ceo2",
      "name": "Cerianite (CeO2)",
-     "codId": 4343161,
+     "codId": 9009008,
      "spaceGroup": "F m -3 m",
      "crystalSystem": "cubic"
     }
@@ -209,8 +216,8 @@
     {
      "id": "wo3-monoclinic",
      "name": "WO3 (monoclinic)",
-     "codId": 1563541,
-     "spaceGroup": "P 1 21/c 1",
+     "codId": 2106382,
+     "spaceGroup": "P 1 21/n 1",
      "crystalSystem": "monoclinic"
     }
    ]
@@ -230,9 +237,16 @@
     {
      "id": "corundum",
      "name": "Corundum (α-Al2O3)",
-     "codId": 5000092,
+     "codId": 1000032,
      "spaceGroup": "R -3 c :H",
      "crystalSystem": "trigonal"
+    },
+    {
+     "id": "gamma-al2o3",
+     "name": "γ-Al2O3",
+     "codId": 1200015,
+     "spaceGroup": "F d -3 m :1",
+     "crystalSystem": "cubic"
     }
    ]
   },
@@ -271,7 +285,7 @@
     {
      "id": "cds-hexagonal",
      "name": "Greenockite (hexagonal CdS)",
-     "codId": 9011663,
+     "codId": 9008862,
      "spaceGroup": "P 63 m c",
      "crystalSystem": "hexagonal"
     },
@@ -300,7 +314,7 @@
     {
      "id": "zns-sphalerite",
      "name": "Sphalerite (cubic ZnS)",
-     "codId": 1539414,
+     "codId": 9000107,
      "spaceGroup": "F -4 3 m",
      "crystalSystem": "cubic"
     },
@@ -325,7 +339,7 @@
     {
      "id": "batio3-tetragonal",
      "name": "BaTiO3 (tetragonal)",
-     "codId": 1513252,
+     "codId": 1559964,
      "spaceGroup": "P 4 m m",
      "crystalSystem": "tetragonal"
     },
@@ -372,14 +386,14 @@
     {
      "id": "calcite",
      "name": "Calcite",
-     "codId": 9014415,
+     "codId": 9015390,
      "spaceGroup": "R -3 c :H",
      "crystalSystem": "trigonal"
     },
     {
      "id": "aragonite",
      "name": "Aragonite",
-     "codId": 9014355,
+     "codId": 9013799,
      "spaceGroup": "P m c n",
      "crystalSystem": "orthorhombic"
     }
@@ -474,7 +488,7 @@
     {
      "id": "au",
      "name": "Gold (fcc)",
-     "codId": 9013035,
+     "codId": 9008463,
      "spaceGroup": "F m -3 m",
      "crystalSystem": "cubic"
     }
@@ -492,7 +506,7 @@
     {
      "id": "ag",
      "name": "Silver (fcc)",
-     "codId": 1509146,
+     "codId": 9008459,
      "spaceGroup": "F m -3 m",
      "crystalSystem": "cubic"
     }
@@ -510,7 +524,7 @@
     {
      "id": "cu",
      "name": "Copper (fcc)",
-     "codId": 4105681,
+     "codId": 7101264,
      "spaceGroup": "F m -3 m",
      "crystalSystem": "cubic"
     }
@@ -546,7 +560,7 @@
     {
      "id": "ni",
      "name": "Nickel (fcc)",
-     "codId": 2100637,
+     "codId": 4320486,
      "spaceGroup": "F m -3 m",
      "crystalSystem": "cubic"
     }

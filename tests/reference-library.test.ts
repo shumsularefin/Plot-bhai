@@ -119,3 +119,24 @@ describe('strongest lines at Cu Kα1', () => {
     expect(twoTheta(strongest('rutile').d)).toBeCloseTo(27.4, 1);
   });
 });
+
+describe('screened library (sub-stage 6a-fix)', () => {
+  it('has 35 phases, including maghemite and gamma-Al2O3', () => {
+    expect(phases).toHaveLength(35);
+    expect(phase('maghemite')).toBeDefined();
+    expect(phase('gamma-al2o3')).toBeDefined();
+  });
+
+  it('ZnO is the ambient-pressure cell: (100), (002), (101) near 31.8, 34.4, 36.2 degrees', () => {
+    const twoTheta = (d: number) => (2 * Math.asin(ANODES.Cu.kAlpha1 / (2 * d)) * 180) / Math.PI;
+    const line = (h: number[]) =>
+      (
+        phase('zno-wurtzite').peaks.find((p) =>
+          p.hkl.some((x) => x.join() === h.join()),
+        ) as ReferencePhase['peaks'][number]
+      ).d;
+    expect(twoTheta(line([1, 0, 0]))).toBeCloseTo(31.76, 1);
+    expect(twoTheta(line([0, 0, 2]))).toBeCloseTo(34.41, 1);
+    expect(twoTheta(line([1, 0, 1]))).toBeCloseTo(36.24, 1);
+  });
+});
