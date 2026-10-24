@@ -34,7 +34,7 @@ interface PlotPanelProps {
   residual?: SeriesSource;
   /** Data points drawn as circles, on screen and in the exported figure (unlike markers). */
   points?: readonly PlotMarker[];
-  /** Reference stick patterns drawn under the plot on the same 2θ range (screen only). */
+  /** Reference stick patterns drawn under the plot on the same 2θ range (on screen and in the exported figure). */
   lanes?: readonly ReferenceLane[];
   /** Labels above peaks (for example hkl), on screen and in the exported figure. */
   peakLabels?: PeakLabelSet;
@@ -224,6 +224,7 @@ export function PlotPanel(props: PlotPanelProps) {
         points={props.points}
         residual={residualSeries ?? undefined}
         peakLabels={props.peakLabels}
+        lanes={props.lanes}
       />
     </div>
   );

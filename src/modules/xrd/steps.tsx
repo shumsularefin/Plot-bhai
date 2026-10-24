@@ -1,6 +1,7 @@
 import type { WizardStep } from '../../ui/wizard/types';
 import type { XrdData } from './data';
 import { CleanStep } from './CleanStep';
+import { ExportStep } from './ExportStep';
 import { FitStep } from './FitStep';
 import { instrumentProblem } from './instrument';
 import { InstrumentStep } from './InstrumentStep';
@@ -9,11 +10,7 @@ import { PhasesStep } from './PhasesStep';
 import { ResultsStep } from './ResultsStep';
 import { UploadStep } from './UploadStep';
 
-function LaterStage() {
-  return <p class="placeholder-note">This step is built in a later stage.</p>;
-}
-
-/** The XRD wizard in its final order. Steps without content yet are placeholders. */
+/** The XRD wizard in its final order. */
 export const xrdSteps: readonly WizardStep<XrdData>[] = [
   {
     id: 'upload',
@@ -39,5 +36,5 @@ export const xrdSteps: readonly WizardStep<XrdData>[] = [
     validate: instrumentProblem,
   },
   { id: 'results', title: 'Results tables', render: (context) => <ResultsStep {...context} /> },
-  { id: 'export', title: 'Export', render: () => <LaterStage /> },
+  { id: 'export', title: 'Export', render: (context) => <ExportStep {...context} /> },
 ];
