@@ -426,6 +426,47 @@ try {
   assert.ok(elapsed < 4000, `10,000 points took ${elapsed} ms to reach the steps table`);
   step(`Thermal: 10,000-point semicolon file with decimal commas, steps table after ${elapsed} ms`);
 
+  // DSC: switch technique, example run, events, glass transition, results with the convention.
+  await page.getByText('DSC (heat flow)').click();
+  await heading().waitFor();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await page.getByText(/Load a run to continue/).waitFor();
+  await page.getByRole('button', { name: 'Try with example data' }).click();
+  await page.getByRole('heading', { name: 'Describe the run', exact: true }).waitFor();
+  await next('Clean data');
+  assert.equal(await page.getByLabel('Ramp').locator('option').count(), 3);
+  await next('Baseline and events');
+  await page.getByRole('heading', { name: /Event 2: endothermic/ }).waitFor();
+  await page.getByText(/DSC alone cannot tell what happened/).waitFor();
+  await page.getByRole('button', { name: 'Accept this' }).first().click();
+  await next('Glass transition and crystallinity');
+  const tg = await page
+    .locator('tr', { has: page.getByText('Tg, midpoint (°C)') })
+    .locator('td')
+    .textContent();
+  assert.ok(Math.abs(Number(tg) - 60) < 2, `Tg ${tg} is near the made-up 60 °C`);
+  await page
+    .locator('label', { hasText: 'ΔH0 of the 100 % crystalline polymer' })
+    .locator('input')
+    .fill('100');
+  await page.getByText(/Xc ≈/).waitFor();
+  await next('Results');
+  await page
+    .getByText(/ΔH endothermic positive/)
+    .first()
+    .waitFor();
+  const [dscCsv] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Download events (CSV)' }).click(),
+  ]);
+  assert.match(
+    readFileSync(await dscCsv.path(), 'utf8'),
+    /exo up on plots; ΔH endothermic positive/,
+  );
+  step(
+    'DSC: technique switch, example, events with guidance, Tg near 60 °C, Xc, CSV with convention',
+  );
+
   // No horizontal page scroll at phone width.
   for (const width of [360, 1280]) {
     await page.setViewportSize({ width, height: 900 });

@@ -1,5 +1,63 @@
 # Progress
 
+## Sub-stage 12a: DSC (done)
+
+Branch `claude/friendly-cray-f64dgw`, started from the merge of pull request 19 (11b is in `main`).
+Stage 12 items 1 to 6 only. Combined TGA-DSC, methods text and the session file are 12b.
+
+### What was built
+
+- **A separate DSC wizard** in `src/modules/thermal/dsc/`, lazy-loaded (own chunk, `DscTool-*.js`),
+  chosen with a TGA / DSC switch at the top of the thermal tool (remembered in localStorage, in a
+  try/catch). It has its own saved session (`dsc-session`); the TGA data model is untouched.
+  Steps: Upload, Clean data, Baseline and events, Glass transition and crystallinity, Results.
+- `src/core/thermal/dscClean.ts`: heat-cool-heat segments from the temperature direction
+  (`splitSegments`), heat flow in mW, mW/mg or W/g made exo-positive and divided by the mass
+  (`toExoPositive`), scan rate from the entered value else the time column, cropping and smoothing.
+- `src/core/thermal/dsc.ts`: linear, sigmoidal and spline baselines; peak detection with slope-based
+  limits; extrapolated onset, peak and endset; ΔH in J/g (mJ without a mass) and kJ/mol with a molar
+  mass; half-height glass transition with onset, endset and ΔCp; crystallinity
+  Xc = (ΔHm − ΔHcc)/(w·ΔH0)·100.
+- `src/core/thermal/dscGuidance.ts` and `data/thermal/dsc-events.json`: up to three ranked
+  interpretations per event with a plain-language reason; the user accepts, writes their own or rejects.
+  Confidence is never "high" from DSC alone. The note "DSC alone cannot tell what happened" is shown.
+- The exo up / exo down choice is required in step 1 (nothing is assumed), can be changed for display
+  in step 2, and is written on every plot axis, table caption and CSV header line.
+- Example data: a synthetic heat, cool, heat run with made-up events (`exampleDscTable`).
+- Tests: `dsc-core` (34, synthetic data with known answers: peaks, enthalpies within 1 to 5 %, Tg
+  within 1.5 °C, ΔCp within 10 %, units, sign flips, cooling) and `dscSteps` (11 UI tests).
+  `npm run e2e` has a DSC block.
+
+### Decisions (my own conventions, please confirm)
+
+- Internal convention: exo-positive heat flow, increasing temperature (cooling ramps are reversed and
+  flagged). Reported ΔH is endothermic positive.
+- Event limits: where the slope has fallen to 2 % of the steepest flank slope, never below 3 times
+  the noise of the slope. Defaults: smallest peak 15 % of the curve's range, 15 °C between peaks.
+  Linear baseline by default; sigmoidal and spline are per event.
+- Guidance score = 0.5 · temperature fit + 0.3 · direction + 0.1 · sample type + 0.1 · scan. It orders
+  suggestions only. Peak shape is described in the reason, never used to rank.
+- Crystallinity is only calculated on a heating ramp in J/g.
+
+### Needs your input (not verified)
+
+- **`data/thermal/dsc-events.json` ranges are placeholders** flagged "TODO, verify". No source could
+  be opened, so every range is broad on purpose. The UI says so next to the guidance. Please supply
+  sources or ranges you trust.
+- **No ΔH0 values are shipped.** The user types one in; the site never claims it is correct.
+- A **real DSC file** (any instrument) would test the import and the exo direction handling; only
+  synthetic data were used.
+
+### Known issues
+
+- Sigmoidal baselines assume a step across the event; on the synthetic example (no step at its
+  peaks) the linear baseline is the right one and gives the made-up ΔH within 2 %.
+- No combined TGA-DSC view, methods text or session file yet (12b).
+
+### Next
+
+12b: combined TGA-DSC interpretation, re-ranking of events, calcination update, export and methods text.
+
 ## Sub-stage 11b: TGA events, theory, calcination (done)
 
 Branch `claude/friendly-cray-f64dgw`, started from the merge of pull request 18 (11a is in `main`).

@@ -167,7 +167,7 @@ export function MappingForm(props: {
   );
 }
 
-function TablePreview({ table }: { table: LoadedTable['table'] }) {
+export function TablePreview({ table }: { table: LoadedTable['table'] }) {
   const rows = Math.min(PREVIEW_ROWS, table.columns[0]?.length ?? 0);
   return (
     <div class="table-scroll">
