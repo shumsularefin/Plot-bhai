@@ -28,6 +28,7 @@ const TOOLS: readonly ToolCard[] = [
   {
     name: 'Particle size',
     description: 'Measure particles in SEM or TEM images and build a size distribution.',
+    href: '#/particles',
   },
   {
     name: 'TGA and DSC',

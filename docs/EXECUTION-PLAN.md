@@ -27,7 +27,7 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 8a        | UV-Vis import, conversions, cleaning                         | done    |
 | 8b        | Tauc, Urbach, results                                        | done    |
 | 9         | FTIR                                                         | done    |
-| 10a       | Particles: image, scale, manual                              | todo    |
+| 10a       | Particles: image, scale, manual                              | done    |
 | 10b       | Particles: automatic detection                               | todo    |
 | 10c       | Particles: distribution, export                              | todo    |
 | 11a       | TGA: import to step detection (Stage 11 items 1–5)           | todo    |

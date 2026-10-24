@@ -1,0 +1,120 @@
+.image-viewer-wrap {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.image-viewer {
+  position: relative;
+  width: 100%;
+  height: min(70vh, 640px);
+  min-height: 280px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  touch-action: none;
+  user-select: none;
+}
+
+.image-viewer.tool-pan {
+  cursor: grab;
+}
+
+.image-viewer:not(.tool-pan) {
+  cursor: crosshair;
+}
+
+.image-viewer:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.image-canvas,
+.image-overlay {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.image-overlay {
+  pointer-events: none;
+}
+
+.crop-shade {
+  fill: rgba(0, 0, 0, 0.5);
+}
+
+.shape-halo {
+  stroke: rgba(0, 0, 0, 0.75);
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.shape {
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.shape-scale {
+  stroke: #ffd400;
+  fill: #ffd400;
+}
+
+.shape-line {
+  stroke: var(--plot-5);
+}
+
+.shape-circle {
+  stroke: var(--plot-6);
+}
+
+.shape-ellipse {
+  stroke: var(--plot-3);
+}
+
+.shape-crop {
+  stroke: #ffffff;
+  stroke-dasharray: 6 4;
+}
+
+.shape.is-draft {
+  stroke-dasharray: 4 3;
+}
+
+.shape-label {
+  fill: #ffffff;
+  stroke: rgba(0, 0, 0, 0.8);
+  stroke-width: 3;
+  paint-order: stroke;
+  font: 600 12px var(--font-sans);
+}
+
+.viewer-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.tool-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.tool-buttons .btn[aria-pressed='true'] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  font-weight: var(--weight-medium);
+}
+
+.particle-step {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.particle-step > * {
+  min-width: 0;
+}

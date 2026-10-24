@@ -1,5 +1,89 @@
 # Progress
 
+## Sub-stage 10a: particles, image, scale, manual measuring (done)
+
+Branch `claude/hopeful-dirac-72ak86`, stacked on UV-Vis and FTIR (pull request 18 is still not merged into
+`main`). The particle size card on the home page is enabled (`#/particles`).
+
+### What was built
+
+- Wizard: 1 Upload, 2 Crop and scale, 3 Measure, 4 Distribution and export (placeholder until 10c).
+- Image import: PNG and JPEG with the browser decoder, TIFF with a lazily loaded decoder (8 or 16 bit
+  grayscale and RGB; 16-bit data are stretched from the page's lowest to highest value for display
+  only). The file type is read from the first bytes, so a wrong extension does not matter. Gatan .dm3
+  and .dm4, damaged files and other types get a plain message with an export hint. Multi-page TIFFs
+  use the first page and say so. Images over 150 megapixels are refused (memory).
+- Large images: when the long side is over 4096 px a smaller working copy is shown and (in 10b) used
+  for detection; everything is stored in pixels of the original image and mapped back
+  (`workingScale`, `toWorking`, `toOriginal` in `src/core/particles/geometry.ts`).
+- Viewer (`ImageViewer.tsx`): canvas for the image plus an SVG overlay for crop, scale bar and
+  measurements (dark outline under a coloured line so it shows on any image). Mouse and touch: drag
+  to move or to draw, two-finger pinch to zoom (a second finger cancels a drawing), the wheel zooms
+  with Ctrl or Cmd or when the viewer has focus, keyboard arrows, + and −, 0 to fit. Zoom up to 40
+  times the fitted size.
+- Crop: draw a rectangle or remove a strip from the bottom (data bar). It is non-destructive: it marks
+  the analysis area, and the scale bar can still be drawn on the data bar.
+- Scale calibration: drag along the scale bar, type its length and unit (nm or µm); shows pixels per
+  unit and nm per pixel, warns when the bar is shorter than 50 pixels. Saved with the analysis.
+- Manual tools: line (length), circle drawn along a diameter, ellipse drawn as a box (axes parallel
+  to the image edges). Each gets an ID that is never reused; table with length or long axis, short
+  axis, area, aspect ratio, in nm or µm (or px without a scale); undo last, delete one or all, CSV
+  with pixel coordinates and sizes in px and nm.
+- Keyboard alternative to drawing: "Enter coordinates instead of drawing" for the scale bar and for
+  measurements.
+- Example image: drawn by the site (12 discs, 60 to 120 px, scale bar 200 px = 100 nm), marked
+  synthetic everywhere; a button sets its scale bar.
+- The image file is stored once in IndexedDB (`particles-image`), not inside the saved state, so
+  state writes stay small; a reload restores image and measurements (checked in a browser).
+- Tests: `particles-geometry` (calibration, conversions, measurement formulas, working copy,
+  crop, view maths, and a real TIFF written by the test and decoded), `particlesSteps` (components).
+  `npm run e2e` now also covers particles.
+
+### Dependency added
+
+- `tiff` 7.1.3 (image-js, MIT; depends on `fflate` and `iobuffer`). Chosen over `utif` because it is
+  typed, maintained, and decodes 16-bit grayscale, which SEM TIFFs often are. It is loaded only when
+  a TIFF is opened (its own 29 KB chunk, not in the 8.4 KB initial bundle). Its decoder already
+  inverts white-is-zero files, so the display conversion does not invert again (a test caught my
+  first, doubled inversion). It refuses TIFFs with an orientation other than 1; the message says so.
+
+### Known-answer results
+
+- 200 px bar of 100 nm gives 2 px per nm; 500 px for 1 µm gives 0.5 px per nm; a 100 px circle at
+  that scale is 50 nm with area π·50²/4 = 1963.5 nm²; a 100 × 60 px ellipse is 50 × 30 nm, aspect
+  1.667. A scale drawn on a working copy and mapped back gives the same pixels per nm.
+- In a browser (360 and 1280 px) a scale bar drawn with the mouse on the example gave 2.014 and
+  2.006 px per nm (true 2): the error is the mouse position, about one screen pixel at fit zoom.
+
+### Decisions
+
+- The limit of 4096 px for the working copy and of 150 megapixels are my own choices, not standards.
+- Step 2 does not require a scale (an image with no scale bar can still be measured in pixels); step 3
+  warns instead. If the pixel size is known, enter two points a known number of pixels apart.
+- Ellipses have axes parallel to the image edges; rotated ellipses are not drawn yet.
+- Pixels are assumed square.
+- `ParticlesTool` imports `../xrd/xrd.css` and reuses `NumberInput` from the XRD module, as the
+  UV-Vis and FTIR tools do.
+
+### Known issues
+
+- No real SEM or TEM image has been tried (none in `tests/fixtures-real/`).
+- Measurements cannot be moved or edited after drawing, only deleted and redrawn.
+- Metadata scale (for example the pixel size inside a TIFF) is not read.
+- The viewer is 70 % of the screen height at most; on a phone a tall image leaves empty space.
+- "Start over" in the wizard clears the analysis but leaves the stored image file in the browser
+  until another image is loaded or it is removed in step 1.
+
+### What I need from you
+
+- A real SEM or TEM image (PNG, JPEG or TIFF) with its scale bar, and ImageJ numbers for a few
+  particles of it, in `tests/fixtures-real/`.
+- Merge pull request 18 into `main`.
+
+### Next sub-stage
+
+10b (particles: automatic detection), when you say so.
+
 ## Stage 9: FTIR (done)
 
 Branch `claude/hopeful-dirac-72ak86`, stacked on 8a and 8b (pull request 18 was still not merged into

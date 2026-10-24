@@ -7,6 +7,7 @@ import { ThemeToggle } from './ThemeToggle';
 const loadXrd = () => import('../modules/xrd/XrdTool');
 const loadUvvis = () => import('../modules/uvvis/UvvisTool');
 const loadFtir = () => import('../modules/ftir/FtirTool');
+const loadParticles = () => import('../modules/particles/ParticlesTool');
 
 export function App() {
   const path = useHashPath();
@@ -29,6 +30,8 @@ export function App() {
             <LazyTool load={loadUvvis} />
           ) : path === '/ftir' ? (
             <LazyTool load={loadFtir} />
+          ) : path === '/particles' ? (
+            <LazyTool load={loadParticles} />
           ) : (
             <Home />
           )}

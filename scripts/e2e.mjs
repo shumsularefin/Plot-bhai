@@ -249,6 +249,41 @@ try {
   assert.ok(Object.values(ftirFile.state.data.assignments).flat().length > 0);
   step('FTIR: peaks, accepted assignments, methods text and session file');
 
+  // Particle size: example image, the example's scale bar, a typed circle and a drawn one.
+  await page.goto(`http://localhost:${PORT}/#/particles`);
+  await heading().waitFor();
+  await page.getByRole('button', { name: 'Try with example data' }).click();
+  await page.getByText('Shown at').waitFor({ timeout: 15_000 });
+  await next('Crop and scale');
+  await page.getByRole('button', { name: /Use the example's scale bar/ }).click();
+  await page.getByText(/2 pixels per nm/).waitFor();
+  await next('Measure');
+  await page.getByText('Enter coordinates instead of drawing').click();
+  await page.getByLabel('First point x (px)').fill('300');
+  await page.getByLabel('First point y (px)').fill('300');
+  await page.getByLabel('Second point x (px)').fill('400');
+  await page.getByLabel('Second point y (px)').fill('300');
+  await page.getByRole('button', { name: 'Add the measurement' }).click();
+  await page.getByRole('button', { name: 'Line', exact: true }).click();
+  await page.locator('.image-viewer').scrollIntoViewIfNeeded();
+  const viewerBox = await page.locator('.image-viewer').boundingBox();
+  const fitScale = Math.min(viewerBox.width / 1024, viewerBox.height / 864);
+  const at = (x, y) => [
+    viewerBox.x + (viewerBox.width - 1024 * fitScale) / 2 + x * fitScale,
+    viewerBox.y + (viewerBox.height - 864 * fitScale) / 2 + y * fitScale,
+  ];
+  const [x0, y0] = at(500, 400);
+  const [x1, y1] = at(600, 400);
+  await page.mouse.move(x0, y0);
+  await page.mouse.down();
+  await page.mouse.move(x1, y1, { steps: 5 });
+  await page.mouse.up();
+  await page.getByText('Measurements (2)').waitFor();
+  const cells = await page.locator('.peak-table tbody tr').allInnerTexts();
+  assert.match(cells[0], /Circle\s+50 nm/);
+  assert.match(cells[1], /Line\s+5\d(\.\d+)? nm/);
+  step('Particles: example image, scale, a typed circle (50 nm) and a drawn line (about 50 nm)');
+
   assert.deepEqual(problems, [], `browser errors: ${problems.join('; ')}`);
   console.log('E2E passed.');
 } catch (error) {
