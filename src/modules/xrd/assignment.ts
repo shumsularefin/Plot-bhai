@@ -15,11 +15,11 @@ import {
   type LatticePeak,
   type LatticeSystem,
 } from '../../core/xrd/reference/lattice';
+import { formatHkl } from '../../core/xrd/reference/hkl';
 import { DEFAULT_MATCH, matchPhase, referenceLines } from '../../core/xrd/reference/match';
 import type { ReferencePhase } from '../../core/xrd/reference/types';
 import type { PeakLabelSet } from '../../ui/plot/peakLabels';
 import { peaksFor, type XrdData } from './data';
-import { formatHkl } from './referenceLibrary';
 
 /** One fitted peak and what it was assigned to. */
 export interface AssignedPeak {

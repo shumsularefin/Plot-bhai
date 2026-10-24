@@ -25,6 +25,47 @@ export interface XrdData {
   results: ResultsSettings;
   /** Reference phases chosen in steps 3 and 4. */
   material: MaterialState;
+  /** Texture coefficient and crystallinity settings (step 7). */
+  analysis: AnalysisSettings;
+}
+
+/** Settings of the extra analyses in the results step. */
+export interface AnalysisSettings {
+  /** Peak measure for the texture coefficient. */
+  textureBasis: 'height' | 'area';
+  /** Crystallinity settings by pattern id. Missing means the defaults. */
+  crystallinity: Record<string, CrystallinityChoice>;
+}
+
+/** Crystallinity index settings of one pattern. Null values mean "work it out from the pattern". */
+export interface CrystallinityChoice {
+  /** Calculate the index and list it in the results summary. */
+  enabled: boolean;
+  /** 2θ range, degrees; null means the whole pattern. */
+  from: number | null;
+  to: number | null;
+  hump: 'gaussian' | 'anchors';
+  /** Gaussian hump centre and FWHM, degrees 2θ; null means the middle of the range and a quarter of it. */
+  centre: number | null;
+  fwhm: number | null;
+  /** Anchor 2θ positions, typed as numbers separated by spaces or commas. */
+  anchors: string;
+}
+
+export const DEFAULT_CRYSTALLINITY: CrystallinityChoice = {
+  enabled: false,
+  from: null,
+  to: null,
+  hump: 'gaussian',
+  centre: null,
+  fwhm: null,
+  anchors: '',
+};
+
+export const DEFAULT_ANALYSIS: AnalysisSettings = { textureBasis: 'height', crystallinity: {} };
+
+export function crystallinityFor(data: XrdData, id: string): CrystallinityChoice {
+  return data.analysis.crystallinity[id] ?? DEFAULT_CRYSTALLINITY;
 }
 
 /** The chosen reference material and phases (library in data/reference). */
@@ -158,19 +199,20 @@ export const initialXrdData: XrdData = {
   instrument: DEFAULT_INSTRUMENT,
   results: DEFAULT_RESULTS,
   material: DEFAULT_MATERIAL,
+  analysis: DEFAULT_ANALYSIS,
 };
 
 /** Version of the saved shape. Bump it, and extend migrateXrdData, when the shape changes. */
-export const XRD_STATE_VERSION = 7;
+export const XRD_STATE_VERSION = 8;
 
 /**
  * Upgrades saved sessions: version 2 (Stage 1) had no radiation or processing settings;
  * version 3 (Stage 2) had no peak state; version 4 (Stage 3) had no instrument settings;
  * version 5 (Stage 4) had no size and strain settings; version 6 (Stage 5) had no reference
- * material choice.
+ * material choice; version 7 (sub-stage 6c) had no texture and crystallinity settings.
  */
 export function migrateXrdData(saved: unknown, version: number): WizardState<XrdData> | undefined {
-  if (version < 2 || version > 6) return undefined;
+  if (version < 2 || version > 7) return undefined;
   const state = saved as WizardState<Partial<XrdData> & Pick<XrdData, 'patterns' | 'plot'>>;
   if (!state || typeof state !== 'object' || !state.data) return undefined;
   return {
@@ -182,7 +224,8 @@ export function migrateXrdData(saved: unknown, version: number): WizardState<Xrd
       peaks: state.data.peaks ?? {},
       instrument: state.data.instrument ?? DEFAULT_INSTRUMENT,
       results: state.data.results ?? DEFAULT_RESULTS,
-      material: DEFAULT_MATERIAL,
+      material: state.data.material ?? DEFAULT_MATERIAL,
+      analysis: state.data.analysis ?? DEFAULT_ANALYSIS,
     },
   };
 }

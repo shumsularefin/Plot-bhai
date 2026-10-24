@@ -14,7 +14,8 @@ import type { SeriesSource } from '../../ui/plot/series';
 import type { StepContext } from '../../ui/wizard/types';
 import type { MaterialState, XrdData } from './data';
 import { xrdLabels } from './labels';
-import { codUrl, formatHkl } from './referenceLibrary';
+import { formatHkl } from '../../core/xrd/reference/hkl';
+import { codUrl } from './referenceLibrary';
 import { useReferencePhases } from './useReferencePhases';
 import { useMeasured } from './useMeasured';
 
