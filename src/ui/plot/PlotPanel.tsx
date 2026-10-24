@@ -38,6 +38,8 @@ interface PlotPanelProps {
   lanes?: readonly ReferenceLane[];
   /** Labels above peaks (for example hkl), on screen and in the exported figure. */
   peakLabels?: PeakLabelSet;
+  /** When it changes, the view jumps to this x range (in plotted x, so −wavenumber on a reversed axis). */
+  focusRange?: Domain | null;
 }
 
 export type PlotInteraction = Pick<
@@ -64,8 +66,18 @@ export function PlotPanel(props: PlotPanelProps) {
   const [domain, setDomain] = useState<Domain>(extent);
   useEffect(() => setDomain(extent), [extent]);
 
+  const focusLo = props.focusRange?.[0];
+  const focusHi = props.focusRange?.[1];
+  useEffect(() => {
+    if (focusLo === undefined || focusHi === undefined) return;
+    setDomain([Math.max(lo, Math.min(focusLo, focusHi)), Math.min(hi, Math.max(focusLo, focusHi))]);
+  }, [focusLo, focusHi, lo, hi]);
+
   const minSpan = Math.max((hi - lo) / 2000, 1e-6);
   const axisLabels = labels(normalise);
+  const reversed = axisLabels.reversed === true;
+  /** The number shown for a plotted x: the same, or its negative on a reversed axis. */
+  const shown = (x: number) => (reversed ? -x : x);
   const residual = props.residual;
   const residualSeries = useMemo(
     () => (residual ? prepareSeries([residual], { normalise: false, offsetFraction: 0 }) : null),
@@ -75,7 +87,7 @@ export function PlotPanel(props: PlotPanelProps) {
     const value = Number(text);
     if (!Number.isFinite(value)) return;
     const next: [number, number] = [domain[0], domain[1]];
-    next[which] = value;
+    next[which] = shown(value);
     if (next[1] - next[0] < minSpan) return;
     setDomain([Math.max(lo, next[0]), Math.min(hi, next[1])]);
   };
@@ -117,7 +129,7 @@ export function PlotPanel(props: PlotPanelProps) {
         extent={extent}
         minSpan={minSpan}
         onDomainChange={setDomain}
-        formatX={(x) => `${xName} ${round(x)}${xUnit}`}
+        formatX={(x) => `${xName} ${round(shown(x))}${xUnit}`}
         {...(props.points && { markers: props.points })}
         {...(props.peakLabels && { peakLabels: props.peakLabels })}
         {...props.interaction}
@@ -134,7 +146,7 @@ export function PlotPanel(props: PlotPanelProps) {
           extent={extent}
           minSpan={minSpan}
           onDomainChange={setDomain}
-          formatX={(x) => `${xName} ${round(x)}${xUnit}`}
+          formatX={(x) => `${xName} ${round(shown(x))}${xUnit}`}
           heightFor={residualHeight}
           hideReadout
           description="Residual: data minus fit."
@@ -152,7 +164,7 @@ export function PlotPanel(props: PlotPanelProps) {
               type="number"
               inputMode="decimal"
               step="any"
-              value={round(domain[0])}
+              value={round(shown(domain[0]))}
               onChange={(e) => setRange(0, e.currentTarget.value)}
             />
           </label>
@@ -162,7 +174,7 @@ export function PlotPanel(props: PlotPanelProps) {
               type="number"
               inputMode="decimal"
               step="any"
-              value={round(domain[1])}
+              value={round(shown(domain[1]))}
               onChange={(e) => setRange(1, e.currentTarget.value)}
             />
           </label>

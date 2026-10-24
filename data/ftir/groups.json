@@ -1,0 +1,897 @@
+{
+ "source": {
+  "citation": "S. Pasieczna-Patkowska, M. Cichy, J. Flieger, \"Application of Fourier Transform Infrared (FTIR) Spectroscopy in Characterization of Green Synthesized Nanoparticles\", Molecules 30 (2025) 684",
+  "doi": "10.3390/molecules30030684",
+  "licence": "CC BY 4.0, https://creativecommons.org/licenses/by/4.0/",
+  "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11821210/",
+  "retrieved": "2026-10-24",
+  "tables": "Table 3 (functional groups) and Table 2 (metal oxides)"
+ },
+ "verification": "TODO, verify: these are one review article's tables of typical ranges. Confirm each range against your own literature or a textbook before it goes into a paper.",
+ "functionalGroups": [
+  {
+   "id": "fg-1-free-oh-str",
+   "label": "free –OH str.",
+   "ranges": [
+    {
+     "from": 3520,
+     "to": 3730
+    }
+   ]
+  },
+  {
+   "id": "fg-2-oh-of-water-broad",
+   "label": "OH of water (broad)",
+   "ranges": [
+    {
+     "from": 3100,
+     "to": 3600
+    }
+   ]
+  },
+  {
+   "id": "fg-3-hydrogen-bonded-oh-str-broad",
+   "label": "hydrogen–bonded –OH str. (broad)",
+   "ranges": [
+    {
+     "from": 3230,
+     "to": 3550
+    }
+   ]
+  },
+  {
+   "id": "fg-4-nh2-asym-str-1-amines",
+   "label": "NH2 asym. str. (1° amines)",
+   "ranges": [
+    {
+     "from": 3330,
+     "to": 3550
+    }
+   ]
+  },
+  {
+   "id": "fg-5-nh2-sym-str-1-amines",
+   "label": "NH2 sym. str. (1° amines)",
+   "ranges": [
+    {
+     "from": 3160,
+     "to": 3450
+    }
+   ]
+  },
+  {
+   "id": "fg-6-1-amides-co-nh2-n-h-asym-str",
+   "label": "1° amides (–CO–NH2); N–H asym. str.",
+   "ranges": [
+    {
+     "from": 3480,
+     "to": 3540
+    },
+    {
+     "from": 3380,
+     "to": 3420
+    }
+   ]
+  },
+  {
+   "id": "fg-7-2-amides-n-h-str",
+   "label": "2° amides, N–H str.",
+   "ranges": [
+    {
+     "from": 3270,
+     "to": 3370
+    }
+   ]
+  },
+  {
+   "id": "fg-8-o-h-n-h-1-amines-amides",
+   "label": "O–H, N–H (1° amines, amides)",
+   "ranges": [
+    {
+     "from": 3270,
+     "to": 3370
+    }
+   ]
+  },
+  {
+   "id": "fg-9-aromatic-c-h-and-ring-c-c-vib",
+   "label": "aromatic =C–H and ring C=C vib.",
+   "ranges": [
+    {
+     "from": 3000,
+     "to": 3105
+    }
+   ]
+  },
+  {
+   "id": "fg-10-ch2-alkene",
+   "label": "=CH2 (alkene)",
+   "ranges": [
+    {
+     "from": 3075,
+     "to": 3095
+    }
+   ]
+  },
+  {
+   "id": "fg-11-ch3-asym-str",
+   "label": "–CH3 asym. str.",
+   "ranges": [
+    {
+     "from": 2950,
+     "to": 2975
+    }
+   ]
+  },
+  {
+   "id": "fg-12-ch3-sym-str",
+   "label": "–CH3 sym. str.",
+   "ranges": [
+    {
+     "from": 2865,
+     "to": 2885
+    }
+   ]
+  },
+  {
+   "id": "fg-13-ch2-asym-str",
+   "label": "–CH2– asym. str.",
+   "ranges": [
+    {
+     "from": 2915,
+     "to": 2940
+    }
+   ]
+  },
+  {
+   "id": "fg-14-ch2-sym-str",
+   "label": "–CH2– sym. str.",
+   "ranges": [
+    {
+     "from": 2840,
+     "to": 2870
+    }
+   ]
+  },
+  {
+   "id": "fg-15-c-n-nitriles",
+   "label": "–C≡N (nitriles)",
+   "ranges": [
+    {
+     "from": 2200,
+     "to": 2260
+    }
+   ]
+  },
+  {
+   "id": "fg-16-ocn-str-cyanates",
+   "label": "–OCN str. (cyanates)",
+   "ranges": [
+    {
+     "from": 2240,
+     "to": 2260
+    }
+   ]
+  },
+  {
+   "id": "fg-17-n-c-o-asym-str-isocyanates",
+   "label": "–N=C=O asym. str. (isocyanates)",
+   "ranges": [
+    {
+     "from": 2250,
+     "to": 2300
+    }
+   ]
+  },
+  {
+   "id": "fg-18-c-o-carboxylic-acid-anhydride",
+   "label": "C=O (carboxylic acid anhydride)",
+   "ranges": [
+    {
+     "from": 1740,
+     "to": 1850
+    }
+   ]
+  },
+  {
+   "id": "fg-19-c-o-carboxylic-acids",
+   "label": "C=O (carboxylic acids)",
+   "ranges": [
+    {
+     "from": 1650,
+     "to": 1740
+    }
+   ]
+  },
+  {
+   "id": "fg-20-c-o-aliphatic-aldehydes-ketones-esters",
+   "label": "C=O (aliphatic aldehydes, ketones, esters)",
+   "ranges": [
+    {
+     "from": 1715,
+     "to": 1745
+    }
+   ]
+  },
+  {
+   "id": "fg-21-c-o-aromatic-aldehydes-ketones-esters",
+   "label": "C=O (aromatic aldehydes, ketones, esters)",
+   "ranges": [
+    {
+     "from": 1680,
+     "to": 1700
+    }
+   ]
+  },
+  {
+   "id": "fg-22-c-o-str-amide-i-band",
+   "label": "C=O str., amide I * band",
+   "ranges": [
+    {
+     "from": 1600,
+     "to": 1700
+    }
+   ]
+  },
+  {
+   "id": "fg-23-coo-asym-str-carboxylic-acid-salts",
+   "label": "COO− asym. str. (carboxylic acid salts)",
+   "ranges": [
+    {
+     "from": 1540,
+     "to": 1695
+    }
+   ]
+  },
+  {
+   "id": "fg-24-c-o-quinones",
+   "label": "C=O (quinones)",
+   "ranges": [
+    {
+     "from": 1605,
+     "to": 1690
+    }
+   ]
+  },
+  {
+   "id": "fg-25-aromatic-ring-c-c-str-phenol",
+   "label": "aromatic ring C=C str. (phenol)",
+   "ranges": [
+    {
+     "from": 1660,
+     "to": 1660
+    }
+   ],
+   "approximate": true
+  },
+  {
+   "id": "fg-26-n-h-def-vib-1-amines-aromatic-amines-ami",
+   "label": "N–H def. vib. (1° amines, aromatic amines, amides)",
+   "ranges": [
+    {
+     "from": 1580,
+     "to": 1650
+    }
+   ]
+  },
+  {
+   "id": "fg-27-oh-of-water",
+   "label": "OH of water",
+   "ranges": [
+    {
+     "from": 1600,
+     "to": 1630
+    }
+   ]
+  },
+  {
+   "id": "fg-28-aromatic-c-h-and-ring-c-c-vib",
+   "label": "aromatic =C–H and ring C=C vib.",
+   "ranges": [
+    {
+     "from": 1525,
+     "to": 1625
+    }
+   ]
+  },
+  {
+   "id": "fg-29-c-c-stretching-alkene",
+   "label": "C=C stretching (alkene)",
+   "ranges": [
+    {
+     "from": 1610,
+     "to": 1620
+    }
+   ]
+  },
+  {
+   "id": "fg-30-n-h-def-vib-2-amines",
+   "label": "N–H def. vib. (2° amines)",
+   "ranges": [
+    {
+     "from": 1490,
+     "to": 1580
+    }
+   ]
+  },
+  {
+   "id": "fg-31-n-h-b-and-c-n-str-in-co-nh-amide-ii",
+   "label": "N–H b. and C–N str. in –CO–NH– (amide II **)",
+   "ranges": [
+    {
+     "from": 1510,
+     "to": 1570
+    }
+   ]
+  },
+  {
+   "id": "fg-32-ch3-asym-b",
+   "label": "–CH3 asym. b.",
+   "ranges": [
+    {
+     "from": 1430,
+     "to": 1465
+    }
+   ]
+  },
+  {
+   "id": "fg-33-aromatic-c-c-stretching",
+   "label": "aromatic C=C stretching",
+   "ranges": [
+    {
+     "from": 1430,
+     "to": 1465
+    }
+   ]
+  },
+  {
+   "id": "fg-34-n-h-def-vib-amides",
+   "label": "N–H def. vib. (amides)",
+   "ranges": [
+    {
+     "from": 1440,
+     "to": 1450
+    }
+   ]
+  },
+  {
+   "id": "fg-35-in-plane-o-h-def-vib-alcohol",
+   "label": "in–plane O–H def. vib. (alcohol)",
+   "ranges": [
+    {
+     "from": 1260,
+     "to": 1440
+    }
+   ]
+  },
+  {
+   "id": "fg-36-coo-sym-str-carboxylic-acid-salts",
+   "label": "COO− sym. str. (carboxylic acid salts)",
+   "ranges": [
+    {
+     "from": 1335,
+     "to": 1440
+    }
+   ]
+  },
+  {
+   "id": "fg-37-combination-of-o-h-def-and-c-o-str-carbo",
+   "label": "combination of O–H def. and C–O str. (carboxylic acids)",
+   "ranges": [
+    {
+     "from": 1395,
+     "to": 1440
+    }
+   ]
+  },
+  {
+   "id": "fg-38-c-n-str-amide-iii-1-amides",
+   "label": "C–N str. (amide III ***) (1° amides)",
+   "ranges": [
+    {
+     "from": 1400,
+     "to": 1420
+    }
+   ]
+  },
+  {
+   "id": "fg-39-combination-of-o-h-def-and-c-o-str-pheno",
+   "label": "combination of O–H def. and C–O str. (phenol)",
+   "ranges": [
+    {
+     "from": 1310,
+     "to": 1410
+    },
+    {
+     "from": 1180,
+     "to": 1260
+    }
+   ]
+  },
+  {
+   "id": "fg-40-ch3-sym-b-characteristic-of-c-ch3",
+   "label": "–CH3 sym. b. (characteristic of C–CH3)",
+   "ranges": [
+    {
+     "from": 1370,
+     "to": 1390
+    }
+   ]
+  },
+  {
+   "id": "fg-41-o-h-def-vib-carboxylic-acids",
+   "label": "O–H def. vib. (carboxylic acids)",
+   "ranges": [
+    {
+     "from": 1280,
+     "to": 1380
+    }
+   ]
+  },
+  {
+   "id": "fg-42-c-n-str-aromatic-amines",
+   "label": "C–N str. (aromatic amines)",
+   "ranges": [
+    {
+     "from": 1250,
+     "to": 1360
+    }
+   ]
+  },
+  {
+   "id": "fg-43-c-o-c-asym-str-esters",
+   "label": "C–O–C asym. str. (esters)",
+   "ranges": [
+    {
+     "from": 1250,
+     "to": 1310
+    }
+   ]
+  },
+  {
+   "id": "fg-44-c-n-str-amide-iii-2-amines",
+   "label": "C–N str. (amide III ***) (2° amines)",
+   "ranges": [
+    {
+     "from": 1200,
+     "to": 1305
+    },
+    {
+     "from": 1170,
+     "to": 1190
+    },
+    {
+     "from": 1130,
+     "to": 1145
+    }
+   ]
+  },
+  {
+   "id": "fg-45-c-o-str-carboxylic-acids",
+   "label": "C–O str. (carboxylic acids)",
+   "ranges": [
+    {
+     "from": 1075,
+     "to": 1190
+    }
+   ]
+  },
+  {
+   "id": "fg-46-c-c-skeletal-str-alkanes",
+   "label": "C–C skeletal str. (alkanes)",
+   "ranges": [
+    {
+     "from": 1165,
+     "to": 1175
+    }
+   ]
+  },
+  {
+   "id": "fg-47-aromatic-c-h-def-vib-in-phenolic-compoun",
+   "label": "aromatic C–H def. vib. in phenolic compounds",
+   "ranges": [
+    {
+     "from": 1110,
+     "to": 1110
+    }
+   ],
+   "approximate": true
+  },
+  {
+   "id": "fg-48-c-o-c-str-ethers-esters",
+   "label": "C–O–C str. (ethers, esters)",
+   "ranges": [
+    {
+     "from": 1060,
+     "to": 1150
+    }
+   ]
+  },
+  {
+   "id": "fg-49-cco-str-alcohol",
+   "label": "CCO str. (alcohol)",
+   "ranges": [
+    {
+     "from": 1000,
+     "to": 1090
+    }
+   ]
+  },
+  {
+   "id": "fg-50-c-n-str-1-amines",
+   "label": "C–N str. (1° amines)",
+   "ranges": [
+    {
+     "from": 1020,
+     "to": 1090
+    }
+   ]
+  },
+  {
+   "id": "fg-51-co-str-alcohol",
+   "label": "CO str. (alcohol)",
+   "ranges": [
+    {
+     "from": 1000,
+     "to": 1075
+    }
+   ]
+  },
+  {
+   "id": "fg-52-out-of-plane-o-h-def-vib-carboxylic-acid",
+   "label": "out–of–plane O–H def. vib. (carboxylic acids)",
+   "ranges": [
+    {
+     "from": 875,
+     "to": 960
+    }
+   ]
+  },
+  {
+   "id": "fg-53-ch2-twisting-vib-alcohol",
+   "label": "CH2 twisting vib. (alcohol)",
+   "ranges": [
+    {
+     "from": 800,
+     "to": 960
+    }
+   ]
+  },
+  {
+   "id": "fg-54-n-h-out-of-plane-b-vib-1-amines-aromatic",
+   "label": "N–H out–of–plane b. vib. (1° amines, aromatic amines, amides)",
+   "ranges": [
+    {
+     "from": 650,
+     "to": 895
+    }
+   ]
+  },
+  {
+   "id": "fg-55-combination-of-o-h-def-and-c-o-str-pheno",
+   "label": "combination of O–H def. and C–O str. (phenol)",
+   "ranges": [
+    {
+     "from": 770,
+     "to": 820
+    }
+   ]
+  },
+  {
+   "id": "fg-56-aromatic-c-h-and-ring-out-of-plane-vib",
+   "label": "aromatic =C–H and ring out–of–plane vib.",
+   "ranges": [
+    {
+     "from": 670,
+     "to": 820
+    }
+   ]
+  },
+  {
+   "id": "fg-57-ch2-rocking-vib",
+   "label": "–CH2– rocking vib.",
+   "ranges": [
+    {
+     "from": 720,
+     "to": 785
+    }
+   ]
+  },
+  {
+   "id": "fg-58-c-h-out-of-plane-def-vib-aromatic-ring-d",
+   "label": "C–H out–of–plane def. vib., aromatic ring def. vib.",
+   "ranges": [
+    {
+     "from": 690,
+     "to": 765
+    }
+   ]
+  },
+  {
+   "id": "fg-59-n-h-wagging-vib-2-amines-broad",
+   "label": "N–H wagging vib. (2° amines), broad",
+   "ranges": [
+    {
+     "from": 700,
+     "to": 750
+    }
+   ]
+  },
+  {
+   "id": "fg-60-nh2-def-vib-1-amides-broad",
+   "label": "NH2 def. vib. (1° amides), broad",
+   "ranges": [
+    {
+     "from": 600,
+     "to": 750
+    }
+   ]
+  },
+  {
+   "id": "fg-61-out-of-plane-o-h-def-vib-phenol",
+   "label": "out–of–plane O–H def. vib. (phenol)",
+   "ranges": [
+    {
+     "from": 600,
+     "to": 720
+    }
+   ]
+  },
+  {
+   "id": "fg-62-out-of-plane-o-h-def-vib-alcohol",
+   "label": "out–of–plane O–H def. vib. (alcohol)",
+   "ranges": [
+    {
+     "from": 570,
+     "to": 710
+    }
+   ]
+  },
+  {
+   "id": "fg-63-in-plane-c-co-c-def-vib-aliphatic-aldehy",
+   "label": "in–plane C–CO–C def. vib. (aliphatic aldehydes, ketones, aromatic methyl aldehydes, ketones)",
+   "ranges": [
+    {
+     "from": 580,
+     "to": 630
+    }
+   ]
+  },
+  {
+   "id": "fg-64-n-c-o-def-vib-1-amides",
+   "label": "N–C=O def. vib. (1° amides)",
+   "ranges": [
+    {
+     "from": 550,
+     "to": 600
+    }
+   ]
+  },
+  {
+   "id": "fg-65-c-c-o-def-vib-1-amides",
+   "label": "C–C=O def. vib. (1° amides)",
+   "ranges": [
+    {
+     "from": 450,
+     "to": 500
+    }
+   ]
+  }
+ ],
+ "metalOxides": [
+  {
+   "id": "mo-cao",
+   "label": "CaO",
+   "bands": [
+    {
+     "cm": 400
+    },
+    {
+     "cm": 714
+    },
+    {
+     "cm": 1081,
+     "note": "band of carbonate anion (footnote of the table)"
+    }
+   ]
+  },
+  {
+   "id": "mo-coo",
+   "label": "CoO",
+   "bands": [
+    {
+     "cm": 555
+    },
+    {
+     "cm": 626
+    },
+    {
+     "cm": 662
+    }
+   ]
+  },
+  {
+   "id": "mo-co3o4",
+   "label": "Co3O4",
+   "bands": [
+    {
+     "cm": 558
+    },
+    {
+     "cm": 585
+    },
+    {
+     "cm": 670
+    }
+   ]
+  },
+  {
+   "id": "mo-cuo",
+   "label": "CuO",
+   "bands": [
+    {
+     "cm": 430
+    },
+    {
+     "cm": 490
+    },
+    {
+     "cm": 540
+    },
+    {
+     "cm": 600
+    },
+    {
+     "cm": 660
+    }
+   ]
+  },
+  {
+   "id": "mo-feo",
+   "label": "FeO",
+   "bands": [
+    {
+     "cm": 410
+    },
+    {
+     "cm": 1125
+    }
+   ]
+  },
+  {
+   "id": "mo-fe2o3",
+   "label": "α–Fe2O3",
+   "bands": [
+    {
+     "cm": 472
+    },
+    {
+     "cm": 543
+    },
+    {
+     "cm": 1030
+    },
+    {
+     "cm": 1110
+    }
+   ]
+  },
+  {
+   "id": "mo-fe3o4",
+   "label": "Fe3O4",
+   "bands": [
+    {
+     "cm": 580
+    },
+    {
+     "cm": 620
+    }
+   ]
+  },
+  {
+   "id": "mo-nio",
+   "label": "NiO",
+   "bands": [
+    {
+     "cm": 410
+    },
+    {
+     "cm": 448
+    }
+   ]
+  },
+  {
+   "id": "mo-sno",
+   "label": "SnO",
+   "bands": [
+    {
+     "cm": 620
+    },
+    {
+     "cm": 690
+    }
+   ]
+  },
+  {
+   "id": "mo-sno2",
+   "label": "SnO2",
+   "bands": [
+    {
+     "cm": 600
+    },
+    {
+     "cm": 620
+    },
+    {
+     "cm": 1385
+    },
+    {
+     "cm": 1400
+    }
+   ]
+  },
+  {
+   "id": "mo-tio2-anatase",
+   "label": "TiO2 anatase",
+   "bands": [
+    {
+     "cm": 431
+    },
+    {
+     "cm": 551
+    },
+    {
+     "cm": 602
+    },
+    {
+     "cm": 650
+    },
+    {
+     "cm": 685
+    },
+    {
+     "cm": 800
+    }
+   ]
+  },
+  {
+   "id": "mo-tio2-rutile",
+   "label": "TiO2 rutile",
+   "bands": [
+    {
+     "cm": 449
+    },
+    {
+     "cm": 500
+    },
+    {
+     "cm": 678
+    }
+   ]
+  },
+  {
+   "id": "mo-zno",
+   "label": "ZnO",
+   "bands": [
+    {
+     "cm": 440
+    },
+    {
+     "cm": 498
+    },
+    {
+     "cm": 530
+    },
+    {
+     "cm": 554
+    },
+    {
+     "cm": 618
+    },
+    {
+     "cm": 878
+    }
+   ]
+  }
+ ]
+}

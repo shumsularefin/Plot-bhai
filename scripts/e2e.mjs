@@ -194,6 +194,61 @@ try {
   await page.getByText('This is not an XRD Toolkit session file.').waitFor();
   step('8 Export: a foreign JSON file is refused');
 
+  // UV-Vis: example data, blank subtraction, Tauc band gap, results, methods text.
+  await page.goto(`http://localhost:${PORT}/#/uvvis`);
+  await heading().waitFor();
+  await page.getByRole('button', { name: 'Try with example data' }).click();
+  await page.getByText('Example absorbance (synthetic)').first().waitFor();
+  await next('Data type and cleaning');
+  await page.getByRole('switch', { name: 'Blank subtraction' }).check();
+  await page.getByLabel('Blank spectrum').selectOption({ label: 'Example blank (synthetic)' });
+  await next('Band gap');
+  const gapText = await page.getByLabel('Band gap result').textContent();
+  const gap = Number(/(\d\.\d+)\s*±/.exec(gapText)?.[1]);
+  assert.ok(Math.abs(gap - 3.2) < 0.02, `band gap ${gap} should be near the 3.2 eV of the example`);
+  step('UV-Vis: Tauc band gap of the example is near 3.2 eV');
+  await next('Results and export');
+  const uvText = await page.getByLabel('Methods paragraph').inputValue();
+  assert.match(uvText, /generated example data/);
+  assert.match(uvText, /Tauc/);
+  const [uvCsv] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Download results (CSV)' }).click(),
+  ]);
+  assert.match(readFileSync(await uvCsv.path(), 'utf8'), /Eg \(eV\)/);
+  step('UV-Vis: results CSV and methods text');
+
+  // FTIR: example data, baseline, peaks, accepted assignments, results, methods text, session.
+  await page.goto(`http://localhost:${PORT}/#/ftir`);
+  await heading().waitFor();
+  await page.getByRole('button', { name: 'Try with example data' }).click();
+  await page.getByText('Example absorbance (synthetic)').first().waitFor();
+  await next('Clean data');
+  await page.getByRole('switch', { name: 'Baseline correction' }).check();
+  await next('Pick peaks');
+  await page.locator('.peak-table tbody tr').first().waitFor();
+  assert.equal(await page.locator('.peak-table tbody tr').count(), 6);
+  step('FTIR: six peaks found in the example spectrum');
+  await next('Assign groups');
+  await page.getByRole('button', { name: /Accept the best suggestion for every peak/ }).click();
+  await next('Results and export');
+  const ftirText = await page.getByLabel('Methods paragraph').inputValue();
+  assert.match(ftirText, /generated example data/);
+  assert.match(ftirText, /not proof of the groups present/);
+  const [ftirCsv] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Download peaks (CSV)' }).click(),
+  ]);
+  assert.match(readFileSync(await ftirCsv.path(), 'utf8'), /Assignment/);
+  const [ftirSession] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Download session (JSON)' }).click(),
+  ]);
+  const ftirFile = JSON.parse(readFileSync(await ftirSession.path(), 'utf8'));
+  assert.equal(ftirFile.kind, 'ftir-session');
+  assert.ok(Object.values(ftirFile.state.data.assignments).flat().length > 0);
+  step('FTIR: peaks, accepted assignments, methods text and session file');
+
   assert.deepEqual(problems, [], `browser errors: ${problems.join('; ')}`);
   console.log('E2E passed.');
 } catch (error) {

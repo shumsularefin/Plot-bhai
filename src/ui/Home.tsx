@@ -23,6 +23,7 @@ const TOOLS: readonly ToolCard[] = [
     name: 'FTIR',
     description:
       'Absorbance and transmittance spectra, peak tables and functional group suggestions.',
+    href: '#/ftir',
   },
   {
     name: 'Particle size',

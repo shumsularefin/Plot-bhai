@@ -1,5 +1,88 @@
 # Progress
 
+## Stage 9: FTIR (done)
+
+Branch `claude/hopeful-dirac-72ak86`, stacked on 8a and 8b (pull request 18 was still not merged into
+`main`). The FTIR card on the home page is enabled (`#/ftir`).
+
+### What was built
+
+- Core (`src/core/ftir`): import of csv, txt, dpt (read as text) and JCAMP-DX (`jcamp.ts`), data type
+  suggestion, baselines (rubber band, iterative polynomial reused from XRD, asymmetric least squares
+  with a banded Cholesky solver), the processing pipeline (baseline, smoothing, normalisation, always
+  on absorbance), prominence peak picking with parabolic refinement, group suggestions, methods text,
+  synthetic example generator.
+- Wizard: 1 Upload, 2 Clean data (data type is on the cards of step 1; here view before, after, both
+  or all spectra, absorbance or transmittance axis, whole range or fingerprint region, baseline,
+  smoothing, normalisation, undo, reset, apply to all), 3 Pick peaks (prominence slider, search range,
+  labelled plot, peak table, CSV), 4 Assign groups (ranked suggestions with a plain reason, accept,
+  edit, remove, "accept the best for every peak", the whole reference table in a collapsible section),
+  5 Results and export (peak table with assignments, peaks CSV, processed spectra CSV, overlay figure
+  with offset, methods text, session file).
+- Plot engine: a reversed x axis (`AxisLabels.reversed`) so wavenumber runs high to low. Series are
+  plotted as −wavenumber; tick labels, the readout and the range boxes show the positive value; the
+  exported SVG and PNG use the same code. `PlotPanel` also has a `focusRange` prop (fingerprint zoom).
+- Group table `data/ftir/groups.json`, built by `npm run build:ftir` from two tables of an open-access
+  review (CC BY 4.0): S. Pasieczna-Patkowska, M. Cichy, J. Flieger, Molecules 30 (2025) 684,
+  doi:10.3390/molecules30030684, Table 3 (65 ranges for functional group vibrations) and Table 2
+  (band positions of 13 metal oxides, including TiO2 anatase and rutile). The tables were read from
+  the Europe PMC full text and cached in `data/ftir/source/tables.xml`; the JSON is generated from
+  that cache and a test checks they agree. Attribution is shown in the app.
+- Shared: `src/ui/persist/sessionFile.ts` (session codec) and `src/ui/SessionSection.tsx`, now used by
+  UV-Vis and FTIR (XRD still has its own copy).
+- `scripts/e2e.mjs` now walks UV-Vis and FTIR happy paths after the XRD one (all pass).
+- Tests: `ftir-core`, `ftir-groups`, `ftirSteps`, a reversed-axis case in `plot.test.ts`.
+
+### Known-answer results
+
+- %T 10 gives A = 1, %T 1 gives A = 2 (and back). A generated JCAMP-DX file with a Y factor gives the
+  expected x and y. Rubber band recovers a straight baseline to 0.001; asymmetric least squares
+  follows a curved baseline to within 0.02 absorbance away from bands; the banded solver agrees with
+  the dense solver. Peaks of a noisy synthetic spectrum are found at their true positions to a
+  twentieth of the band width (at least 2 cm⁻¹); a 4 cm⁻¹ step is refined to within 0.5 cm⁻¹.
+
+### Decisions
+
+- The functional group source: no textbook was openable in this session. The review article above is
+  openable and licensed for reuse, so every range comes from its tables. The table is flagged
+  "TODO, verify" in the JSON and on screen; please check ranges against your own literature or
+  Socrates' or Larkin's textbooks before using them in a paper. Metal–oxide entries are discrete
+  band positions, not ranges.
+- Single printed values (for example "~1660") are matched like ranges of zero width. The suggestion
+  distance (default 15 cm⁻¹) is my own choice, shown as adjustable, not a published value.
+- Suggestions rank by distance, then by narrower range. Nothing is assigned until the user accepts it,
+  and the methods text only mentions assignments if some were accepted.
+- Everything is analysed as absorbance. Transmittance is converted first and shown again as %T in
+  step 2 and the final figure (not when normalised).
+- ALS defaults (λ = 10^5, p = 0.01) are my own starting values. The algorithm follows the published
+  description from memory and was not checked against the paper (comment in `baseline.ts`).
+- JCAMP-DX: only plain-number XYDATA (X++(Y..Y)) and XYPOINTS are read; the compressed forms (SQZ,
+  DIF, DUP) are refused with an export hint rather than guessed. The reader was written from the
+  format as I know it and tested on generated files only, not on instrument files.
+- Binary files (.spa, .spc, .sp, OPUS) are refused with an export hint. `.dpt` is treated as text.
+- `UvvisTool` and `FtirTool` still import `../xrd/xrd.css` and reuse `StepSection` and `NumberInput`
+  from the XRD module; these should move to `src/ui`.
+
+### Known issues
+
+- No real FTIR file has been tried (none in `tests/fixtures-real/`). Peak positions of broad bands
+  (for example O–H near 3400 cm⁻¹) shift with noise and smoothing; the table shows the maximum.
+- The assignment suggestions are position-only: no intensity, width or band-shape information.
+- Plot peak labels show wavenumbers only (rounded); assignments appear in the tables.
+- Spectra with unevenly spaced wavenumbers skip smoothing and the asymmetric least squares baseline,
+  with a message.
+- Several XRD-facing CSS rules now also serve UV-Vis and FTIR; a stylesheet split is still to do.
+
+### What I need from you
+
+- A real FTIR spectrum (and ideally a JCAMP-DX export from your instrument) in `tests/fixtures-real/`.
+- Check the typical ranges against a textbook (see Decisions) and tell me which to correct or add.
+- Merge pull request 18 (UV-Vis and FTIR) into `main`.
+
+### Next sub-stage
+
+10a (particles: image, scale, manual), when you say so.
+
 ## Sub-stage 8b: Tauc, Urbach, results (done)
 
 Branch `claude/hopeful-dirac-72ak86`, stacked on 8a (pull request 18 was not merged into `main` when

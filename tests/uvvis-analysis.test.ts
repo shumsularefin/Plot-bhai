@@ -12,7 +12,10 @@ import {
   type UvvisData,
 } from '../src/modules/uvvis/data';
 import { methodsText } from '../src/modules/uvvis/methodsText';
-import { parseUvvisSession, serialiseUvvisSession } from '../src/modules/uvvis/session';
+import { uvvisSession } from '../src/modules/uvvis/session';
+
+const serialiseUvvisSession = uvvisSession.serialise;
+const parseUvvisSession = uvvisSession.parse;
 
 function exampleData(): UvvisData {
   const spectra = exampleSpectra();
