@@ -37,6 +37,8 @@ export interface Segment {
 
 /** A turn in temperature smaller than this (°C) is noise, not a change of direction. */
 const TURN_C = 1;
+/** Points within this many °C of the extreme belong to the hold there, so a turn is placed after the hold. */
+const HOLD_C = 0.1;
 /** Parts of the program that cover less than this many °C (holds, small wiggles) are not segments. */
 const MIN_SEGMENT_SPAN_C = 10;
 
@@ -54,6 +56,8 @@ export function splitSegments(temperatureC: ArrayLike<number>): Segment[] {
   let low = 0;
   let high = 0;
   let direction = 0;
+  // The running extreme: its temperature, and the last row within HOLD_C of it (the end of a hold).
+  let extremeT = 0;
   let extreme = 0;
   for (let i = 1; i < n; i++) {
     if (direction === 0) {
@@ -62,24 +66,25 @@ export function splitSegments(temperatureC: ArrayLike<number>): Segment[] {
       if (t(i) - t(low) >= TURN_C) {
         direction = 1;
         extreme = i;
+        extremeT = t(i);
       } else if (t(high) - t(i) >= TURN_C) {
         direction = -1;
         extreme = i;
+        extremeT = t(i);
       }
-    } else if (direction === 1) {
-      if (t(i) > t(extreme)) extreme = i;
-      else if (t(extreme) - t(i) >= TURN_C) {
-        turns.push(extreme);
-        direction = -1;
-        extreme = i;
-      }
-    } else {
-      if (t(i) < t(extreme)) extreme = i;
-      else if (t(i) - t(extreme) >= TURN_C) {
-        turns.push(extreme);
-        direction = 1;
-        extreme = i;
-      }
+      continue;
+    }
+    const beyond = direction * (t(i) - extremeT);
+    if (beyond > 0) {
+      extremeT = t(i);
+      extreme = i;
+    } else if (beyond >= -HOLD_C) {
+      extreme = i;
+    } else if (beyond <= -TURN_C) {
+      turns.push(extreme);
+      direction = -direction;
+      extreme = i;
+      extremeT = t(i);
     }
   }
   turns.push(n - 1);

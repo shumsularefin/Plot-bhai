@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import dscRules from '../data/thermal/dsc-events.json';
 import {
   analyseEvent,
   analyseGlassTransition,
@@ -15,7 +16,20 @@ import {
   splitSegments,
   toExoPositive,
 } from '../src/core/thermal/dscClean';
-import { normalCdf } from '../src/core/thermal/synthetic';
+import {
+  DSC_NO_CERTAINTY_NOTE,
+  guidanceFor,
+  type DscRuleTable,
+} from '../src/core/thermal/dscGuidance';
+import { buildRun, guessMapping } from '../src/core/thermal/import';
+import {
+  EXAMPLE_DSC_EVENTS,
+  EXAMPLE_DSC_GLASS,
+  EXAMPLE_DSC_MASS_MG,
+  EXAMPLE_DSC_RATE,
+  exampleDscTable,
+  normalCdf,
+} from '../src/core/thermal/synthetic';
 import type { ThermalRun } from '../src/core/thermal/types';
 
 /** Temperatures from a to b in steps of `step`. */
@@ -460,5 +474,160 @@ describe('crystallinity', () => {
     expect(high.ok && high.notes.join(' ')).toMatch(/above 100/);
     const low = crystallinity({ ...base, coldJPerG: 80 });
     expect(low.ok && low.notes.join(' ')).toMatch(/negative/);
+  });
+});
+
+describe('event type guidance', () => {
+  const table = dscRules as DscRuleTable;
+  const event = (direction: 'endo' | 'exo', peakC: number) => ({
+    direction,
+    peakC,
+    onsetC: peakC - 6,
+    endsetC: peakC + 6,
+  });
+  const ids = (list: { rule: { id: string } }[]) => list.map((g) => g.rule.id);
+
+  it('keeps only rules that fit the direction and the scan', () => {
+    const endo = guidanceFor(
+      { event: event('endo', 165), scan: 'heating', atmosphere: 'nitrogen', category: 'polymer' },
+      table.events,
+    );
+    expect(ids(endo)).toContain('melting');
+    expect(ids(endo)).not.toContain('crystallisation');
+    expect(ids(endo)).not.toContain('oxidation');
+    const cooling = guidanceFor(
+      { event: event('exo', 120), scan: 'cooling', atmosphere: 'nitrogen', category: 'polymer' },
+      table.events,
+    );
+    expect(ids(cooling)).toContain('crystallisation');
+    expect(ids(cooling)).not.toContain('melting');
+  });
+
+  it('only suggests oxidation in air or oxygen', () => {
+    const run = (atmosphere: 'nitrogen' | 'air') =>
+      ids(
+        guidanceFor(
+          { event: event('exo', 300), scan: 'heating', atmosphere, category: 'unspecified' },
+          table.events,
+        ),
+      );
+    expect(run('nitrogen')).not.toContain('oxidation');
+    expect(run('air')).toContain('oxidation');
+  });
+
+  it('is ranked, at most three, never "high", and explains itself in plain language', () => {
+    const list = guidanceFor(
+      {
+        event: event('endo', 100),
+        scan: 'heating',
+        atmosphere: 'nitrogen',
+        category: 'hydroxide-or-salt',
+      },
+      table.events,
+    );
+    expect(list.length).toBeGreaterThan(0);
+    expect(list.length).toBeLessThanOrEqual(3);
+    for (let i = 1; i < list.length; i++) {
+      expect((list[i - 1] as { score: number }).score).toBeGreaterThanOrEqual(
+        (list[i] as { score: number }).score,
+      );
+    }
+    for (const g of list) {
+      expect(['low', 'medium']).toContain(g.confidence);
+      expect(g.reason).toMatch(/endotherm/);
+    }
+    expect(DSC_NO_CERTAINTY_NOTE).toMatch(/DSC alone cannot/);
+  });
+
+  it('flags the table as unverified', () => {
+    expect(table.verification).toMatch(/TODO, verify/);
+    expect(table.events.every((r) => r.source.startsWith('TODO'))).toBe(true);
+  });
+});
+
+describe('the DSC example run', () => {
+  const table = exampleDscTable();
+  const mapping = guessMapping(table);
+  const built = buildRun('example', table, mapping);
+  const setup = { unit: 'mW' as const, fileExoUp: true, displayExoUp: null };
+  const info = { initialMassMg: EXAMPLE_DSC_MASS_MG, heatingRate: EXAMPLE_DSC_RATE };
+
+  it('is read as temperature, time and heat flow with two heating ramps and one cooling ramp', () => {
+    expect(mapping.temperature).toBe(0);
+    expect(mapping.time).toBe(1);
+    expect(mapping.heatFlow).toBe(2);
+    expect(mapping.mass).toBeNull();
+    expect(built.ok).toBe(true);
+    if (!built.ok) return;
+    expect(splitSegments(built.run.temperatureC).map((s) => s.label)).toEqual([
+      'Heating 1',
+      'Cooling 1',
+      'Heating 2',
+    ]);
+  });
+
+  it('gives back the made-up enthalpies and glass transitions from each scan', () => {
+    if (!built.ok) throw new Error('example did not build');
+    const ctx = { rateKPerMin: EXAMPLE_DSC_RATE, specific: true, molarMassGPerMol: null };
+    const scans = [
+      {
+        segmentId: 0,
+        cooling: false,
+        events: EXAMPLE_DSC_EVENTS.filter((e) => e.scans.includes('heating1')),
+      },
+      {
+        segmentId: 1,
+        cooling: true,
+        events: EXAMPLE_DSC_EVENTS.filter((e) => e.scans.includes('cooling')),
+      },
+      {
+        segmentId: 2,
+        cooling: false,
+        events: EXAMPLE_DSC_EVENTS.filter((e) => e.scans.includes('heating2')),
+      },
+    ];
+    for (const scan of scans) {
+      const cleaned = cleanDsc(built.run, setup, info, {
+        ...DEFAULT_DSC_CLEAN,
+        segmentId: scan.segmentId,
+      });
+      if (!cleaned.ok) throw new Error(cleaned.error);
+      const { temperatureC: T, exo } = cleaned.curve;
+      const limits = detectEvents(T, exo, DEFAULT_DETECT_DSC, 'linear');
+      expect(limits).toHaveLength(scan.events.length);
+      limits.forEach((limit, i) => {
+        const truth = scan.events[i] as (typeof scan.events)[number];
+        const found = analyseEvent(
+          T,
+          exo,
+          { ...limit, baseline: 'linear' },
+          {
+            ...ctx,
+            cooling: scan.cooling,
+          },
+        );
+        expect(found?.peakC).toBeCloseTo(truth.peakC, 0);
+        // Within 5 % of the made-up enthalpy (the example has no baseline step across its peaks, so a linear baseline is the right one).
+        expect(
+          Math.abs((found?.enthalpy ?? 0) - truth.enthalpy) / Math.abs(truth.enthalpy),
+        ).toBeLessThan(0.05);
+      });
+      const windows = defaultGlassWindows(
+        T,
+        exo,
+        limits.map((l) => [l.fromC, l.toC] as const),
+      );
+      expect(windows).not.toBeNull();
+      if (!windows) continue;
+      const glass = analyseGlassTransition(T, exo, windows, { ...ctx, cooling: scan.cooling });
+      expect(glass.ok).toBe(true);
+      if (!glass.ok) continue;
+      const truthTg = scan.cooling ? EXAMPLE_DSC_GLASS.coolingC : EXAMPLE_DSC_GLASS.heatingC;
+      expect(Math.abs(glass.glass.midpointC - truthTg)).toBeLessThan(1.5);
+      expect(
+        Math.abs((glass.glass.deltaCp ?? 0) - EXAMPLE_DSC_GLASS.deltaCp) /
+          EXAMPLE_DSC_GLASS.deltaCp,
+      ).toBeLessThan(0.1);
+    }
   });
 });

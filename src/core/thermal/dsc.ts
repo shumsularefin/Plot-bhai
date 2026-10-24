@@ -237,16 +237,23 @@ export interface DetectDscOptions {
   minSeparationC: number;
 }
 
-export const DEFAULT_DETECT_DSC: DetectDscOptions = { prominencePercent: 8, minSeparationC: 15 };
+export const DEFAULT_DETECT_DSC: DetectDscOptions = { prominencePercent: 15, minSeparationC: 15 };
+
+function median(values: ArrayLike<number>): number {
+  const sorted = Array.from(values).sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)] ?? 0;
+}
 
 /** An event limit is where the slope of the curve has fallen to this share of the steepest slope of the flank. */
 const SLOPE_FRACTION = 0.02;
+/** …and never below this many times the noise of the slope (robust, from the median absolute deviation). */
+const NOISE_FACTOR = 3;
 
 /**
  * Finds endothermic and exothermic peaks as local extrema of the heat flow whose prominence is at
  * least `prominencePercent` of the range of the curve. Each peak gets limits on both sides at
  * the point where the slope of the curve (local quadratic fit) has fallen to 2 % of the steepest
- * slope on that flank, so a peak ends where the curve flattens out, also when a step in the
+ * slope on that flank, or to 3 times the noise of the slope if that is larger, so a peak ends where the curve flattens out, also when a step in the
  * baseline lies beyond it. The search never goes beyond the middle between two peaks or the ends
  * of the data. Limits and baselines are only a first guess: they are adjustable. Events are
  * numbered by temperature.
@@ -290,7 +297,11 @@ export function detectEvents(
   }
   kept.sort((a, b) => a.wavenumber - b.wavenumber);
   const centres = kept.map((p) => nearest(p.wavenumber));
-  const slope = localPolynomial(T, exo, Math.max(2, Math.floor(n / 100)), 2).slope;
+  const rawSlope = localPolynomial(T, exo, Math.max(2, Math.floor(n / 100)), 2).slope;
+  const middle = median(rawSlope);
+  // Slope relative to the typical (baseline) slope, and the noise of the slope.
+  const slope = rawSlope.map((v) => v - middle);
+  const slopeNoise = 1.4826 * median(slope.map(Math.abs));
 
   /** Row where the peak at `c` ends when walking in direction `step` (−1 left, +1 right) up to `bound`. */
   const walk = (c: number, sign: number, step: -1 | 1, bound: number) => {
@@ -308,7 +319,8 @@ export function detectEvents(
     for (let j = c; j !== i + step && j >= 0 && j < n; j += step) {
       steepest = Math.max(steepest, Math.abs(slope[j] as number));
     }
-    while (i !== bound && Math.abs(slope[i] as number) > SLOPE_FRACTION * steepest) i += step;
+    const floor = Math.max(SLOPE_FRACTION * steepest, NOISE_FACTOR * slopeNoise);
+    while (i !== bound && Math.abs(slope[i] as number) > floor) i += step;
     return i;
   };
   return centres.map((c, k) => {
