@@ -1,5 +1,92 @@
 # Progress
 
+## Sub-stage 10b: particles, automatic detection (done)
+
+Branch `claude/hopeful-dirac-72ak86`, stacked on UV-Vis, FTIR and 10a (pull request 18 is still not
+merged into `main`).
+
+### What was built
+
+- Wizard is now 1 Upload, 2 Crop and scale, 3 Detect particles, 4 Measure by hand, 5 Distribution and
+  export (placeholder until 10c). The hand tools of 10a are unchanged.
+- Pure TypeScript pipeline (`src/core/particles/detect/`), no OpenCV, run in a Web Worker
+  (`src/workers/detect.worker.ts`, `detectClient.ts`; cancel button; the page stays responsive):
+  grayscale (BT.601 weights), optional invert, Gaussian blur or median filter, threshold (Otsu from
+  the histogram of the crop area only, adaptive by local mean, or manual), the analysis area, opening
+  and closing by a disc (exact Euclidean distance transform), fill holes, 8-connected labelling, and
+  a watershed split of touching particles.
+- Splitting: marker watershed on the distance transform. Every local maximum starts a basin; basins
+  are merged again unless the neck between them is narrower than a chosen percentage (default 70 %)
+  of the smaller basin's radius. Equal discs overlapping by 2 px are split; a rod and a heavily
+  overlapped pair stay whole.
+- Per particle (`regions.ts`): area, area-equivalent diameter, longest and shortest Feret diameter
+  (from the convex hull of the pixel outline), aspect ratio (longest / shortest Feret), perimeter,
+  circularity (4π area / perimeter², at most 1), centroid. Particles are stored as pixel runs, which
+  makes merging, cutting and re-measuring exact.
+- Review and editing: outlines with ID numbers over the image (vector layer), threshold preview
+  (pink), Select tool (click, Shift or Ctrl for several) and a select checkbox in every table row,
+  Delete selected, Merge selected, Cut (drag a line across a neck), Add a circle or an ellipse for
+  missed particles, Undo (30 steps). IDs are never reused.
+- Filters that hide without deleting: diameter limits in px, nm or µm, lowest circularity, leave out
+  particles touching the edge (the crop area or image edge); counts say how many were left out and
+  why. Table with sizes in px, nm or µm and a CSV with all columns, in px and nm.
+- Warnings: no particles found, more than half the image marked as particles (probably dark particles
+  and "darker than the background" not ticked), result out of date after a setting or crop change, and
+  the required note: "Automatic detection works best on well separated particles with good contrast.
+  Review the outlines."
+- Saved state version 2 with a migration from version 1.
+- Tests: `particles-detect` (primitives and whole-pipeline accuracy), `particles-view`
+  (working-copy mapping, filters, migration), `particlesDetect` (component, worker mocked); `npm run e2e`
+  detects the example in a real browser.
+
+### Known-answer results
+
+- Synthetic images of 7 discs of 30 to 60 px, noise sd 10 grey levels: all found, equivalent diameters
+  within 3 % (the real worst error was below 1 %). A touching pair of equal discs (4 px overlap) and an
+  unequal pair are split and measured within 5 to 6 %; without splitting they are one blob. Dark
+  particles need the invert option. Particles outside the crop (a black data bar) are ignored, and
+  Otsu is computed without the bar. Detection on a half-size copy, diameters mapped back, within 3 %.
+  Edge-touching particles are flagged.
+- In a real browser the example image (12 discs, crop off the data bar) gave all 12 diameters within
+  0.8 % of the true ones, in about 0.9 s.
+- Speed: 4 MP (node) 3.4 s; a 20 megapixel PNG in a real browser (working copy 4096 × 2731) took 10.3 s
+  to detect 341 particles, with the page responsive (longest frame gap 17 ms while it ran). This is
+  acceptable with the progress note and Cancel button, so OpenCV.js was not added.
+
+### Decisions
+
+- Circularity is a corner-cutting estimate: a circle drawn in pixels reads about 0.90 and a square
+  0.83 (true 0.785). The perimeter joins midpoints of the outline's unit edges, which leaves round
+  shapes about 5 % long. The help text and the CSV note say so. Equivalent diameter and area use the
+  pixel count and are accurate to about 1 %.
+- Aspect ratio is longest over shortest Feret diameter, not the ratio of fitted ellipse axes.
+- The default settings (Gaussian blur 1 px, Otsu, opening and closing by 1 px, split at 70 %) are my own.
+- Settings radii are in pixels of the working copy (the note says so when the image was shrunk);
+  everything stored and exported is in original pixels or nm.
+- Merging joins the pixel sets; two particles that are far apart become one particle in two pieces.
+- Cut applies to every visible particle the drawn segment touches, along the straight line through it.
+- The stored particles keep their pixel runs (a few numbers per row), so saving after each edit
+  rewrites a few hundred kilobytes for a thousand particles.
+
+### Known issues
+
+- No real SEM or TEM image has been tried; real images with uneven backgrounds, charging or shadows
+  will need the adaptive threshold and probably manual edits.
+- Shapes drawn by hand have axes parallel to the image edges; merged and cut particles keep their
+  pixels exactly.
+- Computing shapes for several thousand particles blocks the page for a moment after detection.
+- Detection and manual measurements are separate lists; step 5 (10c) will decide how they combine.
+- Particle outlines are drawn for visible particles only; very many (thousands) can feel slow to pan.
+
+### What I need from you
+
+- A real SEM or TEM image with its scale bar and ImageJ numbers for the same particles.
+- Merge pull request 18 into `main`.
+
+### Next sub-stage
+
+10c (particles: distribution, export), when you say so.
+
 ## Sub-stage 10a: particles, image, scale, manual measuring (done)
 
 Branch `claude/hopeful-dirac-72ak86`, stacked on UV-Vis and FTIR (pull request 18 is still not merged into

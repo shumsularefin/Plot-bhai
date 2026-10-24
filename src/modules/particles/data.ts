@@ -5,6 +5,8 @@ import {
   type Point,
   type Rect,
 } from '../../core/particles/geometry';
+import { DEFAULT_DETECT_SETTINGS, type DetectSettings } from '../../core/particles/detect/pipeline';
+import type { Runs } from '../../core/particles/detect/regions';
 import type { WizardState } from '../../ui/wizard/types';
 
 /** Facts about the loaded image. The image itself is stored separately (see imageStore.ts). */
@@ -30,6 +32,55 @@ export interface ScaleBar {
   unit: LengthUnit;
 }
 
+/** A particle found by the detection or added or changed by hand. Its pixels are on the working copy grid. */
+export interface Particle {
+  id: number;
+  runs: Runs;
+  source: 'auto' | 'added' | 'merged' | 'cut';
+}
+
+/** Which detected particles are shown and counted. Size limits are in `unit`. */
+export interface ParticleFilters {
+  unit: 'px' | LengthUnit;
+  minDiameter: number | null;
+  maxDiameter: number | null;
+  minCircularity: number | null;
+  excludeEdge: boolean;
+}
+
+export const DEFAULT_FILTERS: ParticleFilters = {
+  unit: 'px',
+  minDiameter: null,
+  maxDiameter: null,
+  minCircularity: null,
+  excludeEdge: false,
+};
+
+/** Automatic detection settings, its result and the user's edits of it. */
+export interface DetectState {
+  settings: DetectSettings;
+  filters: ParticleFilters;
+  particles: Particle[];
+  /** The number the next particle gets; ids are never reused. */
+  nextParticleId: number;
+  /** Settings and crop of the last detection, to tell when the result is out of date. */
+  detectedWith: string | null;
+  /** True once the user has merged, cut, added or deleted a particle. */
+  edited: boolean;
+  /** The grey level Otsu chose in the last detection, if it was used. */
+  thresholdUsed: number | null;
+}
+
+export const initialDetectState: DetectState = {
+  settings: DEFAULT_DETECT_SETTINGS,
+  filters: DEFAULT_FILTERS,
+  particles: [],
+  nextParticleId: 1,
+  detectedWith: null,
+  edited: false,
+  thresholdUsed: null,
+};
+
 /** Everything saved for a particle size analysis. */
 export interface ParticleData {
   image: ImageInfo | null;
@@ -39,6 +90,7 @@ export interface ParticleData {
   measurements: Measurement[];
   /** The number the next measurement gets; ids are never reused. */
   nextId: number;
+  detect: DetectState;
 }
 
 export const initialParticleData: ParticleData = {
@@ -47,14 +99,21 @@ export const initialParticleData: ParticleData = {
   scale: null,
   measurements: [],
   nextId: 1,
+  detect: initialDetectState,
 };
 
 /** Version of the saved shape. Bump it, and add a migration, when the shape changes. */
-export const PARTICLE_STATE_VERSION = 1;
+export const PARTICLE_STATE_VERSION = 2;
 
-/** No older versions exist yet, so older or newer saved data are discarded. */
-export function migrateParticleData(): WizardState<ParticleData> | undefined {
-  return undefined;
+/** Upgrades saved sessions: version 1 (sub-stage 10a) had no automatic detection state. */
+export function migrateParticleData(
+  saved: unknown,
+  version: number,
+): WizardState<ParticleData> | undefined {
+  if (version !== 1) return undefined;
+  const state = saved as WizardState<Partial<ParticleData>>;
+  if (!state || typeof state !== 'object' || !state.data) return undefined;
+  return { ...state, data: { ...initialParticleData, ...state.data, detect: initialDetectState } };
 }
 
 /** The usable calibration: a drawn bar with a positive length, otherwise null. */

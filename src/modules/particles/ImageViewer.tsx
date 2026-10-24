@@ -13,8 +13,29 @@ import { wheelZooms } from '../../ui/plot/InteractivePlot';
 import type { DecodedImage } from './decode';
 import './particles.css';
 
-export type Tool = 'pan' | 'scale' | 'crop' | 'line' | 'circle' | 'ellipse';
-export type DrawTool = Exclude<Tool, 'pan'>;
+export type Tool =
+  | 'pan'
+  | 'select'
+  | 'scale'
+  | 'crop'
+  | 'line'
+  | 'circle'
+  | 'ellipse'
+  | 'add-circle'
+  | 'add-ellipse'
+  | 'cut';
+/** Tools that draw by dragging. */
+export type DrawTool = Exclude<Tool, 'pan' | 'select'>;
+
+/** A detected particle on the overlay: outline path in working grid pixels and a label position. */
+export interface ParticleOverlay {
+  id: number;
+  d: string;
+  selected: boolean;
+  /** Label position in original pixels. */
+  cx: number;
+  cy: number;
+}
 
 /** A drag shorter than this many screen pixels is a click, not a drawing. */
 const MIN_DRAG_PX = 4;
@@ -27,6 +48,13 @@ interface ImageViewerProps {
   measurements?: readonly Measurement[];
   /** Called when the user finishes dragging with a drawing tool; points are in original pixels. */
   onDraw?: (tool: DrawTool, a: Point, b: Point) => void;
+  /** Detected particles (outlines on the working grid) and the working copy's scale to the original. */
+  particles?: readonly ParticleOverlay[];
+  workScale?: number;
+  /** Threshold preview, drawn over the image: a canvas the size of the working copy. */
+  mask?: HTMLCanvasElement | null;
+  /** Called when the Select tool is clicked (not dragged); extend is true with Shift, Ctrl or Cmd. */
+  onPick?: (point: Point, extend: boolean) => void;
   /** Accessible description of what the viewer is for. */
   label: string;
 }
@@ -48,7 +76,9 @@ interface Gesture {
  * are in pixels of the original image.
  */
 export function ImageViewer(props: ImageViewerProps) {
-  const { image, tool, crop, scale, measurements = [], onDraw, label } = props;
+  const { image, tool, crop, scale, measurements = [], onDraw, onPick, label } = props;
+  const particles = props.particles ?? [];
+  const workScale = props.workScale ?? 1;
   const box = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -137,8 +167,8 @@ export function ImageViewer(props: ImageViewerProps) {
       setDraft(null);
       return;
     }
-    if (tool === 'pan') {
-      gesture.current = { mode: 'pan', last: p };
+    if (tool === 'pan' || tool === 'select') {
+      gesture.current = { mode: 'pan', last: p, fromScreen: p };
     } else {
       const from = toImage(p, view);
       gesture.current = { mode: 'draw', from, fromScreen: p };
@@ -178,10 +208,15 @@ export function ImageViewer(props: ImageViewerProps) {
     const g = gesture.current;
     pointers.current.delete(event.pointerId);
     if (g.mode === 'draw' && g.from && g.fromScreen && view) {
-      if (distance(p, g.fromScreen) >= MIN_DRAG_PX && tool !== 'pan') {
+      if (distance(p, g.fromScreen) >= MIN_DRAG_PX && tool !== 'pan' && tool !== 'select') {
         onDraw?.(tool, g.from, toImage(p, view));
       }
       setDraft(null);
+      gesture.current = { mode: 'none' };
+    } else if (g.mode === 'pan' && tool === 'select' && g.fromScreen && view) {
+      if (distance(p, g.fromScreen) < MIN_DRAG_PX) {
+        onPick?.(toImage(p, view), event.shiftKey || event.ctrlKey || event.metaKey);
+      }
       gesture.current = { mode: 'none' };
     } else if (g.mode === 'pinch' && pointers.current.size === 1) {
       const [rest] = [...pointers.current.values()] as [Point];
@@ -239,13 +274,36 @@ export function ImageViewer(props: ImageViewerProps) {
             {measurements.map((m) => (
               <Shape key={m.id} kind={m.kind} a={s(m.a)} b={s(m.b)} id={m.id} />
             ))}
-            {draft && tool !== 'pan' && (
-              <Shape
-                kind={tool === 'crop' ? 'cropDraft' : tool}
-                a={s(draft.a)}
-                b={s(draft.b)}
-                draft
-              />
+            {particles.length > 0 && (
+              <>
+                <g transform={`translate(${view.tx} ${view.ty}) scale(${view.scale / workScale})`}>
+                  {particles.map((q) => (
+                    <path
+                      key={q.id}
+                      d={q.d}
+                      class={`particle-outline${q.selected ? ' is-selected' : ''}`}
+                    />
+                  ))}
+                </g>
+                {particles.length <= MAX_LABELS &&
+                  particles.map((q) => {
+                    const at = s({ x: q.cx, y: q.cy });
+                    return (
+                      <text
+                        key={q.id}
+                        x={at.x}
+                        y={at.y}
+                        class="particle-label"
+                        text-anchor="middle"
+                      >
+                        {q.id}
+                      </text>
+                    );
+                  })}
+              </>
+            )}
+            {draft && tool !== 'pan' && tool !== 'select' && (
+              <Shape kind={draftKind(tool)} a={s(draft.a)} b={s(draft.b)} draft />
             )}
           </svg>
         )}
@@ -265,8 +323,8 @@ export function ImageViewer(props: ImageViewerProps) {
         </span>
       </div>
       <p class="field-hint">
-        Drag to {tool === 'pan' ? 'move the image' : 'draw'}; pinch with two fingers to zoom, or
-        hold Ctrl or Cmd and scroll. Click the image first to use the keyboard.
+        Drag to {tool === 'pan' || tool === 'select' ? 'move the image' : 'draw'}; pinch with two
+        fingers to zoom, or hold Ctrl or Cmd and scroll. Click the image first to use the keyboard.
       </p>
     </div>
   );
@@ -300,7 +358,17 @@ function CropShade({
   );
 }
 
-type ShapeKind = 'scale' | 'line' | 'circle' | 'ellipse' | 'cropDraft';
+type ShapeKind = 'scale' | 'line' | 'circle' | 'ellipse' | 'cropDraft' | 'cut';
+
+/** Particle numbers are drawn on the image only while there are not too many of them. */
+const MAX_LABELS = 150;
+
+function draftKind(tool: DrawTool): ShapeKind {
+  if (tool === 'crop') return 'cropDraft';
+  if (tool === 'add-circle') return 'circle';
+  if (tool === 'add-ellipse') return 'ellipse';
+  return tool;
+}
 
 /** One overlay shape in screen coordinates: a dark outline under a coloured one, so it shows on any image. */
 function Shape({

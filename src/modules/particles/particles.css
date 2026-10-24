@@ -118,3 +118,40 @@
 .particle-step > * {
   min-width: 0;
 }
+
+.image-viewer.tool-select {
+  cursor: pointer;
+}
+
+.particle-outline {
+  fill: none;
+  stroke: #00e5ff;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+}
+
+.particle-outline.is-selected {
+  fill: rgba(255, 212, 0, 0.35);
+  stroke: #ffd400;
+  stroke-width: 2.5;
+}
+
+.particle-label {
+  fill: #ffffff;
+  stroke: rgba(0, 0, 0, 0.85);
+  stroke-width: 3;
+  paint-order: stroke;
+  font: 600 11px var(--font-sans);
+  pointer-events: none;
+}
+
+.shape-cut {
+  stroke: #ff3b30;
+  fill: none;
+}
+
+.is-selected-row th,
+.is-selected-row td {
+  background: var(--color-accent-soft);
+}

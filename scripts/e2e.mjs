@@ -257,7 +257,30 @@ try {
   await next('Crop and scale');
   await page.getByRole('button', { name: /Use the example's scale bar/ }).click();
   await page.getByText(/2 pixels per nm/).waitFor();
-  await next('Measure');
+  // Keep the data bar out of the analysis area, then detect the 12 example particles.
+  await page.getByLabel(/Remove a strip from the bottom/).fill('96');
+  await page.getByRole('button', { name: 'Apply', exact: true }).click();
+  await next('Detect particles');
+  await page.locator('button.btn-primary', { hasText: 'Detect particles' }).click();
+  await page.getByText(/12 of 12 particles shown/).waitFor({ timeout: 30_000 });
+  const detected = await page
+    .locator('.peak-table tbody tr')
+    .evaluateAll((rows) =>
+      rows.map((row) => parseFloat(row.querySelectorAll('td, th')[3].textContent)),
+    );
+  const truth = [60, 70, 80, 90, 100, 110, 120, 80, 90, 100, 70, 85]
+    .map((d) => d / 2)
+    .sort((a, b) => a - b);
+  detected
+    .sort((a, b) => a - b)
+    .forEach((d, i) => {
+      assert.ok(
+        Math.abs(d - truth[i]) / truth[i] < 0.03,
+        `particle ${i}: ${d} nm should be near ${truth[i]} nm`,
+      );
+    });
+  step('Particles: 12 particles detected, every diameter within 3 % of the true one');
+  await next('Measure by hand');
   await page.getByText('Enter coordinates instead of drawing').click();
   await page.getByLabel('First point x (px)').fill('300');
   await page.getByLabel('First point y (px)').fill('300');

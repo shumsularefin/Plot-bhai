@@ -1,10 +1,11 @@
 import type { WizardStep } from '../../ui/wizard/types';
 import type { ParticleData } from './data';
+import { DetectStep } from './DetectStep';
 import { MeasureStep } from './MeasureStep';
 import { ScaleStep } from './ScaleStep';
 import { UploadStep } from './UploadStep';
 
-/** The particle size wizard. Automatic detection (10b) joins step 3; step 4 is built in 10c. */
+/** The particle size wizard. The last step is built in 10c. */
 export const particleSteps: readonly WizardStep<ParticleData>[] = [
   {
     id: 'upload',
@@ -20,7 +21,8 @@ export const particleSteps: readonly WizardStep<ParticleData>[] = [
     title: 'Crop and scale',
     render: (context) => <ScaleStep {...context} />,
   },
-  { id: 'measure', title: 'Measure', render: (context) => <MeasureStep {...context} /> },
+  { id: 'detect', title: 'Detect particles', render: (context) => <DetectStep {...context} /> },
+  { id: 'measure', title: 'Measure by hand', render: (context) => <MeasureStep {...context} /> },
   {
     id: 'results',
     title: 'Distribution and export',
