@@ -1,5 +1,79 @@
 # Progress
 
+## Sub-stage 7a: texture, crystallinity, pattern character (done)
+
+Branch `claude/ecstatic-einstein-mofaev`. Added to the Results step (wizard step 7), below the
+(hkl) and lattice section.
+
+### What was built
+
+- `src/core/xrd/analysis/texture.ts`: Harris texture coefficient TC = (I/I0) / mean(I/I0), with the
+  equation and units in the doc comment. Refuses for fewer than two reflections, a zero reference
+  or no observed intensity.
+- `src/core/xrd/analysis/crystallinity.ts`: crystallinity index = crystalline area / total area
+  x 100 over a chosen 2theta range. The amorphous hump is a Gaussian (centre and FWHM given, height
+  fitted by least squares to the points more than 6 FWHM from a fitted peak) or straight lines
+  through the pattern level at typed anchor positions. Plain refusals for a narrow range, too few
+  points or anchors, or a hump as large as the pattern.
+- `src/core/xrd/analysis/character.ts`: rule-based hints (orientation, random powder, broad peaks,
+  large amorphous share). Each has a reason and the words "Estimate only; a powder pattern cannot
+  prove single-crystal or layered structure."
+- `src/core/xrd/reference/hkl.ts`: `formatHkl` moved here from the module so core can use it.
+- `src/modules/xrd/extraAnalysis.ts` and `ExtraAnalysisSection.tsx`: texture table (height or area,
+  CSV), crystallinity block (range, hump choice, plot with the dashed hump, CSV, figure export),
+  hint list, and a summary table (lattice parameters, cell volume, TC, crystallinity) with CSV.
+- `NumberInput` moved out of `ResultsStep.tsx` so both files share it.
+- Saved state is version 8 (`analysis` settings). Version 7 sessions migrate and keep their
+  material choice.
+
+### Tests
+
+- `tests/xrd-analysis.test.ts`: TC worked example (ratios 10, 1, 1, 1 give 10/3.25 and 1/3.25),
+  00l x10 gives TC(00l) > 1, missing reflection gives TC 0, refusals; crystallinity recovered
+  within 2 % (Gaussian hump, noise-free and with noise) and within 8 % (anchors); hint rules.
+- `tests/extraAnalysis.test.ts`: synthetic ZnO patterns built from the library lines and fitted:
+  random pattern gives TC near 1 and the random hint; 00l x10 gives TC(00l) > 1 and the others
+  < 1; only 00l lines trigger the orientation hint with its reason.
+
+### Decisions and known issues
+
+- **Thresholds are my own rules of thumb, not published values; please check them** (all named
+  constants in `character.ts`): strong line = 10 % of the strongest, orientation needs 2 missing
+  strong lines of other families, random needs 80 % of strong lines and TC in 0.5 to 1.5 for at
+  least 4 peaks, broad = median FWHM at or above 1 degree, amorphous = index below 50 %.
+- Reflections inside the scanned range with no assigned peak count as intensity 0. If you fit only
+  some of the visible peaks, TC and the hints are distorted; the screen says to fit every peak.
+- The anchor hump overestimates the hump a little, because each anchor also reads the long tails
+  of the peaks (test: index about 6 % too low relative). The Gaussian option avoids the points near
+  peaks and is within 2 %.
+- A background you do not remove counts as amorphous. The screen says so.
+- **ZnO library entry to verify:** `zno-wurtzite` is COD 2300116 with a = 3.195 and c = 5.1027 A.
+  From memory, bulk ZnO is about a = 3.25 and c = 5.21 A, so this entry has a noticeably smaller
+  cell and its peaks sit about 0.6 degrees higher in 2theta than I expected. I did not check COD in
+  this sub-stage and the library is unchanged. Please check the entry; the 6a selection rule may
+  have picked an unusual structure.
+- Open from earlier: SnO2 cross-check deviation, skipped phases, COD selection rule, Si and LaB6
+  entries, unverified Mo and Ag wavelengths, figure export lacks stick lanes (7b).
+
+### Verification
+
+- `npm run lint`: pass. `npm run typecheck`: pass.
+- `npm test`: 271 passed, 1 skipped (the real-file test, waiting for your file).
+- `npm run build`: pass. `npm run size`: within budget.
+- Headless Chromium at 360 and 1280 px, synthetic anatase scan: texture table (all TC 0.93 to
+  1.06), crystallinity on and off, anchors, reload keeps the setting, random-powder hint, summary
+  table; no horizontal scroll, no console errors.
+
+### You check
+
+With your real file: fit all visible peaks, then read the TC values and the hint. For a film or
+oriented sample the strong plane should have TC well above 1. For crystallinity, look at the dashed
+hump: it should follow the broad bulge under the peaks.
+
+### Next
+
+Sub-stage 7b (figure builder, methods text, export, end-to-end test).
+
 ## Sub-stage 6c: hkl labels, combined table and lattice refinement (done)
 
 Branch `claude/ecstatic-einstein-mofaev`. Added to the Results step (wizard step 7).

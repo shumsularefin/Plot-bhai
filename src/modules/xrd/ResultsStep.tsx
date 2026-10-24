@@ -1,4 +1,3 @@
-import type { ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
 import type { CorrectionMethod } from '../../core/xrd/instrument/correction';
 import type { Estimate } from '../../core/xrd/size/methods';
@@ -9,7 +8,9 @@ import type { StepContext } from '../../ui/wizard/types';
 import { assignmentFor } from './assignment';
 import { AssignmentSection } from './AssignmentSection';
 import { downloadCsv } from './csv';
+import { ExtraAnalysisSection } from './ExtraAnalysisSection';
 import type { PatternChoices, ResultsSettings, XrdData } from './data';
+import { NumberInput } from './NumberInput';
 import { LineDetails, Messages, ScherrerDetails, TableBox } from './MethodDetails';
 import { useReferencePhases } from './useReferencePhases';
 import {
@@ -174,6 +175,13 @@ export function ResultsStep({ data, update }: StepContext<XrdData>) {
         onRefineZeroShift={setRefineZeroShift}
       />
 
+      <ExtraAnalysisSection
+        data={data}
+        update={update}
+        patternId={pattern.id}
+        assignment={assignment}
+      />
+
       {results.kind === 'none' ? (
         <p class="message is-warning">
           <strong>Check:</strong> {results.reason}
@@ -219,45 +227,6 @@ export function ResultsStep({ data, update }: StepContext<XrdData>) {
         </>
       )}
     </div>
-  );
-}
-
-interface NumberInputProps {
-  label: string;
-  value: number | null;
-  onChange: (value: number | null) => void;
-  min?: number;
-  max?: number;
-  step?: number;
-  help?: ComponentChildren;
-}
-
-function NumberInput({ label, value, onChange, min, max, step, help }: NumberInputProps) {
-  return (
-    <label class="inline-field">
-      <span>
-        {label} {help}
-      </span>
-      <input
-        type="number"
-        inputMode="decimal"
-        step={step ?? 'any'}
-        {...(min !== undefined && { min })}
-        {...(max !== undefined && { max })}
-        value={value ?? ''}
-        onInput={(e) => {
-          const text = e.currentTarget.value.trim();
-          const v = Number(text);
-          if (text === '') onChange(null);
-          else if (
-            Number.isFinite(v) &&
-            (min === undefined || v > min) &&
-            (max === undefined || v <= max)
-          )
-            onChange(v);
-        }}
-      />
-    </label>
   );
 }
 

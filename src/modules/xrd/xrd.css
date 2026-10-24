@@ -838,3 +838,21 @@
 .lattice-title {
   font-size: var(--text-md);
 }
+
+.crystallinity {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.crystallinity-result {
+  margin: 0;
+  font-size: var(--text-md);
+}
+
+.character-hints {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

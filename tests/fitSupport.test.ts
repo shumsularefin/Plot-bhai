@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { levenbergMarquardt } from '../src/core/math/levenbergMarquardt';
 import {
+  DEFAULT_ANALYSIS,
   DEFAULT_INSTRUMENT,
   DEFAULT_MATERIAL,
   DEFAULT_RESULTS,
@@ -109,6 +110,7 @@ describe('session migration', () => {
     expect(fromStage4?.data.results).toEqual(DEFAULT_RESULTS);
     expect(migrateXrdData({}, 6)).toBeUndefined();
     expect(migrateXrdData({}, 7)).toBeUndefined();
+    expect(migrateXrdData({}, 8)).toBeUndefined();
     expect(fromStage4?.data.material).toEqual(DEFAULT_MATERIAL);
   });
 
@@ -127,5 +129,15 @@ describe('session migration', () => {
       jcpds: {},
       toleranceDeg: 0.15,
     });
+  });
+
+  it('upgrades Stage 6c sessions, keeping the reference material choice and adding analysis settings', () => {
+    const material = { familyId: 'tio2', phaseIds: ['anatase'] };
+    const fromVersion7 = migrateXrdData(
+      { step: 7, furthest: 7, data: { patterns: [], plot: {}, material } },
+      7,
+    );
+    expect(fromVersion7?.data.material).toEqual(material);
+    expect(fromVersion7?.data.analysis).toEqual(DEFAULT_ANALYSIS);
   });
 });
