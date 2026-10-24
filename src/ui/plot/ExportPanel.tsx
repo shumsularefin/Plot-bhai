@@ -14,6 +14,7 @@ import {
   type ExportSettings,
 } from './export';
 import type { PeakLabelSet } from './peakLabels';
+import type { ReferenceLane } from './ReferenceLanes';
 import type { AxisLabels, Domain, PlotMarker, PlotSeries } from './types';
 
 interface ExportPanelProps {
@@ -29,6 +30,8 @@ interface ExportPanelProps {
   residual?: readonly PlotSeries[] | undefined;
   /** Labels above peaks, drawn in the exported figure with their key. */
   peakLabels?: PeakLabelSet | undefined;
+  /** Reference stick patterns drawn in lanes under the exported figure. */
+  lanes?: readonly ReferenceLane[] | undefined;
 }
 
 /** Figure export: journal width presets, font, sizes, and SVG or PNG (300 or 600 dpi) download. */
@@ -42,6 +45,7 @@ export function ExportPanel({
   points,
   residual,
   peakLabels,
+  lanes,
 }: ExportPanelProps) {
   const [status, setStatus] = useState<{ text: string; error: boolean } | null>(null);
   // Several plots can be on one page, so ids and radio names must be unique.
@@ -70,7 +74,16 @@ export function ExportPanel({
   );
 
   const exportSvg = () => {
-    const svg = renderSvgString(series, domain, labels, settings, points, residual, peakLabels);
+    const svg = renderSvgString(
+      series,
+      domain,
+      labels,
+      settings,
+      points,
+      residual,
+      peakLabels,
+      lanes,
+    );
     downloadBlob(new Blob([svg], { type: 'image/svg+xml' }), `${stem}.svg`);
     setStatus({ text: `Saved ${stem}.svg.`, error: false });
   };
@@ -78,7 +91,16 @@ export function ExportPanel({
   const exportPng = async (dpi: number) => {
     setStatus({ text: `Creating the ${dpi} dpi image…`, error: false });
     try {
-      const svg = renderSvgString(series, domain, labels, settings, points, residual, peakLabels);
+      const svg = renderSvgString(
+        series,
+        domain,
+        labels,
+        settings,
+        points,
+        residual,
+        peakLabels,
+        lanes,
+      );
       downloadBlob(await svgToPng(svg, size, dpi), `${stem}-${dpi}dpi.png`);
       setStatus({ text: `Saved ${stem}-${dpi}dpi.png.`, error: false });
     } catch {

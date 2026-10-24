@@ -1,6 +1,8 @@
 import { h, render } from 'preact';
 import type { PeakLabelSet } from './peakLabels';
+import { LANE_HEIGHT_EM, LanesSvg } from './LanesSvg';
 import { PlotSvg } from './PlotSvg';
+import type { ReferenceLane } from './ReferenceLanes';
 import { setPngDpi } from './png';
 import type { AxisLabels, Domain, PlotMarker, PlotSeries } from './types';
 
@@ -65,7 +67,8 @@ const RESIDUAL_SHARE = 0.25;
  * Renders the figure as a standalone SVG document string. Sizes are physical (mm) and the
  * drawing units are points, so the font size and line width come out exactly as chosen.
  * A residual curve, when given, is drawn in its own panel under the main plot, as on screen.
- * Peak labels are drawn above their peaks, with their key in the legend.
+ * Peak labels are drawn above their peaks, with their key in the legend. Reference lanes
+ * (stick patterns, one per phase) are drawn under the plot over the same 2θ range.
  */
 export function renderSvgString(
   series: readonly PlotSeries[],
@@ -75,11 +78,15 @@ export function renderSvgString(
   markers?: readonly PlotMarker[],
   residual?: readonly PlotSeries[],
   peakLabels?: PeakLabelSet,
+  lanes?: readonly ReferenceLane[],
 ): string {
   const size = figureSize(settings);
   const width = size.widthMm * PT_PER_MM;
   const height = size.heightMm * PT_PER_MM;
   const residualHeight = residual ? height * RESIDUAL_SHARE : 0;
+  const lanesHeight = lanes?.length ? lanes.length * settings.fontSizePt * LANE_HEIGHT_EM : 0;
+  const stacked = residual !== undefined || lanesHeight > 0;
+  const mainHeight = height - residualHeight - lanesHeight;
   const style = {
     fontSize: settings.fontSizePt,
     lineWidth: settings.lineWidthPt,
@@ -89,18 +96,18 @@ export function renderSvgString(
     series,
     xDomain,
     width,
-    height: height - residualHeight,
+    height: mainHeight,
     labels,
     samples: VECTOR_SAMPLES,
     legend: true,
     ...(markers && { markers }),
     ...(peakLabels && { peakLabels }),
     style,
-    ...(residual
-      ? { svgAttributes: { x: 0, y: 0, width, height: height - residualHeight } }
+    ...(stacked
+      ? { svgAttributes: { x: 0, y: 0, width, height: mainHeight } }
       : { svgAttributes: { width: `${size.widthMm}mm`, height: `${size.heightMm}mm` } }),
   });
-  const root = residual
+  const root = stacked
     ? h(
         'svg',
         {
@@ -110,16 +117,31 @@ export function renderSvgString(
           height: `${size.heightMm}mm`,
         },
         main,
-        h(PlotSvg, {
-          series: residual,
-          xDomain,
-          width,
-          height: residualHeight,
-          labels: { x: labels.x, y: 'Residual' },
-          samples: VECTOR_SAMPLES,
-          style,
-          svgAttributes: { x: 0, y: height - residualHeight, width, height: residualHeight },
-        }),
+        residual &&
+          h(PlotSvg, {
+            series: residual,
+            xDomain,
+            width,
+            height: residualHeight,
+            labels: { x: labels.x, y: 'Residual' },
+            samples: VECTOR_SAMPLES,
+            style,
+            svgAttributes: {
+              x: 0,
+              y: mainHeight,
+              width,
+              height: residualHeight,
+            },
+          }),
+        lanesHeight > 0 &&
+          lanes &&
+          h(LanesSvg, {
+            lanes,
+            xDomain,
+            width,
+            style,
+            svgAttributes: { x: 0, y: height - lanesHeight, width, height: lanesHeight },
+          }),
       )
     : main;
   const host = document.createElement('div');

@@ -231,6 +231,45 @@ describe('SVG export', () => {
     expect(withResidual.match(/<svg/g)).toHaveLength(3);
   });
 
+  it('prints reference lanes with their names and sticks under the figure, inside the same size', () => {
+    const x = range(100, (i) => 20 + i * 0.1);
+    const [main] = prepareSeries(
+      [{ id: 'a', name: 'Data', x, y: range(100, (i) => i), unit: 'counts' }],
+      {
+        normalise: false,
+        offsetFraction: 0,
+      },
+    ) as [PlotSeries];
+    const lanes = [
+      {
+        id: 'p1',
+        name: 'Zincite, COD 0000001',
+        colorIndex: 1,
+        lines: [
+          { x: 22, height: 1, found: true },
+          { x: 25, height: 0.4, found: false },
+          { x: 95, height: 0.5 },
+        ],
+      },
+    ];
+    const svg = renderSvgString(
+      [main],
+      [20, 29.9],
+      { x: '2θ (°)', y: 'Intensity (a.u.)' },
+      DEFAULT_EXPORT_SETTINGS,
+      undefined,
+      undefined,
+      undefined,
+      lanes,
+    );
+    expect(svg).toContain('>Zincite, COD 0000001<');
+    expect(svg).toContain('width="85mm"');
+    expect(svg).toContain('height="65mm"');
+    // Two sticks in range (the one at 95° is outside the plotted range), one drawn fainter.
+    expect(svg.match(/stroke="#e69f00"/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(svg).toContain('stroke-opacity="0.45"');
+  });
+
   it('draws peak labels above their peaks, with their key, in the exported figure', () => {
     const x = range(100, (i) => 20 + i * 0.1);
     const [main] = prepareSeries(

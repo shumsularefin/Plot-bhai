@@ -1,29 +1,10 @@
 import { useState } from 'preact/hooks';
 import type { RegionFit } from '../../core/xrd/peaks/fit';
-import { toCsv, type CsvColumn, type PeakRow } from '../../core/xrd/peaks/table';
+import type { PeakRow } from '../../core/xrd/peaks/table';
 import { formatWithSigma } from '../../ui/format';
 import { HelpTip } from '../../ui/HelpTip';
-import { downloadBlob, fileStem } from '../../ui/plot/export';
-
-interface Column {
-  key: keyof PeakRow;
-  label: string;
-  sigma?: keyof PeakRow;
-  /** Plain fixed decimals for values without an uncertainty. */
-  decimals?: number;
-}
-
-const COLUMNS: Column[] = [
-  { key: 'twoTheta', label: '2θ (°)', sigma: 'twoThetaSigma' },
-  { key: 'd', label: 'd (Å)', sigma: 'dSigma' },
-  { key: 'fwhm', label: 'FWHM (°)', sigma: 'fwhmSigma' },
-  { key: 'fwhmRad', label: 'FWHM (rad)', sigma: 'fwhmRadSigma' },
-  { key: 'breadth', label: 'Integral breadth (°)', sigma: 'breadthSigma' },
-  { key: 'height', label: 'Height', sigma: 'heightSigma' },
-  { key: 'area', label: 'Area', sigma: 'areaSigma' },
-  { key: 'relativeIntensity', label: 'I/Imax (%)', decimals: 1 },
-  { key: 'eta', label: 'η', sigma: 'etaSigma' },
-];
+import { downloadTable } from './csv';
+import { PEAK_COLUMNS as COLUMNS, peakFitTable } from './tables';
 
 interface PeakTableProps {
   rows: PeakRow[];
@@ -44,31 +25,9 @@ export function PeakTable({ rows, regions, intensityUnit, lambda, patternName }:
     return sort.ascending ? d : -d;
   });
   const notesOf = (row: PeakRow) => regions[row.region]?.peaks[row.peak]?.messages ?? [];
-  const regionOf = (row: PeakRow) => regions[row.region];
 
-  const exportCsv = () => {
-    const columns: CsvColumn<PeakRow>[] = [
-      ...COLUMNS.flatMap((c) => [
-        { header: c.label, value: (r: PeakRow) => r[c.key] },
-        ...(c.sigma
-          ? [{ header: `σ ${c.label}`, value: (r: PeakRow) => r[c.sigma as keyof PeakRow] }]
-          : []),
-      ]),
-      { header: 'Region R²', value: (r) => regionOf(r)?.rSquared ?? '' },
-      {
-        header: 'Notes',
-        value: (r) =>
-          notesOf(r)
-            .map((m) => m.text)
-            .join(' '),
-      },
-    ];
-    const header = `# Peak fit for ${patternName}. d from Bragg's law with λ = ${lambda} Å. Height in ${intensityUnit}; area in ${intensityUnit} × degrees. σ = standard uncertainty from the fit covariance.\r\n`;
-    downloadBlob(
-      new Blob([header + toCsv(sorted, columns)], { type: 'text/csv' }),
-      `${fileStem(patternName)}-peaks.csv`,
-    );
-  };
+  const exportCsv = () =>
+    downloadTable(peakFitTable(patternName, sorted, regions, intensityUnit, lambda));
 
   return (
     <section class="peak-table-section" aria-labelledby="peak-table-title">
