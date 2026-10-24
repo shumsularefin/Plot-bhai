@@ -832,7 +832,7 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
   );
 }
 
-function downloadParticles(
+export function downloadParticles(
   rows: readonly Particle[],
   scale: number,
   perPixelNm: number | null,

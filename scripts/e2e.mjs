@@ -307,6 +307,39 @@ try {
   assert.match(cells[1], /Line\s+5\d(\.\d+)? nm/);
   step('Particles: example image, scale, a typed circle (50 nm) and a drawn line (about 50 nm)');
 
+  // Distribution: the true diameters are 30 … 60 nm (mean 43.96 nm, median 43.75 nm by hand).
+  await next('Distribution and export');
+  await page.getByText(/Only 12 particles/).waitFor();
+  const numbers = await page.locator('.dist-step .peak-table tbody tr').first().allInnerTexts();
+  const [count, mean, , median] = numbers[0].split('\t').map(parseFloat);
+  assert.equal(count, 12);
+  assert.ok(Math.abs(mean - 43.958) / 43.958 < 0.03, `mean ${mean} nm`);
+  assert.ok(Math.abs(median - 43.75) / 43.75 < 0.03, `median ${median} nm`);
+  const [histogramSvg] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Download SVG' }).click(),
+  ]);
+  assert.match(readFileSync(await histogramSvg.path(), 'utf8'), /Number of particles/);
+  const [summaryCsv] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Summary (CSV)' }).click(),
+  ]);
+  assert.match(readFileSync(await summaryCsv.path(), 'utf8'), /D90/);
+  const [annotated] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Annotated image (PNG)' }).click(),
+  ]);
+  assert.equal(
+    readFileSync(await annotated.path())
+      .subarray(1, 4)
+      .toString(),
+    'PNG',
+  );
+  await page.getByRole('button', { name: 'Save this image for pooling' }).click();
+  await page.getByText(/example-particles-synthetic.png: 12 particles \(nm\)/).waitFor();
+  assert.match(await page.getByLabel('Methods paragraph').inputValue(), /generated example/);
+  step('Particles: distribution numbers, histogram SVG, summary CSV, annotated PNG, pooling');
+
   assert.deepEqual(problems, [], `browser errors: ${problems.join('; ')}`);
   console.log('E2E passed.');
 } catch (error) {

@@ -155,3 +155,46 @@
 .is-selected-row td {
   background: var(--color-accent-soft);
 }
+
+.hist-bar {
+  fill: var(--plot-1);
+  stroke: var(--color-surface);
+  stroke-width: 0.5;
+}
+
+.hist-fit,
+.hist-cum {
+  fill: none;
+}
+
+.hist-fit {
+  stroke: var(--plot-4);
+}
+
+.hist-cum {
+  stroke: var(--plot-3);
+}
+
+.hist-fit-text {
+  fill: var(--plot-4);
+}
+
+.hist-cum-text {
+  fill: var(--plot-3);
+}
+
+.dist-step .export-field select {
+  width: auto;
+  max-width: 100%;
+}
+
+.dist-step > * {
+  min-width: 0;
+}
+
+.pool-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+  padding-left: var(--space-5);
+}

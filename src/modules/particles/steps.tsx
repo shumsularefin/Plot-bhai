@@ -1,11 +1,12 @@
 import type { WizardStep } from '../../ui/wizard/types';
 import type { ParticleData } from './data';
 import { DetectStep } from './DetectStep';
+import { DistributionStep } from './DistributionStep';
 import { MeasureStep } from './MeasureStep';
 import { ScaleStep } from './ScaleStep';
 import { UploadStep } from './UploadStep';
 
-/** The particle size wizard. The last step is built in 10c. */
+/** The particle size wizard. */
 export const particleSteps: readonly WizardStep<ParticleData>[] = [
   {
     id: 'upload',
@@ -26,12 +27,6 @@ export const particleSteps: readonly WizardStep<ParticleData>[] = [
   {
     id: 'results',
     title: 'Distribution and export',
-    render: () => (
-      <p class="message">
-        <strong>Coming soon:</strong> the size distribution (histogram, fits, D10, D50, D90) and the
-        export of figures and tables will be here. This step is not built yet. Your measurements
-        from step 3 are kept.
-      </p>
-    ),
+    render: (context) => <DistributionStep {...context} />,
   },
 ];

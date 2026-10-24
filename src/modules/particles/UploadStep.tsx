@@ -54,7 +54,7 @@ export function UploadStep({ data, update }: StepContext<ParticleData>) {
       synthetic,
       notes: image.notes,
     };
-    update({ ...initialParticleData, image: info });
+    update({ ...initialParticleData, pool: data.pool, image: info });
     setBusy(null);
   };
 
@@ -76,7 +76,7 @@ export function UploadStep({ data, update }: StepContext<ParticleData>) {
   const remove = () => {
     clearImageCache();
     void removeImage();
-    update({ ...initialParticleData });
+    update({ ...initialParticleData, pool: data.pool });
   };
 
   const info = data.image;

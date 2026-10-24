@@ -1,5 +1,60 @@
 # Progress
 
+## Sub-stage 10c: particles, distribution and export (done)
+
+Branch `claude/hopeful-dirac-72ak86`, stacked on 10b (pull request 18 is still not merged into `main`).
+
+### What was built
+
+- Step 5 "Distribution and export" replaces the placeholder. Pure maths in
+  `src/core/particles/distribution.ts`: percentiles (linear interpolation between sorted values, as
+  NumPy and `PERCENTILE.INC`), mean, sample SD (n − 1), median, D10, D50, D90 (by number), span
+  (D90 − D10) / D50, histogram bins by Freedman–Diaconis (2·IQR/n^(1/3), Sturges fallback when IQR is
+  0), Sturges (⌈log2 n⌉ + 1) or a manual count (1 to 200), cumulative curve, normal and lognormal fits
+  by maximum likelihood (σ with divisor n, log-likelihood reported; the higher one is named as a hint,
+  not as proof), and the warning below 100 particles.
+- Size measure: equal-area diameter, longest or shortest Feret diameter. Hand measurements from step 4
+  can be added.
+- Pooling: "Save this image for pooling" stores the diameters of the image in the saved state; the
+  pool survives loading another image. Images with and without a scale (nm and px) are never mixed;
+  the ones left out are listed. The image on screen is counted once even after it was saved.
+- Histogram figure (`HistogramChart.tsx`): bars, fitted curve scaled to counts, optional cumulative
+  curve on a right axis, inward ticks; SVG and PNG at 300 and 600 dpi, single or double column,
+  Arial or Times. CSV: summary, all sizes with their image, detected particles (the 10b table).
+  Annotated image PNG (outlines and numbers on the working copy, dashed crop frame).
+- Methods text (`src/core/particles/methods.ts`) written only from the settings used (scale, detection
+  settings, filters, hand edits, measure, bins, fits). It says nothing about the microscope.
+- Saved state version 3 (migration from 2 and 1).
+- Tests: `particles-distribution` (percentiles, bins and fits against hand-computed values; samples of
+  20 000 from a known lognormal and normal recover the parameters within 1 to 2 %),
+  `particlesDistribution` (sizes, pooling, migration, methods text, the step). `npm run e2e` runs the
+  step in a real browser; the example's mean and median are within 3 % of the true values.
+
+### Decisions
+
+- Percentile definition, bin rules and ML formulas are standard textbook ones, written in the doc
+  comments. Nothing was taken from memory as a published number.
+- D10, D50 and D90 are number-based, not volume-based; the help text and methods text say so.
+- A saved pool entry with the same file name as the image on screen is replaced when saved again and
+  not counted twice. Two different files with the same name are treated as one.
+
+### Known issues
+
+- No JSON session file for particles yet (the image itself lives in IndexedDB and is not in the file).
+- Circularity of a digital disc reads about 0.9 (see 10b).
+- Heights of the exported histogram follow the preset (65 mm single, 100 mm double); no free height.
+- Not tried with a real SEM or TEM image.
+
+### Needs from you
+
+- Merge pull request 18 into `main`.
+- A real SEM or TEM image with its scale bar, and ImageJ numbers for the same particles, in
+  `tests/fixtures-real/`.
+
+### Next sub-stage
+
+11a (TGA: import to step detection).
+
 ## Sub-stage 10b: particles, automatic detection (done)
 
 Branch `claude/hopeful-dirac-72ak86`, stacked on UV-Vis, FTIR and 10a (pull request 18 is still not

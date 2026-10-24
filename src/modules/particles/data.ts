@@ -7,6 +7,7 @@ import {
 } from '../../core/particles/geometry';
 import { DEFAULT_DETECT_SETTINGS, type DetectSettings } from '../../core/particles/detect/pipeline';
 import type { Runs } from '../../core/particles/detect/regions';
+import type { BinMethod } from '../../core/particles/distribution';
 import type { WizardState } from '../../ui/wizard/types';
 
 /** Facts about the loaded image. The image itself is stored separately (see imageStore.ts). */
@@ -81,6 +82,52 @@ export const initialDetectState: DetectState = {
   thresholdUsed: null,
 };
 
+/** Which diameter of each particle goes into the distribution. */
+export type SizeMeasure = 'equal-area' | 'longest' | 'shortest';
+
+export const SIZE_MEASURE_NAMES: Record<SizeMeasure, string> = {
+  'equal-area': 'Equal-area diameter',
+  longest: 'Longest caliper (Feret) diameter',
+  shortest: 'Shortest caliper (Feret) diameter',
+};
+
+/** One image's diameters, kept so that several images can be pooled into one distribution. */
+export interface PoolEntry {
+  id: string;
+  name: string;
+  /** nm when the image had a scale, otherwise px. Entries of the two kinds are never mixed. */
+  unit: 'nm' | 'px';
+  /** The three diameters of every particle, in `unit`. */
+  equalArea: number[];
+  longest: number[];
+  shortest: number[];
+}
+
+/** Settings of the distribution step. */
+export interface DistributionSettings {
+  measure: SizeMeasure;
+  /** Unit for display and export when the image has a scale. */
+  unit: LengthUnit;
+  binMethod: BinMethod;
+  manualBins: number;
+  /** Use the particles of the image on screen (detected particles and, if chosen, hand measurements). */
+  useCurrent: boolean;
+  includeHand: boolean;
+  showFit: 'lognormal' | 'normal' | 'none';
+  showCumulative: boolean;
+}
+
+export const DEFAULT_DISTRIBUTION: DistributionSettings = {
+  measure: 'equal-area',
+  unit: 'nm',
+  binMethod: 'freedman-diaconis',
+  manualBins: 12,
+  useCurrent: true,
+  includeHand: false,
+  showFit: 'lognormal',
+  showCumulative: false,
+};
+
 /** Everything saved for a particle size analysis. */
 export interface ParticleData {
   image: ImageInfo | null;
@@ -91,6 +138,9 @@ export interface ParticleData {
   /** The number the next measurement gets; ids are never reused. */
   nextId: number;
   detect: DetectState;
+  distribution: DistributionSettings;
+  /** Images saved for pooling. Kept when another image is loaded. */
+  pool: PoolEntry[];
 }
 
 export const initialParticleData: ParticleData = {
@@ -100,20 +150,32 @@ export const initialParticleData: ParticleData = {
   measurements: [],
   nextId: 1,
   detect: initialDetectState,
+  distribution: DEFAULT_DISTRIBUTION,
+  pool: [],
 };
 
 /** Version of the saved shape. Bump it, and add a migration, when the shape changes. */
-export const PARTICLE_STATE_VERSION = 2;
+export const PARTICLE_STATE_VERSION = 3;
 
-/** Upgrades saved sessions: version 1 (sub-stage 10a) had no automatic detection state. */
+/**
+ * Upgrades saved sessions: version 1 (sub-stage 10a) had no automatic detection state, and
+ * version 2 (10b) had no distribution settings or pool.
+ */
 export function migrateParticleData(
   saved: unknown,
   version: number,
 ): WizardState<ParticleData> | undefined {
-  if (version !== 1) return undefined;
+  if (version !== 1 && version !== 2) return undefined;
   const state = saved as WizardState<Partial<ParticleData>>;
   if (!state || typeof state !== 'object' || !state.data) return undefined;
-  return { ...state, data: { ...initialParticleData, ...state.data, detect: initialDetectState } };
+  return {
+    ...state,
+    data: {
+      ...initialParticleData,
+      ...state.data,
+      detect: version === 1 ? initialDetectState : (state.data.detect ?? initialDetectState),
+    },
+  };
 }
 
 /** The usable calibration: a drawn bar with a positive length, otherwise null. */
