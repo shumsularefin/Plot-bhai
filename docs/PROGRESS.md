@@ -44,7 +44,7 @@ Branch `claude/ecstatic-einstein-mofaev`.
   the sticks never hide data.
 - Hkl labels and lanes come from the first pattern that has fitted peaks and a chosen phase; the
   step says which pattern. The methods text describes the first pattern's processing and fit
-  settings; with several patterns it says how many were analysed.
+  settings and does not say how many patterns were analysed.
 - The session file stores the whole wizard state; on import only the data are restored and the user
   stays on the Export step.
 
