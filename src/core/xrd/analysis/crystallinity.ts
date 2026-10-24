@@ -17,7 +17,7 @@ export type HumpModel =
       /** Straight lines between the pattern's own level at the given 2θ positions. */
       kind: 'anchors';
       positions: readonly number[];
-      /** The level at an anchor is the mean intensity within ± this many degrees. */
+      /** The level at an anchor is the lowest intensity within ± this many degrees. */
       halfWidth?: number;
     };
 
@@ -47,6 +47,23 @@ export const PEAK_EXCLUSION_FWHM = 6;
 const DEFAULT_ANCHOR_HALF_WIDTH = 0.25;
 const MIN_FIT_POINTS = 5;
 
+/** Half-width of the moving mean the hump is clipped to, degrees 2θ. */
+const CLIP_HALF_WIDTH_DEG = 0.25;
+
+/** Mean of y within ±half of each x (x increasing). */
+function movingMean(x: ArrayLike<number>, y: ArrayLike<number>, half: number): Float64Array {
+  const out = new Float64Array(x.length);
+  let lo = 0;
+  let hi = 0;
+  let sum = 0;
+  for (let i = 0; i < x.length; i++) {
+    while (hi < x.length && (x[hi] as number) <= (x[i] as number) + half) sum += y[hi++] as number;
+    while ((x[lo] as number) < (x[i] as number) - half) sum -= y[lo++] as number;
+    out[i] = sum / (hi - lo);
+  }
+  return out;
+}
+
 /** Trapezoid rule area of y(x) over increasing x. */
 function trapezoid(x: ArrayLike<number>, y: ArrayLike<number>): number {
   let sum = 0;
@@ -67,7 +84,12 @@ function trapezoid(x: ArrayLike<number>, y: ArrayLike<number>): number {
  *   h(2θ) = H · exp(−4 ln 2 · (2θ − c)² / w²)
  * with centre c and FWHM w given, and H (the height) from least squares over the points outside
  * `exclude`: H = Σ g·I / Σ g², g the unit-height Gaussian. The anchor hump is linear between the
- * mean intensities at the anchor positions and flat beyond the outer anchors.
+ * lowest intensities within ±halfWidth of each anchor position and flat beyond the outer anchors.
+ * The lowest value is used because the slowly falling tails of nearby peaks only add to the
+ * level, and the minimum ignores most of that. Either hump is then clipped to the data
+ * (h = min(h, Ī), Ī the mean of I within ±0.25°), because the amorphous part cannot be larger
+ * than the measured intensity. The mean, not the single point, so that counting noise does not
+ * cut into the hump at every point where a count happens to fall low.
  *
  * It is a relative index: it depends on the range, the background and the hump you choose, and it
  * is not an absolute degree of crystallinity.
@@ -124,9 +146,7 @@ export function crystallinity(
         x.forEach((t, i) => {
           if (Math.abs(t - p) <= half) near.push(y[i] as number);
         });
-        return near.length > 0
-          ? [{ p, level: Math.max(0, near.reduce((s, v) => s + v, 0) / near.length) }]
-          : [];
+        return near.length > 0 ? [{ p, level: Math.max(0, Math.min(...near)) }] : [];
       });
     if (anchors.length < 2)
       return {
@@ -145,6 +165,8 @@ export function crystallinity(
     });
   }
 
+  const ceiling = movingMean(x, y, CLIP_HALF_WIDTH_DEG);
+  hump = hump.map((h, i) => Math.min(h, Math.max(0, ceiling[i] as number)));
   const totalArea = trapezoid(x, y);
   const amorphousArea = trapezoid(x, hump);
   const crystallineArea = totalArea - amorphousArea;

@@ -39,7 +39,13 @@ const D_MIN = 0.8;
 /** Largest U (Å²) accepted for an atom at room temperature; sanity filter, not a physical limit. */
 const MAX_U = 0.06;
 const MIN_INTENSITY = 0.05;
+/** Largest relative difference of a cell length from the median of the candidates for the phase. */
+const MAX_CELL_DEVIATION = 0.003;
+/** The median rule needs at least this many candidates to mean anything. */
+const MIN_FOR_MEDIAN = 3;
 const refresh = process.argv.includes('--refresh');
+/** `--explain=<phase id>` lists every candidate of that phase and why it was kept or dropped. */
+const explain = process.argv.find((a) => a.startsWith('--explain='))?.slice('--explain='.length);
 
 /** Fields of a COD search result that the selection uses. */
 interface CodRow {
@@ -52,6 +58,10 @@ interface CodRow {
   calcformula: string | null;
   formula: string | null;
   cellformula: string | null;
+  title: string | null;
+  pressurehist: string | null;
+  thermalhist: string | null;
+  compoundsource: string | null;
   celltemp: string | null;
   diffrtemp: string | null;
   cellpressure: string | null;
@@ -72,7 +82,10 @@ interface CodRow {
 
 interface Selection {
   /** COD ID chosen for each phase id. */
-  chosen: Record<string, { codId: number; row: CodRow; why: string }>;
+  chosen: Record<
+    string,
+    { codId: number; row: CodRow; why: string; cell: [number, number, number] }
+  >;
   /** Phases with no acceptable COD entry, with the reasons. */
   skipped: Record<string, string>;
 }
@@ -148,14 +161,15 @@ function parseFormula(formula: string): Record<string, number> {
   return counts;
 }
 
-const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
-
-/** Counts divided by their greatest common divisor, as a canonical string such as "O2 Ti1". */
+/**
+ * Atom fractions as a canonical string such as "O0.667 Ti0.333". Fractions (not reduced integers)
+ * so that vacancy formulas such as Fe21.33O32 equal Fe2O3.
+ */
 function reduced(counts: Record<string, number>): string {
-  const g = Object.values(counts).reduce(gcd);
+  const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
   return Object.keys(counts)
     .sort()
-    .map((el) => `${el}${Math.round((counts[el] as number) / g)}`)
+    .map((el) => `${el}${((counts[el] as number) / total).toFixed(3)}`)
     .join(' ');
 }
 
@@ -195,6 +209,7 @@ function rejectRow(row: CodRow, request: PhaseRequest): string | null {
     const names = [row.mineral, row.commonname, row.chemname].filter(Boolean).join(' | ');
     if (!request.mineral.test(names)) return 'name differs';
   }
+  if (request.hexagonalAxes && !/:H$/.test(row.sg ?? '')) return 'rhombohedral axes';
   if (row.status || row.onhold || row.duplicateof) return 'retracted, on hold or duplicate';
   for (const t of [row.celltemp, row.diffrtemp]) {
     if (t !== null && (Number(t) < 283 || Number(t) > 305)) return 'not room temperature';
@@ -205,15 +220,62 @@ function rejectRow(row: CodRow, request: PhaseRequest): string | null {
   return null;
 }
 
+/**
+ * Words that mark a non-ambient or non-pure sample: high pressure, off-room temperature,
+ * solid solutions and doped samples.
+ */
+const UNSUITABLE_WORDS: [RegExp, string][] = [
+  [
+    /high[- ]pressure|compression|compressib|kbar|\bGPa\b|diamond[- ]anvil|\banvil/i,
+    'high pressure or compression',
+  ],
+  [/low[- ]temperature|high[- ]temperature|cryogenic/i, 'not room temperature'],
+  [
+    /solid[- ]solution|feste[n]? l(?:oe|ö)sung|\bdop(?:ed|ant|ants|ing)\b/i,
+    'solid solution or doped',
+  ],
+];
+
+/** Reason to reject from the title and notes of an entry, or null. `text` is the COD record text plus the CIF without its comment lines. */
+function rejectText(text: string): string | null {
+  for (const [pattern, reason] of UNSUITABLE_WORDS) if (pattern.test(text)) return reason;
+  // "T = 100 K", "T=20 °C": a temperature quoted in the text must be 283 to 305 K.
+  for (const [, value, celsius] of text.matchAll(/\bT\s*=\s*(\d+(?:\.\d+)?)\s*(°\s*C|K)?/g)) {
+    const kelvin = Number(value) + (celsius ? 273.15 : 0);
+    if (kelvin < 283 || kelvin > 305)
+      return `temperature in the notes (T = ${value}${celsius ?? ' K'})`;
+  }
+  return null;
+}
+
+/** Title, history fields and CIF text of an entry, without CIF comment lines. */
+function entryText(row: CodRow, cifText: string): string {
+  const notes = [row.title, row.pressurehist, row.thermalhist, row.compoundsource];
+  const body = cifText
+    .split('\n')
+    .filter((line) => !line.startsWith('#'))
+    .join('\n');
+  return [...notes, body].filter(Boolean).join('\n');
+}
+
 /** Checks that need the CIF itself. Returns the reason for rejection, or null. */
-function rejectCif(cifText: string, row: CodRow, factors: FormFactors): string | null {
+function rejectCif(
+  cifText: string,
+  row: CodRow,
+  factors: FormFactors,
+  request: PhaseRequest,
+): string | null {
+  const wording = rejectText(entryText(row, cifText));
+  if (wording) return wording;
   let crystal;
   try {
     crystal = crystalFromCif(parseCif(cifText), factors);
   } catch (error) {
     return `CIF unusable: ${(error as Error).message}`;
   }
-  if (crystal.atoms.some((a) => Math.abs(a.occupancy - 1) > 1e-3)) return 'partial occupancy';
+  if (!request.partialOccupancy && crystal.atoms.some((a) => Math.abs(a.occupancy - 1) > 1e-3)) {
+    return 'partial occupancy';
+  }
   // Displacement parameters of a well-refined room-temperature structure are small and positive.
   const u = crystal.atoms.flatMap((a) => [a.uIso ?? 0, ...(a.uAniso?.slice(0, 3) ?? [])]);
   if (u.some((v) => v < -1e-3 || v > MAX_U))
@@ -235,33 +297,66 @@ function rejectCif(cifText: string, row: CodRow, factors: FormFactors): string |
 async function selectPhase(
   request: PhaseRequest,
   factors: FormFactors,
-): Promise<{ codId: number; row: CodRow; why: string } | string> {
+): Promise<Selection['chosen'][string] | string> {
   const elements = Object.keys(parseFormula(request.formula));
   const query = elements.map((el, i) => `el${i + 1}=${el}`).join('&');
   const url = `${COD}/result?${query}&strictmin=${elements.length}&strictmax=${elements.length}&format=json`;
   const rows = JSON.parse(await download(url)) as CodRow[];
   await sleep(300);
   const reasons = new Map<string, number>();
-  const note = (reason: string) => reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+  const log: string[] = [];
+  const note = (reason: string, row?: CodRow) => {
+    reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+    if (row) log.push(`  ${row.file} (${row.year ?? '?'}): ${reason}`);
+  };
   const passed = rows.filter((row) => {
     const reason = rejectRow(row, request);
-    if (reason) note(reason);
+    if (reason) note(reason, row);
     return !reason;
   });
   // Download and check every candidate, then rank: lowest R factor first; entries without
   // an R factor follow, those with displacement parameters before those without, newest first.
-  const usable: { row: CodRow; hasAdp: boolean }[] = [];
+  let usable: { row: CodRow; hasAdp: boolean; cell: [number, number, number] }[] = [];
   for (const row of passed) {
     const cif = await cached(cifDir, `${row.file}.cif`, `${COD}/${row.file}.cif`);
-    const reason = rejectCif(cif, row, factors);
-    if (reason) note(reason);
+    const reason = rejectCif(cif, row, factors, request);
+    if (reason) note(reason, row);
     else {
       const crystal = crystalFromCif(parseCif(cif), factors);
+      const { a, b, c } = crystal.cell;
       usable.push({
         row,
         hasAdp: crystal.atoms.every((a) => a.uIso !== null || a.uAniso !== null),
+        cell: [a, b, c].sort((p, q) => p - q) as [number, number, number],
       });
     }
+  }
+  // Entries whose cell lengths differ from the median of all candidates by more than 0.3 % are
+  // unusual structures (strained, compressed, mixed crystals) and are dropped. Lengths are
+  // sorted so that a different axis setting does not matter.
+  if (usable.length >= MIN_FOR_MEDIAN) {
+    const median = [0, 1, 2].map((k) => {
+      const sorted = usable.map((u) => u.cell[k] as number).sort((p, q) => p - q);
+      const mid = sorted.length >> 1;
+      return sorted.length % 2
+        ? (sorted[mid] as number)
+        : ((sorted[mid - 1] as number) + (sorted[mid] as number)) / 2;
+    });
+    usable = usable.filter((u) => {
+      const far = u.cell.some(
+        (x, k) => Math.abs(x / (median[k] as number) - 1) > MAX_CELL_DEVIATION,
+      );
+      if (far)
+        note(
+          `cell ${u.cell.map((x) => x.toFixed(4)).join(' ')} differs from the median ${median.map((x) => x.toFixed(4)).join(' ')} by more than 0.3 %`,
+          u.row,
+        );
+      return !far;
+    });
+  }
+  if (explain === request.id) {
+    const kept = usable.map((u) => `${u.row.file} (${u.cell.map((x) => x.toFixed(4)).join(' ')})`);
+    console.log(`${log.join('\n')}\n  kept: ${kept.join(', ')}`);
   }
   usable.sort((p, q) => {
     const rp = rFactor(p.row);
@@ -279,7 +374,7 @@ async function selectPhase(
       r === null
         ? `COD lists no R factor for any usable candidate; ${best.hasAdp ? 'has displacement parameters, ' : 'no displacement parameters, '}newest (${best.row.year ?? 'year unknown'}) of ${usable.length} usable`
         : `lowest R factor (${r}) of ${usable.length} usable`;
-    return { codId: Number(best.row.file), row: best.row, why };
+    return { codId: Number(best.row.file), row: best.row, why, cell: best.cell };
   }
   const summary = [...reasons].map(([reason, n]) => `${n} × ${reason}`).join('; ');
   return `${rows.length} COD entries for these elements, none usable: ${summary || 'none found'}`;

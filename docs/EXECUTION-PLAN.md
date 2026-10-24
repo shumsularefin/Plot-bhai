@@ -22,6 +22,7 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 6b        | Choose material, compare phases                              | done    |
 | 6c        | hkl labels, combined table, lattice refinement               | done    |
 | 7a        | Texture, crystallinity, pattern character                    | done    |
+| 6a-fix    | Library entry screening, WK cross-check, 7a corrections      | done    |
 | 7b        | Figure builder, methods text, export, e2e                    | todo    |
 | 8a        | UV-Vis import, conversions, cleaning                         | todo    |
 | 8b        | Tauc, Urbach, results                                        | todo    |

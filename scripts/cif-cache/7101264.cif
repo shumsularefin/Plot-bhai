@@ -1,40 +1,32 @@
 #------------------------------------------------------------------------------
-#$Date: 2017-10-13 08:28:26 +0300 (Fri, 13 Oct 2017) $
-#$Revision: 201972 $
-#$URL: file:///home/coder/svn-repositories/_RELOADED_COD/cod-reloaded/cif/2/10/06/2100637.cif $
+#$Date: 2017-10-14 22:27:35 +0300 (Sat, 14 Oct 2017) $
+#$Revision: 202017 $
+#$URL: file:///home/coder/svn-repositories/_RELOADED_COD/cod-reloaded/cif/7/10/12/7101264.cif $
 #------------------------------------------------------------------------------
 #
 # This file is available in the Crystallography Open Database (COD),
-# http://www.crystallography.net/. The original data for this entry
-# were provided by IUCr Journals, http://journals.iucr.org/.
+# http://www.crystallography.net/
 #
-# The file may be used within the scientific community so long as
-# proper attribution is given to the journal article from which the
-# data were obtained.
+# All data on this site have been placed in the public domain by the
+# contributors.
 #
-data_2100637
+data_7101264
 loop_
 _publ_author_name
-'J\/orgensen, Jens-Erik'
-'Smith, R. I.'
+'Simon Clarke'
+'Oliver J. Rutt'
+'Gareth R. Williams'
 _publ_section_title
 ;
-On the Compression Mechanism of FeF3
+Reversible lithium insertion and copper extrusion in
+layered oxysulfides
 ;
-_journal_coeditor_code           AV5063
-_journal_issue                   6
-_journal_name_full               'Acta Crystallographica, Section B'
-_journal_page_first              987
-_journal_page_last               992
-_journal_paper_doi               10.1107/S0108768106030023
-_journal_volume                  62
+_journal_issue                   27
+_journal_name_full               'Chemical Communications'
+_journal_paper_doi               10.1039/b605105g
 _journal_year                    2006
-_chemical_formula_sum            Ni
-_chemical_formula_weight         58.71
-_chemical_name_systematic
-;
- ?
-;
+_chemical_formula_sum            Cu
+_chemical_formula_weight         63.55
 _space_group_IT_number           225
 _symmetry_cell_setting           cubic
 _symmetry_space_group_name_Hall  '-F 4 2 3'
@@ -43,15 +35,16 @@ _cell_angle_alpha                90.0
 _cell_angle_beta                 90.0
 _cell_angle_gamma                90.0
 _cell_formula_units_Z            4
-_cell_length_a                   3.5451(24)
-_cell_length_b                   3.5451
-_cell_length_c                   3.5451
-_cell_volume                     44.56(9)
+_cell_length_a                   3.61696(6)
+_cell_length_b                   3.61696
+_cell_length_c                   3.61696
+_cell_volume                     47.3180(20)
 _pd_block_id
-2006-04-21T14:06|FE37143_phase3|Jens-Erik_Jorgensen||
-_pd_phase_name                   'Ni phase'
-_cod_data_source_file            av5063.cif
-_cod_database_code               2100637
+2006-04-06T16:45|OJR181_1LI_phase2|Simon_Clarke||
+_pd_phase_name                   Cu
+_cod_data_source_file            b605105g.txt
+_cod_original_sg_symbol_H-M      Fm-3m
+_cod_database_code               7101264
 loop_
 _symmetry_equiv_pos_site_id
 _symmetry_equiv_pos_as_xyz
@@ -257,16 +250,18 @@ _atom_site_occupancy
 _atom_site_thermal_displace_type
 _atom_site_U_iso_or_equiv
 _atom_site_symmetry_multiplicity
-Ni NI(1) 0.0 0.0 0.0 1.0 Uiso 0.025 4
+Cu CU1 0.0 0.0 0.0 1.0 Uiso 0.00567(6) 4
 loop_
 _atom_type_symbol
 _atom_type_number_in_cell
-Ni 4.0
+Cu 4.0
 loop_
 _pd_block_diffractogram_id
-2006-04-21T14:06|FE37143_H_01|Jens-Erik_Jorgensen|POLARIS
+2006-04-06T16:45|OJR181_1LI_H_01|Simon_Clarke|POLARIS
+2006-04-06T16:45|OJR181_1LI_H_02|Simon_Clarke|POLARIS
+2006-04-06T16:45|OJR181_1LI_H_03|Simon_Clarke|POLARIS
 loop_
 _cod_related_entry_id
 _cod_related_entry_database
 _cod_related_entry_code
-1 ChemSpider 910
+1 ChemSpider 22414

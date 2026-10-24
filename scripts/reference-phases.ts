@@ -18,6 +18,16 @@ export interface PhaseRequest {
   mineral?: RegExp;
   /** Required COD space-group number (International Tables); a list allows enantiomorphic pairs. */
   spaceGroup?: number | number[];
+  /**
+   * Accept entries with partial site occupancies. Only for phases that are defined by
+   * vacancies or mixed sites (maghemite, gamma-alumina); every other phase must be fully occupied.
+   */
+  partialOccupancy?: boolean;
+  /**
+   * Rhombohedral groups only: take the setting with hexagonal axes (Hermann-Mauguin symbol ends
+   * in ":H"), the one powder diffraction uses, so that the (hkl) labels are the familiar ones.
+   */
+  hexagonalAxes?: boolean;
 }
 
 export interface FamilyInfo {
@@ -168,6 +178,7 @@ export const PHASES: PhaseRequest[] = [
     formula: 'Fe2O3',
     mineral: /hematite/i,
     spaceGroup: 167,
+    hexagonalAxes: true,
   },
   {
     id: 'maghemite',
@@ -175,7 +186,8 @@ export const PHASES: PhaseRequest[] = [
     name: 'Maghemite (γ-Fe2O3)',
     formula: 'Fe2O3',
     mineral: /maghemite/i,
-    spaceGroup: 225,
+    spaceGroup: 227,
+    partialOccupancy: true,
   },
   {
     id: 'tenorite',
@@ -198,7 +210,6 @@ export const PHASES: PhaseRequest[] = [
     family: 'nio',
     name: 'Bunsenite (NiO)',
     formula: 'NiO',
-    mineral: /bunsenite/i,
     spaceGroup: 225,
   },
   {
@@ -225,8 +236,16 @@ export const PHASES: PhaseRequest[] = [
     formula: 'Al2O3',
     mineral: /corundum/i,
     spaceGroup: 167,
+    hexagonalAxes: true,
   },
-  { id: 'gamma-al2o3', family: 'al2o3', name: 'γ-Al2O3', formula: 'Al2O3', spaceGroup: 227 },
+  {
+    id: 'gamma-al2o3',
+    family: 'al2o3',
+    name: 'γ-Al2O3',
+    formula: 'Al2O3',
+    spaceGroup: 227,
+    partialOccupancy: true,
+  },
   {
     id: 'alpha-quartz',
     family: 'sio2',
@@ -291,6 +310,7 @@ export const PHASES: PhaseRequest[] = [
     formula: 'CaCO3',
     mineral: /calcite/i,
     spaceGroup: 167,
+    hexagonalAxes: true,
   },
   {
     id: 'aragonite',
@@ -307,7 +327,14 @@ export const PHASES: PhaseRequest[] = [
     formula: 'MoS2',
     spaceGroup: 194,
   },
-  { id: 'graphite', family: 'graphite', name: 'Graphite (2H)', formula: 'C', spaceGroup: 194 },
+  {
+    id: 'graphite',
+    family: 'graphite',
+    name: 'Graphite (2H)',
+    formula: 'C',
+    mineral: /graphite/i,
+    spaceGroup: 194,
+  },
   { id: 'si', family: 'si', name: 'Silicon', formula: 'Si', spaceGroup: 227 },
   { id: 'lab6', family: 'lab6', name: 'Lanthanum hexaboride', formula: 'LaB6', spaceGroup: 221 },
   { id: 'au', family: 'au', name: 'Gold (fcc)', formula: 'Au', spaceGroup: 225 },

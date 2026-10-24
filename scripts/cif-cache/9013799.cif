@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
 #$Date: 2024-05-23 12:45:01 +0300 (Thu, 23 May 2024) $
 #$Revision: 292002 $
-#$URL: file:///home/coder/svn-repositories/_RELOADED_COD/cod-reloaded/cif/9/01/43/9014355.cif $
+#$URL: file:///home/coder/svn-repositories/_RELOADED_COD/cod-reloaded/cif/9/01/37/9013799.cif $
 #------------------------------------------------------------------------------
 #
 # This file is available in the Crystallography Open Database (COD),
@@ -13,26 +13,25 @@
 # proper attribution is given to the journal article from which the
 # data were obtained.
 #
-data_9014355
+data_9013799
 loop_
 _publ_author_name
 'Antao, S. M.'
 'Hassan, I.'
 _publ_section_title
 ;
- Temperature dependence of the structural parameters
- in the transformation of aragonite to calcite,
- as determined from in situ synchrotron powder X-ray-diffraction data
- Note: T = 235 C
- Note: P = 101 kPa
+ The orthorhombic structure of CaCO3, SrCO3, PbCO3 and BaCO3:
+ Linear structural trends
+ Note: SXTL
 ;
 _journal_name_full               'The Canadian Mineralogist'
-_journal_page_first              1225
-_journal_page_last               1236
-_journal_paper_doi               10.3749/canmin.48.5.1225
-_journal_volume                  48
-_journal_year                    2010
-_chemical_compound_source        'Cuenca, Spain'
+_journal_page_first              1245
+_journal_page_last               1255
+_journal_paper_doi               10.3749/canmin.47.5.1245
+_journal_volume                  47
+_journal_year                    2009
+_chemical_compound_source        Italy
+_chemical_formula_structural     Ca(Co3)
 _chemical_formula_sum            'C Ca O3'
 _chemical_name_mineral           Aragonite
 _space_group_IT_number           62
@@ -41,15 +40,22 @@ _symmetry_space_group_name_H-M   'P m c n'
 _cell_angle_alpha                90
 _cell_angle_beta                 90
 _cell_angle_gamma                90
-_cell_length_a                   4.9653
-_cell_length_b                   8.0088
-_cell_length_c                   5.7847
+_cell_length_a                   4.96062
+_cell_length_b                   7.97006
+_cell_length_c                   5.74181
 _cell_formula_units_Z            4
-_cell_volume                     230.035
-_database_code_amcsd             0017836
-_exptl_crystal_density_diffrn    2.890
+_cell_volume                     227.011
+_database_code_amcsd             0006300
+_exptl_crystal_density_diffrn    2.928
+_cod_depositor_comments
+;
+ Marked entry as being related to an entry in the AMCSD.
+
+ Antanas Vaitkus,
+ 2019-04-09
+;
 _cod_original_formula_sum        'Ca C O3'
-_cod_database_code               9014355
+_cod_database_code               9013799
 loop_
 _space_group_symop_operation_xyz
 x,y,z
@@ -61,17 +67,29 @@ x,1/2-y,1/2+z
 -x,1/2+y,1/2-z
 -x,-y,-z
 loop_
+_atom_site_aniso_label
+_atom_site_aniso_U_11
+_atom_site_aniso_U_22
+_atom_site_aniso_U_33
+_atom_site_aniso_U_12
+_atom_site_aniso_U_13
+_atom_site_aniso_U_23
+Ca 0.00900 0.00700 0.00900 0.00000 0.00000 0.00000
+C 0.00900 0.00900 0.00500 0.00000 0.00000 0.00000
+O1 0.01600 0.00700 0.01400 0.00000 0.00000 0.00000
+O2 0.00900 0.01200 0.01400 0.00300 0.00000 0.00100
+loop_
 _atom_site_label
 _atom_site_fract_x
 _atom_site_fract_y
 _atom_site_fract_z
 _atom_site_U_iso_or_equiv
-Ca 0.25000 0.41350 0.75420 0.01300
-C 0.25000 0.76420 -0.06530 0.03400
-O1 0.25000 0.91890 -0.08700 0.03400
-O2 0.47310 0.68480 -0.09830 0.03400
+Ca 0.25000 0.41500 0.75960 0.00800
+C 0.25000 0.76190 -0.08490 0.00800
+O1 0.25000 0.92240 -0.09560 0.01300
+O2 0.47380 0.68040 -0.08710 0.01200
 loop_
 _cod_related_entry_id
 _cod_related_entry_database
 _cod_related_entry_code
-1 AMCSD 0017836
+1 AMCSD 0006300

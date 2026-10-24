@@ -9,6 +9,7 @@ import {
   PEAK_EXCLUSION_FWHM,
   type CrystallinityOutcome,
 } from '../../core/xrd/analysis/crystallinity';
+import { signalAt, VISIBLE_SIGNAL_RATIO, type LineSignal } from '../../core/xrd/analysis/signal';
 import { textureCoefficients } from '../../core/xrd/analysis/texture';
 import { ANODES } from '../../core/xrd/radiation';
 import { formatHkl } from '../../core/xrd/reference/hkl';
@@ -28,6 +29,17 @@ export interface TextureRow {
   /** Reference intensity I0, percent of the strongest line (overlapping lines are added). */
   reference: number;
   tc: number;
+  /** For a reference line with no peak: where it is expected (degrees 2θ) and what the pattern shows there. */
+  expected: { twoTheta: number; signal: LineSignal | null } | null;
+}
+
+/** A missing reference line where the pattern rises clearly above the local noise: a peak probably left unfitted. */
+export function unfittedSignal(row: TextureRow): boolean {
+  return (
+    row.peak === null &&
+    row.expected?.signal != null &&
+    row.expected.signal.ratio >= VISIBLE_SIGNAL_RATIO
+  );
 }
 
 export interface PhaseTexture {
@@ -49,13 +61,16 @@ function patternExtent(data: XrdData, id: string): [number, number] | null {
  * or area, as chosen) and the reference intensities of its lines. The reflections are the
  * assigned peaks plus the strong reference lines (at least STRONG_REFERENCE_PERCENT of the
  * strongest) that lie inside the scanned 2θ range but have no assigned peak; those count as observed
- * intensity 0. Two reference lines under one peak add their intensities, as the peak does.
+ * intensity 0. Two reference lines under one peak add their intensities, as the peak does. For
+ * each missing line the processed pattern is read at the expected position (within the matching
+ * tolerance), so a peak that is visible but was not fitted can be reported.
  */
 export function textureFor(
   data: XrdData,
   patternId: string,
   assignment: AssignmentResult,
   basis: 'height' | 'area',
+  processed: { twoTheta: ArrayLike<number>; intensity: ArrayLike<number> } | null,
 ): PhaseTexture[] {
   const lambda = ANODES[data.radiation.anode].kAlpha1;
   return assignment.phases.map(({ phase, shift }) => {
@@ -70,6 +85,7 @@ export function textureFor(
         observed: basis === 'height' ? peak.peak.height : peak.peak.area,
         reference: peak.assignment.candidates.reduce((s, c) => s + c.intensity, 0),
         tc: NaN,
+        expected: null,
       })),
       ...referenceLines(phase, lambda)
         .filter(
@@ -87,6 +103,17 @@ export function textureFor(
           observed: 0,
           reference: l.intensity,
           tc: NaN,
+          expected: {
+            twoTheta: l.twoTheta + shift,
+            signal: processed
+              ? signalAt(
+                  processed.twoTheta,
+                  processed.intensity,
+                  l.twoTheta + shift,
+                  data.material.toleranceDeg,
+                )
+              : null,
+          },
         })),
     ];
     rows.sort(

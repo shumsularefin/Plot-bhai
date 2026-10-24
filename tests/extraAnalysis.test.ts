@@ -18,6 +18,7 @@ import {
   parseNumbers,
   runCrystallinity,
   textureFor,
+  unfittedSignal,
 } from '../src/modules/xrd/extraAnalysis';
 
 const dir = new URL('../data/reference/', import.meta.url);
@@ -72,7 +73,7 @@ const isAxial = (h: [number, number, number]) => h[0] === 0 && h[1] === 0;
 function textureOf(data: XrdData, basis: 'height' | 'area' = 'height') {
   const assignment = assignmentFor(data, 'p1', zno, false);
   if (!assignment) throw new Error('no assignment');
-  const texture = textureFor(data, 'p1', assignment, basis);
+  const texture = textureFor(data, 'p1', assignment, basis, data.patterns[0] ?? null);
   return { assignment, texture };
 }
 
@@ -121,9 +122,9 @@ describe('texture and character on synthetic ZnO patterns', () => {
   it('only counts missing reflections inside the scanned 2θ range', () => {
     const data = zincOxide((h) => (isAxial(h) ? 1 : 0));
     const first = data.patterns[0] as { twoTheta: Float64Array; intensity: Float64Array };
-    // Keep only the data above 70°. The fit is left as it was, so (002) and (004) keep their peaks;
-    // of the strong lines without a peak, only (201) lies in the scanned range.
-    const from = first.twoTheta.findIndex((t) => t > 70);
+    // Keep only the data above 66°. The fit is left as it was, so (002) and (004) keep their peaks;
+    // of the strong lines without a peak, only (212) at 67.9° and (201) at 69.1° lie in the scanned range.
+    const from = first.twoTheta.findIndex((t) => t > 66);
     const cut = {
       ...data,
       patterns: [
@@ -132,9 +133,42 @@ describe('texture and character on synthetic ZnO patterns', () => {
     };
     const assignment = assignmentFor(cut, 'p1', zno, false);
     if (!assignment) throw new Error('no assignment');
-    const result = textureFor(cut, 'p1', assignment, 'height')[0]?.result;
+    const result = textureFor(cut, 'p1', assignment, 'height', cut.patterns[0] ?? null)[0]?.result;
     if (!result || !('rows' in result)) throw new Error('no rows');
-    expect(result.rows.filter((r) => !r.peak).map((r) => r.hklText)).toEqual(['(201)']);
+    expect(result.rows.filter((r) => !r.peak).map((r) => r.hklText)).toEqual(['(2 -1 2)', '(201)']);
+  });
+});
+
+describe('missing reference lines with a signal', () => {
+  const missingRows = (data: XrdData) => {
+    const assignment = assignmentFor(data, 'p1', zno, false);
+    if (!assignment) throw new Error('no assignment');
+    const result = textureFor(data, 'p1', assignment, 'area', data.patterns[0] ?? null)[0]?.result;
+    if (!result || !('rows' in result)) throw new Error('no rows');
+    return result.rows.filter((r) => !r.peak);
+  };
+
+  it('flags strong lines that are in the pattern but were not fitted', () => {
+    const full = zincOxide(() => 1);
+    const state = full.peaks['p1'];
+    const fit = state?.fit;
+    if (!state || !fit) throw new Error('no fit');
+    // Keep the fit of the first two regions only: the other lines are in the data, not in the fit.
+    const partial: XrdData = {
+      ...full,
+      peaks: {
+        p1: { ...state, fit: { ...fit, regions: fit.regions.slice(0, 2) } },
+      },
+    };
+    const missing = missingRows(partial);
+    expect(missing.length).toBeGreaterThanOrEqual(3);
+    missing.forEach((r) => expect(unfittedSignal(r)).toBe(true));
+  });
+
+  it('does not flag lines that are really absent from the pattern', () => {
+    const missing = missingRows(zincOxide((h) => (isAxial(h) ? 1 : 0)));
+    expect(missing.length).toBeGreaterThanOrEqual(3);
+    missing.forEach((r) => expect(unfittedSignal(r)).toBe(false));
   });
 });
 

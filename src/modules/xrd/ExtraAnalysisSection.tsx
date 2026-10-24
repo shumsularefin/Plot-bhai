@@ -21,6 +21,7 @@ import {
   characterFor,
   runCrystallinity,
   textureFor,
+  unfittedSignal,
   type CrystallinityRun,
   type PhaseTexture,
 } from './extraAnalysis';
@@ -65,8 +66,11 @@ export function ExtraAnalysisSection({ data, update, patternId, assignment }: Ex
     });
 
   const textures = useMemo(
-    () => (assignment ? textureFor(data, patternId, assignment, analysis.textureBasis) : null),
-    [data, patternId, assignment, analysis.textureBasis],
+    () =>
+      assignment
+        ? textureFor(data, patternId, assignment, analysis.textureBasis, processed ?? null)
+        : null,
+    [data, patternId, assignment, analysis.textureBasis, processed],
   );
   const fit = peaksFor(data, patternId).fit;
   const lambda = ANODES[data.radiation.anode].kAlpha1;
@@ -115,6 +119,7 @@ export function ExtraAnalysisSection({ data, update, patternId, assignment }: Ex
         data={data}
         update={update}
         peaksFitted={Boolean(fit)}
+        backgroundRemoved={processingFor(data, patternId).background.enabled}
       />
 
       <h4 class="export-subtitle">
@@ -211,6 +216,21 @@ function TextureBlock({
               </p>
             ) : null,
           )}
+          {textures.flatMap(({ phase, result }) =>
+            'rows' in result
+              ? result.rows.filter(unfittedSignal).map((row) => (
+                  <p key={`${phase.id}-${row.hklText}-unfitted`} class="message is-warning">
+                    <strong>Check:</strong> {phase.name} {row.hklText}: the pattern rises{' '}
+                    {Number.isFinite(row.expected?.signal?.ratio)
+                      ? `${row.expected?.signal?.ratio.toFixed(1)} times the local noise`
+                      : 'clearly above a noise-free baseline'}{' '}
+                    near {row.expected?.twoTheta.toFixed(2)}° 2θ, where this reference line is
+                    expected, but no peak was fitted. It is counted as intensity 0, which lowers its
+                    TC and raises the others. Fit it in step 5 for a fair coefficient.
+                  </p>
+                ))
+              : [],
+          )}
           {textures.some((t) => 'rows' in t.result) && (
             <TableBox label="Texture coefficients" onExport={exportCsv}>
               <thead>
@@ -235,7 +255,9 @@ function TextureBlock({
                           <td>{row.observed.toPrecision(4)}</td>
                           <td>{row.reference.toFixed(1)}</td>
                           <td>{row.tc.toFixed(2)}</td>
-                          <td class="peak-notes">{tcMeaning(row.tc, row.peak === null)}</td>
+                          <td class="peak-notes">
+                            {tcMeaning(row.tc, row.peak === null, unfittedSignal(row))}
+                          </td>
                         </tr>
                       ))
                     : [],
@@ -250,7 +272,8 @@ function TextureBlock({
 }
 
 /** Plain-language reading of one texture coefficient. */
-function tcMeaning(tc: number, missing: boolean): string {
+function tcMeaning(tc: number, missing: boolean, visible: boolean): string {
+  if (visible) return 'Counted as zero, but the pattern shows a signal here: fit this peak.';
   if (missing) return 'Reference line not found; counted as zero.';
   if (tc > 1.2)
     return 'More grains with this plane parallel to the surface than in a random powder.';
@@ -267,6 +290,8 @@ interface CrystallinityBlockProps {
   data: XrdData;
   update: (patch: Partial<XrdData>) => void;
   peaksFitted: boolean;
+  /** Background removal is switched on in step 2 for this pattern. */
+  backgroundRemoved: boolean;
 }
 
 function CrystallinityBlock({
@@ -278,6 +303,7 @@ function CrystallinityBlock({
   data,
   update,
   peaksFitted,
+  backgroundRemoved,
 }: CrystallinityBlockProps) {
   const outcome = run?.outcome;
   const sources = useMemo<SeriesSource[]>(() => {
@@ -414,6 +440,14 @@ function CrystallinityBlock({
                 onInput={(e) => onChange({ anchors: e.currentTarget.value })}
               />
             </label>
+          )}
+          {backgroundRemoved && (
+            <p class="message is-warning">
+              <strong>Check:</strong> Background removal is switched on in step 2. A broad amorphous
+              hump is often removed together with the background, so the hump here is too small and
+              the index too high. Switch background removal off for this analysis, or treat the
+              number as an upper limit.
+            </p>
           )}
           {outcome && !outcome.ok && (
             <p class="message is-warning">

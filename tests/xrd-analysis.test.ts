@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { crystallinity, PEAK_EXCLUSION_FWHM } from '../src/core/xrd/analysis/crystallinity';
 import { patternCharacter, SINGLE_CRYSTAL_DISCLAIMER } from '../src/core/xrd/analysis/character';
+import { signalAt, VISIBLE_SIGNAL_RATIO } from '../src/core/xrd/analysis/signal';
 import { textureCoefficients } from '../src/core/xrd/analysis/texture';
 import { peakArea } from '../src/core/xrd/peaks/profiles';
 import { generatePattern, type SyntheticPeak } from '../src/core/xrd/synthetic';
@@ -139,17 +140,47 @@ describe('crystallinity index', () => {
     expect(outcome.crystallineArea + outcome.amorphousArea).toBeCloseTo(outcome.totalArea, 6);
   });
 
-  it('recovers it within 8 % with anchor points read from the data between the peaks', () => {
+  it('recovers it within 5 % with anchor points read from the data between the peaks', () => {
     const outcome = crystallinity(sample.twoTheta, sample.intensity, [START, END], {
       kind: 'anchors',
       positions: [11, 15, 19, 23, 28, 31, 34, 36, 41, 44, 51, 57, 59, 66, 70, 75, 79.5],
       halfWidth: 0.2,
     });
     if (!outcome.ok) throw new Error(outcome.reason);
-    // Each anchor also reads the slowly falling tails of the peaks (0.4 Lorentzian here), which
-    // makes the hump a little too large; the Gaussian fit above avoids the points near peaks.
-    expect(outcome.index).toBeLessThan(truth.index);
-    expect(Math.abs(outcome.index / truth.index - 1)).toBeLessThan(0.08);
+    // Each anchor reads the lowest point near it, which is a little above the hump where the peak
+    // tails add to it; straight lines between anchors cut below the curved hump. The two errors
+    // work in opposite directions and are both small here.
+    expect(Math.abs(outcome.index / truth.index - 1)).toBeLessThan(0.05);
+  });
+
+  it('clips the hump to the data where the data fall below it', () => {
+    // Level 100 with a 4° wide trough of 20 counts and a peak at 50°: anchors on the flat parts alone would put the
+    // hump at 100 across the trough, which is more than was measured there.
+    const x = Float64Array.from({ length: 701 }, (_, i) => 10 + i * 0.1);
+    const y = x.map((t) => (t >= 30 && t <= 34 ? 20 : Math.abs(t - 50) <= 0.5 ? 180 : 100));
+    const outcome = crystallinity(x, y, [10, 80], {
+      kind: 'anchors',
+      positions: [12, 78],
+    });
+    if (!outcome.ok) throw new Error(outcome.reason);
+    outcome.x.forEach((t, i) => {
+      if (t >= 30.5 && t <= 33.5) expect(outcome.hump[i]).toBeLessThanOrEqual(20 + 1e-9);
+      else if (t < 29.5 || t > 34.5) expect(outcome.hump[i]).toBeCloseTo(100, 9);
+    });
+  });
+
+  it('reads each anchor level as the lowest value in its window', () => {
+    const x = Float64Array.from({ length: 401 }, (_, i) => 10 + i * 0.1);
+    // Flat level 100 with one 50-count dip at 20°: a window around 20 must give 50, not the mean.
+    const y = x.map((t) => (Math.abs(t - 20) < 0.01 ? 50 : 100));
+    const outcome = crystallinity(x, y, [10, 50], {
+      kind: 'anchors',
+      positions: [20, 40],
+      halfWidth: 0.25,
+    });
+    if (!outcome.ok) throw new Error(outcome.reason);
+    expect(outcome.hump[0]).toBeCloseTo(50, 9);
+    expect(outcome.hump[outcome.hump.length - 1]).toBeCloseTo(100, 9);
   });
 
   it('still recovers the fraction within 2 % with counting noise', () => {
@@ -279,5 +310,36 @@ describe('pattern character hints', () => {
       crystallinity: 80,
     });
     expect(hints).toEqual([]);
+  });
+});
+
+describe('signal at an expected line position', () => {
+  const flat = { constant: 400, amplitude: 0, decay: 1 };
+  const noisy = (peaks: SyntheticPeak[]) =>
+    generatePattern({ start: 20, end: 40, step: 0.02, peaks, background: flat, noiseSeed: 5 });
+  // Counting noise on a level of 400 counts: sigma = 20 counts.
+
+  it('finds a peak of about ten noise standard deviations', () => {
+    const { twoTheta, intensity } = noisy([{ center: 30, fwhm: 0.2, height: 200, eta: 0.5 }]);
+    const signal = signalAt(twoTheta, intensity, 30.02, 0.15);
+    if (!signal) throw new Error('no signal');
+    expect(signal.noise).toBeGreaterThan(14);
+    expect(signal.noise).toBeLessThan(26);
+    expect(signal.height).toBeGreaterThan(150);
+    expect(signal.ratio).toBeGreaterThan(VISIBLE_SIGNAL_RATIO);
+  });
+
+  it('stays below the limit where there is only noise', () => {
+    const { twoTheta, intensity } = noisy([{ center: 30, fwhm: 0.2, height: 200, eta: 0.5 }]);
+    const signal = signalAt(twoTheta, intensity, 36, 0.15);
+    if (!signal) throw new Error('no signal');
+    expect(signal.ratio).toBeLessThan(VISIBLE_SIGNAL_RATIO);
+  });
+
+  it('gives a ratio of 0 for a flat noise-free baseline and null at the edge of the data', () => {
+    const clean = generatePattern({ start: 20, end: 40, step: 0.02, peaks: [], background: flat });
+    expect(signalAt(clean.twoTheta, clean.intensity, 30, 0.15)).toMatchObject({ ratio: 0 });
+    expect(signalAt(clean.twoTheta, clean.intensity, 20.05, 0.15)).not.toBeNull();
+    expect(signalAt(clean.twoTheta, clean.intensity, 90, 0.15)).toBeNull();
   });
 });
