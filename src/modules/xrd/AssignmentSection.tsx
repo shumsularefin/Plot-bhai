@@ -1,15 +1,14 @@
 import { useMemo } from 'preact/hooks';
-import { ANODES } from '../../core/xrd/radiation';
 import type { LatticeFit } from '../../core/xrd/reference/lattice';
 import { formatWithSigma } from '../../ui/format';
 import { HelpTip } from '../../ui/HelpTip';
 import { PlotPanel } from '../../ui/plot/PlotPanel';
 import type { SeriesSource } from '../../ui/plot/series';
-import { downloadCsv } from './csv';
+import { downloadTable } from './csv';
+import { assignedPeaksTable, assignmentNotes as notes, sign } from './tables';
 import type { XrdData } from './data';
 import {
   peakLabelSet,
-  type AssignedPeak,
   type AssignmentResult,
   type LatticeSummary,
   type PhaseAssignment,
@@ -29,8 +28,6 @@ interface AssignmentSectionProps {
   refineZeroShift: boolean;
   onRefineZeroShift: (on: boolean) => void;
 }
-
-const sign = (v: number, digits: number) => `${v < 0 ? '−' : '+'}${Math.abs(v).toFixed(digits)}`;
 
 /** Step 7: the labelled figure, the combined peak table and the lattice parameters. */
 export function AssignmentSection({
@@ -96,35 +93,11 @@ function AssignmentBody({
   );
   const labelSet = peakLabelSet(result);
   if (!pattern) return null;
-  const lambda = ANODES[data.radiation.anode].kAlpha1;
   const material = data.material;
   const jcpds = (id: string) => material.jcpds[id]?.trim() ?? '';
   const ambiguous = result.peaks.filter((p) => p.phase && p.assignment.candidates.length > 1);
 
-  const exportCsv = () =>
-    downloadCsv(
-      `${pattern.name}-assigned-peaks`,
-      `Peak assignment, ${pattern.name}. ${data.radiation.anode} Kα1, λ = ${lambda} Å. Reference positions are from the Crystallography Open Database entry named in each row; zero shifts: ${result.phases.map((p) => `${p.phase.name} ${sign(p.shift, 2)}°`).join(', ')}. Δ2θ = observed − reference. JCPDS numbers are entered by the user and not verified.`,
-      result.peaks,
-      [
-        { header: 'Phase', value: (p) => p.phase?.name ?? 'unassigned' },
-        { header: 'COD ID', value: (p) => p.phase?.codId ?? '' },
-        {
-          header: 'JCPDS number (entered by user, not verified)',
-          value: (p) => (p.phase ? jcpds(p.phase.id) : ''),
-        },
-        { header: '(hkl)', value: (p) => p.hklText },
-        { header: '2θ observed (°)', value: (p) => p.peak.twoTheta },
-        { header: '2θ reference (°)', value: (p) => p.line?.twoTheta ?? '' },
-        { header: 'Δ2θ (°)', value: (p) => (p.line ? p.peak.twoTheta - p.line.twoTheta : '') },
-        { header: 'd observed (Å)', value: (p) => p.peak.d },
-        { header: 'd reference (Å)', value: (p) => p.line?.d ?? '' },
-        { header: 'I/I0 observed (%)', value: (p) => p.peak.relativeIntensity },
-        { header: 'I/I0 reference (%)', value: (p) => p.line?.intensity ?? '' },
-        { header: 'FWHM (°)', value: (p) => p.peak.fwhm },
-        { header: 'Notes', value: (p) => notes(p).join(' ') },
-      ],
-    );
+  const exportCsv = () => downloadTable(assignedPeaksTable(data, pattern.name, result));
 
   return (
     <div class="assignment">
@@ -233,14 +206,6 @@ function AssignmentBody({
       </p>
     </div>
   );
-}
-
-/** Notes shown for one assigned peak. */
-function notes(p: AssignedPeak): string[] {
-  const out: string[] = [];
-  if (p.phase && p.assignment.candidates.length > 1) out.push('Overlapping reflections.');
-  if (p.assignment.competing.length > 0) out.push('Another phase has a line here too.');
-  return out;
 }
 
 function LatticeCard({ phase }: { phase: PhaseAssignment }) {

@@ -7,11 +7,12 @@ import { BarChart } from '../../ui/plot/BarChart';
 import type { StepContext } from '../../ui/wizard/types';
 import { assignmentFor } from './assignment';
 import { AssignmentSection } from './AssignmentSection';
-import { downloadCsv } from './csv';
+import { downloadTable } from './csv';
 import { ExtraAnalysisSection } from './ExtraAnalysisSection';
 import type { PatternChoices, ResultsSettings, XrdData } from './data';
 import { NumberInput } from './NumberInput';
 import { LineDetails, Messages, ScherrerDetails, TableBox } from './MethodDetails';
+import { sizePeaksTable, sizeSummaryTable } from './tables';
 import { useReferencePhases } from './useReferencePhases';
 import {
   choicesFor,
@@ -285,22 +286,7 @@ interface PeakChoicesProps {
 }
 
 function PeakChoices({ peaks, patternName, skipped, hkl, setUse, setModulus }: PeakChoicesProps) {
-  const exportCsv = () =>
-    downloadCsv(
-      `${patternName}-size-peaks`,
-      `Peaks used for size and strain, ${patternName}. Widths in degrees 2θ; ${skipped ? 'instrument correction skipped' : 'β is the instrument-corrected FWHM'}.`,
-      peaks,
-      [
-        { header: '2θ (°)', value: (p) => p.twoTheta },
-        ...(hkl ? [{ header: '(hkl)', value: (p: ResultPeak) => hkl[p.index] ?? '' }] : []),
-        { header: 'Observed FWHM (°)', value: (p) => p.observed },
-        { header: 'Corrected β (°)', value: (p) => p.corrected },
-        { header: 'σ β (°)', value: (p) => p.correctedSigma },
-        { header: 'Used', value: (p) => (p.used ? 'yes' : 'no') },
-        { header: 'E_hkl (GPa)', value: (p) => p.modulusGPa ?? '' },
-        { header: 'Notes', value: (p) => p.messages.map((m) => m.text).join(' ') },
-      ],
-    );
+  const exportCsv = () => downloadTable(sizePeaksTable(patternName, peaks, skipped, hkl));
   return (
     <section class="peak-table-section" aria-labelledby="choice-title">
       <h3 id="choice-title" class="export-title">
@@ -376,33 +362,7 @@ function Summary({
   patternName: string;
   data: XrdData;
 }) {
-  const exportCsv = () =>
-    downloadCsv(
-      `${patternName}-size-strain-summary`,
-      `Size and strain summary for ${patternName}. K = ${data.results.k}. Scherrer: mean and standard deviation over peaks; other methods: value and standard uncertainty from the line fit. Strain in the Williamson–Hall convention (β_ε = 4ε tan θ). Empty cells: not defined by the method or not physical.`,
-      rows,
-      [
-        { header: 'Method', value: (r) => METHOD_NAMES[r.method] },
-        { header: 'D (nm)', value: (r) => r.size?.value ?? '' },
-        { header: 'SD or σ D (nm)', value: (r) => r.size?.sigma ?? '' },
-        { header: 'ε', value: (r) => r.strain?.value ?? '' },
-        { header: 'σ ε', value: (r) => r.strain?.sigma ?? '' },
-        { header: 'Stress (GPa)', value: (r) => r.stress?.value ?? '' },
-        { header: 'σ stress (GPa)', value: (r) => r.stress?.sigma ?? '' },
-        { header: 'u (kJ/m³)', value: (r) => r.energyDensity?.value ?? '' },
-        { header: 'σ u (kJ/m³)', value: (r) => r.energyDensity?.sigma ?? '' },
-        { header: 'δ (m⁻²)', value: (r) => r.dislocation?.value ?? '' },
-        { header: 'σ δ (m⁻²)', value: (r) => r.dislocation?.sigma ?? '' },
-        { header: 'S (m²/g)', value: (r) => r.surface?.value ?? '' },
-        { header: 'σ S (m²/g)', value: (r) => r.surface?.sigma ?? '' },
-        { header: 'R²', value: (r) => r.rSquared },
-        { header: 'Peaks', value: (r) => r.n },
-        {
-          header: 'Notes',
-          value: (r) => [r.unavailable ?? '', ...r.messages.map((m) => m.text)].join(' ').trim(),
-        },
-      ],
-    );
+  const exportCsv = () => downloadTable(sizeSummaryTable(patternName, data.results.k, rows));
   const problems = rows.flatMap((r) =>
     r.messages
       .filter((m) => m.level !== 'info')
