@@ -143,6 +143,7 @@ export function PhasesStep({ data, update }: StepContext<XrdData>) {
           </span>
           <input
             type="number"
+            aria-label="Tolerance (° 2θ)"
             inputMode="decimal"
             min={0.02}
             max={1}

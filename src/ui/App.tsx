@@ -1,3 +1,4 @@
+import { ErrorBoundary } from './ErrorBoundary';
 import { Home } from './Home';
 import { LazyTool } from './LazyTool';
 import { useHashPath } from './router';
@@ -25,19 +26,21 @@ export function App() {
       </header>
       <main class="site-main">
         <div class="container">
-          {path === '/xrd' ? (
-            <LazyTool load={loadXrd} />
-          ) : path === '/uvvis' ? (
-            <LazyTool load={loadUvvis} />
-          ) : path === '/ftir' ? (
-            <LazyTool load={loadFtir} />
-          ) : path === '/particles' ? (
-            <LazyTool load={loadParticles} />
-          ) : path === '/thermal' ? (
-            <LazyTool load={loadThermal} />
-          ) : (
-            <Home />
-          )}
+          <ErrorBoundary key={path}>
+            {path === '/xrd' ? (
+              <LazyTool load={loadXrd} />
+            ) : path === '/uvvis' ? (
+              <LazyTool load={loadUvvis} />
+            ) : path === '/ftir' ? (
+              <LazyTool load={loadFtir} />
+            ) : path === '/particles' ? (
+              <LazyTool load={loadParticles} />
+            ) : path === '/thermal' ? (
+              <LazyTool load={loadThermal} />
+            ) : (
+              <Home />
+            )}
+          </ErrorBoundary>
         </div>
       </main>
       <footer class="site-footer">

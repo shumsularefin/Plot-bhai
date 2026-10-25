@@ -243,6 +243,7 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
             </span>
             <input
               type="range"
+              aria-label="Minimum prominence"
               min={0.5}
               max={30}
               step={0.5}
