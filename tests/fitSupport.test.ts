@@ -7,8 +7,13 @@ import {
   DEFAULT_MATERIAL,
   DEFAULT_RIETVELD,
   DEFAULT_RESULTS,
+  initialXrdData,
   migrateXrdData,
+  peaksFor,
+  processingFor,
+  type XrdData,
 } from '../src/modules/xrd/data';
+import { DEFAULT_PROCESSING } from '../src/core/xrd/process/pipeline';
 import { formatWithSigma } from '../src/ui/format';
 
 describe('Levenberg–Marquardt', () => {
@@ -169,5 +174,18 @@ describe('session migration', () => {
     );
     expect(fromVersion7?.data.material.phaseIds).toEqual(['anatase']);
     expect(fromVersion7?.data.analysis).toEqual(DEFAULT_ANALYSIS);
+  });
+});
+
+describe('stored XRD settings', () => {
+  it('give the same object on every call, so worker hooks do not restart on each render', () => {
+    const data: XrdData = {
+      ...initialXrdData,
+      processing: { a: { ...DEFAULT_PROCESSING } },
+      peaks: { a: { ...peaksFor(initialXrdData, 'a') } },
+    };
+    expect(processingFor(data, 'a')).toBe(processingFor(data, 'a'));
+    expect(peaksFor(data, 'a')).toBe(peaksFor(data, 'a'));
+    expect(peaksFor(data, 'a').detection).toBe(peaksFor(data, 'a').detection);
   });
 });
