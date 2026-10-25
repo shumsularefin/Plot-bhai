@@ -23,11 +23,21 @@ export interface DtgCurve {
   unit: string;
 }
 
+/** A heat flow curve for the lower panel; `axis` is the full axis text, which must state the exo convention. */
+export interface HeatFlowCurve {
+  temperatureC: Float64Array;
+  values: Float64Array;
+  unit: string;
+  axis: string;
+}
+
 interface ThermalPlotProps {
   curves: readonly MassCurve[];
   /** Unit of the mass values: "%" or "mg". */
   massUnit: '%' | 'mg';
   dtg?: DtgCurve;
+  /** Shown in the lower panel instead of the DTG curve. */
+  heatFlow?: HeatFlowCurve;
   settings: PlotSettings;
   onSettingsChange: (patch: Partial<PlotSettings>) => void;
   exportName: string;
@@ -42,7 +52,7 @@ const temperatureLabel = 'Temperature (°C)';
 
 /** Mass against temperature, with the DTG curve in a panel underneath when given. */
 export function ThermalPlot(props: ThermalPlotProps) {
-  const { curves, massUnit, dtg } = props;
+  const { curves, massUnit, dtg, heatFlow } = props;
   const sources = useMemo<SeriesSource[]>(
     () =>
       curves.map((c) => ({
@@ -66,16 +76,24 @@ export function ThermalPlot(props: ThermalPlotProps) {
   );
   const lower = useMemo<SeriesSource | undefined>(
     () =>
-      dtg
+      heatFlow
         ? {
-            id: 'dtg',
-            name: 'DTG',
-            x: dtg.temperatureC,
-            y: dtg.values,
-            unit: dtg.unit,
+            id: 'heat-flow',
+            name: 'Heat flow',
+            x: heatFlow.temperatureC,
+            y: heatFlow.values,
+            unit: heatFlow.unit,
           }
-        : undefined,
-    [dtg],
+        : dtg
+          ? {
+              id: 'dtg',
+              name: 'DTG',
+              x: dtg.temperatureC,
+              y: dtg.values,
+              unit: dtg.unit,
+            }
+          : undefined,
+    [dtg, heatFlow],
   );
   return (
     <PlotPanel
@@ -91,6 +109,16 @@ export function ThermalPlot(props: ThermalPlotProps) {
       {...(props.bands && { bands: props.bands })}
       {...(props.peakLabels && { peakLabels: props.peakLabels })}
       {...(lower &&
+        heatFlow && {
+          residual: lower,
+          lowerAxis: {
+            y: heatFlow.axis,
+            yValues: true,
+            description: `Heat flow, ${heatFlow.axis}, against temperature, on the same temperature axis as the mass curve.`,
+          },
+        })}
+      {...(lower &&
+        !heatFlow &&
         dtg && {
           residual: lower,
           lowerAxis: {

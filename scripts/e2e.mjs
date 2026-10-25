@@ -450,6 +450,8 @@ try {
     .locator('input')
     .fill('100');
   await page.getByText(/Xc ≈/).waitFor();
+  await next('Combined interpretation');
+  await page.getByText(/There is no mass curve/).waitFor();
   await next('Results');
   await page
     .getByText(/ΔH endothermic positive/)
@@ -465,6 +467,55 @@ try {
   );
   step(
     'DSC: technique switch, example, events with guidance, Tg near 60 °C, Xc, CSV with convention',
+  );
+
+  // Combined TGA-DSC: simultaneous example, correlation, re-ranked suggestion, calcination mark.
+  page.once('dialog', (d) => d.accept());
+  await page.getByRole('button', { name: 'Start over' }).click();
+  await page.getByRole('button', { name: 'Try with combined TGA-DSC example' }).click();
+  await page.getByRole('heading', { name: 'Describe the run', exact: true }).waitFor();
+  await next('Clean data');
+  await next('Baseline and events');
+  await page.getByRole('heading', { name: /Event 4: exothermic/ }).waitFor();
+  await next('Glass transition and crystallinity');
+  await next('Combined interpretation');
+  await page
+    .getByText(/Mass is lost .* while heat is absorbed/)
+    .first()
+    .waitFor();
+  await page
+    .getByText(/The mass does not change .* while heat is released/)
+    .first()
+    .waitFor();
+  await page.getByText(/Heat flow: exo up/).waitFor();
+  await page
+    .getByText(/Table not verified yet/)
+    .first()
+    .waitFor();
+  await page.getByText(/Check by XRD of samples calcined below and above 520/).waitFor();
+  const accept = page.getByRole('button', { name: /Accept this Dehydration or evaporation/ });
+  await accept.click();
+  await page.getByText(/Your choice: Dehydration or evaporation/).waitFor();
+  await next('Results');
+  await page.getByText('Combined TGA-DSC (guidance)').waitFor();
+  const [combinedCsv] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Download combined events (CSV)' }).click(),
+  ]);
+  const combinedText = readFileSync(await combinedCsv.path(), 'utf8');
+  assert.match(combinedText, /exo up on plots; ΔH endothermic positive/);
+  assert.match(combinedText, /Dehydration or evaporation/);
+  const methodsValue = await page.getByLabel('Methods paragraph').inputValue();
+  assert.match(methodsValue, /mass loss with an endotherm suggests dehydration/);
+  assert.match(methodsValue, /confirmed experimentally/);
+  const [staSession] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Download session (JSON)' }).click(),
+  ]);
+  const staJson = JSON.parse(readFileSync(await staSession.path(), 'utf8'));
+  assert.equal(staJson.kind, 'dsc-session');
+  step(
+    'Combined TGA-DSC: example, correlations, accepted suggestion, calcination mark at 520 °C, CSV, methods text, session',
   );
 
   // No horizontal page scroll at phone width.

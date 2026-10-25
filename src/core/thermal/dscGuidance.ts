@@ -58,7 +58,11 @@ export const DSC_NO_CERTAINTY_NOTE =
  * Confidence is "medium" when the peak is inside the range and the direction matches exactly,
  * otherwise "low". These are estimates for ranking, never identifications.
  */
-export function guidanceFor(evidence: DscEvidence, rules: readonly DscRule[]): DscGuidance[] {
+export function guidanceFor(
+  evidence: DscEvidence,
+  rules: readonly DscRule[],
+  limit: number = MAX_GUIDANCE,
+): DscGuidance[] {
   const out: DscGuidance[] = [];
   for (const rule of rules) {
     if (!rule.scans.includes(evidence.scan)) continue;
@@ -78,7 +82,7 @@ export function guidanceFor(evidence: DscEvidence, rules: readonly DscRule[]): D
       reason: reason(evidence, rule, inside, specific),
     });
   }
-  return out.sort((a, b) => b.score - a.score).slice(0, MAX_GUIDANCE);
+  return out.sort((a, b) => b.score - a.score).slice(0, limit);
 }
 
 function reason(evidence: DscEvidence, rule: DscRule, inside: boolean, specific: boolean): string {

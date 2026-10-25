@@ -281,6 +281,9 @@ export function detectEvents(
     }
     return best;
   };
+  // The ridge between two neighbouring peaks of the opposite sign is not an event of its own:
+  // a peak has to rise at least half the minimum prominence beyond the typical level of the curve.
+  const level = median(exo);
   const found = [
     ...pickPeaks(T, exo, { minProminence }).map((p) => ({ ...p, sign: 1 })),
     ...pickPeaks(
@@ -288,7 +291,9 @@ export function detectEvents(
       exo.map((v) => -v),
       { minProminence },
     ).map((p) => ({ ...p, sign: -1 })),
-  ].sort((a, b) => b.prominence - a.prominence);
+  ]
+    .filter((p) => p.height - p.sign * level >= 0.5 * minProminence)
+    .sort((a, b) => b.prominence - a.prominence);
   const kept: typeof found = [];
   for (const peak of found) {
     if (kept.every((k) => Math.abs(k.wavenumber - peak.wavenumber) >= options.minSeparationC)) {

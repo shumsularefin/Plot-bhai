@@ -14,7 +14,9 @@ import {
 import type { RunInfo } from '../../../core/thermal/types';
 import { DEFAULT_EXPORT_SETTINGS } from '../../../ui/plot/export';
 import type { PlotSettings } from '../../../ui/plot/PlotPanel';
+import { DEFAULT_MASS_THRESHOLD_PCT } from '../../../core/thermal/combined';
 import { DEFAULT_RUN_INFO, type EventAssignment, type LoadedTable } from '../data';
+import type { WizardState } from '../../../ui/wizard/types';
 
 /** Which events feed the crystallinity: a number is an event id, 'none' means no cold crystallisation, null picks automatically. */
 export interface CrystallinitySettings {
@@ -44,6 +46,12 @@ export interface DscData {
   crystallinity: CrystallinitySettings;
   /** Per event id: what the user decided about the guidance. */
   assignments: Record<number, EventAssignment>;
+  /** A separate TGA run for the combined view. Null means the mass column of `file` is used, if it has one. */
+  tgaFile: LoadedTable | null;
+  /** Mass change in % points of the reference mass below which an event counts as "no mass change". */
+  massThresholdPct: number;
+  /** Per TGA step id: what the user decided about the combined suggestions. */
+  stepAssignments: Record<number, EventAssignment>;
   plot: PlotSettings;
 }
 
@@ -66,8 +74,19 @@ export const initialDscData: DscData = {
   glassWindows: null,
   crystallinity: DEFAULT_CRYSTALLINITY,
   assignments: {},
+  tgaFile: null,
+  massThresholdPct: DEFAULT_MASS_THRESHOLD_PCT,
+  stepAssignments: {},
   plot: { normalise: false, offsetPercent: 0, export: DEFAULT_EXPORT_SETTINGS },
 };
 
 /** Version of the saved shape. Bump it, and add a migration, when the shape changes. */
-export const DSC_STATE_VERSION = 1;
+export const DSC_STATE_VERSION = 2;
+
+/** Version 1 had no combined TGA-DSC settings; they start at their defaults. */
+export function migrateDscData(saved: unknown, version: number): WizardState<DscData> | undefined {
+  if (version !== 1) return undefined;
+  const state = saved as WizardState<Partial<DscData>> | null;
+  if (!state || typeof state !== 'object' || !state.data) return undefined;
+  return { ...state, data: { ...initialDscData, ...state.data } };
+}

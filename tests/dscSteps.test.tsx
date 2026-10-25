@@ -2,10 +2,17 @@ import { fireEvent, render, screen } from '@testing-library/preact';
 import { useState } from 'preact/hooks';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { guessMapping } from '../src/core/thermal/import';
-import { exampleDscTable } from '../src/core/thermal/synthetic';
+import { exampleDscTable, exampleStaTable } from '../src/core/thermal/synthetic';
 import { displayExoUp } from '../src/core/thermal/dscClean';
 import { DscCleanStep } from '../src/modules/thermal/dsc/CleanStep';
-import { initialDscData, type DscData } from '../src/modules/thermal/dsc/data';
+import { DscCombinedStep } from '../src/modules/thermal/dsc/CombinedStep';
+import {
+  DSC_STATE_VERSION,
+  initialDscData,
+  migrateDscData,
+  type DscData,
+} from '../src/modules/thermal/dsc/data';
+import { dscSession } from '../src/modules/thermal/dsc/session';
 import { heatFlowLabel } from '../src/modules/thermal/dsc/DscPlot';
 import { DscEventsStep } from '../src/modules/thermal/dsc/EventsStep';
 import { DscGlassStep } from '../src/modules/thermal/dsc/GlassStep';
@@ -152,6 +159,107 @@ describe('DSC glass transition and results', () => {
 
 describe('DSC wizard steps', () => {
   it('has the planned order', () => {
-    expect(dscSteps.map((s) => s.id)).toEqual(['upload', 'clean', 'events', 'glass', 'results']);
+    expect(dscSteps.map((s) => s.id)).toEqual([
+      'upload',
+      'clean',
+      'events',
+      'glass',
+      'combined',
+      'results',
+    ]);
+  });
+});
+
+const sta = exampleStaTable();
+const staLoaded: DscData = {
+  ...initialDscData,
+  file: {
+    name: 'Example TGA-DSC (synthetic)',
+    table: sta,
+    mapping: guessMapping(sta),
+    synthetic: true,
+  },
+  setup: { unit: 'mW', fileExoUp: true, displayExoUp: null },
+  info: { ...initialDscData.info, heatingRate: 10, initialMassMg: 10 },
+};
+
+describe('combined TGA-DSC', () => {
+  it('loads the combined example from the upload step', async () => {
+    let latest = initialDscData;
+    render(<Harness initial={initialDscData} Step={DscUploadStep} onData={(d) => (latest = d)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Try with combined TGA-DSC example' }));
+    await screen.findByRole('heading', { name: 'Describe the run' });
+    expect(latest.file?.mapping.mass).not.toBeNull();
+    expect(latest.info.initialMassMg).toBe(10);
+    expect(dscUploadProblem(latest)).toBeNull();
+  });
+
+  it('reads each event against the mass and states the exo convention', () => {
+    const { container } = render(<Harness initial={staLoaded} Step={DscCombinedStep} />);
+    const text = container.textContent ?? '';
+    expect(text).toContain('Mass loss with an endotherm suggests dehydration');
+    expect(text).toContain('No mass change with an exotherm suggests crystallisation');
+    expect(text).toContain('Heat flow: exo up');
+    expect(text).toContain('Table not verified yet');
+    expect(text).toMatch(/The mass does not change .* while heat is released/);
+    expect(text).toMatch(/Mass is lost .* while heat is absorbed/);
+    expect(text).toMatch(/Check by XRD of samples calcined below and above 520/);
+  });
+
+  it('records an accepted re-ranked suggestion', () => {
+    let latest = staLoaded;
+    render(<Harness initial={staLoaded} Step={DscCombinedStep} onData={(d) => (latest = d)} />);
+    fireEvent.click(screen.getAllByRole('button', { name: /Accept this/ })[0] as HTMLElement);
+    expect(Object.values(latest.assignments)[0]?.status).toBe('accepted');
+  });
+
+  it('explains what is missing when there is no mass curve or the ramp is cooling', () => {
+    render(<Harness initial={loaded} Step={DscCombinedStep} />);
+    expect(screen.getByText(/There is no mass curve/)).toBeTruthy();
+  });
+
+  it('puts the combined table, calcination marks and methods text in the results', () => {
+    const { container } = render(<Harness initial={staLoaded} Step={DscResultsStep} />);
+    const text = container.textContent ?? '';
+    expect(text).toContain('Combined TGA-DSC (guidance)');
+    expect(text).toContain('Calcination: exotherms above the last mass loss step');
+    const methods = (screen.getByLabelText('Methods paragraph') as HTMLTextAreaElement).value;
+    expect(methods).toMatch(/Exothermic peaks point up in the file and are drawn up/);
+    expect(methods).toMatch(/mass loss with an endotherm suggests dehydration/);
+    expect(methods).toMatch(/confirmed experimentally/);
+    expect(methods).toMatch(/scan rate: 10 K\/min/);
+  });
+});
+
+describe('DSC session', () => {
+  it('moves a version 1 save to the current shape with the combined defaults', () => {
+    const v1 = Object.fromEntries(
+      Object.entries(loaded).filter(
+        ([key]) => !['tgaFile', 'stepAssignments', 'massThresholdPct'].includes(key),
+      ),
+    );
+    const migrated = migrateDscData({ stepIndex: 2, data: v1 }, 1);
+    expect(migrated?.data.massThresholdPct).toBe(initialDscData.massThresholdPct);
+    expect(migrated?.data.stepAssignments).toEqual({});
+    expect(migrateDscData({ data: v1 }, 0)).toBeUndefined();
+    expect(DSC_STATE_VERSION).toBe(2);
+  });
+
+  it('round-trips a combined session, with the second TGA file, and refuses a damaged one', () => {
+    const data: DscData = {
+      ...staLoaded,
+      tgaFile: staLoaded.file,
+      stepAssignments: { 1: { status: 'rejected', ruleId: null, label: '' } },
+    };
+    const parsed = dscSession.parse(dscSession.serialise({ step: 5, furthest: 5, data }));
+    expect(parsed).toMatchObject({ ok: true });
+    if (!parsed.ok) return;
+    expect(parsed.state.data.tgaFile?.table.columns[2]).toEqual(sta.columns[2]);
+    expect(parsed.state.data.stepAssignments[1]?.status).toBe('rejected');
+    expect(dscSession.parse('{"app":"xrd-toolkit","kind":"thermal-session"}')).toMatchObject({
+      ok: false,
+    });
+    const damaged = dscSession.serialise({ step: 0, furthest: 0, data: initialDscData });
+    expect(dscSession.parse(damaged)).toMatchObject({ ok: false });
   });
 });
