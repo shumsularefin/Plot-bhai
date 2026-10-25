@@ -1,9 +1,8 @@
+import { SOFTWARE } from '../../ui/software';
 import { uvvisMethodsParagraph, type UvvisMethodsInput } from '../../core/uvvis/methods';
 import { DEFAULT_CLEANING } from '../../core/uvvis/process';
 import { resultRows } from './analysis';
 import type { UvvisData } from './data';
-
-const SOFTWARE = 'XRD Toolkit (free, runs in the browser; version not recorded)';
 
 /** The settings that went into the analysis, read from the saved session. */
 export function methodsInput(data: UvvisData): UvvisMethodsInput {

@@ -1,3 +1,5 @@
+import { RecordSection } from '../../ui/report/RecordSection';
+import { xrdRecord } from './record';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { ProcessingResult } from '../../core/xrd/process/pipeline';
 import type { Pattern } from '../../core/xrd/types';
@@ -120,6 +122,10 @@ export function ExportStep({ data, update }: StepContext<XrdData>) {
 
       <MethodsSection text={methods} />
       <TablesSection tables={tables} />
+      <RecordSection
+        build={() => xrdRecord(data, phases ?? [])}
+        stem={data.patterns[0]?.name ?? 'xrd'}
+      />
       <SessionSection data={data} update={update} />
     </div>
   );

@@ -1,3 +1,5 @@
+import { RecordSection } from '../../ui/report/RecordSection';
+import { ftirRecord } from './record';
 import { useMemo, useState } from 'preact/hooks';
 import { formatNumber } from '../../core/xrd/parsers/numbers';
 import { HelpTip } from '../../ui/HelpTip';
@@ -206,6 +208,8 @@ export function ResultsStep({ data, update }: StepContext<FtirData>) {
           {copied}
         </p>
       </section>
+
+      <RecordSection build={() => ftirRecord(data)} stem={data.spectra[0]?.name ?? 'ftir'} />
 
       <SessionSection
         codec={ftirSession}

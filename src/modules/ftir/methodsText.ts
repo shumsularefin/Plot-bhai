@@ -1,11 +1,10 @@
+import { SOFTWARE } from '../../ui/software';
 import groups from '../../../data/ftir/groups.json';
 import { ftirMethodsParagraph, type FtirMethodsInput } from '../../core/ftir/methods';
 import { DEFAULT_FTIR_PROCESSING } from '../../core/ftir/process';
 import { peaksFor, type FtirData } from './data';
 import { peakRows } from './analysis';
 import { shownQuantity } from './quantity';
-
-const SOFTWARE = 'XRD Toolkit (free, runs in the browser; version not recorded)';
 
 /** The settings that went into the analysis, read from the saved session. */
 export function methodsInput(data: FtirData): FtirMethodsInput {

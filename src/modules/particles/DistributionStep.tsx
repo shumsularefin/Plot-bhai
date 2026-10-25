@@ -1,3 +1,4 @@
+import { SOFTWARE } from '../../ui/software';
 import { useMemo, useState } from 'preact/hooks';
 import {
   betterFit,
@@ -33,7 +34,6 @@ import { HistogramChart } from './HistogramChart';
 import { useImage } from './useImage';
 import { collectSizes, imageSizes, keptParticles, poolEntryOf } from './sizes';
 
-const SOFTWARE = 'XRD Toolkit (free, runs in the browser; version not recorded)';
 const MEASURE_WORDS: Record<SizeMeasure, string> = {
   'equal-area': 'equal-area diameter',
   longest: 'longest caliper (Feret) diameter',

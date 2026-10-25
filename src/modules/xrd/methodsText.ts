@@ -1,3 +1,4 @@
+import { SOFTWARE } from '../../ui/software';
 import { phaseReference } from '../../core/xrd/reference/source';
 import { methodsParagraph, type MethodsInput } from '../../core/xrd/report/methods';
 import { ANODES } from '../../core/xrd/radiation';
@@ -5,8 +6,6 @@ import type { ReferencePhase } from '../../core/xrd/reference/types';
 import { stepStats } from '../../core/xrd/summary';
 import { peaksFor, processingFor, type XrdData } from './data';
 import { METHOD_NAMES, sizeResults, type MethodId } from './sizeResults';
-
-const SOFTWARE = 'XRD Toolkit (free, runs in the browser; version not recorded)';
 
 /** The settings that went into the analysis, read from the saved session. */
 export function methodsInput(data: XrdData, library: readonly ReferencePhase[]): MethodsInput {

@@ -1,10 +1,9 @@
+import { SOFTWARE } from '../../ui/software';
 import { thermalMethodsParagraph, type ThermalMethodsInput } from '../../core/thermal/methods';
 import type { StepResult } from '../../core/thermal/steps';
 import type { CalcinationSuggestion } from '../../core/thermal/calcination';
 import { theoryView } from './analysis';
 import type { ThermalData } from './data';
-
-const SOFTWARE = 'XRD Toolkit (free, runs in the browser; version not recorded)';
 
 /** The settings that went into the analysis, read from the saved session. */
 export function methodsInput(
