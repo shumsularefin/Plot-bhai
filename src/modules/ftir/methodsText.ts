@@ -3,6 +3,7 @@ import { ftirMethodsParagraph, type FtirMethodsInput } from '../../core/ftir/met
 import { DEFAULT_FTIR_PROCESSING } from '../../core/ftir/process';
 import { peaksFor, type FtirData } from './data';
 import { peakRows } from './analysis';
+import { shownQuantity } from './quantity';
 
 const SOFTWARE = 'XRD Toolkit (free, runs in the browser; version not recorded)';
 
@@ -35,6 +36,7 @@ export function methodsInput(data: FtirData): FtirMethodsInput {
     }),
     toleranceCm: data.toleranceCm,
     rangeSource: `${groups.source.citation}, doi:${groups.source.doi}`,
+    shown: shownQuantity(data, data.spectra).quantity,
   };
 }
 

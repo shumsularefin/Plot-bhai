@@ -89,7 +89,10 @@ export function InteractivePlot(props: InteractivePlotProps) {
   const innerW = Math.max(1, width - m.left - m.right);
   const innerH = Math.max(1, height - m.top - m.bottom);
   const room = peakLabels ? labelRoom(FONT_SIZE) : 0;
-  const yDomain = visibleYDomain(series, domain, room / Math.max(innerH - room, 1), markers);
+  const usable = Math.max(innerH - room, 1);
+  const yDomain = peakLabels?.below
+    ? visibleYDomain(series, domain, 0, markers, room / usable)
+    : visibleYDomain(series, domain, room / usable, markers);
 
   // Latest values for event handlers that live across renders.
   const live = useRef({ domain, extent, minSpan, innerW, onDomainChange });

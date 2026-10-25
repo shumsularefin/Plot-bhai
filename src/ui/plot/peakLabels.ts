@@ -1,7 +1,7 @@
-/** A text label above a peak, for example its (hkl) index. x and y are in data units. */
+/** A text label at a peak, for example its (hkl) index. x and y are in data units. */
 export interface PeakLabel {
   x: number;
-  /** Height of the peak top; the label sits above it. */
+  /** Height of the peak top; the label sits above it (or below it, see PeakLabelSet.below). */
   y: number;
   text: string;
   /** Drawn in bold (the strongest peak). */
@@ -12,6 +12,8 @@ export interface PeakLabel {
 export interface PeakLabelSet {
   labels: readonly PeakLabel[];
   key: readonly string[];
+  /** Put the labels under the points instead of above them (for minima, such as bands in transmittance). */
+  below?: boolean;
 }
 
 /** Rows of labels that may be stacked above the tallest peak before they overlap the frame. */

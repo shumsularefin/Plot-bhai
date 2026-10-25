@@ -57,13 +57,15 @@ interface PlotSvgProps {
 
 /**
  * y range of the data and markers visible between xDomain[0] and xDomain[1], padded a little
- * so lines do not touch the frame. extraTopFraction leaves room at the top (for a legend).
+ * so lines do not touch the frame. extraTopFraction leaves room at the top (for a legend or
+ * peak labels), extraBottomFraction at the bottom (for labels under minima).
  */
 export function visibleYDomain(
   series: readonly PlotSeries[],
   xDomain: Domain,
   extraTopFraction = 0,
   markers: readonly PlotMarker[] = [],
+  extraBottomFraction = 0,
 ): Domain {
   let lo = Infinity;
   let hi = -Infinity;
@@ -83,7 +85,7 @@ export function visibleYDomain(
   if (!Number.isFinite(lo)) return [0, 1];
   if (hi === lo) hi = lo + 1;
   const range = hi - lo;
-  return [lo - 0.03 * range, hi + (0.06 + extraTopFraction) * range];
+  return [lo - (0.03 + extraBottomFraction) * range, hi + (0.06 + extraTopFraction) * range];
 }
 
 /**
@@ -119,10 +121,14 @@ export function PlotSvg(props: PlotSvgProps) {
   const legendKey = legend && peakLabels ? peakLabels.key : [];
   const legendRows = (legendSeries.length > 1 ? legendSeries.length : 0) + legendKey.length;
   const legendHeight = legendRows > 0 ? legendRows * lineHeight + style.fontSize * 0.4 : 0;
-  const reserved = legendHeight + (peakLabels ? labelRoom(style.fontSize) : 0);
+  const below = peakLabels?.below === true;
+  const labelSpace = peakLabels ? labelRoom(style.fontSize) : 0;
+  const reserved = legendHeight + (below ? 0 : labelSpace);
+  const bottomReserved = below ? labelSpace : 0;
+  const usable = Math.max(innerH - reserved - bottomReserved, 1);
   const [y0, y1] =
     props.yDomain ??
-    visibleYDomain(series, xDomain, reserved / Math.max(innerH - reserved, 1), markers);
+    visibleYDomain(series, xDomain, reserved / usable, markers, bottomReserved / usable);
   const px = (x: number) => ((x - x0) / (x1 - x0)) * innerW;
   const py = (y: number) => innerH - ((y - y0) / (y1 - y0)) * innerH;
   const digits = style.print ? 3 : 1;
@@ -144,19 +150,26 @@ export function PlotSvg(props: PlotSvgProps) {
 
   const placedLabels = (() => {
     const visible = (peakLabels?.labels ?? []).filter((l) => l.x >= x0 && l.x <= x1);
+    // Labels under minima are placed by the same rule on the plot turned upside down.
+    const flip = (y: number) => (below ? innerH - y : y);
     const placements = placeLabels(
       visible.map((l) => ({
         x: px(l.x),
-        y: py(l.y),
+        y: flip(py(l.y)),
         width: textWidth(l.text, style.fontSize),
       })),
       lineHeight,
       0,
     );
-    return visible.map((label, i) => ({
-      label,
-      placed: placements[i] as (typeof placements)[number],
-    }));
+    return visible.map((label, i) => {
+      const placed = placements[i] as (typeof placements)[number];
+      return {
+        label,
+        placed: below
+          ? { ...placed, baseline: innerH - placed.baseline + lineHeight * 0.6 }
+          : placed,
+      };
+    });
   })();
 
   const tickLength = style.fontSize * 0.45;
@@ -326,7 +339,11 @@ export function PlotSvg(props: PlotSvgProps) {
               <g key={i}>
                 {placed.leader && (
                   <path
-                    d={`M${placed.x.toFixed(2)} ${(placed.baseline + style.fontSize * 0.25).toFixed(2)}V${(py(label.y) - style.fontSize * 0.3).toFixed(2)}`}
+                    d={
+                      below
+                        ? `M${placed.x.toFixed(2)} ${(placed.baseline - style.fontSize * 0.95).toFixed(2)}V${(py(label.y) + style.fontSize * 0.3).toFixed(2)}`
+                        : `M${placed.x.toFixed(2)} ${(placed.baseline + style.fontSize * 0.25).toFixed(2)}V${(py(label.y) - style.fontSize * 0.3).toFixed(2)}`
+                    }
                     fill="none"
                     stroke={ink ?? 'currentColor'}
                     stroke-width={style.lineWidth * 0.5}

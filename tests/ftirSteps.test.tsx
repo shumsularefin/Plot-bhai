@@ -75,11 +75,12 @@ describe('FTIR clean step', () => {
     expect(store.get().processing[sample.id]?.baseline.enabled).toBe(false);
   });
 
-  it('disables the transmittance view while normalised', () => {
+  it('says why a normalised spectrum stays in absorbance when transmittance is chosen', () => {
     const spectra = exampleSpectra();
-    setup(CleanStep, { spectra });
+    setup(CleanStep, { spectra, view: { quantity: 'transmittance' } });
+    expect(screen.queryByText(/cannot be turned back into transmittance/)).toBeNull();
     fireEvent.click(screen.getByRole('switch', { name: 'Normalisation' }));
-    expect((screen.getByLabelText('Transmittance (%)') as HTMLInputElement).disabled).toBe(true);
+    expect(screen.getByText(/cannot be turned back into transmittance/)).toBeTruthy();
   });
 });
 

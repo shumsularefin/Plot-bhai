@@ -1,13 +1,14 @@
 import { useMemo } from 'preact/hooks';
 import { formatNumber } from '../../core/xrd/parsers/numbers';
 import { HelpTip } from '../../ui/HelpTip';
-import type { PeakLabelSet } from '../../ui/plot/peakLabels';
 import type { StepContext } from '../../ui/wizard/types';
 import { NumberInput } from '../xrd/NumberInput';
 import { downloadCsv } from '../xrd/csv';
 import { peaksOf, processAll } from './analysis';
 import { DEFAULT_PEAK_SETTINGS, peaksFor, type FtirData, type PeakSettings } from './data';
-import { curveOf, FtirPlot } from './FtirPlot';
+import { curveOf, FtirPlot, peakLabelsFor } from './FtirPlot';
+import { QuantityChoice } from './QuantityChoice';
+import { quantityHeading, shownQuantity, valueIn } from './quantity';
 import { useSelectedSpectrum } from './useSelected';
 
 /** More peaks than this is probably noise or an over-sensitive threshold. */
@@ -23,17 +24,9 @@ export function PeaksStep({ data, update }: StepContext<FtirData>) {
   const result = spectrum ? processed[data.spectra.indexOf(spectrum)] : undefined;
   const settings = spectrum ? peaksFor(data, spectrum.id) : DEFAULT_PEAK_SETTINGS;
   const peaks = useMemo(() => (result ? peaksOf(result, settings) : []), [result, settings]);
-  const labels = useMemo<PeakLabelSet>(
-    () => ({
-      labels: peaks.map((p) => ({
-        x: -p.wavenumber,
-        y: p.height,
-        text: String(Math.round(p.wavenumber)),
-      })),
-      key: [],
-    }),
-    [peaks],
-  );
+  const shown = shownQuantity(data, spectrum ? [spectrum] : []);
+  const quantity = shown.quantity;
+  const labels = useMemo(() => peakLabelsFor(peaks, quantity), [peaks, quantity]);
   const curves = useMemo(
     () => (spectrum && result ? [curveOf(spectrum.id, spectrum.name, result)] : []),
     [spectrum, result],
@@ -62,9 +55,11 @@ export function PeaksStep({ data, update }: StepContext<FtirData>) {
         </div>
       )}
       <p class="field-hint">
-        Peaks are picked on the absorbance spectrum from step 2 (after the steps you switched on).
-        Positions come from a parabola through the highest point and its two neighbours.
+        Peaks are picked on the absorbance spectrum from step 2 (after the steps you switched on),
+        where bands are maxima; in transmittance the same bands are minima. Positions come from a
+        parabola through the highest point and its two neighbours.
       </p>
+      <QuantityChoice data={data} update={update} shown={shown} />
 
       <section class="process-step is-on" aria-labelledby="prom-title">
         <h3 id="prom-title" class="process-step-title">
@@ -128,7 +123,7 @@ export function PeaksStep({ data, update }: StepContext<FtirData>) {
 
       <FtirPlot
         curves={curves}
-        quantity="absorbance"
+        quantity={quantity}
         settings={data.plot}
         onSettingsChange={(plot) => update({ plot: { ...data.plot, ...plot } })}
         exportName={`${spectrum.name}-peaks`}
@@ -148,11 +143,19 @@ export function PeaksStep({ data, update }: StepContext<FtirData>) {
             onClick={() =>
               downloadCsv(
                 `${spectrum.name}-peaks`,
-                `FTIR peaks of ${spectrum.name}, picked on the processed absorbance with a minimum prominence of ${settings.prominencePercent} % of the absorbance range.`,
+                `FTIR peaks of ${spectrum.name}, picked on the processed absorbance with a minimum prominence of ${settings.prominencePercent} % of the absorbance range.${quantity === 'transmittance' ? ' Transmittance (%) = 100 x 10^(-absorbance) of the processed spectrum.' : ''}`,
                 peaks,
                 [
                   { header: 'Wavenumber (cm-1)', value: (p) => p.wavenumber },
-                  { header: 'Absorbance', value: (p) => p.height },
+                  { header: 'Absorbance (processed)', value: (p) => p.height },
+                  ...(quantity === 'transmittance'
+                    ? [
+                        {
+                          header: 'Transmittance (%)',
+                          value: (p: (typeof peaks)[number]) => valueIn(quantity, p.height),
+                        },
+                      ]
+                    : []),
                   { header: 'Relative intensity (%)', value: (p) => p.relative },
                   { header: 'Prominence', value: (p) => p.prominence },
                 ],
@@ -173,6 +176,7 @@ export function PeaksStep({ data, update }: StepContext<FtirData>) {
               <tr>
                 <th scope="col">Wavenumber (cm⁻¹)</th>
                 <th scope="col">Absorbance</th>
+                {quantity === 'transmittance' && <th scope="col">{quantityHeading(quantity)}</th>}
                 <th scope="col">Relative intensity (%)</th>
                 <th scope="col">Prominence</th>
               </tr>
@@ -182,6 +186,9 @@ export function PeaksStep({ data, update }: StepContext<FtirData>) {
                 <tr key={p.wavenumber}>
                   <th scope="row">{formatNumber(p.wavenumber, 1)}</th>
                   <td>{formatNumber(p.height, 4)}</td>
+                  {quantity === 'transmittance' && (
+                    <td>{formatNumber(valueIn(quantity, p.height), 2)}</td>
+                  )}
                   <td>{formatNumber(p.relative, 1)}</td>
                   <td>{formatNumber(p.prominence, 4)}</td>
                 </tr>

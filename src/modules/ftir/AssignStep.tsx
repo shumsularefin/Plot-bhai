@@ -2,12 +2,13 @@ import { useMemo } from 'preact/hooks';
 import { suggestAssignments, type GroupTable } from '../../core/ftir/assign';
 import { formatNumber } from '../../core/xrd/parsers/numbers';
 import { HelpTip } from '../../ui/HelpTip';
-import type { PeakLabelSet } from '../../ui/plot/peakLabels';
 import type { StepContext } from '../../ui/wizard/types';
 import { NumberInput } from '../xrd/NumberInput';
 import { assignmentFor, peaksOf, processAll } from './analysis';
 import { peaksFor, type Assignment, type FtirData } from './data';
-import { curveOf, FtirPlot } from './FtirPlot';
+import { curveOf, FtirPlot, peakLabelsFor } from './FtirPlot';
+import { QuantityChoice } from './QuantityChoice';
+import { shownQuantity, valueIn } from './quantity';
 import groups from '../../../data/ftir/groups.json';
 import { useSelectedSpectrum } from './useSelected';
 
@@ -35,17 +36,9 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
       })),
     [peaks, stored, data.toleranceCm],
   );
-  const labels = useMemo<PeakLabelSet>(
-    () => ({
-      labels: peaks.map((p) => ({
-        x: -p.wavenumber,
-        y: p.height,
-        text: String(Math.round(p.wavenumber)),
-      })),
-      key: [],
-    }),
-    [peaks],
-  );
+  const shown = shownQuantity(data, spectrum ? [spectrum] : []);
+  const quantity = shown.quantity;
+  const labels = useMemo(() => peakLabelsFor(peaks, quantity), [peaks, quantity]);
   const curves = useMemo(
     () => (spectrum && result ? [curveOf(spectrum.id, spectrum.name, result)] : []),
     [spectrum, result],
@@ -120,9 +113,10 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
         </p>
       </section>
 
+      <QuantityChoice data={data} update={update} shown={shown} />
       <FtirPlot
         curves={curves}
-        quantity="absorbance"
+        quantity={quantity}
         settings={data.plot}
         onSettingsChange={(plot) => update({ plot: { ...data.plot, ...plot } })}
         exportName={`${spectrum.name}-assigned`}
@@ -144,8 +138,10 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
                 <h4 class="assign-peak">
                   {formatNumber(peak.wavenumber, 1)} cm⁻¹{' '}
                   <span class="field-hint">
-                    absorbance {formatNumber(peak.height, 3)}, {formatNumber(peak.relative, 0)} % of
-                    the highest
+                    {quantity === 'absorbance'
+                      ? `absorbance ${formatNumber(peak.height, 3)}`
+                      : `transmittance ${formatNumber(valueIn(quantity, peak.height), 1)} %`}
+                    , {formatNumber(peak.relative, 0)} % of the highest absorbance
                   </span>
                 </h4>
                 <div class="inline-field">

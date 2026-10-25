@@ -7,6 +7,8 @@ import type { StepContext } from '../../ui/wizard/types';
 import { exampleSpectra, newId, type FtirData } from './data';
 import { FtirPlot, type FtirCurve } from './FtirPlot';
 import { FtirSpectrumCard } from './FtirSpectrumCard';
+import { QuantityChoice } from './QuantityChoice';
+import { defaultQuantity, shownQuantity } from './quantity';
 import { toAbsorbance } from '../../core/ftir/process';
 
 type Request = { kind: 'file'; file: File } | { kind: 'text'; name: string; text: string };
@@ -35,6 +37,8 @@ export function UploadStep({ data, update }: StepContext<FtirData>) {
   const fileInput = useRef<HTMLInputElement>(null);
   const spectra = data.spectra;
   const full = spectra.length >= MAX_SERIES;
+  // The raw data are drawn here, before any processing, so nothing is normalised yet.
+  const shown = shownQuantity({ view: data.view, processing: {} }, spectra);
 
   const curves = useMemo<FtirCurve[]>(
     () =>
@@ -46,6 +50,13 @@ export function UploadStep({ data, update }: StepContext<FtirData>) {
       })),
     [spectra],
   );
+
+  /** Adds spectra; the first ones loaded also set the display quantity to match the data. */
+  const addSpectra = (added: FtirSpectrum[]) =>
+    update({
+      spectra: [...spectra, ...added],
+      ...(spectra.length === 0 && { view: { ...data.view, quantity: defaultQuantity(added) } }),
+    });
 
   const importAll = async (requests: Request[], names: string[]): Promise<number> => {
     setBusy(requests.length === 1 ? 'Reading the data…' : `Reading ${requests.length} files…`);
@@ -64,7 +75,7 @@ export function UploadStep({ data, update }: StepContext<FtirData>) {
         error: `Up to ${MAX_SERIES} spectra can be loaded at once. ${added.length - room} were not added; remove some, then load them again.`,
       });
     }
-    if (room > 0 && added.length > 0) update({ spectra: [...spectra, ...added.slice(0, room)] });
+    if (room > 0 && added.length > 0) addSpectra(added.slice(0, room));
     setProblems(found);
     setBusy(null);
     return Math.min(added.length, room);
@@ -90,7 +101,7 @@ export function UploadStep({ data, update }: StepContext<FtirData>) {
     setRemoved(null);
     const room = Math.max(MAX_SERIES - spectra.length, 0);
     const examples = exampleSpectra().filter((e) => !spectra.some((s) => s.name === e.name));
-    update({ spectra: [...spectra, ...examples.slice(0, room)] });
+    addSpectra(examples.slice(0, room));
   };
 
   const change = (id: string, patch: Partial<FtirSpectrum>) =>
@@ -236,10 +247,11 @@ export function UploadStep({ data, update }: StepContext<FtirData>) {
         />
       ))}
 
+      {curves.length > 0 && <QuantityChoice data={data} update={update} shown={shown} />}
       {curves.length > 0 && (
         <FtirPlot
           curves={curves}
-          quantity="absorbance"
+          quantity={shown.quantity}
           settings={data.plot}
           onSettingsChange={(patch) => update({ plot: { ...data.plot, ...patch } })}
           exportName={spectra.length === 1 ? (spectra[0] as FtirSpectrum).name : 'ftir-spectra'}
