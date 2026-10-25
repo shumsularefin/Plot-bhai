@@ -17,12 +17,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Check Firebase setup
+        id: setup
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SERVICE_ACCOUNT" ]; then
+            echo "::notice::Live deploy skipped: add the FIREBASE_SERVICE_ACCOUNT secret (see README)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/setup-node@v5
+        if: steps.setup.outputs.ready == 'true'
         with:
           node-version: 22
           cache: npm
-      - run: npm ci && npm run build
+      - if: steps.setup.outputs.ready == 'true'
+        run: npm ci && npm run build
       - uses: FirebaseExtended/action-hosting-deploy@v0
+        if: steps.setup.outputs.ready == 'true'
         with:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           channelId: live

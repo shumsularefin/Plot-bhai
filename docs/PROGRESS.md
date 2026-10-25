@@ -1,5 +1,56 @@
 # Progress
 
+## Sub-stage 14b: About page, PWA, deploy, final status (done)
+
+Branch `claude/friendly-cray-f64dgw`. Stage 14 items 5 to 8. This closes the planned work (stages 13 and 15
+are optional and were skipped).
+
+### What was built
+
+- `src/ui/About.tsx` at `#/about`, linked from the footer: privacy statement, limitations, the equations
+  for every tool (copied from the doc comments in `src/core`, so they match the code), the COD attribution
+  and the FTIR table source (CC BY 4.0). It is part of the app shell (not lazy) because a lazy load shifted
+  the footer (CLS 0.12); the shell is still 11.8 KB gzipped of 150 KB. Test: `tests/about.test.tsx`.
+- Offline support without a library: `public/sw.js` (network first for pages, cache first for hashed
+  `/assets/`), `public/manifest.webmanifest`, 192 and 512 px icons rendered from `favicon.svg`. Registered
+  after `load`, production only. Checked in Chromium: the About page reloads offline.
+- `public/robots.txt` (fixes the only SEO miss from 14a).
+- `deploy.yml` now skips itself with a notice when the `FIREBASE_SERVICE_ACCOUNT` secret is missing (like
+  `preview.yml`), so merges do not fail before setup. README: setup steps corrected (`.firebaserc` already
+  names `plot-bhai`), live deploy explained, offline and audit notes.
+
+### Final numbers (this machine, headless Chromium, mobile emulation, production build)
+
+| Page  | Performance | Accessibility | Best practices | SEO        | LCP   | CLS   |
+| ----- | ----------- | ------------- | -------------- | ---------- | ----- | ----- |
+| Home  | 100         | 100           | 100            | 100        | 1.1 s | 0     |
+| About | 100         | 100           | 100            | not re-run | 1.1 s | 0     |
+| XRD   | 99          | 100           | 100            | 100        | 1.9 s | 0.042 |
+
+Other tools were measured in 14a (all 100 for performance). Tests: 626 passed, 1 skipped. Lint, type check,
+build, bundle size (11.8 KB initial), e2e and `npm run audit` all pass.
+
+### Final status
+
+All five tools (XRD, UV-Vis, FTIR, particle size, TGA/DSC/combined) are built, share one design system, plot
+engine and export system, and run fully in the browser.
+
+### Known issues
+
+- The live site is not deployed yet: it needs the Firebase service account secret from the README (your
+  step). I could not do or verify this from here.
+- The service worker never removes old hashed files from its cache after a release; clearing site data
+  does. A cache-size cap is a later idea.
+- Dark-theme contrast was not measured separately. Not tested on a real phone or screen reader.
+- Tables flagged "TODO, verify" (thermal events, combined rules, FTIR groups, wavelengths) still need your
+  check against your own literature.
+- XRD still has its own session-file copy rather than the shared `SessionSection`.
+
+### Ideas for later
+
+Activation energy (stage 13), the optional Gemini text helper (stage 15), cache cleanup in the service
+worker, more X-ray anodes, Lighthouse in CI.
+
 ## Sub-stage 14a: Polish (done)
 
 Branch `claude/friendly-cray-f64dgw`. Stage 14 items 1 to 4 (responsive audit, Lighthouse, accessibility, states).

@@ -59,8 +59,9 @@ workflow skips itself with a notice instead of failing.
    **Build → Hosting** and click **Get started** to enable Hosting. Note the **project ID** (shown
    in Project settings; it is not always the same as the display name).
 
-2. **Put the project ID in the repo.** In `.firebaserc`, replace `YOUR_FIREBASE_PROJECT_ID` with
-   your project ID and commit the change.
+2. **Put the project ID in the repo.** `.firebaserc` currently names the project `plot-bhai`. If
+   your project ID is different, change it there and in `projectId:` in
+   `.github/workflows/deploy.yml`, and commit the change.
 
 3. **Create a service account for GitHub Actions.** These steps follow the deploy action's
    [service account guide](https://github.com/FirebaseExtended/action-hosting-deploy/blob/main/docs/service-account.md).
@@ -86,9 +87,12 @@ workflow skips itself with a notice instead of failing.
    delete the downloaded key file from your computer.
 
 5. **Check it works.** Open or update a pull request. The **Preview deploy** workflow should
-   comment a preview URL that expires after 7 days.
+   comment a preview URL that expires after 7 days. After a merge to `main`, the **Deploy**
+   workflow (`.github/workflows/deploy.yml`) builds and publishes the live site by itself, using
+   the same secret. Until the secret exists it skips itself with a notice.
 
-To publish the live site, run this from a clean checkout of `main`:
+To publish the live site by hand instead (for example the first time), run this from a clean
+checkout of `main`:
 
 ```sh
 npm ci && npm run build
@@ -99,3 +103,12 @@ npx firebase-tools deploy --only hosting
 `firebase.json` serves `dist/` with long-lived caching for hashed files in `/assets/`, `no-cache`
 for everything else (so new releases show up immediately), and security headers including a strict
 Content Security Policy (scripts, styles and data from this site only; no inline scripts).
+
+## Offline use and checks
+
+`public/sw.js` is a small service worker (no library). After a tool has been opened once, the
+pages and files it used are kept in the browser cache, so that tool works offline. It only caches
+files from this site. To remove it, clear the site data in your browser.
+
+`npm run audit` (after `npm run build`) opens every tool at 360, 768, 1280 and 1920 px and reports
+sideways scrolling, touch targets under 44 px and controls without a name.
