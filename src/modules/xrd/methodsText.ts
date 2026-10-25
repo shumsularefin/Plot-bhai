@@ -53,6 +53,7 @@ export function methodsInput(data: XrdData, library: readonly ReferencePhase[]):
             method: processing.background.method,
             degree: processing.background.degree,
             snipWidthDeg: processing.background.snipWidthDeg,
+            arplsWidthDeg: processing.background.arplsWidthDeg,
             anchors: processing.background.anchors.length,
           }
         : null,

@@ -36,6 +36,8 @@ const BASELINES: Record<
   BaselineMethod,
   (b: NonNullable<FtirMethodsInput['spectra'][number]['baseline']>) => string
 > = {
+  arpls: (b) =>
+    `arPLS baseline correction (asymmetrically reweighted penalised least squares, Baek et al., Analyst 140 (2015) 250; smoothness λ = 10^${number(b.logLambda)})`,
   'rubber-band': () => 'rubber-band baseline correction (lower convex hull)',
   polynomial: (b) => `iterative polynomial baseline correction (degree ${b.degree})`,
   als: (b) =>

@@ -38,7 +38,7 @@ describe('methodsParagraph', () => {
       processing: {
         zeroShiftDeg: 0.05,
         smoothing: { window: 11, order: 3 },
-        background: { method: 'snip', degree: 4, snipWidthDeg: 2, anchors: 0 },
+        background: { method: 'snip', degree: 4, snipWidthDeg: 2, arplsWidthDeg: 4, anchors: 0 },
         kAlpha2Stripped: { ratio: 0.5 },
         normalisedTo: null,
       },

@@ -278,7 +278,11 @@ export function migrateXrdData(saved: unknown, version: number): WizardState<Xrd
 }
 
 export function processingFor(data: XrdData, id: string): ProcessingSettings {
-  return data.processing[id] ?? DEFAULT_PROCESSING;
+  const stored = data.processing[id];
+  // Settings saved before arPLS existed have no width for it.
+  return stored
+    ? { ...stored, background: { ...DEFAULT_PROCESSING.background, ...stored.background } }
+    : DEFAULT_PROCESSING;
 }
 
 export function newId(): string {

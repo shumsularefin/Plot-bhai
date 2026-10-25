@@ -1,4 +1,6 @@
 import { solve } from '../../math/linear';
+import { arplsBaseline } from '../../math/whittaker';
+import { localNoise } from '../peaks/noise';
 
 /**
  * Iterative polynomial background ("modified polyfit", C. A. Lieber and A. Mahadevan-Jansen,
@@ -174,4 +176,32 @@ function endSlope(h0: number, h1: number | undefined, d0: number, d1: number | u
   if (Math.sign(s) !== Math.sign(d0)) return 0;
   if (Math.sign(d0) !== Math.sign(d1) && Math.abs(s) > Math.abs(3 * d0)) return 3 * d0;
   return s;
+}
+
+/**
+ * arPLS background (see arplsBaseline) with its smoothness given as a width in degrees 2θ:
+ *   λ = (w / (2π Δ))⁴,
+ * with w the width and Δ the median step, so the same width gives the same stiffness on finely
+ * and coarsely sampled scans. A Whittaker smoother with this λ passes slower variations and
+ * suppresses those shorter than about w (P. H. C. Eilers, Anal. Chem. 75 (2003) 3631; the
+ * relation is an approximation, TODO(verify) against the paper). 4° (λ ≈ 10⁶ at a 0.02° step)
+ * gave the smallest error on the synthetic tests in tests/baseline-validation.test.ts.
+ */
+export function arplsBackground(y: Float64Array, widthDeg: number, stepDeg: number): Float64Array {
+  const lambda = (widthDeg / (2 * Math.PI * stepDeg)) ** 4;
+  return arplsBaseline(y, lambda);
+}
+
+/**
+ * Share of points (0 to 1) where the corrected data lie more than 3 noise levels below zero:
+ * the background has been put above the data there, cutting into real signal (a valley, a
+ * broad peak or an amorphous hump). The noise is estimated from `before`, the data the
+ * background was taken from (see localNoise).
+ */
+export function cutIntoData(before: Float64Array, corrected: Float64Array): number {
+  const noise = localNoise(before);
+  let below = 0;
+  for (let i = 0; i < corrected.length; i++)
+    if ((corrected[i] as number) < -3 * (noise[i] as number)) below++;
+  return corrected.length > 0 ? below / corrected.length : 0;
 }

@@ -70,7 +70,7 @@ describe('FTIR clean step', () => {
     fireEvent.click(screen.getByLabelText('Asymmetric least squares (automatic)'));
     expect(store.get().processing[sample.id]?.baseline.method).toBe('als');
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
-    expect(store.get().processing[sample.id]?.baseline.method).toBe('rubber-band');
+    expect(store.get().processing[sample.id]?.baseline.method).toBe('arpls');
     fireEvent.click(screen.getByRole('button', { name: 'Reset all steps' }));
     expect(store.get().processing[sample.id]?.baseline.enabled).toBe(false);
   });

@@ -1,11 +1,13 @@
 import { absorbanceFromPercentT, mapValues, percentTFromAbsorbance } from '../uvvis/conversions';
 import { formatNumber } from '../xrd/parsers/numbers';
+import { cutIntoData } from '../xrd/process/background';
 import { savitzkyGolay } from '../xrd/process/savitzkyGolay';
 import type { DataMessage } from '../xrd/types';
-import { alsBaseline, polynomialBaseline, rubberBandBaseline } from './baseline';
+import { alsBaseline, arplsBaseline } from '../math/whittaker';
+import { polynomialBaseline, rubberBandBaseline } from './baseline';
 import type { FtirKind, FtirSpectrum, ValueScale } from './types';
 
-export type BaselineMethod = 'rubber-band' | 'polynomial' | 'als';
+export type BaselineMethod = 'arpls' | 'rubber-band' | 'polynomial' | 'als';
 export type NormaliseMethod = 'max' | 'minmax';
 
 export interface FtirProcessing {
@@ -14,7 +16,7 @@ export interface FtirProcessing {
     method: BaselineMethod;
     /** Polynomial degree. */
     degree: number;
-    /** ALS smoothness λ as a power of ten: λ = 10^logLambda. */
+    /** arPLS and ALS smoothness λ as a power of ten: λ = 10^logLambda (λ in points⁴). */
     logLambda: number;
     /** ALS weight of points above the curve. */
     p: number;
@@ -23,9 +25,13 @@ export interface FtirProcessing {
   normalise: { enabled: boolean; method: NormaliseMethod };
 }
 
-/** Defaults of my own choosing, adjustable on screen; not published constants. */
+/**
+ * Defaults of my own choosing, adjustable on screen; not published constants. arPLS with
+ * λ = 10⁶ is the default baseline because it gave the smallest error on the synthetic spectra
+ * with known baselines in tests/baseline-validation.test.ts.
+ */
 export const DEFAULT_FTIR_PROCESSING: FtirProcessing = {
-  baseline: { enabled: false, method: 'rubber-band', degree: 3, logLambda: 5, p: 0.01 },
+  baseline: { enabled: false, method: 'arpls', degree: 3, logLambda: 6, p: 0.01 },
   smoothing: { enabled: false, window: 11, order: 3 },
   normalise: { enabled: false, method: 'max' },
 };
@@ -99,32 +105,34 @@ export function processSpectrum(
     if (x.length < 10) {
       note('baseline', 'warning', 'Too few points for a baseline, so nothing was subtracted.');
     } else {
+      const whittaker = b.method === 'als' || b.method === 'arpls';
       baseline =
         b.method === 'rubber-band'
           ? rubberBandBaseline(x, a)
           : b.method === 'polynomial'
             ? polynomialBaseline(x, a, b.degree)
-            : stepSpread(x) > 0.01
+            : whittaker && stepSpread(x) > 0.01
               ? null
-              : alsBaseline(a, 10 ** b.logLambda, b.p);
+              : b.method === 'arpls'
+                ? arplsBaseline(a, 10 ** b.logLambda)
+                : alsBaseline(a, 10 ** b.logLambda, b.p);
       if (baseline === null) {
         note(
           'baseline',
           'warning',
-          'The wavenumber spacing is not even, so the asymmetric least squares baseline was skipped.',
+          'The wavenumber spacing is not even, so the least squares baseline (arPLS or ALS) was skipped. Choose the rubber band or the polynomial instead.',
         );
       } else {
         const base = baseline;
+        const before = a;
         a = a.map((v, i) => v - (base[i] as number));
-        if (b.method !== 'rubber-band') {
-          const below = a.filter((v) => v < 0).length;
-          if (below > 0.2 * a.length) {
-            note(
-              'baseline',
-              'warning',
-              'The baseline lies above much of the spectrum. Lower the polynomial degree or raise the smoothness so it does not follow the peaks.',
-            );
-          }
+        const cut = cutIntoData(before, a);
+        if (cut > 0.02) {
+          note(
+            'baseline',
+            'warning',
+            `The baseline lies above the spectrum (by more than 3 times the noise) at ${(cut * 100).toFixed(0)} % of the points, so it cuts into real bands. Lower the polynomial degree or raise the smoothness, and check the dashed curve by eye.`,
+          );
         }
       }
     }

@@ -18,9 +18,10 @@ export interface MethodsInput {
     zeroShiftDeg: number | null;
     smoothing: { window: number; order: number } | null;
     background: {
-      method: 'polynomial' | 'snip' | 'manual';
+      method: 'arpls' | 'polynomial' | 'snip' | 'manual';
       degree: number;
       snipWidthDeg: number;
+      arplsWidthDeg: number;
       anchors: number;
     } | null;
     kAlpha2Stripped: { ratio: number } | null;
@@ -90,11 +91,13 @@ export function methodsParagraph(input: MethodsInput): string {
     );
   if (p.background) {
     const detail =
-      p.background.method === 'snip'
-        ? `SNIP, clipping width ${number(p.background.snipWidthDeg)}° 2θ`
-        : p.background.method === 'polynomial'
-          ? `iterative polynomial of degree ${p.background.degree}`
-          : `a curve through ${p.background.anchors} manually placed points`;
+      p.background.method === 'arpls'
+        ? `asymmetrically reweighted penalised least squares (arPLS; Baek et al., Analyst 140 (2015) 250) with a smoothness width of ${number(p.background.arplsWidthDeg)}° 2θ`
+        : p.background.method === 'snip'
+          ? `SNIP, clipping width ${number(p.background.snipWidthDeg)}° 2θ`
+          : p.background.method === 'polynomial'
+            ? `iterative polynomial of degree ${p.background.degree}`
+            : `a curve through ${p.background.anchors} manually placed points`;
     prepared.push(`background subtraction (${detail})`);
   }
   if (p.kAlpha2Stripped)

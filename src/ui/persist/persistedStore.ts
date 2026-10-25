@@ -120,8 +120,9 @@ export function useStore<T>(store: PersistedStore<T>): { state: T; status: Store
     rerender((n) => n + 1);
     return () => {
       unsubscribe();
-      document.removeEventListener('visibilitychange', onHide);
-      window.removeEventListener('pagehide', onHide);
+      // A cleanup that Preact runs late (after a test environment is torn down) finds no document.
+      globalThis.document?.removeEventListener('visibilitychange', onHide);
+      globalThis.window?.removeEventListener('pagehide', onHide);
     };
   }, [store]);
   return { state: store.get(), status: store.status() };

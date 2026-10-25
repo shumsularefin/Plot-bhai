@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { alsBaseline, rubberBandBaseline, solveBanded } from '../src/core/ftir/baseline';
+import { rubberBandBaseline } from '../src/core/ftir/baseline';
+import { alsBaseline, solveBanded } from '../src/core/math/whittaker';
 import { importFtirFile, importFtirText } from '../src/core/ftir/import';
 import { parseJcamp } from '../src/core/ftir/jcamp';
 import { suggestFtirKind } from '../src/core/ftir/kind';

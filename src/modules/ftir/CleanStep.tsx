@@ -25,6 +25,7 @@ const VIEW_LABELS: Record<View, string> = {
   all: 'All spectra, after',
 };
 const BASELINE_LABELS: Record<BaselineMethod, string> = {
+  arpls: 'arPLS (automatic, recommended)',
   'rubber-band': 'Rubber band (automatic)',
   polynomial: 'Iterative polynomial (automatic)',
   als: 'Asymmetric least squares (automatic)',
@@ -227,6 +228,24 @@ export function CleanStep({ data, update }: StepContext<FtirData>) {
             </label>
           ))}
         </fieldset>
+        {b.method === 'arpls' && (
+          <>
+            <p class="field-hint">
+              Asymmetrically reweighted penalised least squares: a smooth curve that follows the
+              points within the noise band and ignores points well above it (bands). Larger
+              smoothness gives a stiffer baseline. In tests with known baselines it gave the
+              smallest error of the methods offered here (see About).
+            </p>
+            <NumberInput
+              label="Smoothness (power of ten)"
+              value={b.logLambda}
+              min={0}
+              max={10}
+              step={0.5}
+              onChange={(v) => v !== null && patch('baseline', { logLambda: v })}
+            />
+          </>
+        )}
         {b.method === 'rubber-band' && (
           <p class="field-hint">
             Stretches a rubber band under the spectrum (its lower convex hull) and subtracts it. It
