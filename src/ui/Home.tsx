@@ -33,7 +33,7 @@ const TOOLS: readonly ToolCard[] = [
   {
     name: 'TGA and DSC',
     description:
-      'Mass loss steps, thermal events, enthalpies and glass transition, with calcination suggestions.',
+      'Mass loss steps, thermal events, enthalpies, glass transition, calcination suggestions and activation energy.',
     href: '#/thermal',
   },
 ];

@@ -181,6 +181,27 @@ export default function About() {
           flagged for verification. A suggested calcination temperature is a starting point, not an
           optimum.
         </p>
+        <h3>Activation energy from several heating rates</h3>
+        <p>
+          Needs three or more runs of the same sample at different heating rates β (K/min); T is in
+          kelvin, R is the molar gas constant, and the result is an apparent activation energy Ea.
+        </p>
+        <ul class="about-eqs">
+          <Eq note="Kissinger; Tp is the peak temperature of the event">
+            ln(β / Tp²) = const − Ea / (R Tp)
+          </Eq>
+          <Eq note="Conversion from the mass at the ends of the chosen window">
+            α = (m₀ − m) / (m₀ − m_f)
+          </Eq>
+          <Eq note="Flynn-Wall-Ozawa at fixed α, with the Doyle approximation">
+            ln β = const − 1.052 Ea / (R T)
+          </Eq>
+          <Eq note="Kissinger-Akahira-Sunose at fixed α">ln(β / T²) = const − Ea / (R T)</Eq>
+        </ul>
+        <p>
+          A single Ea is misleading when the value changes strongly with α, which suggests
+          overlapping steps. The Doyle coefficient 1.052 is flagged for verification.
+        </p>
       </section>
     </article>
   );

@@ -1,5 +1,54 @@
 # Progress
 
+## Stage 13: Multi-heating-rate kinetics (done)
+
+Branch `claude/friendly-cray-f64dgw`. Optional stage, run at the user's request.
+
+### What was built
+
+- Third wizard on the thermal page ("Kinetics (several heating rates)"), lazy-loaded:
+  1 Upload runs and heating rates, 2 Method and window, 3 Results and export.
+- `src/core/thermal/kinetics.ts`: peak temperature (parabola through the highest point), Kissinger,
+  Flynn-Wall-Ozawa (Doyle approximation) and Kissinger-Akahira-Sunose at fixed conversion, with the
+  equations in the doc comments, standard errors from the straight-line fit, R² per conversion level,
+  and plain-language warnings (fewer than 3 or 5 rates, narrow rate range, poor R², Ea varying more
+  than 20 % over conversion, "apparent" energy).
+- Kissinger works on TGA (DTG maximum) or DSC runs (peak up or down in the file, so no exo/endo
+  assumption is made); FWO and KAS need mass in every run.
+- Results: headline Ea ± standard error, table, plot (1000/Tp line, or Ea against α) in the shared plot
+  panel with SVG/PNG export, table CSV, methods text from the settings used, session file
+  (`kinetics-session`).
+- About page now lists the kinetics equations.
+- `scripts/audit.mjs` now reloads before each tool, so CSS left over from an earlier tool no longer hides
+  missing imports, and it also visits the DSC and Kinetics wizards. That exposed a real bug: the particle
+  tool used `.check` (touch-target size) without loading `plot.css` on a direct visit. Fixed.
+
+### Known-answer results
+
+A first-order reaction (made-up: Ea = 150 kJ/mol, A = 1e14 per minute, 40 % mass loss) integrated with
+Runge-Kutta at 2, 5, 10, 20 and 40 K/min: Kissinger, FWO and KAS all recover Ea within 3 % (tests assert
+this; Kissinger is exact for peaks placed on its line to 6 decimals). The Kissinger and Doyle
+approximations are not exact for first-order kinetics, which is why the tolerance is 3 %.
+
+### Decisions
+
+- R = 8.314 462 618 J mol⁻¹ K⁻¹ read from the NIST CODATA 2022 page (exact) on 2026-10-25. The Doyle
+  coefficient 1.052 is the value from the project brief and was not checked against the original paper:
+  flagged "verify" in code, About page and here.
+- Conversion uses the masses at the two ends of the chosen window, with the mass made non-increasing
+  first so noise cannot reduce α.
+- Conversion levels, window and DTG smoothing are my defaults (0.1 to 0.9, shared range, 10 °C).
+
+### Known issues
+
+- The straight-line standard errors are the fit's, not a full uncertainty budget (peak position errors
+  are not propagated).
+- No Friedman or Vyazovkin method; no model fitting. Not tested with real multi-rate data.
+
+### Needed from the user
+
+- Check the Doyle coefficient and, ideally, run a real set of 4 to 5 heating rates.
+
 ## Sub-stage 14b: About page, PWA, deploy, final status (done)
 
 Branch `claude/friendly-cray-f64dgw`. Stage 14 items 5 to 8. This closes the planned work (stages 13 and 15
