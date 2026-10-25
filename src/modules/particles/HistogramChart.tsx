@@ -1,4 +1,5 @@
 import { h, render } from 'preact';
+import { Dock } from '../../ui/Dock';
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { Histogram } from '../../core/particles/distribution';
 import { niceTicks } from '../../ui/plot/axes';
@@ -256,11 +257,19 @@ export function HistogramChart({
   };
   return (
     <figure class="bar-chart">
-      <div ref={ref} role="img" aria-label={description}>
-        {width > 0 && (
-          <HistogramSvg {...figure} width={width} height={height} fontSize={12} lineWidth={1.25} />
-        )}
-      </div>
+      <Dock label="Histogram">
+        <div ref={ref} role="img" aria-label={description}>
+          {width > 0 && (
+            <HistogramSvg
+              {...figure}
+              width={width}
+              height={height}
+              fontSize={12}
+              lineWidth={1.25}
+            />
+          )}
+        </div>
+      </Dock>
       <div class="export-grid">
         <fieldset class="export-preset">
           <legend>Figure width</legend>

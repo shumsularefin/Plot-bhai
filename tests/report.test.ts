@@ -38,14 +38,14 @@ describe('methodsParagraph', () => {
       processing: {
         zeroShiftDeg: 0.05,
         smoothing: { window: 11, order: 3 },
-        background: { method: 'snip', degree: 4, snipWidthDeg: 2, anchors: 0 },
+        background: { method: 'snip', degree: 4, snipWidthDeg: 2, arplsWidthDeg: 4, anchors: 0 },
         kAlpha2Stripped: { ratio: 0.5 },
         normalisedTo: null,
       },
       fit: { profile: 'pseudo-voigt', fixedEta: null },
       instrument: { kind: 'standard', method: 'voigt', standardMaterial: 'LaB6' },
       size: { k: 0.9, methods: ['Scherrer', 'Williamson–Hall UDM'] },
-      phases: [{ name: 'Anatase', formula: 'TiO2', codId: 9009086 }],
+      phases: [{ name: 'Anatase', formula: 'TiO2', reference: 'COD 9009086' }],
     });
     expect(text).toContain('Cu Kα radiation (Kα1 λ = 1.540593 Å, Kα2 λ = 1.544427 Å)');
     expect(text).toContain('10° to 80° 2θ in steps of 0.02°');

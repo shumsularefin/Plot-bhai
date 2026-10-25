@@ -1,11 +1,17 @@
 import { stepStats } from '../summary';
 import type { DataMessage } from '../types';
 import { ANODES, type RadiationSettings } from '../radiation';
-import { anchorBackground, polynomialBackground, snipBackground } from './background';
+import {
+  anchorBackground,
+  arplsBackground,
+  cutIntoData,
+  polynomialBackground,
+  snipBackground,
+} from './background';
 import { stripKAlpha2 } from './kAlpha2';
 import { savitzkyGolay } from './savitzkyGolay';
 
-export type BackgroundMethod = 'polynomial' | 'snip' | 'manual';
+export type BackgroundMethod = 'arpls' | 'polynomial' | 'snip' | 'manual';
 
 /** Every preprocessing option. Each step can be switched off; the original data are never changed. */
 export interface ProcessingSettings {
@@ -21,6 +27,8 @@ export interface ProcessingSettings {
     degree: number;
     /** SNIP clipping width in degrees 2θ (converted to points using the median step). */
     snipWidthDeg: number;
+    /** arPLS smoothness as a width in degrees 2θ (see arplsBackground). */
+    arplsWidthDeg: number;
     /** Manual anchors: [2θ in degrees, intensity]. */
     anchors: [number, number][];
   };
@@ -31,7 +39,14 @@ export interface ProcessingSettings {
 export const DEFAULT_PROCESSING: ProcessingSettings = {
   zeroShift: { enabled: false, shiftDeg: 0 },
   smoothing: { enabled: false, window: 11, order: 3 },
-  background: { enabled: false, method: 'snip', degree: 4, snipWidthDeg: 2, anchors: [] },
+  background: {
+    enabled: false,
+    method: 'arpls',
+    degree: 4,
+    snipWidthDeg: 2,
+    arplsWidthDeg: 4,
+    anchors: [],
+  },
   kAlpha2: { enabled: false },
   normalise: { enabled: false, target: 100 },
 };
@@ -105,7 +120,9 @@ export function runPipeline(
   let background: Float64Array | undefined;
   if (settings.background.enabled) {
     const b = settings.background;
-    if (b.method === 'polynomial') {
+    if (b.method === 'arpls') {
+      background = arplsBackground(y, b.arplsWidthDeg, step.median);
+    } else if (b.method === 'polynomial') {
       background = polynomialBackground(x, y, b.degree);
     } else if (b.method === 'snip') {
       const halfWidth = Math.max(1, Math.round(b.snipWidthDeg / step.median));
@@ -121,7 +138,23 @@ export function runPipeline(
     }
     if (background) {
       const bg = background;
+      const before = y;
       y = y.map((v, i) => v - (bg[i] as number));
+      const cut = cutIntoData(before, y);
+      if (cut > 0.02) {
+        note(
+          'background',
+          'warning',
+          `The background lies above the data (by more than 3 times the noise) at ${(cut * 100).toFixed(0)} % of the points, so it cuts into real signal such as a broad peak or an amorphous hump. Make it stiffer (larger width or lower degree), or check the dashed curve by eye.`,
+        );
+      }
+      if (b.method === 'snip' && !settings.smoothing.enabled) {
+        note(
+          'background',
+          'info',
+          'SNIP follows the lower edge of the noise, so on noisy data the background sits slightly low (about one noise level) and peaks keep a small offset. arPLS accounts for the noise.',
+        );
+      }
     }
   }
 

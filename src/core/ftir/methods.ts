@@ -21,6 +21,8 @@ export interface FtirMethodsInput {
   toleranceCm: number;
   /** Citation of the table of typical ranges, when assignments were used. */
   rangeSource: string;
+  /** Quantity the processed spectra are presented in (figures and tables). */
+  shown: 'absorbance' | 'transmittance';
 }
 
 const number = (value: number, digits = 4) => Number(value.toPrecision(digits)).toString();
@@ -34,6 +36,8 @@ const BASELINES: Record<
   BaselineMethod,
   (b: NonNullable<FtirMethodsInput['spectra'][number]['baseline']>) => string
 > = {
+  arpls: (b) =>
+    `arPLS baseline correction (asymmetrically reweighted penalised least squares, Baek et al., Analyst 140 (2015) 250; smoothness λ = 10^${number(b.logLambda)})`,
   'rubber-band': () => 'rubber-band baseline correction (lower convex hull)',
   polynomial: (b) => `iterative polynomial baseline correction (degree ${b.degree})`,
   als: (b) =>
@@ -86,6 +90,12 @@ export function ftirMethodsParagraph(input: FtirMethodsInput): string {
       ? `The data were treated with ${list(steps)}, in the order baseline, smoothing, normalisation.`
       : 'The data were not baseline-corrected, smoothed or normalised.',
   );
+
+  if (input.shown === 'transmittance') {
+    sentences.push(
+      'The processed spectra are presented as transmittance, %T = 100 × 10^(−A) of the processed absorbance.',
+    );
+  }
 
   const prominences = unique(
     spectra.flatMap((s) =>

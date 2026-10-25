@@ -1,3 +1,4 @@
+import { phaseReference } from '../../core/xrd/reference/source';
 import { peakTable, type CsvColumn, type PeakRow } from '../../core/xrd/peaks/table';
 import type { RegionFit } from '../../core/xrd/peaks/fit';
 import { ANODES } from '../../core/xrd/radiation';
@@ -47,13 +48,17 @@ export function peakFitTable(
     ]),
     { header: 'Region R²', value: (r) => regions[r.region]?.rSquared ?? '' },
     {
+      header: 'Region reduced chi-squared',
+      value: (r) => regions[r.region]?.reducedChiSquared ?? '',
+    },
+    {
       header: 'Notes',
       value: (r) => (regions[r.region]?.peaks[r.peak]?.messages ?? []).map((m) => m.text).join(' '),
     },
   ];
   return makeTable(
     `${patternName}-peaks`,
-    `Peak fit for ${patternName}. d from Bragg's law with λ = ${lambda} Å. Height in ${intensityUnit}; area in ${intensityUnit} × degrees. σ = standard uncertainty from the fit covariance.`,
+    `Peak fit for ${patternName}. d from Bragg's law with λ = ${lambda} Å. Height in ${intensityUnit}; area in ${intensityUnit} × degrees. σ = standard uncertainty from the fit covariance (empty or NaN when it could not be determined). Reduced chi-squared = residual variance / noise variance estimated from the point-to-point scatter.`,
     rows,
     columns,
   );
@@ -135,11 +140,11 @@ export function assignedPeaksTable(
   const jcpds = (id: string) => data.material.jcpds[id]?.trim() ?? '';
   return makeTable(
     `${patternName}-assigned-peaks`,
-    `Peak assignment, ${patternName}. ${data.radiation.anode} Kα1, λ = ${lambda} Å. Reference positions are from the Crystallography Open Database entry named in each row; zero shifts: ${result.phases.map((p) => `${p.phase.name} ${sign(p.shift, 2)}°`).join(', ')}. Δ2θ = observed − reference. JCPDS numbers are entered by the user and not verified.`,
+    `Peak assignment, ${patternName}. ${data.radiation.anode} Kα1, λ = ${lambda} Å. Reference positions are calculated from the structure named in each row (a Crystallography Open Database entry or a CIF file supplied by the user); zero shifts: ${result.phases.map((p) => `${p.phase.name} ${sign(p.shift, 2)}°`).join(', ')}. Δ2θ = observed − reference. JCPDS numbers are entered by the user and not verified.`,
     result.peaks,
     [
       { header: 'Phase', value: (p) => p.phase?.name ?? 'unassigned' },
-      { header: 'COD ID', value: (p) => p.phase?.codId ?? '' },
+      { header: 'Structure source', value: (p) => (p.phase ? phaseReference(p.phase) : '') },
       {
         header: 'JCPDS number (entered by user, not verified)',
         value: (p) => (p.phase ? jcpds(p.phase.id) : ''),

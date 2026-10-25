@@ -10,6 +10,55 @@ function unitFromHeader(header: readonly string[]): IntensityUnit | undefined {
   return undefined;
 }
 
+/** A "key, value" line of a file header, as written by the instrument software. */
+export interface HeaderField {
+  key: string;
+  value: string;
+}
+
+/** What a header says about the measurement, read from its "key, value" lines. */
+export interface HeaderInfo {
+  fields: HeaderField[];
+  /** K-alpha1 wavelength (Å) stated in the header. */
+  wavelengthA?: number;
+  /** Counting time per step (s) stated in the header. */
+  countingTimeS?: number;
+}
+
+/**
+ * Reads "key, value" (also "key: value", "key = value" or tab-separated) lines from a header,
+ * for example the [Measurement conditions] block of a PANalytical X'Pert HighScore CSV export
+ * ("K-Alpha1 wavelength,1.5405980"). Every pair is kept as written, for the record of the
+ * analysis. The K-alpha1 wavelength is taken when its value lies between 0.3 and 3 Å (every
+ * laboratory anode does), and the time per step when it is a positive number of seconds.
+ * Section titles in brackets and lines without a value are skipped.
+ */
+export function readHeader(header: readonly string[]): HeaderInfo {
+  const fields: HeaderField[] = [];
+  const info: HeaderInfo = { fields };
+  for (const line of header) {
+    const text = line.trim();
+    if (text === '' || /^\[.*\]$/.test(text)) continue;
+    const match = /^([A-Za-z][^,:=\t]*?)\s*[,:=\t]\s*(.*)$/.exec(text);
+    if (!match) continue;
+    const key = (match[1] as string).trim();
+    const value = (match[2] as string)
+      .trim()
+      .replace(/^"(.*)"$/, '$1')
+      .replace(/,+$/, '')
+      .trim();
+    if (value === '') continue;
+    fields.push({ key, value });
+    const number = parseNumber(value.split(/[,;\s]+/)[0] ?? '');
+    if (/k-?\s*alpha\s*1\b.*wavelength|^wavelength\b|^lambda\b/i.test(key)) {
+      if (number >= 0.3 && number <= 3) info.wavelengthA = number;
+    } else if (/time per step|counting time|step time/i.test(key)) {
+      if (number > 0) info.countingTimeS = number;
+    }
+  }
+  return info;
+}
+
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /**
@@ -95,6 +144,13 @@ export function parseDelimited(
   }
 
   const unit = unitFromHeader(header);
+  const info = readHeader(header);
+  if (info.fields.length > 0) {
+    notes.push({
+      level: 'info',
+      text: `The header lists ${plural(info.fields.length, 'measurement setting')}; they are kept with the pattern${info.wavelengthA !== undefined ? `, and its Kα1 wavelength (${info.wavelengthA} Å) is checked against your radiation setting` : ''}.`,
+    });
+  }
   return {
     ok: true,
     scan: {
@@ -102,6 +158,9 @@ export function parseDelimited(
       intensity,
       ...(sigma && { sigma }),
       ...(unit && { unitFromFile: unit }),
+      ...(info.wavelengthA !== undefined && { wavelengthFromFileA: info.wavelengthA }),
+      ...(info.countingTimeS !== undefined && { countingTimeS: info.countingTimeS }),
+      ...(info.fields.length > 0 && { metadata: info.fields }),
       notes,
     },
   };

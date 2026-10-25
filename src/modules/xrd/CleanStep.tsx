@@ -30,6 +30,7 @@ const VIEW_LABELS: Record<View, string> = {
   both: 'Before and after',
 };
 const METHOD_LABELS: Record<BackgroundMethod, string> = {
+  arpls: 'arPLS (automatic, recommended)',
   snip: 'SNIP (automatic)',
   polynomial: 'Iterative polynomial (automatic)',
   manual: 'Manual points',
@@ -316,6 +317,32 @@ export function CleanStep({ data, update }: StepContext<XrdData>) {
             </label>
           ))}
         </fieldset>
+        {settings.background.method === 'arpls' && (
+          <>
+            <p class="field-hint">
+              Asymmetrically reweighted penalised least squares: a smooth curve that follows the
+              points within the noise band and ignores points well above it (peaks). The width sets
+              how slowly the background may change: variations shorter than about this width are
+              treated as peaks. In tests with known backgrounds it gave the smallest error of the
+              methods offered here (see About).
+            </p>
+            <label class="inline-field">
+              Width (°)
+              <input
+                type="number"
+                inputMode="decimal"
+                min={0.5}
+                max={40}
+                step={0.5}
+                value={settings.background.arplsWidthDeg}
+                onChange={(e) => {
+                  const value = Number(e.currentTarget.value);
+                  if (value >= 0.5 && value <= 40) patch('background', { arplsWidthDeg: value });
+                }}
+              />
+            </label>
+          </>
+        )}
         {settings.background.method === 'snip' && (
           <>
             <p class="field-hint">

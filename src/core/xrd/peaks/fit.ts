@@ -1,4 +1,5 @@
 import { levenbergMarquardt } from '../../math/levenbergMarquardt';
+import { localNoise } from './noise';
 import { lowerBoundIndex } from './search';
 import {
   integralBreadth,
@@ -47,10 +48,24 @@ export interface RegionFit {
   peaks: PeakFit[];
   /** Coefficient of determination over the region: 1 − SSR / SST. */
   rSquared: number;
+  /**
+   * Reduced chi-squared against the noise of the data: χ²ν = [SSR / (n − m)] / σ², with σ the
+   * noise level estimated from the point-to-point scatter of the region (see localNoise). About
+   * 1 when the model describes the data to within their noise; well above 1 when it misses
+   * structure (a peak, a shoulder, the wrong shape). NaN when the noise cannot be estimated.
+   */
+  reducedChiSquared: number;
+  /** Noise level σ used for χ²ν, intensity units. */
+  noiseSd: number;
+  /** False when the parameter uncertainties could not be calculated (see levenbergMarquardt). */
+  uncertaintiesOk: boolean;
   converged: boolean;
   iterations: number;
   messages: DataMessage[];
 }
+
+/** χ²ν above this (residual more than twice the noise) is reported as a misfit. */
+const CHI_SQUARED_HIGH = 4;
 
 /** Each peak's region extends this many widths either side of its centre. */
 const REGION_WIDTHS = 3;
@@ -113,6 +128,9 @@ export function fitRegion(
       background: { intercept: 0, slope: 0, pivot },
       peaks: [],
       rSquared: NaN,
+      reducedChiSquared: NaN,
+      noiseSd: NaN,
+      uncertaintiesOk: false,
       converged: false,
       iterations: 0,
       messages: [
@@ -279,12 +297,32 @@ export function fitRegion(
       text: 'R² is below 0.9: the model does not describe this region well. Check for missing or extra peaks.',
     });
   }
+  const freeCount = free.filter(Boolean).length;
+  const noise = localNoise(ys, n);
+  const noiseSd = noise[0] as number;
+  const reducedChiSquared =
+    noiseSd > 0 && n > freeCount ? result.ssr / (n - freeCount) / noiseSd ** 2 : NaN;
+  if (reducedChiSquared > CHI_SQUARED_HIGH) {
+    messages.push({
+      level: 'warning',
+      text: `χ²ν = ${reducedChiSquared.toFixed(1)}: the residual is more than twice the noise of the data, so the model misses real structure here (an unresolved peak, a shoulder or the wrong profile shape). Look at the residual plot.`,
+    });
+  }
+  if (!result.covarianceOk) {
+    messages.push({
+      level: 'warning',
+      text: 'The uncertainties could not be calculated because some fit parameters are not independent (for example two peaks on top of each other). They are shown as n/a; remove or merge peaks and fit again.',
+    });
+  }
   return {
     start: xs[0] as number,
     end: xs[n - 1] as number,
     background: { intercept: p[0] as number, slope: p[1] as number, pivot },
     peaks,
     rSquared,
+    reducedChiSquared,
+    noiseSd,
+    uncertaintiesOk: result.covarianceOk,
     converged: result.converged,
     iterations: result.iterations,
     messages,

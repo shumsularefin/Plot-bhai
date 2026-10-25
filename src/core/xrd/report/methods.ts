@@ -18,9 +18,10 @@ export interface MethodsInput {
     zeroShiftDeg: number | null;
     smoothing: { window: number; order: number } | null;
     background: {
-      method: 'polynomial' | 'snip' | 'manual';
+      method: 'arpls' | 'polynomial' | 'snip' | 'manual';
       degree: number;
       snipWidthDeg: number;
+      arplsWidthDeg: number;
       anchors: number;
     } | null;
     kAlpha2Stripped: { ratio: number } | null;
@@ -41,7 +42,8 @@ export interface MethodsInput {
   /** Size and strain; null when no method produced a result. */
   size: { k: number; methods: string[] } | null;
   /** Reference phases chosen in step 4, from the Crystallography Open Database. */
-  phases: { name: string; formula: string; codId: number }[];
+  /** reference: where the structure came from, for example "COD 9009086" (see phaseReference). */
+  phases: { name: string; formula: string; reference: string }[];
   toleranceDeg: number;
 }
 
@@ -89,11 +91,13 @@ export function methodsParagraph(input: MethodsInput): string {
     );
   if (p.background) {
     const detail =
-      p.background.method === 'snip'
-        ? `SNIP, clipping width ${number(p.background.snipWidthDeg)}° 2θ`
-        : p.background.method === 'polynomial'
-          ? `iterative polynomial of degree ${p.background.degree}`
-          : `a curve through ${p.background.anchors} manually placed points`;
+      p.background.method === 'arpls'
+        ? `asymmetrically reweighted penalised least squares (arPLS; Baek et al., Analyst 140 (2015) 250) with a smoothness width of ${number(p.background.arplsWidthDeg)}° 2θ`
+        : p.background.method === 'snip'
+          ? `SNIP, clipping width ${number(p.background.snipWidthDeg)}° 2θ`
+          : p.background.method === 'polynomial'
+            ? `iterative polynomial of degree ${p.background.degree}`
+            : `a curve through ${p.background.anchors} manually placed points`;
     prepared.push(`background subtraction (${detail})`);
   }
   if (p.kAlpha2Stripped)
@@ -144,9 +148,10 @@ export function methodsParagraph(input: MethodsInput): string {
   }
 
   if (input.phases.length > 0) {
-    const named = input.phases.map((ph) => `${ph.name} (${ph.formula}, COD ${ph.codId})`);
+    const named = input.phases.map((ph) => `${ph.name} (${ph.formula}, ${ph.reference})`);
+    const allCod = input.phases.every((ph) => ph.reference.startsWith('COD '));
     sentences.push(
-      `Reference patterns were calculated from structures in the Crystallography Open Database: ${list(named)}. Fitted peaks were assigned to the nearest reference line within ${number(input.toleranceDeg)}° 2θ; these assignments are suggestions, not phase identifications.`,
+      `${allCod ? 'Reference patterns were calculated from structures in the Crystallography Open Database' : 'Reference patterns were calculated from crystal structures (built-in entries from the Crystallography Open Database and CIF files supplied by the user, as named)'}: ${list(named)}. Fitted peaks were assigned to the nearest reference line within ${number(input.toleranceDeg)}° 2θ; these assignments are suggestions, not phase identifications.`,
     );
   }
 

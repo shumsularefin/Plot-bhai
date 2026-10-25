@@ -240,10 +240,13 @@ const UNSUITABLE_WORDS: [RegExp, string][] = [
 function rejectText(text: string): string | null {
   for (const [pattern, reason] of UNSUITABLE_WORDS) if (pattern.test(text)) return reason;
   // "T = 100 K", "T=20 °C": a temperature quoted in the text must be 283 to 305 K.
-  for (const [, value, celsius] of text.matchAll(/\bT\s*=\s*(\d+(?:\.\d+)?)\s*(°\s*C|K)?/g)) {
+  // The unit group matches K as well as °C, so test for C: treating "295 K" as 295 °C once
+  // rejected room-temperature entries and let "25 K" pass as 25 °C.
+  for (const [, value, unit] of text.matchAll(/\bT\s*=\s*(\d+(?:\.\d+)?)\s*(°\s*C|K)?/g)) {
+    const celsius = unit?.includes('C') ?? false;
     const kelvin = Number(value) + (celsius ? 273.15 : 0);
     if (kelvin < 283 || kelvin > 305)
-      return `temperature in the notes (T = ${value}${celsius ?? ' K'})`;
+      return `temperature in the notes (T = ${value} ${celsius ? '°C' : 'K'})`;
   }
   return null;
 }
@@ -492,9 +495,20 @@ async function main() {
       phases: phases.map((p) => ({
         id: p.id,
         name: p.name,
-        codId: p.codId,
+        codId: p.codId as number,
         spaceGroup: p.spaceGroup.hm,
         crystalSystem: p.crystalSystem,
+        formula: p.formula,
+        spaceGroupNumber: p.spaceGroup.number,
+        elements: Object.keys(parseFormula(p.formula)).sort(),
+        cell: {
+          a: round(p.cell.a, 5),
+          b: round(p.cell.b, 5),
+          c: round(p.cell.c, 5),
+          alpha: round(p.cell.alpha, 4),
+          beta: round(p.cell.beta, 4),
+          gamma: round(p.cell.gamma, 4),
+        },
       })),
     });
   }

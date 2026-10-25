@@ -13,14 +13,29 @@ export interface ReferencePeak {
   hkl: [number, number, number][];
 }
 
+/** Where a phase's structure came from: the built-in library, or a CIF file the user loaded. */
+export type PhaseOrigin =
+  | { kind: 'library' }
+  | {
+      kind: 'cif';
+      /** Name of the file the user loaded. */
+      fileName: string;
+      /** Database and entry the file itself names, for example "COD 9013437", or null. */
+      database: string | null;
+      /** What limits the calculated pattern (missing displacement parameters and the like). */
+      notes?: { level: 'info' | 'warning' | 'error'; text: string }[];
+    };
+
 export interface ReferencePhase {
-  /** Short id, unique in the library, for example "anatase". */
+  /** Short id, unique in the library, for example "anatase"; "cif-…" for a loaded CIF file. */
   id: string;
   name: string;
-  /** Chemical formula as typed in the build configuration, for example "TiO2". */
+  /** Chemical formula, for example "TiO2". */
   formula: string;
-  /** Crystallography Open Database entry the pattern was computed from. */
-  codId: number;
+  /** Crystallography Open Database entry the pattern was computed from (null for a loaded CIF that names none). */
+  codId: number | null;
+  /** Missing means the built-in library. */
+  origin?: PhaseOrigin;
   spaceGroup: { hm: string; number: number };
   crystalSystem: string;
   /** Cell edges in Å and angles in degrees, from the CIF. */
@@ -42,7 +57,23 @@ export interface ReferenceIndexEntry {
   aliases: string[];
   formula: string;
   file: string;
-  phases: { id: string; name: string; codId: number; spaceGroup: string; crystalSystem: string }[];
+  phases: ReferenceIndexPhase[];
+}
+
+/** A library phase as listed in the index, enough to search and show it without its lines. */
+export interface ReferenceIndexPhase {
+  id: string;
+  name: string;
+  codId: number;
+  spaceGroup: string;
+  crystalSystem: string;
+  formula: string;
+  /** International Tables space-group number. */
+  spaceGroupNumber: number;
+  /** Element symbols in the formula, sorted. */
+  elements: string[];
+  /** Cell edges (Å) and angles (°). */
+  cell: { a: number; b: number; c: number; alpha: number; beta: number; gamma: number };
 }
 
 export interface ReferenceIndex {

@@ -152,6 +152,16 @@ export function BandGapStep({ data, update }: StepContext<UvvisData>) {
             thickness is needed.
           </p>
         )}
+        {spectrum.kind === 'absorbance' && /\bdrs\b|diffuse|reflect/i.test(spectrum.name) && (
+          <p class="message is-warning">
+            <strong>Check:</strong> the name suggests diffuse reflectance, but the values are
+            treated as transmission absorbance. Diffuse-reflectance software often exports
+            log₁₀(1/R), which is not proportional to the absorption coefficient; for powders the
+            Kubelka–Munk function F(R) is the usual choice. If the instrument can export %R, load
+            that as reflectance. Otherwise state in your paper that the Tauc plot used log₁₀(1/R),
+            because the two give different band gaps.
+          </p>
+        )}
         <TaucResult analysis={analysis} onReset={() => setRegion(null)} />
       </section>
 
@@ -221,6 +231,13 @@ export function BandGapStep({ data, update }: StepContext<UvvisData>) {
             <strong>{eV(analysis.derivative.egEv)} eV</strong> (
             {eV(energyFromWavelength(analysis.derivative.egEv), 1)} nm). Searched within 0.3 eV of
             the Tauc fit region.
+          </p>
+        )}
+        {analysis.derivative?.atEdge && (
+          <p class="message is-warning">
+            <strong>Check:</strong> the steepest rise is at the end of the searched range, so the
+            derivative is still increasing there and the steepest part of the edge lies outside it
+            (or the spectrum saturates). This value is not an estimate of the band gap.
           </p>
         )}
         {choice.derivative !== 'off' && !analysis.derivative && (

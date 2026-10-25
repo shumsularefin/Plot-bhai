@@ -1,5 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { nearestIndex } from './decimate';
+import {
+  styledLabels,
+  styledPeakLabels,
+  styledSeries,
+  styledYDomain,
+  type FigureStyle,
+} from './figure';
 import { labelRoom, type PeakLabelSet } from './peakLabels';
 import { PlotSvg, plotMargins, visibleYDomain } from './PlotSvg';
 import type { AxisLabels, Domain, PlotBand, PlotMarker, PlotSeries } from './types';
@@ -37,6 +44,8 @@ export interface InteractivePlotProps {
   heightFor?: (width: number) => number;
   /** Hide the readout line (for a secondary panel that shares the main plot's readout). */
   hideReadout?: boolean;
+  /** Figure styling, applied on screen exactly as in exports. */
+  figure?: FigureStyle;
 }
 
 /** How close (px) a pointer must be to a marker to pick it; larger for fingers. */
@@ -62,9 +71,11 @@ interface Pointer {
  * scroll the page on touch screens. Redraws at most once per animation frame.
  */
 export function InteractivePlot(props: InteractivePlotProps) {
+  const figure = props.figure;
+  const series = styledSeries(props.series, figure);
+  const labels = styledLabels(props.labels, figure);
+  const peakLabels = styledPeakLabels(props.peakLabels, figure);
   const {
-    series,
-    labels,
     domain,
     extent,
     minSpan,
@@ -74,7 +85,6 @@ export function InteractivePlot(props: InteractivePlotProps) {
     onPlotClick,
     markers,
     bands,
-    peakLabels,
     onMarkerClick,
     onMarkerDrag,
     onMarkerDragEnd,
@@ -89,7 +99,13 @@ export function InteractivePlot(props: InteractivePlotProps) {
   const innerW = Math.max(1, width - m.left - m.right);
   const innerH = Math.max(1, height - m.top - m.bottom);
   const room = peakLabels ? labelRoom(FONT_SIZE) : 0;
-  const yDomain = visibleYDomain(series, domain, room / Math.max(innerH - room, 1), markers);
+  const usable = Math.max(innerH - room, 1);
+  const yDomain = styledYDomain(
+    peakLabels?.below
+      ? visibleYDomain(series, domain, 0, markers, room / usable)
+      : visibleYDomain(series, domain, room / usable, markers),
+    figure,
+  );
 
   // Latest values for event handlers that live across renders.
   const live = useRef({ domain, extent, minSpan, innerW, onDomainChange });
@@ -348,6 +364,7 @@ export function InteractivePlot(props: InteractivePlotProps) {
             {...(markers && { markers })}
             {...(bands && { bands })}
             {...(peakLabels && { peakLabels })}
+            {...(figure && { figure })}
           >
             {readoutX !== undefined && (
               <line

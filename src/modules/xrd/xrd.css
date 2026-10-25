@@ -696,7 +696,6 @@
 }
 
 .family-list,
-.phase-list,
 .phase-cards {
   display: grid;
   gap: var(--space-2);
@@ -738,28 +737,65 @@
   font-size: var(--text-sm);
 }
 
-.phase-choice,
+.material-section,
 .unknown-guide {
   display: grid;
   gap: var(--space-3);
+  min-width: 0;
+}
+
+.unknown-guide {
   padding: var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
 }
 
-.phase-row {
+.phase-results {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.phase-result {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-4);
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.phase-result-text {
+  display: grid;
+  flex: 1 1 18rem;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.phase-result-name,
+.phase-result-meta {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.phase-result-formula,
+.phase-result-family,
+.phase-result-meta {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.phase-result-action {
+  flex: 0 0 auto;
 }
 
 .phase-jcpds {
-  flex: 1 1 100%;
-}
-
-.phase-source {
-  font-size: var(--text-sm);
+  max-width: 24rem;
 }
 
 .phase-card {
@@ -915,4 +951,10 @@
 
 .suggestion-list {
   gap: var(--space-2);
+}
+
+.quantity-choice {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
 }

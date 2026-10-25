@@ -1,3 +1,5 @@
+import { RecordSection } from '../../ui/report/RecordSection';
+import { xrdRecord } from './record';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { ProcessingResult } from '../../core/xrd/process/pipeline';
 import type { Pattern } from '../../core/xrd/types';
@@ -14,7 +16,7 @@ import { methodsFor } from './methodsText';
 import { parseSession, serialiseSession } from './session';
 import { allTables, combinedCsv } from './tables';
 import { useProcessed } from './useProcessed';
-import { useReferencePhases } from './useReferencePhases';
+import { useCandidatePhases } from './useReferencePhases';
 
 /** Index of this step in the wizard, saved in the session file as the step on screen. */
 const EXPORT_STEP = 7;
@@ -36,7 +38,7 @@ function ProcessedFeed({
 
 /** Wizard step 8: figure, methods text, tables and the session file. */
 export function ExportStep({ data, update }: StepContext<XrdData>) {
-  const { phases } = useReferencePhases(data.material.familyId);
+  const { phases } = useCandidatePhases(data.material);
   const [processed, setProcessed] = useState<Record<string, ProcessingResult | null>>({});
   const onResult = (id: string, result: ProcessingResult | null) =>
     setProcessed((all) => (all[id] === result ? all : { ...all, [id]: result }));
@@ -120,6 +122,10 @@ export function ExportStep({ data, update }: StepContext<XrdData>) {
 
       <MethodsSection text={methods} />
       <TablesSection tables={tables} />
+      <RecordSection
+        build={() => xrdRecord(data, phases ?? [])}
+        stem={data.patterns[0]?.name ?? 'xrd'}
+      />
       <SessionSection data={data} update={update} />
     </div>
   );

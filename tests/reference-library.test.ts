@@ -32,7 +32,7 @@ describe('reference library files', () => {
       expect(file.family).toBe(family.id);
       expect(file.phases.map((p) => p.id)).toEqual(family.phases.map((p) => p.id));
       for (const p of file.phases) {
-        expect(Number.isInteger(p.codId) && p.codId > 0, p.id).toBe(true);
+        expect(Number.isInteger(p.codId) && (p.codId ?? 0) > 0, p.id).toBe(true);
         expect(p.spaceGroup.hm.length, p.id).toBeGreaterThan(0);
         expect(
           Object.values(p.cell).every((v) => v > 0),
@@ -50,6 +50,22 @@ describe('reference library files', () => {
           expect(k.hkl.every((h) => h.length === 3 && h.every(Number.isInteger))).toBe(true);
           if (i > 0) expect(k.d, p.id).toBeLessThanOrEqual((p.peaks[i - 1] as { d: number }).d);
         });
+      }
+    }
+  });
+
+  it('lists, for searching, each phase with its formula, elements, space group and cell', () => {
+    for (const family of index.families) {
+      const file = read<ReferenceFamilyFile>(family.file);
+      for (const listed of family.phases) {
+        const full = file.phases.find((p) => p.id === listed.id) as ReferencePhase;
+        expect(listed.formula, listed.id).toBe(full.formula);
+        expect(listed.spaceGroupNumber, listed.id).toBe(full.spaceGroup.number);
+        expect(listed.elements.length, listed.id).toBeGreaterThan(0);
+        expect([...listed.elements].sort(), listed.id).toEqual(listed.elements);
+        for (const el of listed.elements) expect(full.formula, listed.id).toContain(el);
+        expect(listed.cell.a, listed.id).toBeCloseTo(full.cell.a, 4);
+        expect(listed.cell.beta, listed.id).toBeCloseTo(full.cell.beta, 3);
       }
     }
   });
@@ -121,8 +137,8 @@ describe('strongest lines at Cu Kα1', () => {
 });
 
 describe('screened library (sub-stage 6a-fix)', () => {
-  it('has 35 phases, including maghemite and gamma-Al2O3', () => {
-    expect(phases).toHaveLength(35);
+  it('has 70 phases, including maghemite and gamma-Al2O3', () => {
+    expect(phases).toHaveLength(70);
     expect(phase('maghemite')).toBeDefined();
     expect(phase('gamma-al2o3')).toBeDefined();
   });

@@ -1,5 +1,6 @@
+import { RecordSection } from '../../ui/report/RecordSection';
+import { ftirRecord } from './record';
 import { useMemo, useState } from 'preact/hooks';
-import { DEFAULT_FTIR_PROCESSING } from '../../core/ftir/process';
 import { formatNumber } from '../../core/xrd/parsers/numbers';
 import { HelpTip } from '../../ui/HelpTip';
 import { SessionSection } from '../../ui/SessionSection';
@@ -9,6 +10,8 @@ import { peakRows, processAll } from './analysis';
 import type { FtirData } from './data';
 import { curveOf, FtirPlot } from './FtirPlot';
 import { methodsText } from './methodsText';
+import { QuantityChoice } from './QuantityChoice';
+import { quantityHeading, shownQuantity, valueIn } from './quantity';
 import { ftirSession } from './session';
 
 /** Index of this step in the wizard, saved in the session file as the step on screen. */
@@ -33,11 +36,9 @@ export function ResultsStep({ data, update }: StepContext<FtirData>) {
   const [copied, setCopied] = useState<string | null>(null);
   if (data.spectra.length === 0) return <p>No spectra are loaded. Go back to Upload to add one.</p>;
 
-  const anyNormalised = data.spectra.some(
-    (s) => (data.processing[s.id] ?? DEFAULT_FTIR_PROCESSING).normalise.enabled,
-  );
-  const quantity =
-    data.view.quantity === 'transmittance' && !anyNormalised ? 'transmittance' : 'absorbance';
+  const shown = shownQuantity(data, data.spectra);
+  const quantity = shown.quantity;
+  const percentT = quantity === 'transmittance';
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(methods);
@@ -55,12 +56,14 @@ export function ResultsStep({ data, update }: StepContext<FtirData>) {
           <HelpTip term="results table">
             <p>
               Wavenumbers are the positions of the picked peaks, in cm⁻¹. Intensities are absorbance
-              after the processing of step 2. The assignment column holds only what you accepted or
-              typed in step 4; the suggestions come from typical ranges and are estimates, not proof
-              of the groups present.
+              after the processing of step 2 (and, when transmittance is shown, the same point as %T
+              = 100 · 10^−A). The assignment column holds only what you accepted or typed in step 4;
+              the suggestions come from typical ranges and are estimates, not proof of the groups
+              present.
             </p>
           </HelpTip>
         </h3>
+        <QuantityChoice data={data} update={update} shown={shown} />
         <div
           class="table-scroll"
           tabIndex={0}
@@ -73,6 +76,7 @@ export function ResultsStep({ data, update }: StepContext<FtirData>) {
                 <th scope="col">Sample</th>
                 <th scope="col">Wavenumber (cm⁻¹)</th>
                 <th scope="col">Absorbance</th>
+                {percentT && <th scope="col">{quantityHeading(quantity)}</th>}
                 <th scope="col">Relative (%)</th>
                 <th scope="col">Assignment</th>
               </tr>
@@ -83,6 +87,7 @@ export function ResultsStep({ data, update }: StepContext<FtirData>) {
                   <th scope="row">{r.spectrum.name}</th>
                   <td>{formatNumber(r.peak.wavenumber, 1)}</td>
                   <td>{formatNumber(r.peak.height, 4)}</td>
+                  {percentT && <td>{formatNumber(valueIn(quantity, r.peak.height), 2)}</td>}
                   <td>{formatNumber(r.peak.relative, 1)}</td>
                   <td>{r.assignment || '–'}</td>
                 </tr>
@@ -109,7 +114,15 @@ export function ResultsStep({ data, update }: StepContext<FtirData>) {
                 [
                   { header: 'Sample', value: (r) => r.spectrum.name },
                   { header: 'Wavenumber (cm-1)', value: (r) => r.peak.wavenumber },
-                  { header: 'Absorbance', value: (r) => r.peak.height },
+                  { header: 'Absorbance (processed)', value: (r) => r.peak.height },
+                  ...(percentT
+                    ? [
+                        {
+                          header: 'Transmittance (%)',
+                          value: (r: (typeof rows)[number]) => valueIn(quantity, r.peak.height),
+                        },
+                      ]
+                    : []),
                   { header: 'Relative intensity (%)', value: (r) => r.peak.relative },
                   { header: 'Prominence', value: (r) => r.peak.prominence },
                   { header: 'Assignment', value: (r) => r.assignment },
@@ -131,12 +144,20 @@ export function ResultsStep({ data, update }: StepContext<FtirData>) {
               });
               downloadCsv(
                 'ftir-processed-spectra',
-                'FTIR spectra after the processing of step 2. Absorbance is unitless; transmittance was converted with A = 2 - log10(%T).',
+                `FTIR spectra after the processing of step 2. Absorbance is unitless; measured transmittance was converted with A = 2 - log10(%T) before processing.${percentT ? ' Transmittance (%) = 100 x 10^(-A) of the processed absorbance, the quantity shown in the figure.' : ''}`,
                 long,
                 [
                   { header: 'Sample', value: (r) => r.s.name },
                   { header: 'Wavenumber (cm-1)', value: (r) => r.wn },
                   { header: 'Absorbance (processed)', value: (r) => r.a },
+                  ...(percentT
+                    ? [
+                        {
+                          header: 'Transmittance (%) (processed)',
+                          value: (r: (typeof long)[number]) => valueIn(quantity, r.a),
+                        },
+                      ]
+                    : []),
                 ],
               );
             }}
@@ -187,6 +208,8 @@ export function ResultsStep({ data, update }: StepContext<FtirData>) {
           {copied}
         </p>
       </section>
+
+      <RecordSection build={() => ftirRecord(data)} stem={data.spectra[0]?.name ?? 'ftir'} />
 
       <SessionSection
         codec={ftirSession}

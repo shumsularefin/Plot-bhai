@@ -113,6 +113,7 @@ export function importText(
       ...(parsed.scan.wavelengthFromFileA !== undefined && {
         wavelengthFromFileA: parsed.scan.wavelengthFromFileA,
       }),
+      ...(parsed.scan.metadata && { metadata: parsed.scan.metadata }),
       synthetic: false,
       notes: scan.notes,
     },

@@ -111,6 +111,14 @@
   stroke: var(--series);
 }
 
+.plot-fill {
+  fill: var(--series);
+}
+
+.plot-grid {
+  stroke: var(--color-border);
+}
+
 .plot-swatch {
   display: inline-block;
   flex: none;
@@ -308,4 +316,74 @@
 .reference-lanes .lane-name {
   fill: var(--color-text-muted);
   font-size: 11px;
+}
+
+/* Figure editor */
+.figure-group {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.figure-group > legend {
+  padding: 0 var(--space-1);
+  font-weight: var(--weight-medium);
+}
+
+.figure-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2) var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.figure-row:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.figure-field {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+}
+
+.figure-field input,
+.figure-field select {
+  min-height: var(--touch-target);
+  max-width: 9rem;
+}
+
+.figure-name input {
+  max-width: none;
+  width: min(16rem, 70vw);
+}
+
+.figure-field input[type='color'] {
+  width: var(--touch-target);
+  padding: 2px;
+}
+
+.figure-color,
+.figure-buttons {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.figure-kind {
+  flex: 1 1 100%;
+}
+
+.figure-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
 }

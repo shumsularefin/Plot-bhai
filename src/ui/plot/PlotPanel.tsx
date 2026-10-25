@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { Dock } from '../Dock';
 import { HelpTip } from '../HelpTip';
 import { ExportPanel } from './ExportPanel';
+import { FigureEditor, type Placement } from './FigureEditor';
+import { clicksFor, newAnnotation, resolveFigure, styledSeries, type FigureStyle } from './figure';
 import type { ExportSettings, LowerAxis } from './export';
 import { InteractivePlot, type InteractivePlotProps } from './InteractivePlot';
 import type { PeakLabelSet } from './peakLabels';
@@ -15,6 +18,8 @@ export interface PlotSettings {
   /** Vertical offset between overlaid patterns, percent of the tallest pattern. */
   offsetPercent: number;
   export: ExportSettings;
+  /** Figure styling per plot (keyed by the plot's export name), from the figure editor. */
+  figures?: Record<string, Partial<FigureStyle>>;
 }
 
 interface PlotPanelProps {
@@ -44,6 +49,8 @@ interface PlotPanelProps {
   peakLabels?: PeakLabelSet;
   /** When it changes, the view jumps to this x range (in plotted x, so −wavenumber on a reversed axis). */
   focusRange?: Domain | null;
+  /** How the figure is kept in view while settings change (see Dock): 'manual' for secondary plots. */
+  dock?: 'auto' | 'manual';
 }
 
 export type PlotInteraction = Pick<
@@ -77,6 +84,18 @@ export function PlotPanel(props: PlotPanelProps) {
     setDomain([Math.max(lo, Math.min(focusLo, focusHi)), Math.min(hi, Math.max(focusLo, focusHi))]);
   }, [focusLo, focusHi, lo, hi]);
 
+  const figure = resolveFigure(settings.figures?.[exportName]);
+  const setFigure = (next: FigureStyle) =>
+    onSettingsChange({ figures: { ...settings.figures, [exportName]: next } });
+  const [placement, setPlacement] = useState<Placement | null>(null);
+  const plotRef = useRef<HTMLDivElement>(null);
+  const placing = placement !== null;
+  // The editor sits under the plot; bring the plot into view when it waits for a click.
+  useEffect(() => {
+    if (!placing) return;
+    const reduce = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    plotRef.current?.scrollIntoView?.({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
+  }, [placing]);
   const minSpan = Math.max((hi - lo) / 2000, 1e-6);
   const axisLabels = labels(normalise);
   const reversed = axisLabels.reversed === true;
@@ -95,6 +114,52 @@ export function PlotPanel(props: PlotPanelProps) {
     if (next[1] - next[0] < minSpan) return;
     setDomain([Math.max(lo, next[0]), Math.min(hi, next[1])]);
   };
+  /** A click while the figure editor waits for one: place or move an annotation. */
+  const place = (plotX: number, y: number) => {
+    if (!placement) return;
+    const x = shown(plotX);
+    if ('move' in placement) {
+      setFigure({
+        ...figure,
+        annotations: figure.annotations.map((a) => {
+          if (a.id !== placement.move) return a;
+          // Arrows and regions move as a whole, keeping their shape.
+          const dx = x - a.x;
+          const dy = y - a.y;
+          return {
+            ...a,
+            x,
+            y,
+            ...(a.x2 !== undefined && { x2: a.x2 + dx }),
+            ...(a.y2 !== undefined && { y2: a.y2 + dy }),
+          };
+        }),
+      });
+      setPlacement(null);
+      return;
+    }
+    if (clicksFor(placement.kind) === 2 && !placement.first) {
+      setPlacement({ ...placement, first: { x, y } });
+      return;
+    }
+    const first = placement.first;
+    const annotation =
+      placement.kind === 'arrow' && first
+        ? newAnnotation('arrow', x, y, first)
+        : placement.kind === 'region' && first
+          ? newAnnotation('region', first.x, first.y, { x, y })
+          : newAnnotation(placement.kind, x, y);
+    setFigure({ ...figure, annotations: [...figure.annotations, annotation] });
+    setPlacement(null);
+  };
+  const interaction: PlotInteraction | undefined = placement
+    ? {
+        ...(props.interaction?.markers && { markers: props.interaction.markers }),
+        onPlotClick: place,
+        hint: 'Click or tap the plot to place the annotation.',
+      }
+    : props.interaction;
+  const legendSeries = styledSeries(series, figure).filter((s) => !s.quiet);
   const centre = (domain[0] + domain[1]) / 2;
   const zoom = (factor: number) => {
     const [a, b] = zoomDomain(domain, factor, centre);
@@ -105,62 +170,72 @@ export function PlotPanel(props: PlotPanelProps) {
 
   return (
     <div class="plot-panel">
-      {series.filter((s) => !s.quiet).length > 1 && (
-        <ul class="plot-legend" aria-label="Legend">
-          {series
-            .filter((s) => !s.quiet)
-            .map((s) => (
-              <li key={s.id}>
-                <span class={`plot-swatch series-${s.colorIndex % 8}`} aria-hidden="true" />
-                {s.name}
-              </li>
+      <Dock label="Plot" mode={props.dock ?? 'auto'}>
+        {legendSeries.length > 1 && (
+          <ul class="plot-legend" aria-label="Legend">
+            {legendSeries.map((s) => {
+              const color = figure.series[s.id]?.color;
+              return (
+                <li key={s.id}>
+                  <span
+                    class={`plot-swatch series-${s.colorIndex % 8}`}
+                    style={color ? { background: color } : undefined}
+                    aria-hidden="true"
+                  />
+                  {s.name}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {props.peakLabels && props.peakLabels.key.length > 0 && (
+          <ul class="plot-legend" aria-label="Peak labels">
+            {props.peakLabels.key.map((entry) => (
+              <li key={entry}>{entry}</li>
             ))}
-        </ul>
-      )}
+          </ul>
+        )}
 
-      {props.peakLabels && props.peakLabels.key.length > 0 && (
-        <ul class="plot-legend" aria-label="Peak labels">
-          {props.peakLabels.key.map((entry) => (
-            <li key={entry}>{entry}</li>
-          ))}
-        </ul>
-      )}
-
-      <InteractivePlot
-        series={series}
-        labels={axisLabels}
-        domain={domain}
-        extent={extent}
-        minSpan={minSpan}
-        onDomainChange={setDomain}
-        formatX={(x) => `${xName} ${round(shown(x))}${xUnit}`}
-        {...(props.points && { markers: props.points })}
-        {...(props.bands && { bands: props.bands })}
-        {...(props.peakLabels && { peakLabels: props.peakLabels })}
-        {...props.interaction}
-        description={`Plot of intensity against ${xName}, ${series.length} pattern${series.length === 1 ? '' : 's'}.`}
-      />
-      {props.lanes && props.lanes.length > 0 && (
-        <ReferenceLanes lanes={props.lanes} domain={domain} />
-      )}
-      {residualSeries && (
-        <InteractivePlot
-          series={residualSeries}
-          labels={{
-            x: axisLabels.x,
-            y: props.lowerAxis?.y ?? 'Residual',
-            ...(props.lowerAxis?.yValues && { yValues: true }),
-          }}
-          domain={domain}
-          extent={extent}
-          minSpan={minSpan}
-          onDomainChange={setDomain}
-          formatX={(x) => `${xName} ${round(shown(x))}${xUnit}`}
-          heightFor={residualHeight}
-          hideReadout
-          description={props.lowerAxis?.description ?? 'Residual: data minus fit.'}
-        />
-      )}
+        <div ref={plotRef}>
+          <InteractivePlot
+            series={series}
+            labels={axisLabels}
+            domain={domain}
+            extent={extent}
+            minSpan={minSpan}
+            onDomainChange={setDomain}
+            formatX={(x) => `${xName} ${round(shown(x))}${xUnit}`}
+            {...(props.points && { markers: props.points })}
+            {...(props.bands && { bands: props.bands })}
+            {...(props.peakLabels && { peakLabels: props.peakLabels })}
+            {...interaction}
+            figure={figure}
+            description={`Plot of intensity against ${xName}, ${series.length} pattern${series.length === 1 ? '' : 's'}.`}
+          />
+        </div>
+        {props.lanes && props.lanes.length > 0 && (
+          <ReferenceLanes lanes={props.lanes} domain={domain} />
+        )}
+        {residualSeries && (
+          <InteractivePlot
+            series={residualSeries}
+            labels={{
+              x: axisLabels.x,
+              y: props.lowerAxis?.y ?? 'Residual',
+              ...(props.lowerAxis?.yValues && { yValues: true }),
+            }}
+            domain={domain}
+            extent={extent}
+            minSpan={minSpan}
+            onDomainChange={setDomain}
+            formatX={(x) => `${xName} ${round(shown(x))}${xUnit}`}
+            heightFor={residualHeight}
+            hideReadout
+            description={props.lowerAxis?.description ?? 'Residual: data minus fit.'}
+          />
+        )}
+      </Dock>
 
       <div class="plot-controls">
         <fieldset class="plot-range">
@@ -235,6 +310,17 @@ export function PlotPanel(props: PlotPanelProps) {
         </div>
       )}
 
+      <FigureEditor
+        figure={figure}
+        onChange={setFigure}
+        series={series}
+        peakLabels={props.peakLabels}
+        xName={xName}
+        xUnit={xUnit}
+        placement={placement}
+        onPlacement={setPlacement}
+      />
+
       <ExportPanel
         series={series}
         domain={domain}
@@ -248,6 +334,7 @@ export function PlotPanel(props: PlotPanelProps) {
         peakLabels={props.peakLabels}
         lanes={props.lanes}
         lowerAxis={props.lowerAxis}
+        figure={figure}
       />
     </div>
   );

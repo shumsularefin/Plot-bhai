@@ -1,3 +1,4 @@
+import { phaseReference } from '../../core/xrd/reference/source';
 import { ANODES } from '../../core/xrd/radiation';
 import { referenceLines } from '../../core/xrd/reference/match';
 import type { ReferenceLane } from '../../ui/plot/ReferenceLanes';
@@ -25,7 +26,7 @@ export function referenceLanesFor(data: XrdData, assignment: AssignmentResult): 
       );
       return {
         id: phase.id,
-        name: `${phase.name}, COD ${phase.codId}`,
+        name: `${phase.name}, ${phaseReference(phase)}`,
         colorIndex: i % 7,
         lines: referenceLines(phase, lambda)
           .filter((l) => l.intensity >= MIN_LANE_PERCENT)

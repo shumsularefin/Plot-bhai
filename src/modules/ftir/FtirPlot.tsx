@@ -1,9 +1,11 @@
 import { useMemo } from 'preact/hooks';
 import { toPercentTransmittance, type FtirProcessed } from '../../core/ftir/process';
 import { PlotPanel, type PlotSettings } from '../../ui/plot/PlotPanel';
+import type { FtirPeak } from '../../core/ftir/peaks';
 import type { PeakLabelSet } from '../../ui/plot/peakLabels';
 import type { SeriesSource } from '../../ui/plot/series';
 import type { AxisLabels, Domain } from '../../ui/plot/types';
+import { valueIn, type FtirQuantity } from './quantity';
 
 /** One curve to draw: absorbance on increasing wavenumber. */
 export interface FtirCurve {
@@ -33,10 +35,7 @@ export const curveOf = (
  * plot then shows high wavenumber on the left and its labels show the positive value). Points
  * without a value are left out. Transmittance is shown in percent.
  */
-export function ftirSources(
-  curves: readonly FtirCurve[],
-  quantity: 'absorbance' | 'transmittance',
-): SeriesSource[] {
+export function ftirSources(curves: readonly FtirCurve[], quantity: FtirQuantity): SeriesSource[] {
   return curves.map((curve) => {
     const values =
       quantity === 'transmittance' ? toPercentTransmittance(curve.absorbance) : curve.absorbance;
@@ -55,7 +54,7 @@ export function ftirSources(
 }
 
 export const ftirLabels =
-  (quantity: 'absorbance' | 'transmittance') =>
+  (quantity: FtirQuantity) =>
   (normalised: boolean): AxisLabels => ({
     x: (
       <>
@@ -68,16 +67,34 @@ export const ftirLabels =
     ),
     y:
       quantity === 'transmittance'
-        ? 'Transmittance (%)'
+        ? normalised
+          ? 'Transmittance / maximum'
+          : 'Transmittance (%)'
         : normalised
           ? 'Normalised absorbance (a.u.)'
           : 'Absorbance (a.u.)',
     reversed: true,
   });
 
+/**
+ * Wavenumber labels for picked peaks, placed at the band in the shown quantity: above an
+ * absorbance maximum, below a transmittance minimum.
+ */
+export function peakLabelsFor(peaks: readonly FtirPeak[], quantity: FtirQuantity): PeakLabelSet {
+  return {
+    labels: peaks.map((p) => ({
+      x: -p.wavenumber,
+      y: valueIn(quantity, p.height),
+      text: String(Math.round(p.wavenumber)),
+    })),
+    key: [],
+    ...(quantity === 'transmittance' && { below: true }),
+  };
+}
+
 interface FtirPlotProps {
   curves: readonly FtirCurve[];
-  quantity: 'absorbance' | 'transmittance';
+  quantity: FtirQuantity;
   settings: PlotSettings;
   onSettingsChange: (patch: Partial<PlotSettings>) => void;
   exportName: string;

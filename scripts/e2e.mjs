@@ -80,8 +80,12 @@ async function walkToExport(log) {
 
   // 3 Choose material
   await page.getByRole('searchbox').fill('ZnO');
-  await page.locator('.family-button').first().click();
-  note('3 Choose material: ZnO chosen');
+  await page.getByRole('button', { name: /^Add Zincite/ }).click();
+  await page
+    .getByRole('list', { name: 'Candidate phases' })
+    .getByText(/Zincite/)
+    .waitFor();
+  note('3 Choose material: ZnO added as a candidate');
   await next('Compare reference phases');
 
   // 4 Compare phases

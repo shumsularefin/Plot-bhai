@@ -1,3 +1,4 @@
+import { phaseReference } from '../../core/xrd/reference/source';
 import { useMemo } from 'preact/hooks';
 import type { LatticeFit } from '../../core/xrd/reference/lattice';
 import { formatWithSigma } from '../../ui/format';
@@ -156,7 +157,7 @@ function AssignmentBody({
             {result.peaks.map((p) => (
               <tr key={p.index} class={p.phase ? undefined : 'is-limited'}>
                 <td>{p.phase?.name ?? 'unassigned'}</td>
-                <td>{p.phase ? p.phase.codId : '–'}</td>
+                <td>{p.phase ? phaseReference(p.phase) : '–'}</td>
                 <td>{(p.phase && jcpds(p.phase.id)) || '–'}</td>
                 <td>{p.hklText || '–'}</td>
                 <td>{p.peak.twoTheta.toFixed(3)}</td>
@@ -214,9 +215,13 @@ function LatticeCard({ phase }: { phase: PhaseAssignment }) {
     <div class="lattice-card">
       <h5 class="lattice-title">
         {ref.name} (
-        <a href={codUrl(ref.codId)} target="_blank" rel="noopener noreferrer">
-          COD {ref.codId}
-        </a>
+        {ref.codId !== null ? (
+          <a href={codUrl(ref.codId)} target="_blank" rel="noopener noreferrer">
+            {phaseReference(ref)}
+          </a>
+        ) : (
+          phaseReference(ref)
+        )}
         ), {ref.crystalSystem}, {ref.spaceGroup.hm}
       </h5>
       <p class="field-hint">

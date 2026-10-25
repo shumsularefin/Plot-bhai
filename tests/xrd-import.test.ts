@@ -190,3 +190,43 @@ describe('large files', () => {
     expect(p.twoTheta.length).toBe(50_000);
   });
 });
+
+describe('header settings', () => {
+  // The layout of a PANalytical X'Pert HighScore CSV export; the numbers are made up.
+  const xpert = [
+    '[Measurement conditions]',
+    'Sample identification,',
+    'Comment - 1,"Configuration=Powder XRD, Owner=User-1"',
+    'Anode material,Cu',
+    'K-Alpha1 wavelength,1.5405980',
+    'K-Alpha2 wavelength,1.5444260',
+    'Ratio K-Alpha2/K-Alpha1,0.500',
+    'Monochromator used,YES',
+    'Scan range,10.0000,12.0000',
+    'Scan step size,0.0200000',
+    'No. of points, 100',
+    'Time per step,0.40',
+    '[Scan points]',
+    'Angle,Intensity',
+    ...Array.from({ length: 100 }, (_, i) => `${(10.01 + 0.02 * i).toFixed(4)},${100 + i}.0`),
+  ].join('\n');
+
+  it("keeps an X'Pert CSV header and reads its wavelength and time per step", () => {
+    const p = expectPattern(importText('scan.csv', xpert, 'csv'));
+    expect(p.twoTheta.length).toBe(100);
+    expect(p.wavelengthFromFileA).toBe(1.540598);
+    expect(p.countingTimeS).toBe(0.4);
+    expect(p.metadata).toContainEqual({ key: 'Anode material', value: 'Cu' });
+    expect(p.metadata).toContainEqual({ key: 'Monochromator used', value: 'YES' });
+    expect(p.metadata).toContainEqual({ key: 'Scan range', value: '10.0000,12.0000' });
+    // Section titles and empty values are not settings.
+    expect(p.metadata?.some((f) => f.key.startsWith('['))).toBe(false);
+    expect(p.metadata?.some((f) => f.key === 'Sample identification')).toBe(false);
+    expect(p.notes.map((n) => n.text).join(' ')).toContain('checked against your radiation');
+  });
+
+  it('does not take an implausible number as the wavelength', () => {
+    const p = expectPattern(importText('scan.csv', xpert.replace('1.5405980', '154.05980'), 'csv'));
+    expect(p.wavelengthFromFileA).toBeUndefined();
+  });
+});

@@ -73,7 +73,12 @@ describe('peak detection', () => {
 
   it('finds every synthetic peak in noisy data and nothing else (prominence 3 %)', () => {
     const { twoTheta, intensity } = pattern(truth, 1);
-    const found = detectPeaks(twoTheta, intensity, { prominencePercent: 3, minSeparationDeg: 0.1 });
+    const found = detectPeaks(twoTheta, intensity, {
+      prominencePercent: 3,
+      minSeparationDeg: 0.1,
+      minSnr: 0,
+      minWidthSteps: 0,
+    });
     expect(found.map((f) => Math.round(f.center * 10) / 10)).toEqual([23, 27.5, 33, 37]);
     found.forEach((f, i) => {
       const t = truth[i] as SyntheticPeak;
@@ -88,6 +93,8 @@ describe('peak detection', () => {
     const found = detectPeaks(twoTheta, intensity, {
       prominencePercent: 20,
       minSeparationDeg: 0.1,
+      minSnr: 0,
+      minWidthSteps: 0,
     });
     expect(found.map((f) => Math.round(f.center))).toEqual([23, 33]);
   });
@@ -95,7 +102,12 @@ describe('peak detection', () => {
   it('computes topographic prominence like SciPy', () => {
     const y = Float64Array.of(0, 2, 1, 5, 1, 3, 0);
     const x = Float64Array.from(y, (_, i) => i);
-    const found = detectPeaks(x, y, { prominencePercent: 0, minSeparationDeg: 0 });
+    const found = detectPeaks(x, y, {
+      prominencePercent: 0,
+      minSeparationDeg: 0,
+      minSnr: 0,
+      minWidthSteps: 0,
+    });
     // Peak 2 at x=1: walks left to 0, right to 5 (higher) → bases 0 and 1 → prominence 1.
     expect(found.map((f) => [f.center, f.prominence])).toEqual([
       [1, 1],
@@ -107,7 +119,12 @@ describe('peak detection', () => {
   it('minimum separation keeps the more prominent of two close peaks', () => {
     const y = Float64Array.of(0, 4, 3, 5, 0, 0);
     const x = Float64Array.from(y, (_, i) => i * 0.05);
-    const found = detectPeaks(x, y, { prominencePercent: 0, minSeparationDeg: 0.15 });
+    const found = detectPeaks(x, y, {
+      prominencePercent: 0,
+      minSeparationDeg: 0.15,
+      minSnr: 0,
+      minWidthSteps: 0,
+    });
     expect(found).toHaveLength(1);
     expect(found[0]?.center).toBeCloseTo(0.15, 12);
   });
@@ -123,7 +140,12 @@ describe('peak detection', () => {
     });
     expect(big.twoTheta.length).toBeGreaterThan(49_000);
     const start = performance.now();
-    detectPeaks(big.twoTheta, big.intensity, { prominencePercent: 3, minSeparationDeg: 0.1 });
+    detectPeaks(big.twoTheta, big.intensity, {
+      prominencePercent: 3,
+      minSeparationDeg: 0.1,
+      minSnr: 0,
+      minWidthSteps: 0,
+    });
     expect(performance.now() - start).toBeLessThan(500);
   });
 });

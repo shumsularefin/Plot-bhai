@@ -11,6 +11,8 @@ import { lowerBoundIndex } from '../../core/xrd/peaks/search';
 import { peakTable } from '../../core/xrd/peaks/table';
 import { ANODES } from '../../core/xrd/radiation';
 import { stepStats } from '../../core/xrd/summary';
+import { Advanced } from '../../ui/Advanced';
+import { NumberInput } from './NumberInput';
 import { HelpTip } from '../../ui/HelpTip';
 import { PlotPanel, type PlotInteraction } from '../../ui/plot/PlotPanel';
 import type { SeriesSource } from '../../ui/plot/series';
@@ -274,10 +276,43 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
               }}
             />
           </label>
+          <Advanced id="xrd-noise-filter" title="Noise filter">
+            <p class="field-hint">
+              A peak must stand out from the local noise (estimated from the point-to-point scatter)
+              and be several data steps wide; counting spikes are one step wide. The defaults gave
+              no false peaks on simulated pure-noise scans. Lower them to find weak peaks, and check
+              each one by eye.
+            </p>
+            <div class="radiation-fields">
+              <NumberInput
+                label="Minimum signal-to-noise (prominence ÷ noise)"
+                value={state.detection.minSnr}
+                max={50}
+                step={0.5}
+                onChange={(v) =>
+                  v !== null &&
+                  v >= 0 &&
+                  !fitting &&
+                  void detect({ ...state.detection, minSnr: v }, true)
+                }
+              />
+              <NumberInput
+                label="Minimum width (data steps)"
+                value={state.detection.minWidthSteps}
+                max={50}
+                step={0.5}
+                onChange={(v) =>
+                  v !== null &&
+                  v >= 0 &&
+                  !fitting &&
+                  void detect({ ...state.detection, minWidthSteps: v }, true)
+                }
+              />
+            </div>
+          </Advanced>
           <p class="field-hint">
             {guesses.length} peak{guesses.length === 1 ? '' : 's'}. Changing these settings finds
-            peaks again and replaces your edits (Undo brings them back). On noisy data, smoothing in
-            Clean data avoids false peaks.
+            peaks again and replaces your edits (Undo brings them back).
           </p>
         </div>
       </section>
@@ -465,6 +500,12 @@ function RegionSummary({ regions }: { regions: readonly RegionFit[] }) {
             total variation of the data in the region. 1 is a perfect fit. A high R² alone does not
             prove the model is right; check the residual plot for leftover structure.
           </p>
+          <p>
+            χ²ν (reduced chi-squared) compares the scatter of the residual with the noise of the
+            data, estimated from the point-to-point scatter: about 1 means the model fits to within
+            the noise; above 4 (residual more than twice the noise) means it misses real structure.
+            Smoothing makes the noise look smaller, so χ²ν is only meaningful on unsmoothed data.
+          </p>
         </HelpTip>
       </h3>
       <ul class="region-list">
@@ -474,7 +515,8 @@ function RegionSummary({ regions }: { regions: readonly RegionFit[] }) {
               {r.start.toFixed(2)}–{r.end.toFixed(2)}°
             </span>{' '}
             {r.peaks.length} peak{r.peaks.length === 1 ? '' : 's'}, R² ={' '}
-            {Number.isFinite(r.rSquared) ? r.rSquared.toFixed(4) : '–'}
+            {Number.isFinite(r.rSquared) ? r.rSquared.toFixed(4) : '–'}, χ²ν ={' '}
+            {Number.isFinite(r.reducedChiSquared) ? r.reducedChiSquared.toFixed(2) : '–'}
             {r.messages.map((m, k) => (
               <span key={k} class={`message is-${m.level}`}>
                 {' '}

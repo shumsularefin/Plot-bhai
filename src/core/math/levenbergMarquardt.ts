@@ -21,14 +21,22 @@ export interface LeastSquaresResult {
   parameters: Float64Array;
   /** Covariance matrix (p.length × p.length, row-major); rows and columns of fixed parameters are 0. */
   covariance: Float64Array;
-  /** Standard uncertainty of each parameter: √(covariance diagonal); 0 for fixed parameters. */
+  /**
+   * Standard uncertainty of each parameter: √(covariance diagonal); 0 for fixed parameters, NaN
+   * for every free parameter when the covariance could not be calculated (see covarianceOk).
+   */
   standardErrors: Float64Array;
+  /**
+   * False when JᵀJ could not be inverted (parameters not independent, for example two peaks on
+   * top of each other or a peak of zero height) or there are no degrees of freedom left.
+   */
+  covarianceOk: boolean;
   /** Sum of squared residuals Σ (y − model)². */
   ssr: number;
   model: Float64Array;
   iterations: number;
   converged: boolean;
-  /** Free parameters that ended on a bound (their uncertainty is not meaningful). */
+  /** Free parameters that ended on a bound (their uncertainty is NaN: not defined). */
   atBound: boolean[];
 }
 
@@ -42,8 +50,9 @@ export interface LeastSquaresResult {
  * relative step size below 1e−9, or after maxIterations.
  *
  * Uncertainties come from the covariance matrix C = s² (JᵀJ)⁻¹ at the solution, with
- * s² = SSR / (n − m) for n points and m free parameters. They assume the model is correct and
- * the noise is independent with equal variance at every point.
+ * s² = SSR / (n − m) for n points and m free parameters that are not on a bound. They assume
+ * the model is correct and the noise is independent with equal variance at every point.
+ * Parameters on a bound are left out of C (as if fixed) and their own uncertainty is NaN.
  */
 export function levenbergMarquardt(problem: LeastSquaresProblem): LeastSquaresResult {
   const { y, lower, upper, free, evaluate } = problem;
@@ -132,26 +141,66 @@ export function levenbergMarquardt(problem: LeastSquaresProblem): LeastSquaresRe
     }
   }
 
-  const covariance = new Float64Array(m * m);
-  const standardErrors = new Float64Array(m);
-  const dof = n - k;
-  const inverse = k > 0 ? invert(system.a) : [];
-  if (inverse && dof > 0) {
-    const s2 = ssr / dof;
-    for (let s = 0; s < k; s++) {
-      for (let t = 0; t < k; t++) {
-        covariance[(freeIndex[s] as number) * m + (freeIndex[t] as number)] =
-          s2 * ((inverse[s] as number[])[t] as number);
-      }
-      const j = freeIndex[s] as number;
-      standardErrors[j] = Math.sqrt(Math.max(0, covariance[j * m + j] as number));
-    }
-  }
+  // An infinite bound can never be reached (Infinity − v ≤ Infinity would say it was).
   const atBound = Array.from({ length: m }, (_, j) => {
     if (!free[j]) return false;
     const v = p[j] as number;
-    const span = Math.max(Math.abs(upper[j] as number), Math.abs(lower[j] as number), 1) * 1e-9;
-    return v - (lower[j] as number) <= span || (upper[j] as number) - v <= span;
+    const lo = lower[j] as number;
+    const hi = upper[j] as number;
+    const finite = [lo, hi].filter(Number.isFinite).map(Math.abs);
+    const span = Math.max(...finite, 1) * 1e-9;
+    return (Number.isFinite(lo) && v - lo <= span) || (Number.isFinite(hi) && hi - v <= span);
   });
-  return { parameters: p, covariance, standardErrors, ssr, model, iterations, converged, atBound };
+
+  // Parameters on a bound, or with no effect on the model, are treated as fixed for the
+  // covariance (their rows and columns are 0, so they do not spoil propagated uncertainties)
+  // and get NaN as their own uncertainty: it is not defined.
+  const covariance = new Float64Array(m * m);
+  const standardErrors = new Float64Array(m);
+  const diagonal = system.a.map((row, s) => row[s] as number);
+  const active: number[] = [];
+  freeIndex.forEach((j, s) => {
+    if (!atBound[j] && (diagonal[s] as number) > 0) active.push(s);
+    else standardErrors[j] = NaN;
+  });
+  const dof = n - active.length;
+  // Inverted in correlation form (unit diagonal), so the singularity test is independent of the
+  // parameters' units and sizes.
+  const scale = active.map((s) => Math.sqrt(diagonal[s] as number));
+  const scaled = active.map((s, u) =>
+    active.map(
+      (t, v) =>
+        ((system.a[s] as number[])[t] as number) / ((scale[u] as number) * (scale[v] as number)),
+    ),
+  );
+  const inverse = active.length > 0 ? invert(scaled) : [];
+  const covarianceOk = inverse !== null && dof > 0;
+  if (!covarianceOk) {
+    for (const j of freeIndex) {
+      standardErrors[j] = NaN;
+      for (const t of freeIndex) covariance[j * m + t] = NaN;
+    }
+  } else {
+    const s2 = ssr / dof;
+    active.forEach((s, u) => {
+      const j = freeIndex[s] as number;
+      active.forEach((t, v) => {
+        covariance[j * m + (freeIndex[t] as number)] =
+          (s2 * ((inverse[u] as number[])[v] as number)) /
+          ((scale[u] as number) * (scale[v] as number));
+      });
+      standardErrors[j] = Math.sqrt(Math.max(0, covariance[j * m + j] as number));
+    });
+  }
+  return {
+    parameters: p,
+    covariance,
+    standardErrors,
+    covarianceOk,
+    ssr,
+    model,
+    iterations,
+    converged,
+    atBound,
+  };
 }

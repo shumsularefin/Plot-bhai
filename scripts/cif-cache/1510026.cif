@@ -1,0 +1,86 @@
+#------------------------------------------------------------------------------
+#$Date: 2016-02-14 16:26:36 +0200 (Sun, 14 Feb 2016) $
+#$Revision: 176435 $
+#$URL: file:///home/coder/svn-repositories/_RELOADED_COD/cod-reloaded/cif/1/51/00/1510026.cif $
+#------------------------------------------------------------------------------
+#
+# This file is available in the Crystallography Open Database (COD),
+# http://www.crystallography.net/
+#
+# All data on this site have been placed in the public domain by the
+# contributors.
+#
+data_1510026
+loop_
+_publ_author_name
+'Tofield, B.C.'
+'Cheetham, A.K.'
+'Newsam, J.M.'
+_publ_section_title
+;
+ Structural studies of the high-temperature modifications of sodium and
+ silver orthophosphates, II-Na3 P O4 and II-Ag3 P O4, and of the
+ low-temperature form I-Ag3 P O4
+;
+_journal_name_full               'Solid State Ionics'
+_journal_page_first              377
+_journal_page_last               393
+_journal_paper_doi               10.1016/0167-2738(80)90037-5
+_journal_volume                  1
+_journal_year                    1980
+_chemical_formula_sum            'Ag3 O4 P'
+_chemical_name_systematic        'Ag3 P O4'
+_space_group_IT_number           218
+_symmetry_space_group_name_Hall  'P -4n 2 3'
+_symmetry_space_group_name_H-M   'P -4 3 n'
+_cell_angle_alpha                90
+_cell_angle_beta                 90
+_cell_angle_gamma                90
+_cell_formula_units_Z            2
+_cell_length_a                   6.061
+_cell_length_b                   6.061
+_cell_length_c                   6.061
+_cell_volume                     222.655
+_citation_journal_id_ASTM        SSIOD3
+_cod_data_source_file            silver3-x_68.cif
+_cod_data_source_block           Ag3O4P1
+_cod_original_cell_volume        222.6552
+_cod_original_formula_sum        'Ag3 O4 P1'
+_cod_database_code               1510026
+loop_
+_symmetry_equiv_pos_as_xyz
+x,y,z
+y+1/2,-x+1/2,-z+1/2
+-x,-y,z
+-y+1/2,x+1/2,-z+1/2
+x,-y,-z
+-y+1/2,-x+1/2,z+1/2
+-x,y,-z
+y+1/2,x+1/2,z+1/2
+z,x,y
+x+1/2,-z+1/2,-y+1/2
+-z,-x,y
+-x+1/2,z+1/2,-y+1/2
+z,-x,-y
+-x+1/2,-z+1/2,y+1/2
+-z,x,-y
+x+1/2,z+1/2,y+1/2
+y,z,x
+y,-z,-x
+-z+1/2,-y+1/2,x+1/2
+-y,z,-x
+z+1/2,y+1/2,x+1/2
+-y,-z,x
+-z+1/2,y+1/2,-x+1/2
+z+1/2,-y+1/2,-x+1/2
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+_atom_site_U_iso_or_equiv
+O1 O-2 0.3514 0.3514 0.3514 1 0.0
+P1 P+5 0 0 0 1 0.0
+Ag1 Ag+1 0.291 0 0.5 0.5 0.0

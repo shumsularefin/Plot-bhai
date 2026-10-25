@@ -1,3 +1,4 @@
+import { phaseReference } from '../../core/xrd/reference/source';
 import { regionValue, type RegionFit } from '../../core/xrd/peaks/fit';
 import { peakTable, type PeakRow } from '../../core/xrd/peaks/table';
 import { ANODES } from '../../core/xrd/radiation';
@@ -195,7 +196,8 @@ export function peakLabelSet(result: AssignmentResult): PeakLabelSet {
       ...(p === strongest && { strong: true }),
     })),
     key: result.phases.map(
-      (p, i) => `${many ? `${superscript(i + 1)} ` : ''}${p.phase.name}, COD ${p.phase.codId}`,
+      (p, i) =>
+        `${many ? `${superscript(i + 1)} ` : ''}${p.phase.name}, ${phaseReference(p.phase)}`,
     ),
   };
 }

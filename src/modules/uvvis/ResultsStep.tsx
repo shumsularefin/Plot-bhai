@@ -1,3 +1,5 @@
+import { RecordSection } from '../../ui/report/RecordSection';
+import { uvvisRecord } from './record';
 import { useMemo, useState } from 'preact/hooks';
 import { TRANSITIONS } from '../../core/uvvis/tauc';
 import { formatNumber } from '../../core/xrd/parsers/numbers';
@@ -163,6 +165,8 @@ export function ResultsStep({ data, update }: StepContext<UvvisData>) {
           {copied}
         </p>
       </section>
+
+      <RecordSection build={() => uvvisRecord(data)} stem={data.spectra[0]?.name ?? 'uvvis'} />
 
       <SessionSection
         codec={uvvisSession}

@@ -51,7 +51,7 @@ function fittedData(phaseIds: string[]): XrdData {
     ...initialXrdData,
     patterns: [{ id: 'p1' } as never],
     peaks: { p1: { ...DEFAULT_PEAK_STATE, guesses, fit: { regions, inputKey: 'k' } } },
-    material: { ...initialXrdData.material, familyId: 'tio2', phaseIds },
+    material: { ...initialXrdData.material, candidates: tio2.map((p) => p.id), phaseIds },
   };
 }
 

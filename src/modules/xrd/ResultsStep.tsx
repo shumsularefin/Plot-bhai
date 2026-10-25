@@ -13,7 +13,7 @@ import type { PatternChoices, ResultsSettings, XrdData } from './data';
 import { NumberInput } from './NumberInput';
 import { LineDetails, Messages, ScherrerDetails, TableBox } from './MethodDetails';
 import { sizePeaksTable, sizeSummaryTable } from './tables';
-import { useReferencePhases } from './useReferencePhases';
+import { useCandidatePhases } from './useReferencePhases';
 import {
   choicesFor,
   LINE_METHODS,
@@ -40,7 +40,7 @@ export function ResultsStep({ data, update }: StepContext<XrdData>) {
     update({ results: { ...settings, ...patch } });
   const skipped = data.instrument.source === 'skip';
   const [refineZeroShift, setRefineZeroShift] = useState(false);
-  const { phases, failed } = useReferencePhases(data.material.familyId);
+  const { phases, failed } = useCandidatePhases(data.material);
 
   if (!pattern) return <p>No patterns are loaded. Go back to Upload to add one.</p>;
   const results = sizeResults(data, pattern.id);

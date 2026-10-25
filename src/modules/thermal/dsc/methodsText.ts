@@ -1,10 +1,9 @@
+import { SOFTWARE } from '../../../ui/software';
 import { dscMethodsParagraph, type DscMethodsInput } from '../../../core/thermal/dscMethods';
 import { displayExoUp, type DscCurve } from '../../../core/thermal/dscClean';
 import type { DscView } from './analysis';
 import type { CombinedResult } from './combinedAnalysis';
 import type { DscData } from './data';
-
-const SOFTWARE = 'XRD Toolkit (free, runs in the browser; version not recorded)';
 
 /** The settings that went into the analysis, read from the saved session. */
 export function dscMethodsInput(

@@ -14,6 +14,8 @@ import { StepSection } from '../xrd/StepSection';
 import { processAll } from './analysis';
 import { processingFor, type FtirData } from './data';
 import { curveOf, FtirPlot, type FtirCurve } from './FtirPlot';
+import { QuantityChoice } from './QuantityChoice';
+import { shownQuantity } from './quantity';
 
 type View = 'after' | 'before' | 'both' | 'all';
 const VIEW_LABELS: Record<View, string> = {
@@ -23,6 +25,7 @@ const VIEW_LABELS: Record<View, string> = {
   all: 'All spectra, after',
 };
 const BASELINE_LABELS: Record<BaselineMethod, string> = {
+  arpls: 'arPLS (automatic, recommended)',
   'rubber-band': 'Rubber band (automatic)',
   polynomial: 'Iterative polynomial (automatic)',
   als: 'Asymmetric least squares (automatic)',
@@ -50,8 +53,8 @@ export function CleanStep({ data, update }: StepContext<FtirData>) {
   const result = processed[index];
   const settings = spectrum ? processingFor(data, spectrum.id) : DEFAULT_FTIR_PROCESSING;
   const normalised = settings.normalise.enabled;
-  const quantity =
-    data.view.quantity === 'transmittance' && !normalised ? 'transmittance' : 'absorbance';
+  const shown = shownQuantity(data, view === 'all' ? spectra : spectrum ? [spectrum] : []);
+  const quantity = shown.quantity;
 
   const curves = useMemo<FtirCurve[]>(() => {
     if (!spectrum || !result) return [];
@@ -155,8 +158,9 @@ export function CleanStep({ data, update }: StepContext<FtirData>) {
       </div>
       <p class="field-hint">
         Every step is optional and can be switched off again at any time. Your original data are
-        never changed. Transmittance is converted to absorbance first (A = 2 − log₁₀ %T), so bands
-        always point up. Check the data type of each spectrum in step 1 first.
+        never changed. Processing works on absorbance (transmittance is converted with A = 2 − log₁₀
+        %T, so bands point up) and the result is shown in the quantity you choose below. Check the
+        data type of each spectrum in step 1 first.
       </p>
 
       <section class="process-step" aria-labelledby="view-title">
@@ -175,21 +179,6 @@ export function CleanStep({ data, update }: StepContext<FtirData>) {
                   onChange={() => setView(v)}
                 />
                 {VIEW_LABELS[v]}
-              </label>
-            ))}
-          </fieldset>
-          <fieldset class="segmented">
-            <legend>Vertical axis</legend>
-            {(['absorbance', 'transmittance'] as const).map((q) => (
-              <label key={q} class={quantity === q ? 'is-selected' : undefined}>
-                <input
-                  type="radio"
-                  name="ftir-quantity"
-                  checked={quantity === q}
-                  disabled={q === 'transmittance' && normalised}
-                  onChange={() => update({ view: { quantity: q } })}
-                />
-                {q === 'absorbance' ? 'Absorbance' : 'Transmittance (%)'}
               </label>
             ))}
           </fieldset>
@@ -213,9 +202,7 @@ export function CleanStep({ data, update }: StepContext<FtirData>) {
             </HelpTip>
           </div>
         </div>
-        {normalised && (
-          <p class="field-hint">Transmittance cannot be shown for a normalised spectrum.</p>
-        )}
+        <QuantityChoice data={data} update={update} shown={shown} />
       </section>
 
       <StepSection
@@ -241,6 +228,24 @@ export function CleanStep({ data, update }: StepContext<FtirData>) {
             </label>
           ))}
         </fieldset>
+        {b.method === 'arpls' && (
+          <>
+            <p class="field-hint">
+              Asymmetrically reweighted penalised least squares: a smooth curve that follows the
+              points within the noise band and ignores points well above it (bands). Larger
+              smoothness gives a stiffer baseline. In tests with known baselines it gave the
+              smallest error of the methods offered here (see About).
+            </p>
+            <NumberInput
+              label="Smoothness (power of ten)"
+              value={b.logLambda}
+              min={0}
+              max={10}
+              step={0.5}
+              onChange={(v) => v !== null && patch('baseline', { logLambda: v })}
+            />
+          </>
+        )}
         {b.method === 'rubber-band' && (
           <p class="field-hint">
             Stretches a rubber band under the spectrum (its lower convex hull) and subtracts it. It
@@ -341,7 +346,7 @@ export function CleanStep({ data, update }: StepContext<FtirData>) {
       <StepSection
         id="normalise"
         title="Normalisation"
-        description="Rescales the absorbance so spectra of different thickness or concentration can be compared by shape. It changes the vertical scale only; peak positions stay the same."
+        description={`Rescales the absorbance so spectra of different thickness or concentration can be compared by shape. It changes the vertical scale only; peak positions stay the same.${data.view.quantity === 'transmittance' ? ' A normalised spectrum is always shown as absorbance, because it has no transmittance equivalent.' : ''}`}
         enabled={normalised}
         onToggle={(enabled) => patch('normalise', { enabled })}
         onReset={() => resetStep('normalise')}

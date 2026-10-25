@@ -5,10 +5,12 @@ import type { FitOptions, PeakGuess, RegionFit } from '../../core/xrd/peaks/fit'
 import { DEFAULT_PROCESSING, type ProcessingSettings } from '../../core/xrd/process/pipeline';
 import { DEFAULT_RADIATION, type RadiationSettings } from '../../core/xrd/radiation';
 import { examplePatterns } from '../../core/xrd/synthetic';
+import type { ReferencePhase } from '../../core/xrd/reference/types';
 import type { Pattern } from '../../core/xrd/types';
 import { DEFAULT_EXPORT_SETTINGS } from '../../ui/plot/export';
 import type { PlotSettings } from '../../ui/plot/PlotPanel';
 import type { WizardState } from '../../ui/wizard/types';
+import { libraryIndex } from './referenceLibrary';
 
 /** Everything saved for an XRD analysis. */
 export interface XrdData {
@@ -68,27 +70,67 @@ export function crystallinityFor(data: XrdData, id: string): CrystallinityChoice
   return data.analysis.crystallinity[id] ?? DEFAULT_CRYSTALLINITY;
 }
 
-/** The chosen reference material and phases (library in data/reference). */
+/** Calculated profile drawn over the measured pattern in step 4 (a display aid, not a refinement). */
+export interface SimulationState {
+  show: boolean;
+  /** Width of every calculated line, degrees 2θ. */
+  fwhmDeg: number;
+  /** Lorentzian fraction of the pseudo-Voigt line shape. */
+  eta: number;
+}
+
+/** The candidate phases to compare (library in data/reference, or CIF files the user loaded). */
 export interface MaterialState {
-  /** Library family id such as "tio2", or null before a choice. */
-  familyId: string | null;
-  /** Phases the user selected to use for labels and results. */
+  /** Phases to compare in step 4, in the order chosen: library phase ids and loaded-CIF ids. */
+  candidates: string[];
+  /** Candidates the user selected to use for labels and results. */
   phaseIds: string[];
+  /** Structures read from CIF files the user loaded, with their calculated lines. */
+  userPhases: ReferencePhase[];
   /** Phases whose stick patterns are switched off in the comparison. */
   hidden: string[];
   /** JCPDS/ICDD card numbers typed by the user, by phase id. Never checked by the app. */
   jcpds: Record<string, string>;
   /** A reference line counts as found within this many degrees 2θ. */
   toleranceDeg: number;
+  simulation: SimulationState;
 }
 
+export const DEFAULT_SIMULATION: SimulationState = { show: false, fwhmDeg: 0.15, eta: 0.5 };
+
 export const DEFAULT_MATERIAL: MaterialState = {
-  familyId: null,
+  candidates: [],
   phaseIds: [],
+  userPhases: [],
   hidden: [],
   jcpds: {},
   toleranceDeg: 0.15,
+  simulation: DEFAULT_SIMULATION,
 };
+
+/**
+ * The material choice of a version 6 to 8 session, when one family (for example "tio2") was
+ * chosen and phases were ticked within it: every phase of that family becomes a candidate, as
+ * it was shown before, and the ticked ones stay selected.
+ */
+export function upgradeMaterial(saved: Record<string, unknown> | undefined): MaterialState {
+  if (!saved) return DEFAULT_MATERIAL;
+  const familyId = typeof saved['familyId'] === 'string' ? saved['familyId'] : null;
+  const phaseIds = Array.isArray(saved['phaseIds']) ? (saved['phaseIds'] as string[]) : [];
+  const family = libraryIndex.families.find((f) => f.id === familyId);
+  const candidates = [...new Set([...(family?.phases.map((p) => p.id) ?? []), ...phaseIds])];
+  return {
+    ...DEFAULT_MATERIAL,
+    candidates,
+    phaseIds,
+    hidden: Array.isArray(saved['hidden']) ? (saved['hidden'] as string[]) : [],
+    jcpds: (saved['jcpds'] as Record<string, string> | undefined) ?? {},
+    toleranceDeg:
+      typeof saved['toleranceDeg'] === 'number'
+        ? saved['toleranceDeg']
+        : DEFAULT_MATERIAL.toleranceDeg,
+  };
+}
 
 export interface ResultsSettings {
   /** Scherrer shape factor K, dimensionless. */
@@ -187,7 +229,11 @@ export function fitInputKey(
 }
 
 export function peaksFor(data: XrdData, id: string): PeakState {
-  return data.peaks[id] ?? DEFAULT_PEAK_STATE;
+  const stored = data.peaks[id];
+  // Sessions saved before the noise tests existed have no values for them: use the defaults.
+  return stored
+    ? { ...stored, detection: { ...DEFAULT_DETECTION, ...stored.detection } }
+    : DEFAULT_PEAK_STATE;
 }
 
 export const initialXrdData: XrdData = {
@@ -203,16 +249,17 @@ export const initialXrdData: XrdData = {
 };
 
 /** Version of the saved shape. Bump it, and extend migrateXrdData, when the shape changes. */
-export const XRD_STATE_VERSION = 8;
+export const XRD_STATE_VERSION = 9;
 
 /**
  * Upgrades saved sessions: version 2 (Stage 1) had no radiation or processing settings;
  * version 3 (Stage 2) had no peak state; version 4 (Stage 3) had no instrument settings;
  * version 5 (Stage 4) had no size and strain settings; version 6 (Stage 5) had no reference
- * material choice; version 7 (sub-stage 6c) had no texture and crystallinity settings.
+ * material choice; version 7 (sub-stage 6c) had no texture and crystallinity settings;
+ * version 8 chose one library family instead of a list of candidate phases (see upgradeMaterial).
  */
 export function migrateXrdData(saved: unknown, version: number): WizardState<XrdData> | undefined {
-  if (version < 2 || version > 7) return undefined;
+  if (version < 2 || version > 8) return undefined;
   const state = saved as WizardState<Partial<XrdData> & Pick<XrdData, 'patterns' | 'plot'>>;
   if (!state || typeof state !== 'object' || !state.data) return undefined;
   return {
@@ -224,14 +271,18 @@ export function migrateXrdData(saved: unknown, version: number): WizardState<Xrd
       peaks: state.data.peaks ?? {},
       instrument: state.data.instrument ?? DEFAULT_INSTRUMENT,
       results: state.data.results ?? DEFAULT_RESULTS,
-      material: state.data.material ?? DEFAULT_MATERIAL,
+      material: upgradeMaterial(state.data.material as Record<string, unknown> | undefined),
       analysis: state.data.analysis ?? DEFAULT_ANALYSIS,
     },
   };
 }
 
 export function processingFor(data: XrdData, id: string): ProcessingSettings {
-  return data.processing[id] ?? DEFAULT_PROCESSING;
+  const stored = data.processing[id];
+  // Settings saved before arPLS existed have no width for it.
+  return stored
+    ? { ...stored, background: { ...DEFAULT_PROCESSING.background, ...stored.background } }
+    : DEFAULT_PROCESSING;
 }
 
 export function newId(): string {

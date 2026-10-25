@@ -100,13 +100,22 @@ export function ImageViewer(props: ImageViewerProps) {
     return () => observer.disconnect();
   }, []);
 
-  // Fit the image when it first has a size, and again when the image changes.
+  // Fit the image when it first has a size and when the image changes; refit when the box
+  // changes size (window resize, rotation, a panel docking) unless the user has zoomed or panned.
   const imageKey = `${image.width}x${image.height}-${image.workScale}`;
   const fittedFor = useRef('');
+  const lastFit = useRef<ViewTransform | null>(null);
   useEffect(() => {
     if (!fit) return;
-    if (fittedFor.current !== imageKey) {
+    const untouched =
+      view === null ||
+      (lastFit.current !== null &&
+        view.scale === lastFit.current.scale &&
+        view.tx === lastFit.current.tx &&
+        view.ty === lastFit.current.ty);
+    if (fittedFor.current !== imageKey || untouched) {
       fittedFor.current = imageKey;
+      lastFit.current = fit;
       setView(fit);
     }
   }, [fit?.scale, fit?.tx, fit?.ty, imageKey]); // eslint-disable-line react-hooks/exhaustive-deps

@@ -1,0 +1,124 @@
+/* A figure kept in view (src/ui/Dock.tsx): beside the page on wide screens, along the bottom on narrow ones. */
+
+:root {
+  --dock-width: clamp(420px, 46vw, 900px);
+}
+
+.dock-slot {
+  min-width: 0;
+}
+
+.dock-placeholder {
+  margin: var(--space-3) 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.dock-pin {
+  margin-top: var(--space-1);
+}
+
+.dock-frame {
+  position: fixed;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-popover);
+}
+
+.dock-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-2) 0 var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dock-frame.is-collapsed .dock-bar {
+  border-bottom: 0;
+}
+
+.dock-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dock-frame .dock-content {
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-2) var(--space-3) var(--space-3);
+}
+
+/* Narrow screens: a panel along the bottom of the screen; the page gets room for it below. */
+.dock-frame {
+  right: 0;
+  bottom: 0;
+  left: 0;
+  max-height: 55dvh;
+  border-width: 1px 0 0;
+}
+
+.has-dock .shell {
+  padding-bottom: var(--dock-height, 0px);
+}
+
+.dock-frame .image-viewer {
+  height: min(38dvh, 420px);
+  min-height: 200px;
+}
+
+/* Wide screens: a column on the right; the page moves left to make room. */
+@media (min-width: 1100px) {
+  .dock-frame {
+    top: var(--space-4);
+    right: var(--gutter);
+    bottom: auto;
+    left: auto;
+    width: var(--dock-width);
+    max-height: calc(100dvh - 2 * var(--space-4));
+    border-width: 1px;
+    border-radius: var(--radius-md);
+  }
+
+  .has-dock .shell {
+    padding-bottom: 0;
+  }
+
+  .has-dock:not(.dock-collapsed) .container {
+    width: auto;
+    max-width: calc(var(--content-max) + 2 * var(--gutter));
+    margin-right: calc(var(--dock-width) + var(--gutter));
+    margin-left: 0;
+  }
+
+  .dock-frame.is-collapsed {
+    top: auto;
+    bottom: var(--space-4);
+    width: auto;
+  }
+
+  .dock-frame .image-viewer {
+    height: min(70dvh, 640px);
+  }
+}
+
+@media print {
+  .dock-frame {
+    position: static;
+    box-shadow: none;
+  }
+
+  .dock-bar,
+  .dock-placeholder {
+    display: none;
+  }
+}

@@ -111,6 +111,7 @@ describe('session migration', () => {
     expect(migrateXrdData({}, 6)).toBeUndefined();
     expect(migrateXrdData({}, 7)).toBeUndefined();
     expect(migrateXrdData({}, 8)).toBeUndefined();
+    expect(migrateXrdData({}, 9)).toBeUndefined();
     expect(fromStage4?.data.material).toEqual(DEFAULT_MATERIAL);
   });
 
@@ -122,13 +123,28 @@ describe('session migration', () => {
     );
     expect(fromStage5?.step).toBe(6);
     expect(fromStage5?.data.results).toEqual(results);
-    expect(fromStage5?.data.material).toEqual({
-      familyId: null,
-      phaseIds: [],
-      hidden: [],
-      jcpds: {},
-      toleranceDeg: 0.15,
-    });
+    expect(fromStage5?.data.material).toEqual(DEFAULT_MATERIAL);
+  });
+
+  it('upgrades version 8 sessions: the chosen family becomes the list of candidates', () => {
+    const material = {
+      familyId: 'tio2',
+      phaseIds: ['anatase'],
+      hidden: ['rutile'],
+      jcpds: { anatase: '21-1272' },
+      toleranceDeg: 0.2,
+    };
+    const upgraded = migrateXrdData(
+      { step: 3, furthest: 4, data: { patterns: [], plot: {}, material } },
+      8,
+    )?.data.material;
+    expect(upgraded?.candidates).toEqual(['anatase', 'rutile', 'brookite']);
+    expect(upgraded?.phaseIds).toEqual(['anatase']);
+    expect(upgraded?.hidden).toEqual(['rutile']);
+    expect(upgraded?.jcpds).toEqual({ anatase: '21-1272' });
+    expect(upgraded?.toleranceDeg).toBe(0.2);
+    expect(upgraded?.userPhases).toEqual([]);
+    expect(upgraded?.simulation.show).toBe(false);
   });
 
   it('upgrades Stage 6c sessions, keeping the reference material choice and adding analysis settings', () => {
@@ -137,7 +153,7 @@ describe('session migration', () => {
       { step: 7, furthest: 7, data: { patterns: [], plot: {}, material } },
       7,
     );
-    expect(fromVersion7?.data.material).toEqual(material);
+    expect(fromVersion7?.data.material.phaseIds).toEqual(['anatase']);
     expect(fromVersion7?.data.analysis).toEqual(DEFAULT_ANALYSIS);
   });
 });
