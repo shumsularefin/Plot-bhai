@@ -5,6 +5,7 @@
  * is fitted.
  */
 
+import { solve } from '../../math/linear.ts';
 import { kAlpha2Position } from '../process/kAlpha2.ts';
 import type { PatternPeak } from './powder.ts';
 
@@ -66,18 +67,42 @@ export function simulateProfile(
 }
 
 /**
- * The scale s ≥ 0 that brings the profile p closest to the data y by least squares,
- * s = Σ y p / Σ p², over points where both are finite. 0 when the profile is zero everywhere.
+ * Non-negative scales s_k that bring the sum Σ s_k p_k of several profiles closest to the data
+ * y by least squares: the normal equations (PᵀP) s = Pᵀy are solved, and any profile whose scale
+ * comes out negative is dropped (scale 0) and the rest solved again, until all are ≥ 0. Points
+ * where y or a profile is not finite are left out. The scales are not phase fractions: those
+ * would need each phase's scattering power (for example a reference intensity ratio).
  */
-export function leastSquaresScale(y: Float64Array, p: Float64Array): number {
-  let yp = 0;
-  let pp = 0;
-  for (let i = 0; i < y.length; i++) {
-    const a = y[i] as number;
-    const b = p[i] as number;
-    if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
-    yp += a * b;
-    pp += b * b;
+export function fitScales(y: Float64Array, profiles: readonly Float64Array[]): number[] {
+  const k = profiles.length;
+  const scales = new Array<number>(k).fill(0);
+  let active = profiles.map((_, i) => i);
+  const usable = (i: number) =>
+    Number.isFinite(y[i] as number) && profiles.every((p) => Number.isFinite(p[i] as number));
+  for (let round = 0; round < k && active.length > 0; round++) {
+    const m = active.length;
+    const a = Array.from({ length: m }, () => new Array<number>(m).fill(0));
+    const b = new Array<number>(m).fill(0);
+    for (let i = 0; i < y.length; i++) {
+      if (!usable(i)) continue;
+      for (let r = 0; r < m; r++) {
+        const pr = (profiles[active[r] as number] as Float64Array)[i] as number;
+        b[r] = (b[r] as number) + pr * (y[i] as number);
+        const row = a[r] as number[];
+        for (let c = 0; c < m; c++)
+          row[c] =
+            (row[c] as number) +
+            pr * ((profiles[active[c] as number] as Float64Array)[i] as number);
+      }
+    }
+    const solution = solve(a, b);
+    if (!solution) break;
+    const negative = active.filter((_, r) => !((solution[r] as number) > 0));
+    if (negative.length === 0) {
+      active.forEach((index, r) => (scales[index] = solution[r] as number));
+      return scales;
+    }
+    active = active.filter((index) => !negative.includes(index));
   }
-  return pp > 0 ? Math.max(0, yp / pp) : 0;
+  return scales;
 }

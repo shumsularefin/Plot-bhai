@@ -64,7 +64,11 @@ function zincOxide(factor: (hkl: [number, number, number]) => number): XrdData {
     ...initialXrdData,
     patterns: [{ id: 'p1', twoTheta, intensity } as never],
     peaks: { p1: { ...DEFAULT_PEAK_STATE, guesses, fit: { regions, inputKey: 'k' } } },
-    material: { ...initialXrdData.material, familyId: 'zno', phaseIds: ['zno-wurtzite'] },
+    material: {
+      ...initialXrdData.material,
+      candidates: ['zno-wurtzite'],
+      phaseIds: ['zno-wurtzite'],
+    },
   };
 }
 

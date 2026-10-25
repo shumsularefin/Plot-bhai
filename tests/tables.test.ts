@@ -55,7 +55,11 @@ function fitted(): XrdData {
     ...initialXrdData,
     patterns: [{ id: 'p1', name: 'Sample', intensityUnit: 'counts', twoTheta, intensity } as never],
     peaks: { p1: { ...DEFAULT_PEAK_STATE, guesses, fit: { regions, inputKey: 'k' } } },
-    material: { ...initialXrdData.material, familyId: 'zno', phaseIds: ['zno-wurtzite'] },
+    material: {
+      ...initialXrdData.material,
+      candidates: ['zno-wurtzite'],
+      phaseIds: ['zno-wurtzite'],
+    },
   };
 }
 

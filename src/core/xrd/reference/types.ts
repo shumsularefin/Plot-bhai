@@ -22,6 +22,8 @@ export type PhaseOrigin =
       fileName: string;
       /** Database and entry the file itself names, for example "COD 9013437", or null. */
       database: string | null;
+      /** What limits the calculated pattern (missing displacement parameters and the like). */
+      notes?: { level: 'info' | 'warning' | 'error'; text: string }[];
     };
 
 export interface ReferencePhase {

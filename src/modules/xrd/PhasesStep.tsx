@@ -13,24 +13,46 @@ import { PlotPanel } from '../../ui/plot/PlotPanel';
 import type { ReferenceLane } from '../../ui/plot/ReferenceLanes';
 import type { SeriesSource } from '../../ui/plot/series';
 import type { StepContext } from '../../ui/wizard/types';
-import type { MaterialState, XrdData } from './data';
+import {
+  peaksFor,
+  processingFor,
+  type MaterialState,
+  type SimulationState,
+  type XrdData,
+} from './data';
 import { xrdLabels } from './labels';
 import { formatHkl } from '../../core/xrd/reference/hkl';
 import { codUrl } from './referenceLibrary';
-import { useReferencePhases } from './useReferencePhases';
+import { useCandidatePhases } from './useReferencePhases';
+import { NumberInput } from './NumberInput';
+import { Advanced } from '../../ui/Advanced';
+import { fitScales, simulateProfile } from '../../core/xrd/reference/simulate';
+import { formatNumber } from '../../core/xrd/parsers/numbers';
 import { useMeasured } from './useMeasured';
 
 /** Palette indices for the phases; the measured pattern uses 7 (the dark colour). */
 const PHASE_COLORS = [0, 1, 2, 3, 4, 5, 6];
 
+/** Median fitted FWHM of a pattern (degrees), the starting width of the calculated lines. */
+function medianFwhm(data: XrdData, patternId: string | undefined): number | null {
+  if (!patternId) return null;
+  const widths = (peaksFor(data, patternId).fit?.regions ?? [])
+    .flatMap((r) => r.peaks.map((p) => p.fwhm))
+    .filter((w) => Number.isFinite(w) && w > 0)
+    .sort((a, b) => a - b);
+  return widths.length > 0 ? (widths[widths.length >> 1] as number) : null;
+}
+
 /** Wizard step 4: draw the candidate phases under the pattern and score each one. */
 export function PhasesStep({ data, update }: StepContext<XrdData>) {
   const material = data.material;
+  const simulation = material.simulation;
   const [patternId, setPatternId] = useState(data.patterns[0]?.id);
   const { pattern, processed, detected } = useMeasured(data, patternId);
-  const { phases, failed } = useReferencePhases(material.familyId);
+  const { phases, failed } = useCandidatePhases(material);
 
-  const lambda = ANODES[data.radiation.anode].kAlpha1;
+  const lines = ANODES[data.radiation.anode];
+  const lambda = lines.kAlpha1;
   const options = useMemo(
     () => ({ ...DEFAULT_MATCH, toleranceDeg: material.toleranceDeg }),
     [material.toleranceDeg],
@@ -42,27 +64,91 @@ export function PhasesStep({ data, update }: StepContext<XrdData>) {
       processed.twoTheta[processed.twoTheta.length - 1] as number,
     ] as const;
     const peaks = detected.map((p) => p.center);
-    return phases.map((phase) => {
-      const lines = referenceLines(phase, lambda);
-      return { phase, lines, match: matchPhase(lines, peaks, range, options) };
+    return phases.map((phase, i) => {
+      const phaseLines = referenceLines(phase, lambda);
+      return {
+        phase,
+        lines: phaseLines,
+        match: matchPhase(phaseLines, peaks, range, options),
+        color: PHASE_COLORS[i % PHASE_COLORS.length] as number,
+      };
     });
   }, [phases, processed, detected, lambda, options]);
 
-  const sources = useMemo<SeriesSource[]>(
+  const processing = pattern ? processingFor(data, pattern.id) : null;
+  const kAlpha2InData = !data.radiation.kAlpha1Only && !processing?.kAlpha2.enabled;
+  const backgroundRemoved = processing?.background.enabled ?? false;
+  const visible = useMemo(
+    () => (analysis ?? []).filter((a) => !material.hidden.includes(a.phase.id)),
+    [analysis, material.hidden],
+  );
+
+  /** Calculated profiles of the shown phases, scaled together to the data by least squares. */
+  const calculated = useMemo(() => {
+    if (!simulation.show || !processed || visible.length === 0) return null;
+    const x = processed.twoTheta;
+    const profiles = visible.map((a) =>
+      simulateProfile(a.lines, x, {
+        fwhmDeg: simulation.fwhmDeg,
+        eta: simulation.eta,
+        shiftDeg: a.match.shift,
+        kAlpha2: kAlpha2InData
+          ? { lambda1: lines.kAlpha1, lambda2: lines.kAlpha2, ratio: data.radiation.kAlpha2Ratio }
+          : null,
+      }),
+    );
+    const scales = fitScales(processed.intensity, profiles);
+    const total = new Float64Array(x.length);
+    profiles.forEach((p, k) =>
+      p.forEach((v, i) => (total[i] = (total[i] as number) + v * (scales[k] as number))),
+    );
+    const residual = processed.intensity.map((v, i) => v - (total[i] as number));
+    return { profiles, scales, total, residual };
+  }, [simulation, processed, visible, kAlpha2InData, lines, data.radiation.kAlpha2Ratio]);
+
+  const unit = pattern?.intensityUnit === 'counts' ? 'counts' : 'cps';
+  const sources = useMemo<SeriesSource[]>(() => {
+    if (!processed || !pattern) return [];
+    const list: SeriesSource[] = [
+      {
+        id: 'data',
+        name: pattern.name,
+        x: processed.twoTheta,
+        y: processed.intensity,
+        unit,
+        colorIndex: 7,
+      },
+    ];
+    if (calculated) {
+      visible.forEach((a, k) => {
+        const scale = calculated.scales[k] as number;
+        if (scale > 0)
+          list.push({
+            id: `calc-${a.phase.id}`,
+            name: `${a.phase.name} (calculated)`,
+            x: processed.twoTheta,
+            y: (calculated.profiles[k] as Float64Array).map((v) => v * scale),
+            unit,
+            colorIndex: a.color,
+            dashed: true,
+          });
+      });
+    }
+    return list;
+  }, [processed, pattern, unit, calculated, visible]);
+  const residual = useMemo<SeriesSource | undefined>(
     () =>
-      processed && pattern
-        ? [
-            {
-              id: 'data',
-              name: pattern.name,
-              x: processed.twoTheta,
-              y: processed.intensity,
-              unit: pattern.intensityUnit === 'counts' ? 'counts' : 'cps',
-              colorIndex: 7,
-            },
-          ]
-        : [],
-    [processed, pattern],
+      calculated && processed
+        ? {
+            id: 'difference',
+            name: 'Measured − calculated',
+            x: processed.twoTheta,
+            y: calculated.residual,
+            unit,
+            colorIndex: 7,
+          }
+        : undefined,
+    [calculated, processed, unit],
   );
   const markers = useMemo(
     () => (detected ?? []).map((p) => ({ x: p.center, y: p.height })),
@@ -70,37 +156,36 @@ export function PhasesStep({ data, update }: StepContext<XrdData>) {
   );
   const lanes = useMemo<ReferenceLane[]>(
     () =>
-      (analysis ?? [])
-        .map((a, i) => ({ ...a, color: PHASE_COLORS[i % PHASE_COLORS.length] as number }))
-        .filter((a) => !material.hidden.includes(a.phase.id))
-        .map((a) => {
-          const found = new Map(a.match.lines.map((l) => [l.d, l.observed !== null]));
-          return {
-            id: a.phase.id,
-            name: `${a.phase.name}, ${phaseReference(a.phase)}`,
-            colorIndex: a.color,
-            lines: a.lines
-              .filter((l) => l.intensity >= 1)
-              .map((l) => ({
-                x: l.twoTheta + a.match.shift,
-                height: l.intensity / 100,
-                ...(found.has(l.d) && { found: found.get(l.d) as boolean }),
-              })),
-          };
-        }),
-    [analysis, material.hidden],
+      visible.map((a) => {
+        const found = new Map(a.match.lines.map((l) => [l.d, l.observed !== null]));
+        return {
+          id: a.phase.id,
+          name: `${a.phase.name}, ${phaseReference(a.phase)}`,
+          colorIndex: a.color,
+          lines: a.lines
+            .filter((l) => l.intensity >= 1)
+            .map((l) => ({
+              x: l.twoTheta + a.match.shift,
+              height: l.intensity / 100,
+              ...(found.has(l.d) && { found: found.get(l.d) as boolean }),
+            })),
+        };
+      }),
+    [visible],
   );
 
   const setMaterial = (patch: Partial<MaterialState>) =>
     update({ material: { ...material, ...patch } });
+  const setSimulation = (patch: Partial<SimulationState>) =>
+    setMaterial({ simulation: { ...simulation, ...patch } });
 
   if (data.patterns.length === 0)
     return <p>No patterns are loaded. Go back to Upload to add one.</p>;
-  if (!material.familyId)
+  if (material.candidates.length === 0)
     return (
       <p class="message is-info">
-        <strong>Note:</strong> no material is chosen, so there is nothing to compare. Go back one
-        step to choose one, or continue without reference phases.
+        <strong>Note:</strong> no candidate phase is chosen, so there is nothing to compare. Go back
+        one step to search the library or load a CIF file, or continue without reference phases.
       </p>
     );
   if (failed)
@@ -110,12 +195,13 @@ export function PhasesStep({ data, update }: StepContext<XrdData>) {
         continue without reference phases.
       </p>
     );
+  const fittedWidth = medianFwhm(data, pattern?.id);
 
   return (
     <div class="phases-step">
       <p class="message is-info">
         <strong>Note:</strong> the score is a guide only. It works for simple, well-separated phases
-        and is not reliable for mixtures. Reference lines are calculated from COD structures for{' '}
+        and is not reliable for mixtures. Reference lines are calculated from each structure for{' '}
         {data.radiation.anode} Kα1 (λ = {lambda} Å).
       </p>
       <div class="clean-toolbar">
@@ -159,10 +245,85 @@ export function PhasesStep({ data, update }: StepContext<XrdData>) {
       </div>
       <p class="field-hint">
         {detected
-          ? `${detected.length} peak${detected.length === 1 ? '' : 's'} found in your cleaned pattern (circles). The number depends on the prominence setting of step 5.`
+          ? `${detected.length} peak${detected.length === 1 ? '' : 's'} found in your cleaned pattern (circles). The number depends on the settings of step 5.`
           : 'Finding peaks…'}{' '}
         Each phase is shifted by one zero-shift value (at most ±0.3°) that gives its best score.
       </p>
+
+      <section class="process-step is-on" aria-labelledby="calc-title">
+        <h3 id="calc-title" class="process-step-title">
+          Calculated patterns{' '}
+          <HelpTip term="calculated pattern">
+            <p>
+              Each shown phase is drawn as a full profile: every reference line gets the same
+              pseudo-Voigt shape and width (and a Kα2 copy when your data still contain Kα2), and
+              the phases are scaled together to your pattern by least squares. The lower panel shows
+              measured minus calculated. This is a visual check of positions and relative
+              intensities, not a Rietveld refinement: widths, shapes, cell and preferred orientation
+              are not refined, and the scales are not phase fractions.
+            </p>
+          </HelpTip>
+        </h3>
+        <label class="check">
+          <input
+            type="checkbox"
+            checked={simulation.show}
+            onChange={(e) => setSimulation({ show: e.currentTarget.checked })}
+          />
+          Overlay the calculated patterns of the shown phases
+        </label>
+        {simulation.show && (
+          <>
+            <div class="radiation-fields">
+              <NumberInput
+                label="Line width, FWHM (° 2θ)"
+                value={simulation.fwhmDeg}
+                min={0.005}
+                max={5}
+                step={0.01}
+                onChange={(v) => v !== null && setSimulation({ fwhmDeg: v })}
+              />
+              {fittedWidth !== null && Math.abs(fittedWidth - simulation.fwhmDeg) > 1e-4 && (
+                <button
+                  type="button"
+                  class="btn"
+                  onClick={() => setSimulation({ fwhmDeg: Number(fittedWidth.toFixed(3)) })}
+                >
+                  Use the median fitted width ({fittedWidth.toFixed(3)}°)
+                </button>
+              )}
+            </div>
+            <Advanced id="xrd-simulation-shape" title="Line shape">
+              <NumberInput
+                label="Lorentzian fraction η (0 Gaussian, 1 Lorentzian)"
+                value={simulation.eta}
+                max={1}
+                step={0.05}
+                onChange={(v) => v !== null && v >= 0 && setSimulation({ eta: v })}
+              />
+            </Advanced>
+            {!backgroundRemoved && (
+              <p class="message is-warning">
+                <strong>Check:</strong> the background is still in the data, so the calculated
+                patterns are scaled against peaks plus background. Remove the background in step 2
+                for a fair comparison.
+              </p>
+            )}
+            {calculated && (
+              <p class="field-hint">
+                Scales (counts per unit of relative intensity, not phase fractions):{' '}
+                {visible
+                  .map(
+                    (a, k) => `${a.phase.name} ${formatNumber(calculated.scales[k] as number, 3)}`,
+                  )
+                  .join('; ')}
+                {calculated.scales.some((v) => v === 0) &&
+                  '. A scale of 0 means that phase does not help describe the pattern.'}
+              </p>
+            )}
+          </>
+        )}
+      </section>
 
       {processed && pattern ? (
         <PlotPanel
@@ -176,18 +337,23 @@ export function PhasesStep({ data, update }: StepContext<XrdData>) {
           showOverlayOptions={false}
           interaction={{ markers }}
           lanes={lanes}
+          {...(residual && {
+            residual,
+            lowerAxis: { y: 'Meas. − calc.', description: 'Measured minus calculated pattern.' },
+          })}
         />
       ) : (
         <p aria-busy="true">Preparing the pattern…</p>
       )}
 
+      {!phases && <p aria-busy="true">Loading the reference lines…</p>}
       <ul class="phase-cards" aria-label="Candidate phases">
-        {(analysis ?? []).map(({ phase, match }, i) => (
+        {(analysis ?? []).map(({ phase, match, color }) => (
           <PhaseCard
             key={phase.id}
             phase={phase}
             match={match}
-            colorIndex={PHASE_COLORS[i % PHASE_COLORS.length] as number}
+            colorIndex={color}
             shown={!material.hidden.includes(phase.id)}
             used={material.phaseIds.includes(phase.id)}
             onShown={(on) =>
