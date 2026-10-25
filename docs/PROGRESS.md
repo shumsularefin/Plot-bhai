@@ -1,6 +1,6 @@
 # Progress
 
-## Online COD search through a Cloudflare Worker (done in code; waiting for the owner's Cloudflare setup)
+## Online COD search through a Cloudflare Worker (done)
 
 Branch `claude/zen-edison-acnmco`. The owner approved relaxing the "no backend" rule for one
 read-only COD lookup (CLAUDE.md section 2 updated).
@@ -30,10 +30,12 @@ read-only COD lookup (CLAUDE.md section 2 updated).
 - Browser walkthrough at 1280 and 360 px against a local copy: search, add COD 9013437, the phase
   appears as a candidate; no console errors, no horizontal page scroll.
 
-### Next
+### Deployed
 
-- Owner: add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` to the GitHub secrets.
-- Then: set `COD_API` and the CSP `connect-src` to the deployed address, redeploy the site.
+- The owner added the Cloudflare secrets; the Worker runs at
+  `https://plot-bhai-cod.plot-bhai.workers.dev` (checked live: Bi-V-O only → 23 entries, CIF
+  9013437 served, no CORS header for a foreign origin, Fe-O contains → refused with 24,133).
+- `COD_API` and the CSP `connect-src` point to it.
 
 ## Research-readiness audit against the user's data (done)
 
