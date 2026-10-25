@@ -47,3 +47,38 @@ export function linearFit(x: readonly number[], y: readonly number[]): LinearFit
     n,
   };
 }
+
+/**
+ * Least-squares line through the origin, y = slope · x:
+ *   slope = Σxy / Σx²,   σ²(slope) = s² / Σx²,   s² = SSR / (n − 1).
+ * The intercept is 0 by construction (σ 0). R² is 1 − SSR / SST with SST about the mean of y,
+ * so it can be negative when a line through the origin fits worse than a constant.
+ * Returns null with fewer than two points or when every x is 0.
+ */
+export function originFit(x: readonly number[], y: readonly number[]): LinearFit | null {
+  const n = x.length;
+  if (n < 2) return null;
+  let sxx = 0;
+  let sxy = 0;
+  for (let i = 0; i < n; i++) {
+    sxx += (x[i] as number) ** 2;
+    sxy += (x[i] as number) * (y[i] as number);
+  }
+  if (!(sxx > 0)) return null;
+  const slope = sxy / sxx;
+  const yBar = y.reduce((s, v) => s + v, 0) / n;
+  let ssr = 0;
+  let sst = 0;
+  for (let i = 0; i < n; i++) {
+    ssr += ((y[i] as number) - slope * (x[i] as number)) ** 2;
+    sst += ((y[i] as number) - yBar) ** 2;
+  }
+  return {
+    intercept: 0,
+    slope,
+    interceptSigma: 0,
+    slopeSigma: Math.sqrt(ssr / (n - 1) / sxx),
+    rSquared: sst > 0 ? 1 - ssr / sst : NaN,
+    n,
+  };
+}

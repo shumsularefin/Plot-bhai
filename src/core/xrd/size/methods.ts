@@ -1,4 +1,4 @@
-import { linearFit, type LinearFit } from '../../math/linearFit';
+import { linearFit, originFit, type LinearFit } from '../../math/linearFit';
 import type { DataMessage } from '../types';
 
 /*
@@ -98,7 +98,8 @@ export function scherrer(peaks: readonly SizePeak[], settings: SizeSettings): Sc
 
 // ---------------------------------------------------------------- straight-line methods
 
-export type LineMethod = 'monshi' | 'wh-udm' | 'wh-usdm' | 'wh-udedm' | 'ssp' | 'hw';
+export type LineMethod =
+  'monshi' | 'linear-scherrer' | 'sahadat' | 'wh-udm' | 'wh-usdm' | 'wh-udedm' | 'ssp' | 'hw';
 
 export interface LinePoint {
   twoTheta: number;
@@ -168,12 +169,13 @@ function commonChecks(fit: LinearFit, messages: DataMessage[]): void {
 function lineOf(
   peaks: readonly SizePeak[],
   point: (p: SizePeak, index: number) => [number, number],
+  throughOrigin = false,
 ): { points: LinePoint[]; fit: LinearFit | null; messages: DataMessage[] } {
   const points = peaks.map((p, i) => {
     const [x, y] = point(p, i);
     return { twoTheta: p.twoTheta, x, y };
   });
-  const fit = linearFit(
+  const fit = (throughOrigin ? originFit : linearFit)(
     points.map((p) => p.x),
     points.map((p) => p.y),
   );
@@ -216,6 +218,66 @@ export function monshi(peaks: readonly SizePeak[], s: SizeSettings): LineResult 
     points,
     fit,
     size: { value, sigma: value * fit.interceptSigma },
+    strain: null,
+    messages,
+  };
+}
+
+/** Size from the slope Kλ/D of a cos θ against 1/β line (the two methods below). */
+function sizeFromSlope(fit: LinearFit, s: SizeSettings, messages: DataMessage[]): Estimate {
+  if (!(fit.slope > 0)) {
+    messages.push({
+      level: 'error',
+      text: `The slope is ${fit.slope.toPrecision(3)}, at or below zero, which would mean an infinite or negative crystallite size, so no size is given. The widths probably do not follow 1/cos θ: strain, overlapping peaks or too few peaks.`,
+    });
+    return NOT_PHYSICAL;
+  }
+  return sizeFrom(s, fit.slope, fit.slopeSigma);
+}
+
+/**
+ * Linear straight-line method of the Scherrer equation. Rearranging D = K λ / (β cos θ) gives
+ *   cos θ = (K λ / D) · (1 / β).
+ * A least-squares line through (1/β, cos θ) with a free intercept gives D = K λ / slope; the
+ * intercept is not used. Rabiei, Palevicius, Monshi, Nasiri, Vilkauskas & Janusas,
+ * Nanomaterials 10 (2020) 1627, section 3.1.1, eq. (3) (doi:10.3390/nano10091627).
+ * σ(D) = D σ(slope) / slope. That paper found this free line gave sizes of hundreds to
+ * thousands of nm for ~60 nm crystals and turned to the line through the origin (below).
+ */
+export function linearScherrer(peaks: readonly SizePeak[], s: SizeSettings): LineResult {
+  const { points, fit, messages } = lineOf(peaks, (p) => [1 / p.beta, Math.cos(theta(p.twoTheta))]);
+  if (!fit) return { method: 'linear-scherrer', points, fit, size: null, strain: null, messages };
+  return {
+    method: 'linear-scherrer',
+    points,
+    fit,
+    size: sizeFromSlope(fit, s, messages),
+    strain: null,
+    messages,
+  };
+}
+
+/**
+ * Sahadat–Scherrer: the same axes as the linear straight-line method, cos θ against 1/β, with
+ * the line forced through the origin (y = slope · x, see originFit), D = K λ / slope.
+ * Hossain, Mahmud, Mobarak, Sultana, Shaikh & Ahmed, Chem. Pap. 76 (2022) 7245–7251
+ * (doi:10.1007/s11696-022-02377-9). TODO(verify): the equation is taken from its statement in
+ * Kawsar, Hossain, Bahadur & Ahmed, Heliyon 10 (2024) e25347, eq. (30), not from the 2022 paper
+ * itself. Rabiei et al. (2020, section 3.1.2, eq. 4) used the same line through the origin.
+ * σ(D) = D σ(slope) / slope.
+ */
+export function sahadatScherrer(peaks: readonly SizePeak[], s: SizeSettings): LineResult {
+  const { points, fit, messages } = lineOf(
+    peaks,
+    (p) => [1 / p.beta, Math.cos(theta(p.twoTheta))],
+    true,
+  );
+  if (!fit) return { method: 'sahadat', points, fit, size: null, strain: null, messages };
+  return {
+    method: 'sahadat',
+    points,
+    fit,
+    size: sizeFromSlope(fit, s, messages),
     strain: null,
     messages,
   };

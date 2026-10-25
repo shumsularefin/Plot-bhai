@@ -3,7 +3,9 @@ import { ANODES } from '../../core/xrd/radiation';
 import {
   dislocationDensity,
   halderWagner,
+  linearScherrer,
   monshi,
+  sahadatScherrer,
   scherrer,
   sizeStrainPlot,
   specificSurfaceArea,
@@ -28,6 +30,8 @@ export type MethodId = 'scherrer' | LineMethod;
 export const METHOD_NAMES: Record<MethodId, string> = {
   scherrer: 'Scherrer',
   monshi: 'Monshi–Scherrer',
+  'linear-scherrer': 'Linear straight-line Scherrer',
+  sahadat: 'Sahadat–Scherrer',
   'wh-udm': 'Williamson–Hall UDM',
   'wh-usdm': 'Williamson–Hall USDM',
   'wh-udedm': 'Williamson–Hall UDEDM',
@@ -38,6 +42,8 @@ export const METHOD_NAMES: Record<MethodId, string> = {
 export const METHOD_SHORT: Record<MethodId, string> = {
   scherrer: 'Scherrer',
   monshi: 'Monshi',
+  'linear-scherrer': 'Linear S.',
+  sahadat: 'S–S',
   'wh-udm': 'W–H UDM',
   'wh-usdm': 'W–H USDM',
   'wh-udedm': 'W–H UDEDM',
@@ -45,7 +51,16 @@ export const METHOD_SHORT: Record<MethodId, string> = {
   hw: 'H–W',
 };
 
-export const LINE_METHODS: LineMethod[] = ['monshi', 'wh-udm', 'wh-usdm', 'wh-udedm', 'ssp', 'hw'];
+export const LINE_METHODS: LineMethod[] = [
+  'monshi',
+  'linear-scherrer',
+  'sahadat',
+  'wh-udm',
+  'wh-usdm',
+  'wh-udedm',
+  'ssp',
+  'hw',
+];
 
 /** One fitted peak with its corrected width and the user's choices. */
 export interface ResultPeak extends CorrectedPeak {
@@ -165,6 +180,8 @@ export function sizeResults(data: XrdData, patternId: string): SizeResults {
   const s = scherrer(selected, settings);
   const lines: Record<LineMethod, LineResult> = {
     monshi: monshi(selected, settings),
+    'linear-scherrer': linearScherrer(selected, settings),
+    sahadat: sahadatScherrer(selected, settings),
     'wh-udm': williamsonHallUdm(selected, settings),
     'wh-usdm': williamsonHallUsdm(selected, settings),
     'wh-udedm': williamsonHallUdedm(selected, settings),
