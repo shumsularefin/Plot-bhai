@@ -49,6 +49,12 @@
 .dock-frame .dock-content {
   min-height: 0;
   overflow: auto;
+  /*
+   * Space for the scrollbar is kept even when none is needed. Otherwise a plot whose height
+   * follows its width can loop: a scrollbar appears, the plot narrows and gets shorter, the
+   * scrollbar goes, the plot widens again, every frame (seen as flickering).
+   */
+  scrollbar-gutter: stable;
   padding: var(--space-2) var(--space-3) var(--space-3);
 }
 

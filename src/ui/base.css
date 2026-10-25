@@ -7,6 +7,8 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  /* The page width does not change when a scrollbar comes or goes (see the dock's content). */
+  scrollbar-gutter: stable;
 }
 
 body {
