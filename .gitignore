@@ -7,3 +7,4 @@ coverage
 __pycache__
 scripts/source-cache
 e2e-failure.png
+.wrangler/
