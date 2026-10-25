@@ -32,7 +32,7 @@ describe('reference library files', () => {
       expect(file.family).toBe(family.id);
       expect(file.phases.map((p) => p.id)).toEqual(family.phases.map((p) => p.id));
       for (const p of file.phases) {
-        expect(Number.isInteger(p.codId) && p.codId > 0, p.id).toBe(true);
+        expect(Number.isInteger(p.codId) && (p.codId ?? 0) > 0, p.id).toBe(true);
         expect(p.spaceGroup.hm.length, p.id).toBeGreaterThan(0);
         expect(
           Object.values(p.cell).every((v) => v > 0),
