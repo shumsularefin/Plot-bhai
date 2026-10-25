@@ -1,0 +1,15 @@
+{
+  "verification": "TODO, verify: the correlation of a DSC event with a mass change (four rules) follows the stage specification. The 'usual' direction of each TGA rule below is my own general-knowledge placeholder, NOT checked against any source; 'either' means no preference. Replace with values from a source you can cite, fill in 'source', then remove this TODO.",
+  "tgaUsualDirection": {
+    "moisture": "endo",
+    "bound-water": "endo",
+    "capping-agents": "either",
+    "polymer-degradation": "either",
+    "dehydroxylation": "endo",
+    "nitrate": "either",
+    "acetate": "either",
+    "carbonate": "endo",
+    "carbon-oxidation": "exo"
+  },
+  "source": "TODO, verify"
+}
