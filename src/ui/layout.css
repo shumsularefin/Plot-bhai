@@ -47,6 +47,12 @@
   font-size: var(--text-sm);
 }
 
+.site-footer a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target);
+}
+
 .page-title {
   font-size: var(--text-2xl);
 }

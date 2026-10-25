@@ -1,3 +1,4 @@
+import About from './About';
 import { ErrorBoundary } from './ErrorBoundary';
 import { Home } from './Home';
 import { LazyTool } from './LazyTool';
@@ -27,7 +28,9 @@ export function App() {
       <main class="site-main">
         <div class="container">
           <ErrorBoundary key={path}>
-            {path === '/xrd' ? (
+            {path === '/about' ? (
+              <About />
+            ) : path === '/xrd' ? (
               <LazyTool load={loadXrd} />
             ) : path === '/uvvis' ? (
               <LazyTool load={loadUvvis} />
@@ -45,7 +48,10 @@ export function App() {
       </main>
       <footer class="site-footer">
         <div class="container">
-          <p>Free and open. Your data stays on your device.</p>
+          <p>
+            Free and open. Your data stays on your device.{' '}
+            <a href="#/about">About, equations and limits</a>
+          </p>
         </div>
       </footer>
     </div>

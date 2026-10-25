@@ -36,7 +36,7 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 12b       | Combined TGA-DSC (items 7–8)                                 | done    |
 | 13        | Kinetics (optional; skip unless asked)                       | skipped |
 | 14a       | Polish: responsive, Lighthouse, a11y, states (items 1–4)     | done    |
-| 14b       | About page, PWA, deploy, final status (items 5–8)            | todo    |
+| 14b       | About page, PWA, deploy, final status (items 5–8)            | done    |
 | 15        | Gemini (optional; only when asked)                           | skipped |
 
 ## The one prompt you paste in every new session

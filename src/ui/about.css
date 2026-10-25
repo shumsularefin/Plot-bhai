@@ -1,0 +1,33 @@
+.about section {
+  margin-top: var(--space-6);
+}
+
+.about-eqs {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-3) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.about-eqs li {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.about-eq {
+  overflow-wrap: anywhere;
+  font-size: var(--text-md);
+}
+
+.about-note {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+@media (min-width: 768px) {
+  .about-eqs li {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+}

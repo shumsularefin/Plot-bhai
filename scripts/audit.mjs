@@ -34,7 +34,7 @@ for (let i = 0; i < 100; i++) {
   await new Promise((r) => setTimeout(r, 200));
 }
 
-const TOOLS = ['/', '/xrd', '/uvvis', '/ftir', '/particles', '/thermal'];
+const TOOLS = ['/', '/xrd', '/uvvis', '/ftir', '/particles', '/thermal', '/about'];
 const WIDTHS = process.env.AUDIT_WIDTHS
   ? process.env.AUDIT_WIDTHS.split(',').map(Number)
   : [360, 768, 1280, 1920];
