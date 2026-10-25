@@ -1,5 +1,20 @@
 # Progress
 
+## Fix: endless re-processing and flicker in XRD steps (done)
+
+Reported with a screen recording of step 4 (Compare reference phases): the page kept switching
+between "Finding peaks…" and the result, and the reference lanes kept disappearing and coming back.
+
+- Cause: `processingFor` and `peaksFor` (`src/modules/xrd/data.ts`) built a new settings object on
+  every call once the user had changed a setting in step 2 or step 6. `useProcessed` and
+  `useMeasured` restart the worker job when their settings object changes, so every result caused
+  a render, which created new objects, which started the job again, without end. The example data
+  uses the shared default objects, so the e2e run never showed it.
+- Fix: the filled-in settings are cached per stored object (WeakMap), so the same stored settings
+  always give the same object.
+- Checked in a headless browser on step 4 after changing one cleaning setting: 2,684 worker
+  messages in 3 idle seconds before the fix, 0 after. Unit test in `tests/fitSupport.test.ts`.
+
 ## Basic Rietveld refinement (done)
 
 Branch `claude/zen-edison-acnmco`. Approved by the owner in October 2026 (CLAUDE.md sections 8 and

@@ -265,12 +265,23 @@ export function fitInputKey(
   return JSON.stringify({ guesses, fitOptions, processing, radiation });
 }
 
+/*
+ * The filled-in settings are cached per stored object, so the same stored settings always give
+ * the same object: hooks that recompute when their settings change (cleaning and peak search in
+ * web workers) would otherwise restart on every render, without end.
+ */
+const filledPeaks = new WeakMap<PeakState, PeakState>();
+
 export function peaksFor(data: XrdData, id: string): PeakState {
   const stored = data.peaks[id];
-  // Sessions saved before the noise tests existed have no values for them: use the defaults.
-  return stored
-    ? { ...stored, detection: { ...DEFAULT_DETECTION, ...stored.detection } }
-    : DEFAULT_PEAK_STATE;
+  if (!stored) return DEFAULT_PEAK_STATE;
+  let filled = filledPeaks.get(stored);
+  if (!filled) {
+    // Sessions saved before the noise tests existed have no values for them: use the defaults.
+    filled = { ...stored, detection: { ...DEFAULT_DETECTION, ...stored.detection } };
+    filledPeaks.set(stored, filled);
+  }
+  return filled;
 }
 
 export const initialXrdData: XrdData = {
@@ -324,12 +335,18 @@ export function migrateXrdData(saved: unknown, version: number): WizardState<Xrd
   };
 }
 
+const filledProcessing = new WeakMap<ProcessingSettings, ProcessingSettings>();
+
 export function processingFor(data: XrdData, id: string): ProcessingSettings {
   const stored = data.processing[id];
-  // Settings saved before arPLS existed have no width for it.
-  return stored
-    ? { ...stored, background: { ...DEFAULT_PROCESSING.background, ...stored.background } }
-    : DEFAULT_PROCESSING;
+  if (!stored) return DEFAULT_PROCESSING;
+  let filled = filledProcessing.get(stored);
+  if (!filled) {
+    // Settings saved before arPLS existed have no width for it. Cached like peaksFor.
+    filled = { ...stored, background: { ...DEFAULT_PROCESSING.background, ...stored.background } };
+    filledProcessing.set(stored, filled);
+  }
+  return filled;
 }
 
 export function newId(): string {
