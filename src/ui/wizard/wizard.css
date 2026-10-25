@@ -14,9 +14,16 @@
 
 .wizard-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-1) var(--space-3);
+}
+
+.wizard-history {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
 }
 
 .wizard-tool {
@@ -210,6 +217,17 @@ button.stepper-target:hover .stepper-title {
 @media (max-width: 1099px) {
   .has-dock .wizard-footer {
     bottom: var(--dock-height, 0px);
+  }
+}
+
+/* Controls brought into view (keyboard focus, scrolling to a field) stop above the footer. */
+html:has(.wizard-footer) {
+  scroll-padding-bottom: calc(var(--touch-target) + 2 * var(--space-4));
+}
+
+@media (max-width: 1099px) {
+  html.has-dock:has(.wizard-footer) {
+    scroll-padding-bottom: calc(var(--dock-height, 0px) + var(--touch-target) + 2 * var(--space-4));
   }
 }
 
