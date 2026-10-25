@@ -467,6 +467,22 @@
   gap: var(--space-2);
 }
 
+.edit-peak-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.missed-peaks {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+.missed-peaks p {
+  margin: 0;
+}
+
 .fit-actions {
   display: flex;
   flex-wrap: wrap;
