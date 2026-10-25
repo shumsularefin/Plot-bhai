@@ -6,10 +6,13 @@
  */
 
 /**
- * Address of the deployed lookup service, without a trailing slash; empty until it is deployed.
- * VITE_COD_API overrides it at build time (used to test against a local copy).
+ * Address of the deployed lookup service (worker/, deployed by .github/workflows/worker.yml),
+ * without a trailing slash; it must also be in connect-src in firebase.json. VITE_COD_API
+ * overrides it at build time (used to test against a local copy).
  */
-export const COD_API: string = (import.meta.env['VITE_COD_API'] as string | undefined) ?? '';
+export const COD_API: string =
+  (import.meta.env['VITE_COD_API'] as string | undefined) ??
+  'https://plot-bhai-cod.plot-bhai.workers.dev';
 
 export interface CodEntry {
   id: number;
