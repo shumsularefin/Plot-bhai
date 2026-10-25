@@ -1,3 +1,4 @@
+import { phaseReference } from '../../core/xrd/reference/source';
 import { useMemo, useState } from 'preact/hooks';
 import {
   DEFAULT_MATCH,
@@ -76,7 +77,7 @@ export function PhasesStep({ data, update }: StepContext<XrdData>) {
           const found = new Map(a.match.lines.map((l) => [l.d, l.observed !== null]));
           return {
             id: a.phase.id,
-            name: `${a.phase.name}, COD ${a.phase.codId}`,
+            name: `${a.phase.name}, ${phaseReference(a.phase)}`,
             colorIndex: a.color,
             lines: a.lines
               .filter((l) => l.intensity >= 1)
@@ -228,9 +229,13 @@ function PhaseCard({ phase, match, colorIndex, shown, used, onShown, onUsed }: P
       <div class="phase-card-header">
         <span class={`plot-swatch series-${colorIndex % 8}`} aria-hidden="true" />
         <h3 class="phase-card-title">{phase.name}</h3>
-        <a href={codUrl(phase.codId)} target="_blank" rel="noopener noreferrer">
-          COD {phase.codId}
-        </a>
+        {phase.codId !== null ? (
+          <a href={codUrl(phase.codId)} target="_blank" rel="noopener noreferrer">
+            {phaseReference(phase)}
+          </a>
+        ) : (
+          <span>{phaseReference(phase)}</span>
+        )}
         <span class="phase-card-system">
           {phase.crystalSystem}, {phase.spaceGroup.hm}
         </span>

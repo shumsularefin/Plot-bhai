@@ -54,6 +54,22 @@ describe('reference library files', () => {
     }
   });
 
+  it('lists, for searching, each phase with its formula, elements, space group and cell', () => {
+    for (const family of index.families) {
+      const file = read<ReferenceFamilyFile>(family.file);
+      for (const listed of family.phases) {
+        const full = file.phases.find((p) => p.id === listed.id) as ReferencePhase;
+        expect(listed.formula, listed.id).toBe(full.formula);
+        expect(listed.spaceGroupNumber, listed.id).toBe(full.spaceGroup.number);
+        expect(listed.elements.length, listed.id).toBeGreaterThan(0);
+        expect([...listed.elements].sort(), listed.id).toEqual(listed.elements);
+        for (const el of listed.elements) expect(full.formula, listed.id).toContain(el);
+        expect(listed.cell.a, listed.id).toBeCloseTo(full.cell.a, 4);
+        expect(listed.cell.beta, listed.id).toBeCloseTo(full.cell.beta, 3);
+      }
+    }
+  });
+
   it('ships scattering factors with their source', () => {
     const file = read<{ url: string; factors: Record<string, number[]> }>(
       'scattering-factors.json',
@@ -121,8 +137,8 @@ describe('strongest lines at Cu Kα1', () => {
 });
 
 describe('screened library (sub-stage 6a-fix)', () => {
-  it('has 35 phases, including maghemite and gamma-Al2O3', () => {
-    expect(phases).toHaveLength(35);
+  it('has 70 phases, including maghemite and gamma-Al2O3', () => {
+    expect(phases).toHaveLength(70);
     expect(phase('maghemite')).toBeDefined();
     expect(phase('gamma-al2o3')).toBeDefined();
   });

@@ -1,0 +1,73 @@
+#------------------------------------------------------------------------------
+#$Date: 2024-05-06 10:39:41 +0300 (Mon, 06 May 2024) $
+#$Revision: 291735 $
+#$URL: file:///home/coder/svn-repositories/_RELOADED_COD/cod-reloaded/cif/9/00/98/9009870.cif $
+#------------------------------------------------------------------------------
+#
+# This file is available in the Crystallography Open Database (COD),
+# http://www.crystallography.net/. The original data for this entry
+# were provided the American Mineralogist Crystal Structure Database,
+# http://rruff.geo.arizona.edu/AMS/amcsd.php
+#
+# The file may be used within the scientific community so long as
+# proper attribution is given to the journal article from which the
+# data were obtained.
+#
+data_9009870
+loop_
+_publ_author_name
+'Mereiter, K.'
+'Preisinger, A.'
+_publ_section_title
+;
+ Kristallstrukturdaten der wismutminerale atelestit, mixit und pucherit
+;
+_journal_name_full
+'Anzeiger der Osterreichische Akademie der Wissenschaften'
+_journal_page_first              79
+_journal_page_last               81
+_journal_volume                  123
+_journal_year                    1986
+_chemical_compound_source        'Schneeberg, Saxony, Germany'
+_chemical_formula_sum            'Bi O4 V'
+_chemical_name_mineral           Pucherite
+_space_group_IT_number           60
+_symmetry_space_group_name_Hall  '-P 2a 2n'
+_symmetry_space_group_name_H-M   'P n c a'
+_cell_angle_alpha                90
+_cell_angle_beta                 90
+_cell_angle_gamma                90
+_cell_length_a                   5.319
+_cell_length_b                   5.050
+_cell_length_c                   12.011
+_cell_formula_units_Z            4
+_cell_volume                     322.627
+_database_code_amcsd             0012027
+_exptl_crystal_density_diffrn    6.669
+_cod_original_formula_sum        'Bi V O4'
+_cod_database_code               9009870
+loop_
+_space_group_symop_operation_xyz
+x,y,z
+1/2+x,y,-z
+1/2-x,-y,z
+x,1/2-y,1/2+z
+-x,1/2+y,1/2-z
+1/2-x,1/2+y,1/2+z
+1/2+x,1/2-y,1/2-z
+-x,-y,-z
+loop_
+_atom_site_label
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_U_iso_or_equiv
+Bi 0.25000 0.00000 0.11045 0.01520
+V 0.25000 0.00000 0.39396 0.01013
+O1 -0.08390 -0.24340 0.03660 0.01646
+O2 -0.04380 0.35850 0.19190 0.01773
+loop_
+_cod_related_entry_id
+_cod_related_entry_database
+_cod_related_entry_code
+1 AMCSD 0012027

@@ -1,0 +1,74 @@
+#------------------------------------------------------------------------------
+#$Date: 2022-07-14 09:05:37 +0300 (Thu, 14 Jul 2022) $
+#$Revision: 276767 $
+#$URL: file:///home/coder/svn-repositories/_RELOADED_COD/cod-reloaded/cif/1/56/72/1567271.cif $
+#------------------------------------------------------------------------------
+#
+# This file is available in the Crystallography Open Database (COD),
+# http://www.crystallography.net/
+#
+# All data on this site have been placed in the public domain by the
+# contributors.
+#
+data_1567271
+loop_
+_publ_author_name
+'Pedanekar, R S.'
+'Madake, S B.'
+'Narewadikar, N A.'
+'Mohite, S V.'
+'Patil, A R.'
+'Kumbhar, S M.'
+'Rajpure, K Y.'
+_publ_section_title
+;
+ Photoelectrocatalytic degradation of rhodamine B by spray deposited
+ Bi2WO6 photoelectrode under solar radiation
+;
+_journal_name_full               'Materials Research Bulletin'
+_journal_page_first              111639
+_journal_paper_doi               10.1016/j.materresbull.2021.111639
+_journal_volume                  147
+_journal_year                    2022
+_chemical_formula_structural     Bi2WO6
+_chemical_formula_sum            'Bi O6 W'
+_chemical_formula_weight         697.698
+_chemical_name_common            '   The crystal structure of russellite'
+_space_group_IT_number           29
+_space_group_name_Hall           'P 2c -2ac'
+_space_group_name_H-M_alt        'P c a 21'
+_cell_angle_alpha                90.000000
+_cell_angle_beta                 90.000000
+_cell_angle_gamma                90.000000
+_cell_formula_units_Z            2
+_cell_length_a                   5.4718(7)
+_cell_length_b                   16.3253(16)
+_cell_length_c                   5.4616(8)
+_cell_volume                     487.88(11)
+_exptl_crystal_density_diffrn    9.501
+_cod_data_source_file            BWO4.cif
+_cod_data_source_block
+/var/www/html/cod/tmp/uploads/1657777103.0339-98C9596094087535.cif
+_cod_original_cell_volume        487.878024
+_cod_database_code               1567271
+loop_
+_symmetry_equiv_pos_as_xyz
+'x, y, z'
+'-x, -y, z+1/2'
+'x+1/2, -y, z'
+'-x+1/2, y, z+1/2'
+loop_
+_atom_site_label
+_atom_site_occupancy
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+Bi1 1.0 0.520550 0.422380 0.976080
+Bi2 1.0 0.482400 0.077120 0.979560
+W 1.0 0.007060 0.249480 0.000000
+O1 1.0 0.083610 0.177750 0.510680
+O2 1.0 0.414190 0.800000 0.603010
+O3 1.0 0.938940 0.494840 0.232430
+O4 1.0 0.486320 0.128940 0.369000
+O5 1.0 0.071450 0.326190 0.512120
+O6 1.0 0.455060 0.350910 0.524170

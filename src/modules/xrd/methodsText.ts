@@ -1,3 +1,4 @@
+import { phaseReference } from '../../core/xrd/reference/source';
 import { methodsParagraph, type MethodsInput } from '../../core/xrd/report/methods';
 import { ANODES } from '../../core/xrd/radiation';
 import type { ReferencePhase } from '../../core/xrd/reference/types';
@@ -79,7 +80,7 @@ export function methodsInput(data: XrdData, library: readonly ReferencePhase[]):
       used.size > 0 ? { k: data.results.k, methods: [...used].map((m) => METHOD_NAMES[m]) } : null,
     phases: library
       .filter((p) => data.material.phaseIds.includes(p.id))
-      .map((p) => ({ name: p.name, formula: p.formula, codId: p.codId })),
+      .map((p) => ({ name: p.name, formula: p.formula, reference: phaseReference(p) })),
     toleranceDeg: data.material.toleranceDeg,
   };
 }

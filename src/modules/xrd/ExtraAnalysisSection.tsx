@@ -1,3 +1,4 @@
+import { phaseReference } from '../../core/xrd/reference/source';
 import { useMemo } from 'preact/hooks';
 import type { CharacterHint } from '../../core/xrd/analysis/character';
 import { peakTable } from '../../core/xrd/peaks/table';
@@ -161,7 +162,7 @@ function TextureBlock({
       ),
       [
         { header: 'Phase', value: (r) => r.phase.name },
-        { header: 'COD ID', value: (r) => r.phase.codId },
+        { header: 'Structure source', value: (r) => phaseReference(r.phase) },
         { header: '(hkl)', value: (r) => r.row.hklText },
         { header: '2θ observed (°)', value: (r) => r.row.peak?.peak.twoTheta ?? '' },
         { header: `Observed ${basis}`, value: (r) => r.row.observed },
@@ -529,7 +530,7 @@ function summaryItems(
 ): SummaryItem[] {
   const items: SummaryItem[] = [];
   for (const { phase, lattice } of assignment?.phases ?? []) {
-    const who = `${phase.name} (COD ${phase.codId})`;
+    const who = `${phase.name} (${phaseReference(phase)})`;
     if ('unsupported' in lattice) continue;
     if (!lattice.outcome.ok) {
       items.push({ quantity: `${who}: lattice`, value: '–', note: lattice.outcome.reason });
