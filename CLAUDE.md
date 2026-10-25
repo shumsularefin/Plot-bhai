@@ -81,7 +81,7 @@ docs/            PROGRESS.md and method notes
 
 ## 8. Tools overview (details are in each stage prompt)
 
-XRD wizard order: 1 Upload, 2 Clean data, 3 Choose material, 4 Compare reference phases, 5 Fit peaks, 6 Instrument correction, 7 Results tables, 8 Export. The build order differs from the wizard order, so wire placeholders early.
+XRD wizard order: 1 Upload, 2 Clean data, 3 Choose material, 4 Compare reference phases, 5 Rietveld refinement (optional, basic), 6 Fit peaks, 7 Instrument correction, 8 Results tables, 9 Export. The build order differs from the wizard order, so wire placeholders early.
 
 Size and strain methods: Scherrer, Monshi-Scherrer, Williamson-Hall (UDM, USDM, UDEDM), Size-Strain Plot, Halder-Wagner. Also strain, dislocation density, lattice parameters, texture coefficient, crystallinity index.
 
@@ -89,7 +89,7 @@ Thermal wizard order: 1 Upload and describe the run (atmosphere, heating rate, s
 
 ## 9. Out of scope
 
-Full Rietveld refinement, reliable identification of complex mixtures, any claim that a sample is or is not a single crystal, identifying evolved gases from TGA alone, claiming a suggested calcination temperature is optimal, bundling ICDD/JCPDS data, accounts, servers.
+Full Rietveld structure refinement (atom positions, occupancies, displacement parameters; the basic refinement of cell, profile, preferred orientation and phase fractions approved by the owner in October 2026 is in scope), reliable identification of complex mixtures, any claim that a sample is or is not a single crystal, identifying evolved gases from TGA alone, claiming a suggested calcination temperature is optimal, bundling ICDD/JCPDS data, accounts, servers.
 
 ## 10. Working rules for Claude
 

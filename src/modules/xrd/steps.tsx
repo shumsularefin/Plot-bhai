@@ -8,6 +8,7 @@ import { InstrumentStep } from './InstrumentStep';
 import { MaterialStep } from './MaterialStep';
 import { PhasesStep } from './PhasesStep';
 import { ResultsStep } from './ResultsStep';
+import { RietveldStep } from './RietveldStep';
 import { UploadStep } from './UploadStep';
 
 /** The XRD wizard in its final order. */
@@ -27,6 +28,11 @@ export const xrdSteps: readonly WizardStep<XrdData>[] = [
     id: 'phases',
     title: 'Compare reference phases',
     render: (context) => <PhasesStep {...context} />,
+  },
+  {
+    id: 'rietveld',
+    title: 'Rietveld refinement (optional)',
+    render: (context) => <RietveldStep {...context} />,
   },
   { id: 'fit', title: 'Fit peaks', render: (context) => <FitStep {...context} /> },
   {

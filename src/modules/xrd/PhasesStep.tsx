@@ -259,8 +259,8 @@ export function PhasesStep({ data, update }: StepContext<XrdData>) {
               pseudo-Voigt shape and width (and a Kα2 copy when your data still contain Kα2), and
               the phases are scaled together to your pattern by least squares. The lower panel shows
               measured minus calculated. This is a visual check of positions and relative
-              intensities, not a Rietveld refinement: widths, shapes, cell and preferred orientation
-              are not refined, and the scales are not phase fractions.
+              intensities: widths, shapes, cell and preferred orientation are not refined, and the
+              scales are not phase fractions. The optional Rietveld step that follows refines them.
             </p>
           </HelpTip>
         </h3>

@@ -5,6 +5,7 @@ import {
   DEFAULT_ANALYSIS,
   DEFAULT_INSTRUMENT,
   DEFAULT_MATERIAL,
+  DEFAULT_RIETVELD,
   DEFAULT_RESULTS,
   migrateXrdData,
 } from '../src/modules/xrd/data';
@@ -121,9 +122,22 @@ describe('session migration', () => {
       { step: 6, furthest: 6, data: { patterns: [], plot: {}, results } },
       6,
     );
-    expect(fromStage5?.step).toBe(6);
+    // Step 6 (Instrument correction) is step 7 since the Rietveld step was added before Fit peaks.
+    expect(fromStage5?.step).toBe(7);
     expect(fromStage5?.data.results).toEqual(results);
     expect(fromStage5?.data.material).toEqual(DEFAULT_MATERIAL);
+  });
+
+  it('upgrades version 9 sessions: steps from Fit peaks on move one place for the Rietveld step', () => {
+    const material = { ...DEFAULT_MATERIAL, candidates: ['anatase'] };
+    const atPhases = migrateXrdData(
+      { step: 3, furthest: 4, data: { patterns: [], plot: {}, material } },
+      9,
+    );
+    expect(atPhases?.step).toBe(3);
+    expect(atPhases?.furthest).toBe(5);
+    expect(atPhases?.data.material).toEqual(material);
+    expect(atPhases?.data.rietveld).toEqual(DEFAULT_RIETVELD);
   });
 
   it('upgrades version 8 sessions: the chosen family becomes the list of candidates', () => {

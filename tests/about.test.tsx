@@ -7,7 +7,7 @@ describe('About page', () => {
     render(<About />);
     expect(screen.getByRole('heading', { name: 'Privacy' })).toBeTruthy();
     expect(screen.getByText(/never uploaded/)).toBeTruthy();
-    expect(screen.getByText(/no Rietveld refinement/)).toBeTruthy();
+    expect(screen.getByText(/The Rietveld refinement is basic/)).toBeTruthy();
     expect(screen.getByText(/Crystallography Open Database/)).toBeTruthy();
     expect(screen.getByText('D = K λ / (β cos θ)')).toBeTruthy();
   });

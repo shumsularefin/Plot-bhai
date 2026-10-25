@@ -193,6 +193,7 @@ export function phaseFromCif(
     spaceGroup: { hm, number: number ?? 0 },
     crystalSystem: number === null ? 'unknown' : crystalSystemOf(number),
     cell: { ...crystal.cell },
+    cellContents: roundedContents(cellComposition(sites)),
     citation: {
       journal: text(block, '_journal_name_full') ?? '',
       volume: text(block, '_journal_volume') ?? '',
@@ -209,4 +210,13 @@ export function phaseFromCif(
     })),
   };
   return { ok: true, phase, notes };
+}
+
+/** Cell contents rounded to 4 decimals (occupancies such as 1/3 make long fractions). */
+export function roundedContents(contents: Record<string, number>): Record<string, number> {
+  return Object.fromEntries(
+    Object.entries(contents)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([element, n]) => [element, Number(n.toFixed(4))]),
+  );
 }

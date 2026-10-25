@@ -1,5 +1,54 @@
 # Progress
 
+## Basic Rietveld refinement (done)
+
+Branch `claude/zen-edison-acnmco`. Approved by the owner in October 2026 (CLAUDE.md sections 8 and
+9 updated): a basic refinement, not a structure refinement.
+
+### What was built
+
+- `src/core/xrd/rietveld/`: whole-pattern model (`model.ts`: Chebyshev background, Kα1/Kα2,
+  Lorentz-polarisation, pseudo-Voigt with Caglioti widths, March–Dollase, overall B, zero shift and
+  sample displacement), cell constraints per crystal system (`cell.ts`), reflection families with
+  all their members found from the lattice metric (`reflections.ts`), staged weighted
+  least squares with R_p, R_wp, R_exp, χ², R_Bragg, Hill–Howard weight fractions and propagated
+  uncertainties (`refine.ts`), and values with uncertainties in the s.u. notation plus methods
+  sentences (`report.ts`). The refinement chooses a starting width from four values and lines up
+  each cell by isotropic changes of ±1.5 % before least squares.
+- Reference phases now store their unit-cell contents (`cellContents`), needed for weight
+  fractions: added by the library builder (all JSON files regenerated offline from the committed
+  CIF cache; only the new field changed, checked file by file) and by the CIF reader.
+- XRD step 5 "Rietveld refinement (optional)": phases to refine, Refine runs in a web worker
+  (`rietveld.worker.ts`) with stage progress and Cancel; "What to refine", preferred direction,
+  background terms and 2θ range under Advanced; pinned plot with measured, calculated,
+  background, difference and refined reflection positions; agreement indices, refined cells,
+  weight fractions and R_Bragg with plain-language warnings (poor fit, not raw counts, parameters
+  at a limit, phase possibly absent); profile parameters and stages under Advanced; results and
+  pattern CSV; a methods paragraph, also appended to the Export methods text.
+- Session version 10: older sessions move to the right step (the new step sits before Fit peaks).
+- Uses the original data (counts), not the cleaned copy, because the weights need raw counts.
+
+### Checks
+
+- `tests/rietveld.test.ts`: cell symmetry, family expansion (cubic {511}/{333}), Hill–Howard
+  formula and uncertainty, synthetic recoveries (cubic cell, zero, η, χ² ≈ 1; two-phase weight
+  fraction; tetragonal cell 0.6 % off and March–Dollase r), s.u. notation.
+- `tests/rietveld-gsas.test.ts`: refines a pattern simulated by GSAS-II (fixture in
+  `tests/fixtures/rietveld/`, scripts and the side-by-side table in `scripts/validation/rietveld/`):
+  cells within 1e-4 Å, zero within 0.002°, anatase weight fraction 0.7680 against the true 0.7692
+  (GSAS-II's own refinement of the same data: 0.7684).
+- Owner's BV-03 pattern (not committed) with monoclinic BiVO4 (COD 9013437) fetched through the
+  lookup: the main phase fits (R_wp 36 %, R_exp 12.5 %); peaks near 11.8, 23.5, 32.4, 37.3, 48.5
+  and 55.5° are not explained by that phase and the app says the GOF is high. 2.9 s for 3,500
+  points in Node.
+- Lint, typecheck, 725 tests (1 skipped), build and bundle budget pass; e2e passes with the new step.
+
+### Known issues
+
+- No peak asymmetry, anisotropic broadening, absorption or surface-roughness corrections; atom
+  parameters are fixed; |F|² is not recalculated when the cell changes.
+- A full scan of about 50,000 points takes tens of seconds (it runs in a worker).
+
 ## UI pass: always-visible Next, export with the plot, basic vs Advanced (done)
 
 Branch `claude/zen-edison-acnmco`, from the owner's request that beginners see only the basics,
