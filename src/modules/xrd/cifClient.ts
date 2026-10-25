@@ -32,10 +32,18 @@ function getWorker(): Worker {
 export async function readCifFile(file: File, phaseId: string): Promise<CifPhaseResult> {
   if (file.size > MAX_CIF_BYTES)
     return { ok: false, error: 'This file is larger than 5 MB, far bigger than a structure file.' };
-  const text = await file.text();
+  return readCifText(await file.text(), file.name, phaseId);
+}
+
+/** Reads CIF text (a file or a COD download) in a web worker, as readCifFile. */
+export function readCifText(
+  text: string,
+  fileName: string,
+  phaseId: string,
+): Promise<CifPhaseResult> {
   return new Promise((resolve) => {
     const id = nextId++;
     waiting.set(id, resolve);
-    getWorker().postMessage({ id, text, fileName: file.name, phaseId } satisfies CifRequest);
+    getWorker().postMessage({ id, text, fileName, phaseId } satisfies CifRequest);
   });
 }

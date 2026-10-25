@@ -16,10 +16,10 @@ The user is a researcher who writes papers. Results must be scientifically corre
 
 ## 2. Hard constraints
 
-- Hosting is Firebase Spark (free). Use Firebase Hosting only. No Cloud Functions, no paid services, no backend, no user accounts.
-- All processing runs in the browser. Uploaded files never leave the user's device. No analytics, no telemetry, no third-party CDNs or web fonts (self-host everything).
-- The only optional network feature is Gemini text generation through Firebase AI Logic (last stage). The site must work fully without it.
-- Do not bundle or fetch JCPDS/ICDD data. Reference patterns come from the open Crystallography Open Database (COD) and are precomputed at build time into small JSON files. The user may type a JCPDS number by hand to print in tables; the site never claims to have verified it.
+- Hosting is Firebase Spark (free) for the site. No Cloud Functions, no paid services, no user accounts. The one backend allowed is the COD lookup Worker on the Cloudflare Workers free plan (`worker/`, docs/cod-lookup.md, approved by the owner in October 2026): read-only, it answers only COD searches and single-CIF downloads.
+- All processing runs in the browser. Uploaded files never leave the user's device; only element symbols, formulas and COD numbers are sent to the COD lookup. No analytics, no telemetry, no third-party CDNs or web fonts (self-host everything).
+- The optional network features are the COD lookup and Gemini text generation through Firebase AI Logic (last stage). The site must work fully without them (CIF upload stays as the fallback).
+- Do not bundle or fetch JCPDS/ICDD data. Reference patterns come from the open Crystallography Open Database (COD): a library precomputed at build time into small JSON files, plus any COD entry fetched through the lookup and calculated in the browser. The user may type a JCPDS number by hand to print in tables; the site never claims to have verified it.
 - Never invent scientific data. This includes COD IDs, reference patterns, test expectations, published values and literature citations. If something cannot be verified (for example the network is blocked), stop, mark it TODO and tell me.
 
 ## 3. Tech stack (keep it small)

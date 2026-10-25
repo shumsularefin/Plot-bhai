@@ -50,6 +50,19 @@ export function parseFormula(text: string): Record<string, number> | null {
   return counts && i === source.length && Object.keys(counts).length > 0 ? counts : null;
 }
 
+/**
+ * Hill-order formula with spaces, as COD stores and searches formulas ("Bi O4 V"): carbon first
+ * and hydrogen second when there is carbon, all other elements alphabetically; a count of 1 is
+ * left out.
+ */
+export function hillFormula(counts: Record<string, number>): string {
+  const rank = (e: string) => (counts['C'] !== undefined ? (e === 'C' ? 0 : e === 'H' ? 1 : 2) : 2);
+  return Object.keys(counts)
+    .sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))
+    .map((e) => `${e}${counts[e] === 1 ? '' : Number((counts[e] as number).toFixed(3))}`)
+    .join(' ');
+}
+
 /** Atom fractions rounded to 3 decimals, as a key: equal for BiVO4 and Bi2V2O8, any order. */
 export function compositionKey(counts: Record<string, number>): string {
   const total = Object.values(counts).reduce((s, n) => s + n, 0);
