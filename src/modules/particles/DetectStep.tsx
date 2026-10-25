@@ -423,42 +423,44 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
           />
           The particles are darker than the background
         </label>
-        <div class="radiation-fields">
-          <label class="inline-field">
-            Smoothing of noise
-            <select
-              value={settings.denoise.method}
-              onChange={(e) =>
-                patchDenoise({
-                  method: e.currentTarget.value as DetectSettings['denoise']['method'],
-                })
-              }
-            >
-              <option value="none">None</option>
-              <option value="gaussian">Gaussian blur</option>
-              <option value="median">Median filter (slower)</option>
-            </select>
-          </label>
-          {settings.denoise.method !== 'none' && (
-            <NumberInput
-              label={
-                settings.denoise.method === 'gaussian' ? 'Blur width (px)' : 'Median radius (px)'
-              }
-              value={settings.denoise.size}
-              min={0}
-              max={settings.denoise.method === 'median' ? 3 : 10}
-              step={settings.denoise.method === 'median' ? 1 : 0.5}
-              onChange={(v) => v !== null && patchDenoise({ size: v })}
-            />
-          )}
-          <HelpTip term="noise smoothing">
-            <p>
-              Electron micrographs are grainy. A light blur (about 1 pixel) or a median filter evens
-              out the grain so the threshold does not pick it up. Too much smoothing rounds the
-              outlines and joins close particles.
-            </p>
-          </HelpTip>
-        </div>
+        <Advanced id="particle-denoise" title="Noise smoothing">
+          <div class="radiation-fields">
+            <label class="inline-field">
+              Smoothing of noise
+              <select
+                value={settings.denoise.method}
+                onChange={(e) =>
+                  patchDenoise({
+                    method: e.currentTarget.value as DetectSettings['denoise']['method'],
+                  })
+                }
+              >
+                <option value="none">None</option>
+                <option value="gaussian">Gaussian blur</option>
+                <option value="median">Median filter (slower)</option>
+              </select>
+            </label>
+            {settings.denoise.method !== 'none' && (
+              <NumberInput
+                label={
+                  settings.denoise.method === 'gaussian' ? 'Blur width (px)' : 'Median radius (px)'
+                }
+                value={settings.denoise.size}
+                min={0}
+                max={settings.denoise.method === 'median' ? 3 : 10}
+                step={settings.denoise.method === 'median' ? 1 : 0.5}
+                onChange={(v) => v !== null && patchDenoise({ size: v })}
+              />
+            )}
+            <HelpTip term="noise smoothing">
+              <p>
+                Electron micrographs are grainy. A light blur (about 1 pixel) or a median filter
+                evens out the grain so the threshold does not pick it up. Too much smoothing rounds
+                the outlines and joins close particles.
+              </p>
+            </HelpTip>
+          </div>
+        </Advanced>
       </section>
 
       <section class="process-step is-on" aria-labelledby="thr-title">

@@ -1,4 +1,6 @@
+import type { ComponentChildren } from 'preact';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { Advanced } from '../Advanced';
 import { Dock } from '../Dock';
 import { HelpTip } from '../HelpTip';
 import { ExportPanel } from './ExportPanel';
@@ -49,6 +51,8 @@ interface PlotPanelProps {
   peakLabels?: PeakLabelSet;
   /** When it changes, the view jumps to this x range (in plotted x, so −wavenumber on a reversed axis). */
   focusRange?: Domain | null;
+  /** View controls of the step (for example Before / After), shown with the plot. */
+  toolbar?: ComponentChildren;
   /** How the figure is kept in view while settings change (see Dock): 'manual' for secondary plots. */
   dock?: 'auto' | 'manual';
 }
@@ -171,6 +175,7 @@ export function PlotPanel(props: PlotPanelProps) {
   return (
     <div class="plot-panel">
       <Dock label="Plot" mode={props.dock ?? 'auto'}>
+        {props.toolbar}
         {legendSeries.length > 1 && (
           <ul class="plot-legend" aria-label="Legend">
             {legendSeries.map((s) => {
@@ -197,6 +202,15 @@ export function PlotPanel(props: PlotPanelProps) {
           </ul>
         )}
 
+        {(domain[0] > extent[0] || domain[1] < extent[1]) && (
+          <button
+            type="button"
+            class="btn btn-quiet plot-show-all"
+            onClick={() => setDomain(extent)}
+          >
+            Show the whole range
+          </button>
+        )}
         <div ref={plotRef}>
           <InteractivePlot
             series={series}
@@ -235,80 +249,99 @@ export function PlotPanel(props: PlotPanelProps) {
             description={props.lowerAxis?.description ?? 'Residual: data minus fit.'}
           />
         )}
+        {overlay && (
+          <div class="plot-options">
+            <label class="check">
+              <input
+                type="checkbox"
+                checked={settings.normalise}
+                onChange={(e) => onSettingsChange({ normalise: e.currentTarget.checked })}
+              />
+              Normalise
+            </label>
+            <HelpTip term="normalising">
+              <p>
+                Each pattern is divided by its own highest intensity, so every pattern peaks at 1.
+                This makes it easier to compare peak positions and shapes when overall intensities
+                differ. The stored data are not changed.
+              </p>
+            </HelpTip>
+            {sources.length > 1 && (
+              <label class="plot-offset">
+                Vertical offset
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={settings.offsetPercent}
+                  onInput={(e) =>
+                    onSettingsChange({ offsetPercent: Number(e.currentTarget.value) })
+                  }
+                />
+                <output>{settings.offsetPercent} %</output>
+              </label>
+            )}
+          </div>
+        )}
+
+        <ExportPanel
+          series={series}
+          domain={domain}
+          labels={axisLabels}
+          settings={settings.export}
+          onChange={(patch) => onSettingsChange({ export: { ...settings.export, ...patch } })}
+          exportName={exportName}
+          points={props.points}
+          bands={props.bands}
+          residual={residualSeries ?? undefined}
+          peakLabels={props.peakLabels}
+          lanes={props.lanes}
+          lowerAxis={props.lowerAxis}
+          figure={figure}
+        />
       </Dock>
 
-      <div class="plot-controls">
-        <fieldset class="plot-range">
-          <legend>
-            {xName} range{xUnit && ` (${xUnit})`}
-          </legend>
-          <label>
-            From
-            <input
-              type="number"
-              inputMode="decimal"
-              step="any"
-              value={round(shown(domain[0]))}
-              onChange={(e) => setRange(0, e.currentTarget.value)}
-            />
-          </label>
-          <label>
-            To
-            <input
-              type="number"
-              inputMode="decimal"
-              step="any"
-              value={round(shown(domain[1]))}
-              onChange={(e) => setRange(1, e.currentTarget.value)}
-            />
-          </label>
-        </fieldset>
-        <div class="plot-buttons">
-          <button type="button" class="btn" onClick={() => zoom(1.5)}>
-            Zoom in
-          </button>
-          <button type="button" class="btn" onClick={() => zoom(1 / 1.5)}>
-            Zoom out
-          </button>
-          <button type="button" class="btn" onClick={() => setDomain(extent)}>
-            Show all
-          </button>
-        </div>
-      </div>
-
-      {overlay && (
-        <div class="plot-options">
-          <label class="check">
-            <input
-              type="checkbox"
-              checked={settings.normalise}
-              onChange={(e) => onSettingsChange({ normalise: e.currentTarget.checked })}
-            />
-            Normalise
-          </label>
-          <HelpTip term="normalising">
-            <p>
-              Each pattern is divided by its own highest intensity, so every pattern peaks at 1.
-              This makes it easier to compare peak positions and shapes when overall intensities
-              differ. The stored data are not changed.
-            </p>
-          </HelpTip>
-          {sources.length > 1 && (
-            <label class="plot-offset">
-              Vertical offset
+      <Advanced id="plot-range" title="Plot range">
+        <div class="plot-controls">
+          <fieldset class="plot-range">
+            <legend>
+              {xName} range{xUnit && ` (${xUnit})`}
+            </legend>
+            <label>
+              From
               <input
-                type="range"
-                min={0}
-                max={100}
-                step={5}
-                value={settings.offsetPercent}
-                onInput={(e) => onSettingsChange({ offsetPercent: Number(e.currentTarget.value) })}
+                type="number"
+                inputMode="decimal"
+                step="any"
+                value={round(shown(domain[0]))}
+                onChange={(e) => setRange(0, e.currentTarget.value)}
               />
-              <output>{settings.offsetPercent} %</output>
             </label>
-          )}
+            <label>
+              To
+              <input
+                type="number"
+                inputMode="decimal"
+                step="any"
+                value={round(shown(domain[1]))}
+                onChange={(e) => setRange(1, e.currentTarget.value)}
+              />
+            </label>
+          </fieldset>
+          <div class="plot-buttons">
+            <button type="button" class="btn" onClick={() => zoom(1.5)}>
+              Zoom in
+            </button>
+            <button type="button" class="btn" onClick={() => zoom(1 / 1.5)}>
+              Zoom out
+            </button>
+            <button type="button" class="btn" onClick={() => setDomain(extent)}>
+              Show all
+            </button>
+          </div>
         </div>
-      )}
+      </Advanced>
 
       <FigureEditor
         figure={figure}
@@ -319,22 +352,6 @@ export function PlotPanel(props: PlotPanelProps) {
         xUnit={xUnit}
         placement={placement}
         onPlacement={setPlacement}
-      />
-
-      <ExportPanel
-        series={series}
-        domain={domain}
-        labels={axisLabels}
-        settings={settings.export}
-        onChange={(patch) => onSettingsChange({ export: { ...settings.export, ...patch } })}
-        exportName={exportName}
-        points={props.points}
-        bands={props.bands}
-        residual={residualSeries ?? undefined}
-        peakLabels={props.peakLabels}
-        lanes={props.lanes}
-        lowerAxis={props.lowerAxis}
-        figure={figure}
       />
     </div>
   );

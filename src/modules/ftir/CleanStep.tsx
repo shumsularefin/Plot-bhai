@@ -157,53 +157,9 @@ export function CleanStep({ data, update }: StepContext<FtirData>) {
         </div>
       </div>
       <p class="field-hint">
-        Every step is optional and can be switched off again at any time. Your original data are
-        never changed. Processing works on absorbance (transmittance is converted with A = 2 − log₁₀
-        %T, so bands point up) and the result is shown in the quantity you choose below. Check the
-        data type of each spectrum in step 1 first.
+        Every step is optional and can be switched off again; your original data are never changed.
+        Processing works on absorbance (A = 2 − log₁₀ %T), whatever the plot shows.
       </p>
-
-      <section class="process-step" aria-labelledby="view-title">
-        <h3 id="view-title" class="process-step-title">
-          How to show the spectra
-        </h3>
-        <div class="radiation-fields">
-          <fieldset class="segmented">
-            <legend>Plot</legend>
-            {(Object.keys(VIEW_LABELS) as View[]).map((v) => (
-              <label key={v} class={view === v ? 'is-selected' : undefined}>
-                <input
-                  type="radio"
-                  name="ftir-view"
-                  checked={view === v}
-                  onChange={() => setView(v)}
-                />
-                {VIEW_LABELS[v]}
-              </label>
-            ))}
-          </fieldset>
-          <div class="clean-actions">
-            <button type="button" class="btn" onClick={() => setFocus([4000, 400])}>
-              Whole range
-            </button>
-            <button
-              type="button"
-              class="btn"
-              onClick={() => setFocus([FINGERPRINT[0], FINGERPRINT[1]])}
-            >
-              Fingerprint region
-            </button>
-            <HelpTip term="fingerprint region">
-              <p>
-                The fingerprint region is conventionally taken as roughly 1500 to 400 cm⁻¹. It has
-                many overlapping bands that are hard to assign one by one but are characteristic of
-                a particular compound. The button zooms to 1500 to 400 cm⁻¹.
-              </p>
-            </HelpTip>
-          </div>
-        </div>
-        <QuantityChoice data={data} update={update} shown={shown} />
-      </section>
 
       <StepSection
         id="baseline"
@@ -376,6 +332,43 @@ export function CleanStep({ data, update }: StepContext<FtirData>) {
         exportName={view === 'all' ? 'ftir-spectra' : spectrum.name}
         showOverlayOptions={view === 'all'}
         focusCm={focus}
+        toolbar={
+          <>
+            <div class="radiation-fields">
+              <fieldset class="segmented">
+                <legend>Show</legend>
+                {(Object.keys(VIEW_LABELS) as View[]).map((v) => (
+                  <label key={v} class={view === v ? 'is-selected' : undefined}>
+                    <input
+                      type="radio"
+                      name="ftir-view"
+                      checked={view === v}
+                      onChange={() => setView(v)}
+                    />
+                    {VIEW_LABELS[v]}
+                  </label>
+                ))}
+              </fieldset>
+              <div class="clean-actions">
+                <button
+                  type="button"
+                  class="btn"
+                  onClick={() => setFocus([FINGERPRINT[0], FINGERPRINT[1]])}
+                >
+                  Fingerprint region
+                </button>
+                <HelpTip term="fingerprint region">
+                  <p>
+                    The fingerprint region is conventionally taken as roughly 1500 to 400 cm⁻¹. It
+                    has many overlapping bands that are hard to assign one by one but are
+                    characteristic of a particular compound. The button zooms to 1500 to 400 cm⁻¹.
+                  </p>
+                </HelpTip>
+              </div>
+            </div>
+            <QuantityChoice data={data} update={update} shown={shown} />
+          </>
+        }
       />
     </div>
   );

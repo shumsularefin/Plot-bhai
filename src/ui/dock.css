@@ -8,12 +8,6 @@
   min-width: 0;
 }
 
-.dock-placeholder {
-  margin: var(--space-3) 0;
-  color: var(--color-text-muted);
-  font-size: var(--text-sm);
-}
-
 .dock-pin {
   margin-top: var(--space-1);
 }
@@ -117,8 +111,7 @@
     box-shadow: none;
   }
 
-  .dock-bar,
-  .dock-placeholder {
+  .dock-bar {
     display: none;
   }
 }

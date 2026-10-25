@@ -1,4 +1,5 @@
-import { useId, useState } from 'preact/hooks';
+import { useState } from 'preact/hooks';
+import { Advanced } from '../Advanced';
 import { HelpTip } from '../HelpTip';
 import {
   downloadBlob,
@@ -44,7 +45,10 @@ interface ExportPanelProps {
   figure?: FigureStyle | undefined;
 }
 
-/** Figure export: journal width presets, font, sizes, and SVG or PNG (300 or 600 dpi) download. */
+/**
+ * Figure export under the plot: SVG, PNG (300 or 600 dpi) and PDF at a journal width, with height,
+ * font and line width under Advanced.
+ */
 export function ExportPanel({
   series,
   domain,
@@ -61,8 +65,6 @@ export function ExportPanel({
   figure,
 }: ExportPanelProps) {
   const [status, setStatus] = useState<{ text: string; error: boolean } | null>(null);
-  // Several plots can be on one page, so ids and radio names must be unique.
-  const uid = useId();
   const size = figureSize(settings);
   const shownSeries = series.filter(
     (s) => !s.quiet && !(figure?.series[s.id]?.hidden ?? false),
@@ -175,75 +177,52 @@ export function ExportPanel({
   };
 
   return (
-    <section class="export-panel" aria-labelledby={`${uid}-heading`}>
-      <h3 id={`${uid}-heading`} class="export-title">
-        Export figure
-      </h3>
-      <p class="field-hint">
-        Exports the range shown above, with black axes on a white background.
-      </p>
-
-      <div class="export-grid">
-        <fieldset class="export-preset">
-          <legend>Width</legend>
-          {(Object.keys(EXPORT_PRESETS) as ExportPreset[]).map((key) => (
-            <label key={key} class="check">
-              <input
-                type="radio"
-                name={`${uid}-preset`}
-                checked={settings.preset === key}
-                onChange={() => onChange({ preset: key, heightMm: EXPORT_PRESETS[key].heightMm })}
-              />
-              {EXPORT_PRESETS[key].label}
-              {key !== 'custom' && ` (${EXPORT_PRESETS[key].widthMm} mm)`}
-            </label>
-          ))}
-        </fieldset>
-
-        {settings.preset === 'custom' && (
-          <label class="export-field">
-            Width (mm)
-            <input
-              type="number"
-              inputMode="decimal"
-              min={30}
-              max={300}
-              step={1}
-              value={settings.customWidthMm ?? EXPORT_PRESETS.custom.widthMm}
-              onChange={(e) => {
-                const value = Number(e.currentTarget.value);
-                if (Number.isFinite(value))
-                  onChange({ customWidthMm: Math.min(300, Math.max(30, value)) });
-              }}
-            />
-          </label>
-        )}
-        <label class="export-field">
-          Height (mm)
-          {numberField('heightMm', 30, 230, 1)}
-        </label>
-        <label class="export-field">
-          Font
+    <section class="export-panel" aria-label="Export figure">
+      <div class="export-actions">
+        <span class="export-label">Export</span>
+        <button type="button" class="btn" onClick={exportSvg} aria-label="Download SVG">
+          SVG
+        </button>
+        <button type="button" class="btn" onClick={() => void exportPng(300)} title={px(300)}>
+          PNG 300 dpi
+        </button>
+        <button type="button" class="btn" onClick={() => void exportPng(600)} title={px(600)}>
+          PNG 600 dpi
+        </button>
+        <button type="button" class="btn" onClick={() => void exportPdf()}>
+          PDF
+        </button>
+        <label class="export-field export-width">
+          <span class="visually-hidden">Figure width</span>
           <select
-            value={settings.font}
-            onChange={(e) => onChange({ font: e.currentTarget.value as ExportFont })}
+            value={settings.preset}
+            onChange={(e) => {
+              const key = e.currentTarget.value as ExportPreset;
+              onChange({ preset: key, heightMm: EXPORT_PRESETS[key].heightMm });
+            }}
           >
-            {(Object.keys(EXPORT_FONTS) as ExportFont[]).map((key) => (
+            {(Object.keys(EXPORT_PRESETS) as ExportPreset[]).map((key) => (
               <option key={key} value={key}>
-                {EXPORT_FONTS[key].label}
+                {EXPORT_PRESETS[key].label}
+                {key !== 'custom' && ` (${EXPORT_PRESETS[key].widthMm} mm)`}
               </option>
             ))}
           </select>
         </label>
-        <label class="export-field">
-          Font size (pt)
-          {numberField('fontSizePt', 5, 14, 0.5)}
-        </label>
-        <label class="export-field">
-          Line width (pt)
-          {numberField('lineWidthPt', 0.25, 3, 0.25)}
-        </label>
+        <HelpTip term="the figure export">
+          <p>
+            Exports the range shown, with black axes on a white background, at the chosen journal
+            width ({size.widthMm} × {size.heightMm} mm). Dots per inch (dpi) is how many pixels the
+            image has per inch of printed width: 300 dpi is {px(300)} and 600 dpi is {px(600)}.
+            Check your journal&apos;s figure guidelines. SVG is a vector format and stays sharp at
+            any size. The PDF holds the figure as a 600 dpi image at its exact size; use SVG when
+            you need editable lines and text.
+          </p>
+        </HelpTip>
       </div>
+      <p class={status?.error ? 'export-status is-error' : 'export-status'} role="status">
+        {status?.text}
+      </p>
 
       {settings.heightMm < minHeight && (
         <p class="message is-warning">
@@ -263,32 +242,53 @@ export function ExportPanel({
         </p>
       )}
 
-      <div class="export-actions">
-        <button type="button" class="btn" onClick={exportSvg}>
-          Download SVG
-        </button>
-        <button type="button" class="btn" onClick={() => void exportPng(300)} title={px(300)}>
-          PNG 300 dpi
-        </button>
-        <button type="button" class="btn" onClick={() => void exportPng(600)} title={px(600)}>
-          PNG 600 dpi
-        </button>
-        <button type="button" class="btn" onClick={() => void exportPdf()}>
-          PDF
-        </button>
-        <HelpTip term="dpi">
-          <p>
-            Dots per inch: how many pixels the image has per inch of printed width. At{' '}
-            {size.widthMm} × {size.heightMm} mm, 300 dpi is {px(300)} and 600 dpi is {px(600)}.
-            Check your journal's figure guidelines for the resolution it needs. SVG is a vector
-            format and stays sharp at any size. The PDF holds the figure as a 600 dpi image at its
-            exact size; use SVG when you need editable vector lines and text.
-          </p>
-        </HelpTip>
-      </div>
-      <p class={status?.error ? 'export-status is-error' : 'export-status'} role="status">
-        {status?.text}
-      </p>
+      <Advanced id="export-size" title="Figure size and font">
+        <div class="export-grid">
+          {settings.preset === 'custom' && (
+            <label class="export-field">
+              Width (mm)
+              <input
+                type="number"
+                inputMode="decimal"
+                min={30}
+                max={300}
+                step={1}
+                value={settings.customWidthMm ?? EXPORT_PRESETS.custom.widthMm}
+                onChange={(e) => {
+                  const value = Number(e.currentTarget.value);
+                  if (Number.isFinite(value))
+                    onChange({ customWidthMm: Math.min(300, Math.max(30, value)) });
+                }}
+              />
+            </label>
+          )}
+          <label class="export-field">
+            Height (mm)
+            {numberField('heightMm', 30, 230, 1)}
+          </label>
+          <label class="export-field">
+            Font
+            <select
+              value={settings.font}
+              onChange={(e) => onChange({ font: e.currentTarget.value as ExportFont })}
+            >
+              {(Object.keys(EXPORT_FONTS) as ExportFont[]).map((key) => (
+                <option key={key} value={key}>
+                  {EXPORT_FONTS[key].label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label class="export-field">
+            Font size (pt)
+            {numberField('fontSizePt', 5, 14, 0.5)}
+          </label>
+          <label class="export-field">
+            Line width (pt)
+            {numberField('lineWidthPt', 0.25, 3, 0.25)}
+          </label>
+        </div>
+      </Advanced>
     </section>
   );
 }

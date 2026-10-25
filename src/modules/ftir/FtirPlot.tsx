@@ -1,3 +1,4 @@
+import type { ComponentChildren } from 'preact';
 import { useMemo } from 'preact/hooks';
 import { toPercentTransmittance, type FtirProcessed } from '../../core/ftir/process';
 import { PlotPanel, type PlotSettings } from '../../ui/plot/PlotPanel';
@@ -102,6 +103,8 @@ interface FtirPlotProps {
   peakLabels?: PeakLabelSet;
   /** Jump to this wavenumber range (cm⁻¹, either order). */
   focusCm?: readonly [number, number] | null;
+  /** View controls shown with the plot. */
+  toolbar?: ComponentChildren;
 }
 
 /** The shared plot panel set up for FTIR spectra, with the wavenumber axis reversed. */
@@ -123,6 +126,7 @@ export function FtirPlot(props: FtirPlotProps) {
         showOverlayOptions: props.showOverlayOptions,
       })}
       {...(props.peakLabels && { peakLabels: props.peakLabels })}
+      toolbar={props.toolbar}
       {...(focus && { focusRange: focus })}
     />
   );
