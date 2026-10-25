@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { Dock } from '../../ui/Dock';
 import { cutAlongSegment, ellipseRuns } from '../../core/particles/detect/manual';
 import { DEFAULT_DETECT_SETTINGS, type DetectSettings } from '../../core/particles/detect/pipeline';
 import { mergeRuns, runsContain, touchesEdge } from '../../core/particles/detect/regions';
@@ -746,17 +747,19 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
         ))}
       </div>
       <p class="field-hint">{current?.hint}</p>
-      <ImageViewer
-        image={image}
-        tool={tool}
-        crop={data.crop}
-        particles={overlays}
-        workScale={work.scale}
-        mask={mask}
-        onPick={pick}
-        onDraw={draw}
-        label="Image with the detected particles"
-      />
+      <Dock label="Image with the detected particles">
+        <ImageViewer
+          image={image}
+          tool={tool}
+          crop={data.crop}
+          particles={overlays}
+          workScale={work.scale}
+          mask={mask}
+          onPick={pick}
+          onDraw={draw}
+          label="Image with the detected particles"
+        />
+      </Dock>
       <div class="clean-actions">
         <button type="button" class="btn" onClick={deleteSelected} disabled={selected.size === 0}>
           Delete selected ({selected.size})

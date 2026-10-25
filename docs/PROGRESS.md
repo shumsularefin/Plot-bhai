@@ -47,6 +47,12 @@ publicly shareable files); waiting for the user's permission.
   sensitivity (±10 grey levels).
 - Analysis records (Markdown) for XRD, FTIR and UV-Vis: header metadata, SHA-256 of the data, every
   step with settings and warnings, results with σ, methods text, build id (git commit and date).
+- Plots stay in view while settings change (`src/ui/Dock.tsx`): a column on the right from 1100 px,
+  a panel along the bottom on narrower screens, with Minimise and Unpin (a per-browser preference).
+  One figure per page: the first, or the one the user picks; secondary plots (method details) only
+  when asked. Used by every plot panel, the particle detection image and the size histogram. This
+  exposed a latent bug: the particle image viewer never refitted when its box changed size; it now
+  refits unless the user has zoomed or panned.
 - Shared `Advanced` collapsible sections. There was no Beginner/Intermediate/Expert selector in
   the code, so nothing was removed.
 

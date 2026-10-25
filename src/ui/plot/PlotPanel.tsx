@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { Dock } from '../Dock';
 import { HelpTip } from '../HelpTip';
 import { ExportPanel } from './ExportPanel';
 import { FigureEditor, type Placement } from './FigureEditor';
@@ -48,6 +49,8 @@ interface PlotPanelProps {
   peakLabels?: PeakLabelSet;
   /** When it changes, the view jumps to this x range (in plotted x, so −wavenumber on a reversed axis). */
   focusRange?: Domain | null;
+  /** How the figure is kept in view while settings change (see Dock): 'manual' for secondary plots. */
+  dock?: 'auto' | 'manual';
 }
 
 export type PlotInteraction = Pick<
@@ -167,70 +170,72 @@ export function PlotPanel(props: PlotPanelProps) {
 
   return (
     <div class="plot-panel">
-      {legendSeries.length > 1 && (
-        <ul class="plot-legend" aria-label="Legend">
-          {legendSeries.map((s) => {
-            const color = figure.series[s.id]?.color;
-            return (
-              <li key={s.id}>
-                <span
-                  class={`plot-swatch series-${s.colorIndex % 8}`}
-                  style={color ? { background: color } : undefined}
-                  aria-hidden="true"
-                />
-                {s.name}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      <Dock label="Plot" mode={props.dock ?? 'auto'}>
+        {legendSeries.length > 1 && (
+          <ul class="plot-legend" aria-label="Legend">
+            {legendSeries.map((s) => {
+              const color = figure.series[s.id]?.color;
+              return (
+                <li key={s.id}>
+                  <span
+                    class={`plot-swatch series-${s.colorIndex % 8}`}
+                    style={color ? { background: color } : undefined}
+                    aria-hidden="true"
+                  />
+                  {s.name}
+                </li>
+              );
+            })}
+          </ul>
+        )}
 
-      {props.peakLabels && props.peakLabels.key.length > 0 && (
-        <ul class="plot-legend" aria-label="Peak labels">
-          {props.peakLabels.key.map((entry) => (
-            <li key={entry}>{entry}</li>
-          ))}
-        </ul>
-      )}
+        {props.peakLabels && props.peakLabels.key.length > 0 && (
+          <ul class="plot-legend" aria-label="Peak labels">
+            {props.peakLabels.key.map((entry) => (
+              <li key={entry}>{entry}</li>
+            ))}
+          </ul>
+        )}
 
-      <div ref={plotRef}>
-        <InteractivePlot
-          series={series}
-          labels={axisLabels}
-          domain={domain}
-          extent={extent}
-          minSpan={minSpan}
-          onDomainChange={setDomain}
-          formatX={(x) => `${xName} ${round(shown(x))}${xUnit}`}
-          {...(props.points && { markers: props.points })}
-          {...(props.bands && { bands: props.bands })}
-          {...(props.peakLabels && { peakLabels: props.peakLabels })}
-          {...interaction}
-          figure={figure}
-          description={`Plot of intensity against ${xName}, ${series.length} pattern${series.length === 1 ? '' : 's'}.`}
-        />
-      </div>
-      {props.lanes && props.lanes.length > 0 && (
-        <ReferenceLanes lanes={props.lanes} domain={domain} />
-      )}
-      {residualSeries && (
-        <InteractivePlot
-          series={residualSeries}
-          labels={{
-            x: axisLabels.x,
-            y: props.lowerAxis?.y ?? 'Residual',
-            ...(props.lowerAxis?.yValues && { yValues: true }),
-          }}
-          domain={domain}
-          extent={extent}
-          minSpan={minSpan}
-          onDomainChange={setDomain}
-          formatX={(x) => `${xName} ${round(shown(x))}${xUnit}`}
-          heightFor={residualHeight}
-          hideReadout
-          description={props.lowerAxis?.description ?? 'Residual: data minus fit.'}
-        />
-      )}
+        <div ref={plotRef}>
+          <InteractivePlot
+            series={series}
+            labels={axisLabels}
+            domain={domain}
+            extent={extent}
+            minSpan={minSpan}
+            onDomainChange={setDomain}
+            formatX={(x) => `${xName} ${round(shown(x))}${xUnit}`}
+            {...(props.points && { markers: props.points })}
+            {...(props.bands && { bands: props.bands })}
+            {...(props.peakLabels && { peakLabels: props.peakLabels })}
+            {...interaction}
+            figure={figure}
+            description={`Plot of intensity against ${xName}, ${series.length} pattern${series.length === 1 ? '' : 's'}.`}
+          />
+        </div>
+        {props.lanes && props.lanes.length > 0 && (
+          <ReferenceLanes lanes={props.lanes} domain={domain} />
+        )}
+        {residualSeries && (
+          <InteractivePlot
+            series={residualSeries}
+            labels={{
+              x: axisLabels.x,
+              y: props.lowerAxis?.y ?? 'Residual',
+              ...(props.lowerAxis?.yValues && { yValues: true }),
+            }}
+            domain={domain}
+            extent={extent}
+            minSpan={minSpan}
+            onDomainChange={setDomain}
+            formatX={(x) => `${xName} ${round(shown(x))}${xUnit}`}
+            heightFor={residualHeight}
+            hideReadout
+            description={props.lowerAxis?.description ?? 'Residual: data minus fit.'}
+          />
+        )}
+      </Dock>
 
       <div class="plot-controls">
         <fieldset class="plot-range">

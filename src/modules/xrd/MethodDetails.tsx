@@ -311,6 +311,7 @@ export function LineDetails({ result, patternName, data, update }: LineProps) {
             sources={sources}
             settings={data.plot}
             onSettingsChange={(patch) => update({ plot: { ...data.plot, ...patch } })}
+            dock="manual"
             labels={() => axes.labels}
             xName={axes.x}
             xUnit=""
