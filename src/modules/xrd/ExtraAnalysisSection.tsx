@@ -1,6 +1,7 @@
 import { phaseReference } from '../../core/xrd/reference/source';
 import { useMemo } from 'preact/hooks';
 import type { CharacterHint } from '../../core/xrd/analysis/character';
+import { xrayDensity } from '../../core/xrd/analysis/density';
 import { peakTable } from '../../core/xrd/peaks/table';
 import { ANODES } from '../../core/xrd/radiation';
 import { formatWithSigma } from '../../ui/format';
@@ -550,6 +551,14 @@ function summaryItems(
       value: formatWithSigma(fit.volume.value, fit.volume.sigma),
       note,
     });
+    if (lattice.cellMass !== null) {
+      const rho = xrayDensity(lattice.cellMass, fit.volume.value);
+      items.push({
+        quantity: `${who}: X-ray density (g/cm³)`,
+        value: formatWithSigma(rho, (rho * fit.volume.sigma) / fit.volume.value),
+        note: 'ρ = ZM/(N_A V) from the library cell contents and the refined volume; an estimate.',
+      });
+    }
   }
   for (const { phase, result } of textures ?? []) {
     if (!('rows' in result)) continue;

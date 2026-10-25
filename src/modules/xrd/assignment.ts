@@ -20,6 +20,8 @@ import { formatHkl } from '../../core/xrd/reference/hkl';
 import { DEFAULT_MATCH, matchPhase, referenceLines } from '../../core/xrd/reference/match';
 import type { ReferencePhase } from '../../core/xrd/reference/types';
 import type { PeakLabelSet } from '../../ui/plot/peakLabels';
+import { cellMass } from '../../core/xrd/rietveld/refine';
+import { ATOMIC_WEIGHTS } from './atomicWeights';
 import { peaksFor, type XrdData } from './data';
 
 /** One fitted peak and what it was assigned to. */
@@ -46,6 +48,8 @@ export interface LatticeSummary {
   referenceVolume: number;
   /** Peaks left out because their index is not unique. */
   skipped: number;
+  /** Mass of the unit cell contents, g/mol, for the X-ray density; null when the phase lacks them. */
+  cellMass: number | null;
 }
 
 export interface PhaseAssignment {
@@ -165,6 +169,7 @@ export function assignmentFor(
         reference,
         referenceVolume: cellVolume(system, reference),
         skipped: own.length - usable.length,
+        cellMass: cellMass(phase.cellContents, ATOMIC_WEIGHTS),
       },
     };
   });

@@ -5,6 +5,7 @@ import { formatWithSigma } from '../../ui/format';
 import { HelpTip } from '../../ui/HelpTip';
 import { BarChart } from '../../ui/plot/BarChart';
 import type { StepContext } from '../../ui/wizard/types';
+import { xrayDensity } from '../../core/xrd/analysis/density';
 import { assignmentFor } from './assignment';
 import { AssignmentSection } from './AssignmentSection';
 import { downloadTable } from './csv';
@@ -20,9 +21,13 @@ import {
   METHOD_NAMES,
   METHOD_SHORT,
   sizeResults,
+  type MethodId,
   type ResultPeak,
   type SummaryRow,
 } from './sizeResults';
+
+/** Methods that give a size only, left out of the strain chart. */
+const SIZE_ONLY: readonly MethodId[] = ['scherrer', 'monshi', 'linear-scherrer', 'sahadat'];
 
 const CORRECTION_LABELS: Record<CorrectionMethod, string> = {
   gaussian: 'Gaussian',
@@ -45,6 +50,11 @@ export function ResultsStep({ data, update }: StepContext<XrdData>) {
   if (!pattern) return <p>No patterns are loaded. Go back to Upload to add one.</p>;
   const results = sizeResults(data, pattern.id);
   const assignment = phases ? assignmentFor(data, pattern.id, phases, refineZeroShift) : null;
+  const xray = assignment?.phases.flatMap(({ phase, lattice }) =>
+    'outcome' in lattice && lattice.outcome.ok && lattice.cellMass !== null
+      ? [{ name: phase.name, rho: xrayDensity(lattice.cellMass, lattice.outcome.fit.volume.value) }]
+      : [],
+  )[0];
   const assignmentReason = !data.material.phaseIds.length
     ? 'No reference phase is chosen, so peaks are not labelled with (hkl). Choose a material in step 3 and tick "Use this phase" in step 4 to get labels, the combined table and lattice parameters.'
     : failed
@@ -144,6 +154,18 @@ export function ResultsStep({ data, update }: StepContext<XrdData>) {
               }
             />
           </div>
+          {xray && Number(xray.rho.toFixed(3)) !== settings.densityGcm3 && (
+            <p class="field-hint">
+              <button
+                type="button"
+                class="btn"
+                onClick={() => setResults({ densityGcm3: Number(xray.rho.toFixed(3)) })}
+              >
+                Use the X-ray density of {xray.name}, {xray.rho.toFixed(3)} g/cm³
+              </button>{' '}
+              (from its cell contents and refined volume, see the lattice parameters below).
+            </p>
+          )}
           {skipped ? (
             <p class="field-hint">Instrument correction: skipped (change it in step 6).</p>
           ) : (
@@ -247,6 +269,13 @@ function Guidance() {
         <p>
           <strong>Monshi–Scherrer</strong> fits one line through all peaks to get a single size with
           less random error. It still assumes no strain: its slope should be close to 1.
+        </p>
+        <p>
+          <strong>Linear straight-line Scherrer</strong> and <strong>Sahadat–Scherrer</strong> plot
+          cos θ against 1/β and take the size from the slope; Sahadat–Scherrer forces the line
+          through the origin, which the Scherrer equation requires. Both still assume no strain, and
+          they are the same peak widths rearranged, so agreement with Scherrer or Monshi does not
+          confirm the size.
         </p>
         <p>
           <strong>Williamson–Hall UDM</strong> separates size and strain, assuming the strain is the
@@ -374,7 +403,7 @@ function Summary({
     sigma: r.size?.sigma ?? NaN,
   }));
   const strainBars = rows
-    .filter((r) => r.method !== 'scherrer' && r.method !== 'monshi')
+    .filter((r) => !SIZE_ONLY.includes(r.method))
     .map((r) => ({
       label: METHOD_SHORT[r.method],
       value: (r.strain?.value ?? NaN) * 1e3,
