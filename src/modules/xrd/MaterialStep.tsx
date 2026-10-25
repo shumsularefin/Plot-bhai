@@ -4,6 +4,7 @@ import { formatNumber } from '../../core/xrd/parsers/numbers';
 import { DEFAULT_MATCH, matchPhase, referenceLines } from '../../core/xrd/reference/match';
 import {
   describeQuery,
+  hillFormula,
   parseFormula,
   parseQuery,
   searchPhases,
@@ -19,6 +20,7 @@ import { ANODES } from '../../core/xrd/radiation';
 import { HelpTip } from '../../ui/HelpTip';
 import type { StepContext } from '../../ui/wizard/types';
 import { readCifFile } from './cifClient';
+import { CodSearch } from './CodSearch';
 import { DEFAULT_MATERIAL, type MaterialState, type XrdData } from './data';
 import { codUrl, familyOf, libraryIndex, loadReferenceFamily } from './referenceLibrary';
 import { useMeasured } from './useMeasured';
@@ -61,18 +63,6 @@ const fromCif = (phase: ReferencePhase): ListedPhase => ({
   codId: phase.codId,
   notes: phase.origin?.kind === 'cif' ? (phase.origin.notes ?? []) : [],
 });
-
-/** Hill-order formula with spaces, as COD's formula search expects ("Bi O4 V"). */
-function hillFormula(counts: Record<string, number>): string {
-  const elements = Object.keys(counts).sort((a, b) => {
-    const rank = (e: string) =>
-      counts['C'] !== undefined ? (e === 'C' ? 0 : e === 'H' ? 1 : 2) : 2;
-    return rank(a) - rank(b) || a.localeCompare(b);
-  });
-  return elements
-    .map((e) => `${e}${counts[e] === 1 ? '' : Number((counts[e] as number).toFixed(3))}`)
-    .join(' ');
-}
 
 /** A COD search page for what was typed (formula or elements), checked to work in October 2026. */
 function codSearchUrl(query: PhaseQuery): string | null {
@@ -132,11 +122,19 @@ export function MaterialStep({ data, update }: StepContext<XrdData>) {
       hidden: material.hidden.filter((h) => h !== id),
       userPhases: material.userPhases.filter((p) => p.id !== id),
     });
-  const addCifPhases = (phases: ReferencePhase[]) =>
+  // A phase loaded again (for example a COD entry removed and added back) replaces the old copy.
+  const addCifPhases = (phases: ReferencePhase[]) => {
+    const ids = new Set(phases.map((p) => p.id));
     setMaterial({
-      userPhases: [...material.userPhases, ...phases],
-      candidates: [...material.candidates, ...phases.map((p) => p.id)],
+      userPhases: [...material.userPhases.filter((p) => !ids.has(p.id)), ...phases],
+      candidates: [...material.candidates.filter((id) => !ids.has(id)), ...ids],
     });
+  };
+  const candidateCodIds = new Set(
+    material.userPhases
+      .filter((p) => material.candidates.includes(p.id) && p.codId !== null)
+      .map((p) => p.codId as number),
+  );
 
   const candidates: ListedPhase[] = material.candidates.flatMap((id) => {
     const family = familyOf(id);
@@ -250,6 +248,8 @@ export function MaterialStep({ data, update }: StepContext<XrdData>) {
           </>
         )}
       </section>
+
+      <CodSearch onLoaded={addCifPhases} loadedIds={candidateCodIds} />
 
       <CifLoader onLoaded={addCifPhases} codLink={codLink} query={query.trim()} />
 

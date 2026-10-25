@@ -22,6 +22,11 @@ export default tseslint.config(
     languageOptions: { globals: globals.browser, sourceType: 'script' },
   },
   {
+    // The COD lookup runs as a Cloudflare Worker (service-worker style globals).
+    files: ['worker/**/*.js'],
+    languageOptions: { globals: globals.serviceworker },
+  },
+  {
     files: ['scripts/**/*.{js,mjs,ts}', '*.config.{js,ts}'],
     languageOptions: { globals: globals.node },
   },

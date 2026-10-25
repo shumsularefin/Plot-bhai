@@ -23,9 +23,10 @@ export default function About() {
         <h2 id="about-privacy">Privacy</h2>
         <p>
           All processing happens in your browser. Your files are never uploaded, and the site has no
-          accounts, analytics or tracking. Your work is kept in this browser (IndexedDB) so a
-          refresh does not lose it; clearing site data removes it. Use the session file in each tool
-          to keep a copy or move it to another device.
+          accounts, analytics or tracking. The only request that leaves your browser is the optional
+          online COD search, which sends the elements, formula or COD number you choose. Your work
+          is kept in this browser (IndexedDB) so a refresh does not lose it; clearing site data
+          removes it. Use the session file in each tool to keep a copy or move it to another device.
         </p>
       </section>
 
@@ -113,9 +114,15 @@ export default function About() {
           limited set of common phases, so a phase that is not listed is not ruled out. Any other
           structure can be added as a CIF file, for example one downloaded from COD or the Materials
           Project; its pattern is calculated in your browser in the same way, with notes on partial
-          occupancy, missing displacement parameters and hydrogen. The site cannot search COD or the
-          Materials Project directly, because those services do not allow requests from other
-          websites and the site has no server of its own; it links to their search pages instead.
+          occupancy, missing displacement parameters and hydrogen.
+        </p>
+        <p>
+          The whole of COD can also be searched online from a periodic table (elements, only those
+          elements, or an exact formula). COD does not accept requests from other websites, so a
+          small lookup service run for this site on Cloudflare passes the search on and returns the
+          chosen CIF. Only the elements, formula and COD numbers you choose are sent; your data
+          files never leave your browser. Searches with more than 300 results must be narrowed. The
+          Materials Project cannot be searched from here; download its CIF files instead.
         </p>
         <p>
           The calculated overlay draws each candidate as a pseudo-Voigt profile (with Kα2 when the

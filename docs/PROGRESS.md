@@ -1,5 +1,40 @@
 # Progress
 
+## Online COD search through a Cloudflare Worker (done in code; waiting for the owner's Cloudflare setup)
+
+Branch `claude/zen-edison-acnmco`. The owner approved relaxing the "no backend" rule for one
+read-only COD lookup (CLAUDE.md section 2 updated).
+
+### What was built
+
+- `worker/lookup.js` (handler) and `worker/index.js` (entry with Cloudflare's cache), deployed by
+  `.github/workflows/worker.yml` with wrangler 4.152.0. Two routes only: `/search` (elements,
+  optionally only those, or an exact Hill formula) and `/cif/<7 digits>`. Inputs are validated
+  before COD is contacted; COD's `format=count` is asked first and searches over 300 results are
+  refused with their count (COD has no result limit: Fe + O "contains" is 24,133 entries, 37 MB,
+  which would exceed the free plan's CPU time to parse). CORS only for the live site, its preview
+  channels and localhost. Setup steps: docs/cod-lookup.md.
+- XRD step 3: "Search COD online" with a clickable periodic table (44 px cells, scrolls sideways
+  in its box on phones), "only these elements" or "these and any others", exact formula (converted
+  to COD's Hill order), result filter, and Add: the CIF is downloaded and calculated in the
+  browser by the same worker and checks as uploaded CIFs. Hidden while `COD_API` is empty.
+- `hillFormula` moved to `src/core/xrd/reference/search.ts`; `readCifText` in `cifClient.ts`;
+  re-adding a removed CIF phase replaces the old copy instead of duplicating its id.
+
+### Checks
+
+- `tests/cod-lookup.test.ts` (8 tests, COD stubbed) and `tests/cod-search.test.tsx` (5 tests,
+  real CIF reader).
+- Handler run against the live COD from Node and inside `wrangler dev` (Cloudflare's runtime):
+  Bi-V-O only → 23 entries, BiVO4 formula → 9, Fe-O only → 154, Fe-O contains → refused (24,133).
+- Browser walkthrough at 1280 and 360 px against a local copy: search, add COD 9013437, the phase
+  appears as a candidate; no console errors, no horizontal page scroll.
+
+### Next
+
+- Owner: add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` to the GitHub secrets.
+- Then: set `COD_API` and the CSP `connect-src` to the deployed address, redeploy the site.
+
 ## Research-readiness audit against the user's data (done)
 
 Branch `claude/zen-edison-acnmco`. Run at the user's request with their files: an X'Pert XRD scan

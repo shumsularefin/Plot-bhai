@@ -958,3 +958,91 @@
   gap: var(--space-2);
   margin: var(--space-3) 0;
 }
+
+/* Online COD search: periodic table and controls. */
+.periodic-scroll {
+  overflow-x: auto;
+  padding-bottom: var(--space-1);
+}
+
+.periodic-table {
+  display: grid;
+  grid-template-columns: repeat(18, minmax(var(--touch-target), 1fr));
+  gap: 2px;
+  min-width: calc(18 * var(--touch-target) + 17 * 2px);
+  max-width: 62rem;
+}
+
+.periodic-cell {
+  min-height: var(--touch-target);
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.periodic-cell:hover:not(:disabled) {
+  border-color: var(--color-accent);
+}
+
+.periodic-cell.is-on {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent, #fff);
+  font-weight: var(--weight-medium);
+}
+
+.periodic-cell:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.periodic-cell:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+.periodic-empty {
+  display: grid;
+  place-items: center;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.periodic-gap {
+  grid-column: 1 / -1;
+  height: var(--space-2);
+}
+
+.cod-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-2) var(--space-4);
+  margin-top: var(--space-3);
+}
+
+.cod-selected {
+  display: flex;
+  flex-basis: 100%;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.cod-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-4);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.cod-filter {
+  margin: var(--space-3) 0;
+}
