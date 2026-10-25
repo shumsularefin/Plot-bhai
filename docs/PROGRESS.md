@@ -1,5 +1,58 @@
 # Progress
 
+## Sub-stage 14a: Polish (done)
+
+Branch `claude/friendly-cray-f64dgw`. Stage 14 items 1 to 4 (responsive audit, Lighthouse, accessibility, states).
+
+### What was built
+
+- `scripts/audit.mjs` (`npm run audit`, run `npm run build` first): opens the home page and every tool at
+  360, 768, 1280 and 1920 px, loads the example data, steps through every wizard step and reports sideways
+  page scroll, touch targets under 44 px, unnamed controls and unnamed plots. Result: clean at all four widths.
+- Real accessibility defects found and fixed: a control placed after a "What is this?" help button inside the
+  same label was left without an accessible name (number inputs, the prominence slider, the tolerance input,
+  the atmosphere and sample type selects). They now carry an `aria-label`.
+- `src/ui/ErrorBoundary.tsx`: a render error in a tool shows a plain message with "Try again" and "Reload the
+  page" instead of a blank screen (work is kept in IndexedDB). Test: `tests/errorBoundary.test.tsx`.
+- Loading and chunk-load failure states already existed in `LazyTool`; reduced motion is handled in `tokens.css`.
+
+### Measured numbers
+
+Lighthouse 12, mobile emulation with default throttling, headless Chromium, against `vite preview` of the
+production build on this machine (not a real phone):
+
+| Page      | Performance | Accessibility | Best practices | SEO | LCP   | CLS   | TBT   |
+| --------- | ----------- | ------------- | -------------- | --- | ----- | ----- | ----- |
+| Home      | 100         | 100           | 100            | 91  | 1.2 s | 0     | 0 ms  |
+| XRD       | 100         | 100           | 100            | 91  | 1.9 s | 0.02  | 10 ms |
+| UV-Vis    | 100         | 100           | 100            | 91  | 1.7 s | 0.021 | 0 ms  |
+| FTIR      | 100         | 100           | 100            | 91  | 1.8 s | 0.023 | 0 ms  |
+| Particles | 100         | 100           | 100            | 91  | 1.7 s | 0.02  | 0 ms  |
+| Thermal   | 100         | 100           | 100            | 91  | 1.9 s | 0.029 | 10 ms |
+
+Initial JavaScript is 8.7 KB gzipped (budget 150 KB); each tool is its own chunk. Tests: 625 passed, 1 skipped.
+
+### Decisions
+
+- Lighthouse is run ad hoc with `npx lighthouse@12` and is not added as a dependency.
+- Colour contrast was checked by Lighthouse (accessibility 100, which includes contrast) in the light theme
+  only; the dark theme was not separately measured.
+
+### Known issues
+
+- SEO 91 on every page: `robots.txt` is invalid. Belongs to 14b (deploy files).
+- Lighthouse was not run on later wizard steps, only on each tool's first screen; the audit script covers
+  later steps for layout, targets and names, not performance.
+- Hash-route pages are measured by Lighthouse as separate loads of the same document.
+
+### Needed from the user
+
+- A check on a real phone and a real screen reader pass; neither can be done here.
+
+### Next sub-stage
+
+14b: About page, PWA, deploy, final status (Stage 14 items 5 to 8).
+
 ## Sub-stage 12b: Combined TGA-DSC (done)
 
 Branch `claude/friendly-cray-f64dgw`, started from the merge of pull request 20 (12a is in `main`).

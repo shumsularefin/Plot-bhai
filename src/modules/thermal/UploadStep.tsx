@@ -373,6 +373,7 @@ export function UploadStep({ data, update }: StepContext<ThermalData>) {
                 </HelpTip>
               </span>
               <select
+                aria-label="Atmosphere"
                 value={info.atmosphere}
                 onChange={(e) => setInfo({ atmosphere: e.currentTarget.value as Atmosphere })}
               >
@@ -457,6 +458,7 @@ export function UploadStep({ data, update }: StepContext<ThermalData>) {
                 </HelpTip>
               </span>
               <select
+                aria-label="Sample type"
                 value={info.category}
                 onChange={(e) => setInfo({ category: e.currentTarget.value as SampleCategory })}
               >

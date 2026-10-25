@@ -18,6 +18,7 @@ export function NumberInput({ label, value, onChange, min, max, step, help }: Nu
       </span>
       <input
         type="number"
+        aria-label={label}
         inputMode="decimal"
         step={step ?? 'any'}
         {...(min !== undefined && { min })}
