@@ -211,8 +211,8 @@ describe('figure editor on screen', () => {
     expect(settings.figures?.['sample-fit']?.series?.['data']?.dash).toBe('dotted');
     expect(settings.figures?.['sample-fit']?.axes?.yTitle).toBe('Counts');
     fireEvent.click(screen.getByRole('button', { name: 'Add text' }));
-    expect(screen.getByText(/Click or tap the plot to place the text/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByText(/Click or tap the plot to place a text.*keep clicking/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
     expect(sources[0]?.y).toEqual(before);
     fireEvent.click(screen.getByRole('button', { name: 'Reset the figure styling' }));
     expect(settings.figures?.['sample-fit']).toEqual(DEFAULT_FIGURE);

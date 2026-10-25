@@ -95,6 +95,13 @@ export function PlotPanel(props: PlotPanelProps) {
   const plotRef = useRef<HTMLDivElement>(null);
   const placing = placement !== null;
   // The editor sits under the plot; bring the plot into view when it waits for a click.
+  // Escape ends placing annotations.
+  useEffect(() => {
+    if (!placing) return;
+    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && setPlacement(null);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [placing]);
   useEffect(() => {
     if (!placing) return;
     const reduce = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -152,9 +159,10 @@ export function PlotPanel(props: PlotPanelProps) {
         ? newAnnotation('arrow', x, y, first)
         : placement.kind === 'region' && first
           ? newAnnotation('region', first.x, first.y, { x, y })
-          : newAnnotation(placement.kind, x, y);
+          : newAnnotation(placement.kind, x, y, undefined, placement.shape);
     setFigure({ ...figure, annotations: [...figure.annotations, annotation] });
-    setPlacement(null);
+    // The tool stays chosen, so several markers (or lines, labels) can be placed in a row.
+    setPlacement({ kind: placement.kind, ...(placement.shape && { shape: placement.shape }) });
   };
   const interaction: PlotInteraction | undefined = placement
     ? {
