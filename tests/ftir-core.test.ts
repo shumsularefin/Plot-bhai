@@ -292,3 +292,23 @@ describe('peak picking', () => {
     expect(peaks.map((p) => p.prominence)).toEqual([5, 1]);
   });
 });
+
+describe('atmospheric bands among the suggestions', () => {
+  it('flags a band at 2345 cm⁻¹ as possible atmospheric CO2 and a 650 band as TiO2 first', async () => {
+    const { suggestAssignments } = await import('../src/core/ftir/assign');
+    const groups = (await import('../data/ftir/groups.json')).default;
+    const atmosphere = (await import('../data/ftir/atmosphere.json')).default;
+    const co2 = suggestAssignments(2345, groups as never, 15, 6, atmosphere);
+    expect(co2[0]?.kind).toBe('atmosphere');
+    expect(co2[0]?.label).toContain('CO2');
+    expect(co2[0]?.reason).toContain('background');
+    // A listed metal-oxide band within the 4 cm⁻¹ resolution ranks with the ranges containing the peak.
+    const tio2 = suggestAssignments(651, groups as never, 15, 6, atmosphere);
+    expect(
+      tio2
+        .slice(0, 2)
+        .map((s) => s.label)
+        .join(' '),
+    ).toMatch(/TiO2/);
+  });
+});

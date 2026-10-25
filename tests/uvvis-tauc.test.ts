@@ -244,3 +244,16 @@ describe('edge shape helper', () => {
     expect(energyFromWavelength(1239.84198)).toBeCloseTo(1, 5);
   });
 });
+
+describe('derivative maximum at the edge of the search range', () => {
+  it('is flagged when the signal keeps steepening to the end, and not for a real edge', async () => {
+    const { derivativeMaximum } = await import('../src/core/uvvis/tauc');
+    const e = Float64Array.from({ length: 200 }, (_, i) => 2.5 + 0.01 * i);
+    const steepening = e.map((v) => Math.exp(3 * (v - 2.5)));
+    expect(derivativeMaximum(e, steepening, 'linear', -Infinity, Infinity)?.atEdge).toBe(true);
+    const sigmoid = e.map((v) => 1 / (1 + Math.exp(-(v - 3.4) / 0.05)));
+    const found = derivativeMaximum(e, sigmoid, 'linear', -Infinity, Infinity);
+    expect(found?.atEdge).toBe(false);
+    expect(found?.egEv).toBeCloseTo(3.4, 1);
+  });
+});

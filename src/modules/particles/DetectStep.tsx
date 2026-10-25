@@ -10,6 +10,7 @@ import {
   type Point,
 } from '../../core/particles/geometry';
 import { formatNumber } from '../../core/xrd/parsers/numbers';
+import { Advanced } from '../../ui/Advanced';
 import { HelpTip } from '../../ui/HelpTip';
 import type { StepContext } from '../../ui/wizard/types';
 import { downloadCsv } from '../xrd/csv';
@@ -94,6 +95,9 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
   const [busy, setBusy] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [showMask, setShowMask] = useState(false);
+  const [sensitivity, setSensitivity] = useState<
+    { threshold: number; count: number; mean: number }[] | null
+  >(null);
   const [mask, setMask] = useState<HTMLCanvasElement | null>(null);
   const [showUnit, setShowUnit] = useState<'px' | LengthUnit>(data.scale?.unit ?? 'px');
   const detectClient = useRef(new DetectClient());
@@ -255,6 +259,61 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
   const cancel = () => {
     detectClient.current.cancel();
     setBusy(null);
+  };
+
+  /**
+   * Detects again with fixed thresholds 10 grey levels either side of the one used, with every
+   * other setting and filter unchanged, and reports the count and mean equal-area diameter of
+   * each: soft particle edges make the size depend on the threshold, and this spread is a
+   * systematic uncertainty a single detection does not show. The particles on screen are kept.
+   */
+  const testSensitivity = async () => {
+    const centre = detect.thresholdUsed ?? settings.threshold.manual;
+    setBusy('Testing the threshold: three detections…');
+    setProblem(null);
+    try {
+      const g = gray();
+      const rows: { threshold: number; count: number; mean: number }[] = [];
+      for (const threshold of [centre - 10, centre, centre + 10]) {
+        if (threshold < 1 || threshold > 254) continue;
+        const result = await detectClient.current.detect({
+          gray: g.gray,
+          width: g.width,
+          height: g.height,
+          settings: {
+            ...settings,
+            threshold: { ...settings.threshold, method: 'manual', manual: threshold },
+          },
+          area,
+        });
+        if (result === null) return;
+        if (result === 'error') {
+          setProblem('The sensitivity test failed. Try a smaller image.');
+          return;
+        }
+        const particles = result.particles.map((runs, i) => ({
+          id: i + 1,
+          runs,
+          source: 'auto' as const,
+        }));
+        const keptHere = applyFilters(particles, filters, {
+          scale: work.scale,
+          nmPerPixel: perPixelNm,
+          edgeArea,
+        }).kept;
+        const diameters = keptHere.map((p) => sizesOf(p.runs, work.scale).eqDiameter);
+        rows.push({
+          threshold,
+          count: diameters.length,
+          mean: diameters.length ? diameters.reduce((a, b) => a + b, 0) / diameters.length : NaN,
+        });
+      }
+      setSensitivity(rows);
+    } catch {
+      setProblem('The image could not be prepared in this browser.');
+    } finally {
+      setBusy(null);
+    }
   };
 
   const toWork = (p: Point): Point => ({ x: p.x * work.scale, y: p.y * work.scale });
@@ -471,6 +530,73 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
           <p class="field-hint">
             Otsu chose grey level {detect.thresholdUsed} in the last detection.
           </p>
+        )}
+        {settings.threshold.method !== 'adaptive' && detect.particles.length > 0 && (
+          <Advanced id="particle-threshold-sensitivity" title="Threshold sensitivity">
+            <p class="field-hint">
+              Particle edges in electron micrographs are blurred, so the measured size depends on
+              the threshold. This detects again 10 grey levels below and above the one used (other
+              settings and filters unchanged) and compares the mean equal-area diameter. Your
+              particles on screen are not changed. Report the spread as an uncertainty of the
+              method, in addition to the spread of sizes.
+            </p>
+            <button
+              type="button"
+              class="btn"
+              onClick={() => void testSensitivity()}
+              disabled={busy !== null}
+            >
+              Test ±10 grey levels
+            </button>
+            {sensitivity && sensitivity.length > 0 && (
+              <div
+                class="table-scroll"
+                tabIndex={0}
+                role="region"
+                aria-label="Threshold sensitivity"
+              >
+                <table class="peak-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Threshold (grey level)</th>
+                      <th scope="col">Particles kept</th>
+                      <th scope="col">Mean equal-area diameter</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sensitivity.map((r) => (
+                      <tr key={r.threshold}>
+                        <td>{r.threshold}</td>
+                        <td>{r.count}</td>
+                        <td>
+                          {Number.isFinite(r.mean)
+                            ? perPixelNm
+                              ? `${formatNumber(r.mean * perPixelNm, 2)} nm`
+                              : `${formatNumber(r.mean, 1)} px`
+                            : '–'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {sensitivity &&
+              sensitivity.length === 3 &&
+              (() => {
+                const lo = sensitivity[0]?.mean ?? NaN;
+                const mid = sensitivity[1]?.mean ?? NaN;
+                const hi = sensitivity[2]?.mean ?? NaN;
+                const change = (Math.abs(hi - lo) / 2 / mid) * 100;
+                return Number.isFinite(change) ? (
+                  <p class={change > 5 ? 'message is-warning' : 'field-hint'}>
+                    The mean diameter changes by about ±{formatNumber(change, 1)} % over ±10 grey
+                    levels.
+                    {change > 5 && ' Choose the threshold with care, and state it in your methods.'}
+                  </p>
+                ) : null;
+              })()}
+          </Advanced>
         )}
         <label class="check">
           <input

@@ -294,6 +294,11 @@ export interface DerivativePeak {
   egEv: number;
   /** The derivative there: dS/dE, or d ln S/dE in 1/eV. */
   value: number;
+  /**
+   * True when the maximum is at the first or last energy searched: the derivative is still
+   * rising there, so the steepest part of the edge was not found in the range.
+   */
+  atEdge: boolean;
 }
 
 /** Half-width, in points, of the local straight-line fit that gives the derivative. */
@@ -305,7 +310,7 @@ const DERIVATIVE_HALF_WINDOW = 4;
  * derivative at each point is the slope of a straight line through it and its 4 neighbours on
  * each side (works for uneven energy spacing and smooths noise a little). An estimate only: it
  * marks the steepest part of the edge, which lies above Eg for real spectra. Returns null when
- * nothing is in range.
+ * nothing is in range; atEdge flags a maximum on the boundary of the searched range.
  */
 export function derivativeMaximum(
   energyEv: Float64Array,
@@ -315,7 +320,10 @@ export function derivativeMaximum(
   toEv: number,
 ): DerivativePeak | null {
   const values = mode === 'log' ? signal.map((v) => (v > 0 ? Math.log(v) : NaN)) : signal;
-  let best: DerivativePeak | null = null;
+  let best: Omit<DerivativePeak, 'atEdge'> | null = null;
+  let first = -1;
+  let last = -1;
+  let bestIndex = -1;
   const n = energyEv.length;
   for (let i = DERIVATIVE_HALF_WINDOW; i < n - DERIVATIVE_HALF_WINDOW; i++) {
     const e = energyEv[i] as number;
@@ -326,7 +334,13 @@ export function derivativeMaximum(
     const ys = Array.from(values.slice(from, to));
     if (ys.some((v) => !Number.isFinite(v))) continue;
     const fit = linearFit(xs, ys);
-    if (fit && (best === null || fit.slope > best.value)) best = { egEv: e, value: fit.slope };
+    if (!fit) continue;
+    if (first < 0) first = i;
+    last = i;
+    if (best === null || fit.slope > best.value) {
+      best = { egEv: e, value: fit.slope };
+      bestIndex = i;
+    }
   }
-  return best;
+  return best && { ...best, atEdge: bestIndex === first || bestIndex === last };
 }

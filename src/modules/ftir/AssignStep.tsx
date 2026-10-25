@@ -1,5 +1,5 @@
 import { useMemo } from 'preact/hooks';
-import { suggestAssignments, type GroupTable } from '../../core/ftir/assign';
+import { suggestAssignments, type AtmosphereTable, type GroupTable } from '../../core/ftir/assign';
 import { formatNumber } from '../../core/xrd/parsers/numbers';
 import { HelpTip } from '../../ui/HelpTip';
 import type { StepContext } from '../../ui/wizard/types';
@@ -9,10 +9,12 @@ import { peaksFor, type Assignment, type FtirData } from './data';
 import { curveOf, FtirPlot, peakLabelsFor } from './FtirPlot';
 import { QuantityChoice } from './QuantityChoice';
 import { shownQuantity, valueIn } from './quantity';
+import atmosphereBands from '../../../data/ftir/atmosphere.json';
 import groups from '../../../data/ftir/groups.json';
 import { useSelectedSpectrum } from './useSelected';
 
 const table = groups as GroupTable;
+const atmosphere = atmosphereBands as AtmosphereTable;
 
 /** Wizard step 4: suggested assignments for each peak, which the user accepts, edits or removes. */
 export function AssignStep({ data, update }: StepContext<FtirData>) {
@@ -32,7 +34,7 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
       peaks.map((peak) => ({
         peak,
         label: assignmentFor(stored, peak.wavenumber),
-        suggestions: suggestAssignments(peak.wavenumber, table, data.toleranceCm),
+        suggestions: suggestAssignments(peak.wavenumber, table, data.toleranceCm, 6, atmosphere),
       })),
     [peaks, stored, data.toleranceCm],
   );

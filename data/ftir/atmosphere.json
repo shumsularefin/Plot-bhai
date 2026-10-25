@@ -1,0 +1,15 @@
+{
+  "source": {
+    "citation": "NIST Computational Chemistry Comparison and Benchmark Database (CCCBDB), NIST Standard Reference Database 101, experimental vibrational fundamentals: carbon dioxide (CAS 124-38-9; values from Herzberg 1945) and water (CAS 7732-18-5; values from Shimanouchi and from Hu and Herzberg 1979)",
+    "url": "https://cccbdb.nist.gov/exp2x.asp?casno=124389&charge=0",
+    "retrieved": "2026-10-25"
+  },
+  "verification": "Gas-phase fundamentals read from the CCCBDB pages on the date above. In a spectrum, water vapour shows as many sharp rotation-vibration lines around these values rather than one band, and CO2 at 2349 cm-1 as a doublet. TODO, verify against your own background spectra.",
+  "bands": [
+    { "id": "gas-co2-stretch", "label": "Atmospheric CO2 (asymmetric stretch)", "cm": 2349 },
+    { "id": "gas-co2-bend", "label": "Atmospheric CO2 (bend)", "cm": 667 },
+    { "id": "gas-h2o-bend", "label": "Water vapour (bend)", "cm": 1595 },
+    { "id": "gas-h2o-sym", "label": "Water vapour (symmetric O–H stretch)", "cm": 3657 },
+    { "id": "gas-h2o-asym", "label": "Water vapour (asymmetric O–H stretch)", "cm": 3756 }
+  ]
+}
