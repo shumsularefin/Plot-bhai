@@ -1,3 +1,5 @@
+import { localNoise } from './noise';
+
 /** A peak found automatically, before fitting. Angles in degrees 2θ. */
 export interface DetectedPeak {
   index: number;
@@ -8,6 +10,8 @@ export interface DetectedPeak {
   prominence: number;
   /** Width at half the prominence, interpolated (degrees). */
   width: number;
+  /** Prominence divided by the local noise level (see noise.ts); Infinity on noise-free data. */
+  snr: number;
 }
 
 export interface DetectionOptions {
@@ -15,9 +19,25 @@ export interface DetectionOptions {
   prominencePercent: number;
   /** Peaks closer than this (degrees) are merged, keeping the more prominent one. */
   minSeparationDeg: number;
+  /** Smallest prominence in units of the local noise level (0 switches the test off). */
+  minSnr: number;
+  /** Smallest width at half prominence, in data steps (0 switches the test off). */
+  minWidthSteps: number;
 }
 
-export const DEFAULT_DETECTION: DetectionOptions = { prominencePercent: 3, minSeparationDeg: 0.1 };
+/**
+ * Defaults of my own choosing. On simulated scans of pure counting noise (3500 points, 30 to
+ * 1000 counts per point, 20 scans each; see tests/xrd-validation.test.ts) a signal-to-noise of
+ * 7 and a width of 3 steps gave about 0.1 false peaks per scan, where 3 and 2 gave about 100
+ * (topographic prominence makes a noise maximum look several σ tall). A real peak must also
+ * stand out by 3 % of the data range. A weaker real peak can be found by lowering the limits.
+ */
+export const DEFAULT_DETECTION: DetectionOptions = {
+  prominencePercent: 3,
+  minSeparationDeg: 0.1,
+  minSnr: 7,
+  minWidthSteps: 3,
+};
 
 /**
  * Finds peaks by topographic prominence, the same definition as SciPy's find_peaks.
@@ -30,6 +50,10 @@ export const DEFAULT_DETECTION: DetectionOptions = { prominencePercent: 3, minSe
  *    peak closer than minSeparationDeg to a kept peak is dropped.
  * 4. Width: the distance between the points where the peak falls to (peak − prominence / 2),
  *    linearly interpolated, within the peak's bases.
+ * 5. Noise tests: a peak whose prominence is below minSnr times the local noise level (see
+ *    localNoise), or whose width is below minWidthSteps median data steps, is dropped. These
+ *    remove single-point counting spikes, which the prominence threshold alone keeps on noisy
+ *    scans.
  *
  * x: 2θ in degrees, increasing. Returns peaks sorted by position.
  */
@@ -46,6 +70,11 @@ export function detectPeaks(
     if (v > hi) hi = v;
   }
   const threshold = ((hi - lo) * options.prominencePercent) / 100;
+  const noise = options.minSnr > 0 ? localNoise(y) : null;
+  const steps: number[] = [];
+  for (let i = 1; i < n; i++) steps.push((x[i] as number) - (x[i - 1] as number));
+  steps.sort((a, b) => a - b);
+  const minWidth = options.minWidthSteps * (steps[steps.length >> 1] ?? 0);
 
   const higherLeft = nearestHigher(y, 1);
   const higherRight = nearestHigher(y, -1);
@@ -84,12 +113,17 @@ export function detectPeaks(
     };
     const left = a < peak ? cross(a, a + 1) : (x[peak] as number);
     const right = b > peak ? cross(b, b - 1) : (x[peak] as number);
+    const level = noise ? (noise[peak] as number) : 0;
+    const snr = level > 0 ? prominence / level : Infinity;
+    if (noise && snr < options.minSnr) continue;
+    if (right - left < minWidth) continue;
     candidates.push({
       index: peak,
       center: x[peak] as number,
       height: v,
       prominence,
       width: right - left,
+      snr,
     });
   }
 

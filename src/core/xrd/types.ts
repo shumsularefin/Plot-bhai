@@ -24,6 +24,8 @@ export interface RawScan {
   countingTimeS?: number;
   /** K-alpha1 wavelength in ångström as written in the file, if present. Not verified. */
   wavelengthFromFileA?: number;
+  /** Measurement settings listed in the file header ("key, value" pairs), as written. */
+  metadata?: { key: string; value: string }[];
   /** Notes made while reading, for example skipped lines. */
   notes: DataMessage[];
 }
@@ -43,6 +45,8 @@ export interface Pattern {
   unitOrigin: 'file' | 'guess' | 'user' | 'generated';
   countingTimeS?: number;
   wavelengthFromFileA?: number;
+  /** Measurement settings listed in the file header, as written (for the record of the analysis). */
+  metadata?: { key: string; value: string }[];
   /** True for generated example data. Never a real measurement. */
   synthetic: boolean;
   /** Messages from reading and checking the file. */

@@ -47,13 +47,17 @@ export function peakFitTable(
     ]),
     { header: 'Region R²', value: (r) => regions[r.region]?.rSquared ?? '' },
     {
+      header: 'Region reduced chi-squared',
+      value: (r) => regions[r.region]?.reducedChiSquared ?? '',
+    },
+    {
       header: 'Notes',
       value: (r) => (regions[r.region]?.peaks[r.peak]?.messages ?? []).map((m) => m.text).join(' '),
     },
   ];
   return makeTable(
     `${patternName}-peaks`,
-    `Peak fit for ${patternName}. d from Bragg's law with λ = ${lambda} Å. Height in ${intensityUnit}; area in ${intensityUnit} × degrees. σ = standard uncertainty from the fit covariance.`,
+    `Peak fit for ${patternName}. d from Bragg's law with λ = ${lambda} Å. Height in ${intensityUnit}; area in ${intensityUnit} × degrees. σ = standard uncertainty from the fit covariance (empty or NaN when it could not be determined). Reduced chi-squared = residual variance / noise variance estimated from the point-to-point scatter.`,
     rows,
     columns,
   );

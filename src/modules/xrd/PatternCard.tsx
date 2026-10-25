@@ -95,6 +95,19 @@ export function PatternCard({ pattern, onChange, onConvertRadians, onRemove }: P
           </div>
         )}
       </dl>
+      {pattern.metadata && pattern.metadata.length > 0 && (
+        <details class="pattern-metadata">
+          <summary>Measurement settings from the file header ({pattern.metadata.length})</summary>
+          <dl class="summary-grid">
+            {pattern.metadata.map((field, i) => (
+              <div key={i}>
+                <dt>{field.key}</dt>
+                <dd>{field.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </details>
+      )}
 
       <div class="pattern-unit">
         <label for={`${id}-unit`}>Intensity unit</label>

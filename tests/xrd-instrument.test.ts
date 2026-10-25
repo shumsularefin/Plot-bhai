@@ -280,6 +280,8 @@ describe('instrument curves', () => {
     const found = detectPeaks(standard.twoTheta, standard.intensity, {
       prominencePercent: 3,
       minSeparationDeg: 0.1,
+      minSnr: 0,
+      minWidthSteps: 0,
     });
     expect(found).toHaveLength(angles.length);
     const regions = fitPeaks(

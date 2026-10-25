@@ -187,7 +187,11 @@ export function fitInputKey(
 }
 
 export function peaksFor(data: XrdData, id: string): PeakState {
-  return data.peaks[id] ?? DEFAULT_PEAK_STATE;
+  const stored = data.peaks[id];
+  // Sessions saved before the noise tests existed have no values for them: use the defaults.
+  return stored
+    ? { ...stored, detection: { ...DEFAULT_DETECTION, ...stored.detection } }
+    : DEFAULT_PEAK_STATE;
 }
 
 export const initialXrdData: XrdData = {
