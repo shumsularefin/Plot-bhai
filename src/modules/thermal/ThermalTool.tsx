@@ -17,13 +17,15 @@ const store = createPersistedStore({
 
 // Defined once at module level so LazyTool does not reload it on every render.
 const loadDsc = () => import('./dsc/DscTool');
+const loadKinetics = () => import('./kinetics/KineticsTool');
 
-type Technique = 'tga' | 'dsc';
+type Technique = 'tga' | 'dsc' | 'kinetics';
 const MODE_KEY = 'thermal-technique';
 
 function savedTechnique(): Technique {
   try {
-    return localStorage.getItem(MODE_KEY) === 'dsc' ? 'dsc' : 'tga';
+    const saved = localStorage.getItem(MODE_KEY);
+    return saved === 'dsc' || saved === 'kinetics' ? saved : 'tga';
   } catch {
     return 'tga';
   }
@@ -62,9 +64,20 @@ export default function ThermalTool() {
           />
           DSC (heat flow)
         </label>
+        <label class={technique === 'kinetics' ? 'is-selected' : ''}>
+          <input
+            type="radio"
+            name="technique"
+            checked={technique === 'kinetics'}
+            onChange={() => choose('kinetics')}
+          />
+          Kinetics (several heating rates)
+        </label>
       </fieldset>
       {technique === 'dsc' ? (
         <LazyTool load={loadDsc} />
+      ) : technique === 'kinetics' ? (
+        <LazyTool load={loadKinetics} />
       ) : (
         <Wizard title="TGA analysis" steps={thermalSteps} store={store} />
       )}

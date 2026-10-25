@@ -225,3 +225,48 @@ export function exampleStaTable(): ThermalTable {
     ],
   };
 }
+
+/** A made-up single-step reaction for the kinetics tool. */
+export interface KineticModel {
+  /** Activation energy, kJ/mol. */
+  eaKJ: number;
+  /** Pre-exponential factor, 1/min. */
+  aPerMin: number;
+  /** Mass lost when the reaction is complete, % of the starting mass. */
+  lossPct: number;
+}
+
+/**
+ * Mass curve of a first-order reaction dα/dt = A exp(−Ea / (R T)) (1 − α) under a constant heating
+ * rate β (K/min), integrated with the classical fourth-order Runge–Kutta method in T (dα/dT =
+ * dα/dt / β). No noise. `gasConstant` is passed in so the test and the generator use the same R.
+ * Temperatures run from `startC` to `endC` in steps of `stepC`.
+ */
+export function syntheticFirstOrderMass(
+  model: KineticModel,
+  betaKPerMin: number,
+  gasConstant: number,
+  startC: number,
+  endC: number,
+  stepC: number,
+): { temperatureC: Float64Array; massPct: Float64Array } {
+  const n = Math.floor((endC - startC) / stepC) + 1;
+  const temperatureC = new Float64Array(n);
+  const massPct = new Float64Array(n);
+  const rate = (tC: number, a: number) =>
+    ((model.aPerMin * Math.exp((-model.eaKJ * 1000) / (gasConstant * (tC + 273.15)))) /
+      betaKPerMin) *
+    (1 - a);
+  let alpha = 0;
+  for (let i = 0; i < n; i++) {
+    const t = startC + i * stepC;
+    temperatureC[i] = t;
+    massPct[i] = 100 - model.lossPct * alpha;
+    const k1 = rate(t, alpha);
+    const k2 = rate(t + stepC / 2, alpha + (stepC / 2) * k1);
+    const k3 = rate(t + stepC / 2, alpha + (stepC / 2) * k2);
+    const k4 = rate(t + stepC, alpha + stepC * k3);
+    alpha += (stepC / 6) * (k1 + 2 * k2 + 2 * k3 + k4);
+  }
+  return { temperatureC, massPct };
+}

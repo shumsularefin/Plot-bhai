@@ -518,6 +518,31 @@ try {
     'Combined TGA-DSC: example, correlations, accepted suggestion, calcination mark at 520 °C, CSV, methods text, session',
   );
 
+  // Kinetics: five synthetic runs of a made-up reaction with Ea = 150 kJ/mol, all three methods.
+  await page.getByText('Kinetics (several heating rates)').click();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await page.getByText(/at least three runs/i).waitFor();
+  await page.getByRole('button', { name: 'Try with example data' }).click();
+  await next('Method and window');
+  await next('Results and export');
+  const kissingerEa = await page
+    .getByText(/Apparent activation energy Ea = /)
+    .first()
+    .textContent();
+  const ea = Number(/Ea = ([\d.]+)/.exec(kissingerEa ?? '')?.[1]);
+  assert.ok(Math.abs(ea - 150) < 4.5, `Kissinger Ea ${ea} is within 3 % of the made-up 150`);
+  await page
+    .getByText(/apparent/, { exact: false })
+    .first()
+    .waitFor();
+  const [kinCsv] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: /Download CSV/ }).click(),
+  ]);
+  assert.match(readFileSync(await kinCsv.path(), 'utf8'), /Kissinger method/);
+  assert.match(await page.getByLabel('Methods paragraph').inputValue(), /8\.314462618/);
+  step('Kinetics: example, Kissinger Ea near 150 kJ/mol, CSV, methods text');
+
   // No horizontal page scroll at phone width.
   for (const width of [360, 1280]) {
     await page.setViewportSize({ width, height: 900 });

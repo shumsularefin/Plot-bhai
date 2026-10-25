@@ -35,6 +35,8 @@ for (let i = 0; i < 100; i++) {
 }
 
 const TOOLS = ['/', '/xrd', '/uvvis', '/ftir', '/particles', '/thermal', '/about'];
+// The thermal page has three wizards; the saved choice picks one, so the other two are audited too.
+const THERMAL_MODES = ['dsc', 'kinetics'];
 const WIDTHS = process.env.AUDIT_WIDTHS
   ? process.env.AUDIT_WIDTHS.split(',').map(Number)
   : [360, 768, 1280, 1920];
@@ -113,14 +115,23 @@ for (const width of WIDTHS) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(`page error: ${e.message}`));
   page.on('console', (m) => m.type() === 'error' && errors.push(`console: ${m.text()}`));
-  for (const tool of TOOLS) {
+  const visits = [
+    ...TOOLS.map((tool) => ({ tool })),
+    ...THERMAL_MODES.map((mode) => ({ tool: '/thermal', mode })),
+  ];
+  for (const { tool, mode } of visits) {
     await page.goto(`http://localhost:${PORT}/#${tool}`);
+    await page.evaluate((m) => localStorage.setItem('thermal-technique', m ?? 'tga'), mode);
+    await page.reload();
     await page.waitForTimeout(400);
     const example = page.getByRole('button', { name: /^Try with/ }).first();
     if (await example.count()) await example.click().catch(() => {});
     for (let step = 0; step < 12; step++) {
       await page.waitForTimeout(350);
-      add(`${width}px ${tool} step ${step}:`, await page.evaluate(inspect));
+      add(
+        `${width}px ${tool}${mode ? ` (${mode})` : ''} step ${step}:`,
+        await page.evaluate(inspect),
+      );
       const nextButton = page.getByRole('button', { name: 'Next', exact: true });
       if (!(await nextButton.count()) || (await nextButton.isDisabled())) break;
       await nextButton.click();
