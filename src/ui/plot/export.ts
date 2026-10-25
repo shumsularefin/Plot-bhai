@@ -1,4 +1,5 @@
 import { h, render } from 'preact';
+import type { FigureStyle } from './figure';
 import type { PeakLabelSet } from './peakLabels';
 import { LANE_HEIGHT_EM, LanesSvg } from './LanesSvg';
 import { PlotSvg } from './PlotSvg';
@@ -10,6 +11,7 @@ import type { AxisLabels, Domain, PlotBand, PlotMarker, PlotSeries } from './typ
 export const EXPORT_PRESETS = {
   single: { label: 'Single column', widthMm: 85, heightMm: 65 },
   double: { label: 'Double column', widthMm: 180, heightMm: 100 },
+  custom: { label: 'Custom width', widthMm: 120, heightMm: 80 },
 } as const;
 export type ExportPreset = keyof typeof EXPORT_PRESETS;
 
@@ -28,6 +30,8 @@ export interface ExportSettings {
   font: ExportFont;
   fontSizePt: number;
   lineWidthPt: number;
+  /** Width used by the custom preset, mm. */
+  customWidthMm?: number;
 }
 
 export const DEFAULT_EXPORT_SETTINGS: ExportSettings = {
@@ -49,7 +53,11 @@ export interface FigureSize {
 }
 
 export function figureSize(settings: ExportSettings): FigureSize {
-  return { widthMm: EXPORT_PRESETS[settings.preset].widthMm, heightMm: settings.heightMm };
+  const widthMm =
+    settings.preset === 'custom'
+      ? (settings.customWidthMm ?? EXPORT_PRESETS.custom.widthMm)
+      : EXPORT_PRESETS[settings.preset].widthMm;
+  return { widthMm, heightMm: settings.heightMm };
 }
 
 /** Pixel size of a PNG at the given dots per inch: pixels = mm / 25.4 × dpi. */
@@ -70,6 +78,27 @@ export interface LowerAxis {
 /** Share of the figure height given to the residual panel when one is exported. */
 const RESIDUAL_SHARE = 0.25;
 
+/** Height of data area the main plot should keep, mm (below this peaks become hard to read). */
+const MIN_DATA_MM = 25;
+
+/**
+ * The smallest figure height (mm) at which the main plot keeps MIN_DATA_MM of data area after
+ * its margins, legend rows, peak-label room, the residual panel and the reference lanes.
+ */
+export function minimumHeightMm(
+  settings: ExportSettings,
+  parts: { residual: boolean; lanes: number; legendRows: number; peakLabels: boolean },
+): number {
+  const font = settings.fontSizePt;
+  const margins = font * (0.8 + 3.3);
+  const legend = parts.legendRows > 0 ? parts.legendRows * font * 1.3 + font * 0.4 : 0;
+  const labels = parts.peakLabels ? 4 * font * 1.3 : 0;
+  const mainPt = margins + legend + labels + MIN_DATA_MM * PT_PER_MM;
+  const lanesPt = parts.lanes * font * LANE_HEIGHT_EM;
+  const totalPt = (mainPt + lanesPt) / (parts.residual ? 1 - RESIDUAL_SHARE : 1);
+  return Math.ceil(totalPt / PT_PER_MM);
+}
+
 /**
  * Renders the figure as a standalone SVG document string. Sizes are physical (mm) and the
  * drawing units are points, so the font size and line width come out exactly as chosen.
@@ -89,6 +118,7 @@ export function renderSvgString(
   lanes?: readonly ReferenceLane[],
   lowerAxis?: LowerAxis,
   bands?: readonly PlotBand[],
+  figure?: FigureStyle,
 ): string {
   const size = figureSize(settings);
   const width = size.widthMm * PT_PER_MM;
@@ -113,6 +143,7 @@ export function renderSvgString(
     ...(markers && { markers }),
     ...(bands && { bands }),
     ...(peakLabels && { peakLabels }),
+    ...(figure && { figure }),
     style,
     ...(stacked
       ? { svgAttributes: { x: 0, y: 0, width, height: mainHeight } }

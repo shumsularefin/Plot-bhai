@@ -6,6 +6,7 @@ import {
   EXPORT_PRESETS,
   figureSize,
   fileStem,
+  minimumHeightMm,
   pixelSize,
   renderSvgString,
   svgToPng,
@@ -14,7 +15,9 @@ import {
   type ExportSettings,
   type LowerAxis,
 } from './export';
+import type { FigureStyle } from './figure';
 import type { PeakLabelSet } from './peakLabels';
+import { svgToPdf } from './pdf';
 import type { ReferenceLane } from './ReferenceLanes';
 import type { AxisLabels, Domain, PlotBand, PlotMarker, PlotSeries } from './types';
 
@@ -37,6 +40,8 @@ interface ExportPanelProps {
   lanes?: readonly ReferenceLane[] | undefined;
   /** Y axis of the panel under the plot when it is not a residual. */
   lowerAxis?: LowerAxis | undefined;
+  /** Styling from the figure editor. */
+  figure?: FigureStyle | undefined;
 }
 
 /** Figure export: journal width presets, font, sizes, and SVG or PNG (300 or 600 dpi) download. */
@@ -53,11 +58,25 @@ export function ExportPanel({
   peakLabels,
   lanes,
   lowerAxis,
+  figure,
 }: ExportPanelProps) {
   const [status, setStatus] = useState<{ text: string; error: boolean } | null>(null);
   // Several plots can be on one page, so ids and radio names must be unique.
   const uid = useId();
   const size = figureSize(settings);
+  const shownSeries = series.filter(
+    (s) => !s.quiet && !(figure?.series[s.id]?.hidden ?? false),
+  ).length;
+  const legendRows =
+    (figure?.legend.show ?? true)
+      ? (shownSeries > 1 ? shownSeries : 0) + (peakLabels?.key.length ?? 0)
+      : 0;
+  const minHeight = minimumHeightMm(settings, {
+    residual: residual !== undefined,
+    lanes: lanes?.length ?? 0,
+    legendRows,
+    peakLabels: peakLabels !== undefined && (figure?.peakLabels.show ?? true),
+  });
   const stem = fileStem(exportName);
 
   const numberField = (
@@ -92,6 +111,7 @@ export function ExportPanel({
       lanes,
       lowerAxis,
       bands,
+      figure,
     );
     downloadBlob(new Blob([svg], { type: 'image/svg+xml' }), `${stem}.svg`);
     setStatus({ text: `Saved ${stem}.svg.`, error: false });
@@ -111,12 +131,39 @@ export function ExportPanel({
         lanes,
         lowerAxis,
         bands,
+        figure,
       );
       downloadBlob(await svgToPng(svg, size, dpi), `${stem}-${dpi}dpi.png`);
       setStatus({ text: `Saved ${stem}-${dpi}dpi.png.`, error: false });
     } catch {
       setStatus({
         text: `This browser could not create a ${dpi} dpi image this large. Try 300 dpi, a smaller height, or SVG.`,
+        error: true,
+      });
+    }
+  };
+
+  const exportPdf = async () => {
+    setStatus({ text: 'Creating the PDF…', error: false });
+    try {
+      const svg = renderSvgString(
+        series,
+        domain,
+        labels,
+        settings,
+        points,
+        residual,
+        peakLabels,
+        lanes,
+        lowerAxis,
+        bands,
+        figure,
+      );
+      downloadBlob(await svgToPdf(svg, size, 600), `${stem}.pdf`);
+      setStatus({ text: `Saved ${stem}.pdf.`, error: false });
+    } catch {
+      setStatus({
+        text: 'This browser could not create the PDF. Try a smaller height, or SVG.',
         error: true,
       });
     }
@@ -147,11 +194,30 @@ export function ExportPanel({
                 checked={settings.preset === key}
                 onChange={() => onChange({ preset: key, heightMm: EXPORT_PRESETS[key].heightMm })}
               />
-              {EXPORT_PRESETS[key].label} ({EXPORT_PRESETS[key].widthMm} mm)
+              {EXPORT_PRESETS[key].label}
+              {key !== 'custom' && ` (${EXPORT_PRESETS[key].widthMm} mm)`}
             </label>
           ))}
         </fieldset>
 
+        {settings.preset === 'custom' && (
+          <label class="export-field">
+            Width (mm)
+            <input
+              type="number"
+              inputMode="decimal"
+              min={30}
+              max={300}
+              step={1}
+              value={settings.customWidthMm ?? EXPORT_PRESETS.custom.widthMm}
+              onChange={(e) => {
+                const value = Number(e.currentTarget.value);
+                if (Number.isFinite(value))
+                  onChange({ customWidthMm: Math.min(300, Math.max(30, value)) });
+              }}
+            />
+          </label>
+        )}
         <label class="export-field">
           Height (mm)
           {numberField('heightMm', 30, 230, 1)}
@@ -179,6 +245,24 @@ export function ExportPanel({
         </label>
       </div>
 
+      {settings.heightMm < minHeight && (
+        <p class="message is-warning">
+          <strong>Check:</strong> at {settings.heightMm} mm the plot itself gets very little room
+          next to the legend, labels{residual ? ', residual panel' : ''}
+          {lanes?.length ? ' and reference lanes' : ''}. A height of at least {minHeight} mm keeps
+          about 25 mm for the data.{' '}
+          {minHeight <= 230 && (
+            <button
+              type="button"
+              class="btn btn-quiet"
+              onClick={() => onChange({ heightMm: minHeight })}
+            >
+              Use {minHeight} mm
+            </button>
+          )}
+        </p>
+      )}
+
       <div class="export-actions">
         <button type="button" class="btn" onClick={exportSvg}>
           Download SVG
@@ -189,12 +273,16 @@ export function ExportPanel({
         <button type="button" class="btn" onClick={() => void exportPng(600)} title={px(600)}>
           PNG 600 dpi
         </button>
+        <button type="button" class="btn" onClick={() => void exportPdf()}>
+          PDF
+        </button>
         <HelpTip term="dpi">
           <p>
             Dots per inch: how many pixels the image has per inch of printed width. At{' '}
             {size.widthMm} × {size.heightMm} mm, 300 dpi is {px(300)} and 600 dpi is {px(600)}.
             Check your journal's figure guidelines for the resolution it needs. SVG is a vector
-            format and stays sharp at any size.
+            format and stays sharp at any size. The PDF holds the figure as a 600 dpi image at its
+            exact size; use SVG when you need editable vector lines and text.
           </p>
         </HelpTip>
       </div>
