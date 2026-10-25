@@ -106,6 +106,71 @@ export default function About() {
           its COD ID. Atomic scattering factors use the Cromer-Mann form from International Tables
           Vol. C. The calculation ignores anomalous dispersion.
         </p>
+        <h3>Finding and adding reference phases</h3>
+        <p>
+          The bundled library is searched by formula (for example BiVO4), by chemical system
+          (Bi-V-O), by elements, by space group symbol or number, by COD ID or by name. It holds a
+          limited set of common phases, so a phase that is not listed is not ruled out. Any other
+          structure can be added as a CIF file, for example one downloaded from COD or the Materials
+          Project; its pattern is calculated in your browser in the same way, with notes on partial
+          occupancy, missing displacement parameters and hydrogen. The site cannot search COD or the
+          Materials Project directly, because those services do not allow requests from other
+          websites and the site has no server of its own; it links to their search pages instead.
+        </p>
+        <p>
+          The calculated overlay draws each candidate as a pseudo-Voigt profile (with Kα2 when the
+          scan has it) at the width you choose and fits only one non-negative scale per phase. The
+          difference curve under it shows what the candidates do not explain. It is not a Rietveld
+          refinement: positions, cell, preferred orientation and peak shapes are not refined.
+        </p>
+        <h3>Background</h3>
+        <p>
+          The default background is arPLS (asymmetrically reweighted penalised least squares; S.-J.
+          Baek et al., Analyst 140 (2015) 250, flagged for verification), a smooth curve that
+          follows the points inside the noise band and ignores points well above it. Its stiffness
+          is set as a width in degrees 2θ and converted to the smoothing parameter λ = (w / (2π Δ))⁴
+          for step Δ, so the same width behaves the same on fine and coarse scans; that conversion
+          is an approximation. It was chosen because it gave the smallest error on synthetic
+          patterns with a known background (12 peaks, counting noise, gentle and strongly curved
+          backgrounds): about 7 counts for arPLS (width 4°) against 40 to 80 for SNIP (width 2°) and
+          24 to 105 for a degree-4 polynomial. These numbers hold for those shapes, not for every
+          pattern. SNIP and polynomial remain available. The site warns when the corrected data go
+          clearly below zero, which means the background cuts into peaks.
+        </p>
+        <h3>Peak finding and fit quality</h3>
+        <ul class="about-eqs">
+          <Eq note="Noise estimate from second differences, robust to peaks (MAD, median absolute deviation)">
+            σ = 1.4826 MAD(Δ²y) / √6
+          </Eq>
+          <Eq note="Reduced chi-squared of a fit region; N points, p parameters">
+            χ²ν = Σ (y − ŷ)² / ((N − p) σ²)
+          </Eq>
+        </ul>
+        <p>
+          Peaks must stand at least three times above the local noise and span a few steps, which
+          stops noise from being reported as peaks. Uncertainties (±) come from the fit's covariance
+          matrix scaled by the residual variance. They are shown as n/a when a parameter sits on its
+          limit or the matrix cannot be inverted, and χ²ν well above 1 means the model misses
+          structure in the data (an unfitted shoulder, a wrong profile or a background problem), so
+          the uncertainties are then too small. Crystallite size is the size of coherently
+          diffracting domains, not the particle size seen in a microscope.
+        </p>
+      </section>
+
+      <section aria-labelledby="about-figures">
+        <h2 id="about-figures">Figures and records</h2>
+        <p>
+          The figure editor changes only how a plot looks: line colours, widths and dashes, fills,
+          text, arrows, markers, reference lines, shaded regions, peak labels, legend, axis titles
+          and limits, ticks and grid. It never changes the data or results. SVG is the vector
+          format; the PDF holds the figure as a 600 dpi image, so its text is not editable.
+        </p>
+        <p>
+          Each tool can download an analysis record: the file details read from the header, a
+          SHA-256 fingerprint of the data (to confirm later that the same file was used), every
+          processing step with its settings and warnings, the results with uncertainties, the
+          methods text and the version of this site that produced it.
+        </p>
       </section>
 
       <section aria-labelledby="about-uvvis">
@@ -130,8 +195,17 @@ export default function About() {
       <section aria-labelledby="about-ftir">
         <h2 id="about-ftir">FTIR</h2>
         <ul class="about-eqs">
-          <Eq note="Absorbance from percent transmittance">A = 2 − log₁₀(%T)</Eq>
+          <Eq note="Absorbance from transmittance T = %T / 100">A = −log₁₀(T) = 2 − log₁₀(%T)</Eq>
         </ul>
+        <p>
+          Spectra are kept as loaded. Choosing transmittance or absorbance for the plots and tables
+          changes only how the values are shown; peak finding and baselines always work on
+          absorbance, and the tables list both. The default baseline is arPLS (see XRD above): on
+          synthetic spectra with a known baseline its error was about 0.001 absorbance, against
+          0.005 to 0.054 for a cubic polynomial, 0.017 to 0.040 for a rubber band and 0.024 for AsLS
+          at one setting (λ = 10⁵, p = 0.01). Atmospheric CO₂ and water vapour bands are flagged
+          with positions from the NIST Computational Chemistry Comparison and Benchmark Database.
+        </p>
         <p>
           Functional group suggestions come from the tables of S. Pasieczna-Patkowska, M. Cichy and
           J. Flieger, Molecules 30 (2025) 684, doi:10.3390/molecules30030684, licensed CC BY 4.0

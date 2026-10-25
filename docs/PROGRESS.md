@@ -1,5 +1,71 @@
 # Progress
 
+## Research-readiness audit against the user's data (done)
+
+Branch `claude/zen-edison-acnmco`. Run at the user's request with their files: an X'Pert XRD scan
+(BV-03, Cu, 10–80°, 0.02°), three FTIR %T spectra (TiO2 400 C, Au/TiO2, citrate-capped Au), a TiO2
+UV-Vis DRS file given as absorbance, Au colloid spectra (15, 30, 50 nm) and a 2048 × 2048 TEM image
+of Au/TiO2 with a 20 nm scale bar. The files are not committed (tests/fixtures-real/README: only
+publicly shareable files); waiting for the user's permission.
+
+### Bugs found and fixed (root causes)
+
+- FTIR: the final graph always showed absorbance. Every spectrum is converted to absorbance on
+  import (correct for processing), but Results drew `absorbance` directly and no step carried the
+  user's display choice. New `src/modules/ftir/quantity.ts` keeps the choice separate from the data;
+  every step shows %T or A (T = %T/100, A = −log₁₀T), tables list both, methods text states what is
+  shown. Normalised spectra stay in absorbance with a stated reason.
+- XRD import ignored the X'Pert `[Measurement conditions]` header (wavelength, time per step).
+  `readHeader()` now reads it into `metadata` and shows it.
+- Peak detection had no noise criterion: about 100 false peaks per pure-noise scan. Added a local
+  noise estimate (MAD of second differences) with minimum SNR 3 and width 3 steps: about 0.1.
+- Levenberg–Marquardt: an infinite bound counted as "at bound", parameters on a bound got
+  meaningless σ, and a near-singular matrix gave huge σ instead of a flag. Fixed; σ is n/a with a
+  message in those cases; reduced χ² against the local noise added to every region.
+- Reference library builder read "K" temperature units as °C (regex), which rejected
+  clinobisvanite wrongly (it is still rejected, correctly, for a negative U in COD 9013437).
+- Late Preact cleanup touched `document` after jsdom teardown (unhandled error in wizard.test).
+
+### Built
+
+- XRD phases: library grown to 70 phases in 48 families (all pass the Waasmaier–Kirfel check,
+  docs/reference-crosscheck.md); search by formula, chemical system, elements, space group, COD ID
+  or name; several candidates; CIF upload calculated in a worker; calculated overlay with
+  non-negative scales and a difference curve; COD and Materials Project links. A live database
+  search is impossible here: both send no CORS headers (checked with a preflight) and there is no
+  server. State version 9 with migrations from 6–8.
+- Background: arPLS (shared Whittaker solver with AsLS) is now the default for XRD and FTIR, chosen
+  by tests/baseline-validation.test.ts (numbers in the About page); cut-into-data warning; SNIP noise
+  bias noted. XRD background stays step 2, before phases and fitting.
+- Figure editor (separate from data, saved per figure): series colour, width, dash, opacity, fills,
+  legend names and visibility; text, arrows, markers, vertical and horizontal lines, shaded regions
+  (placed by clicking, editable and removable); peak label edits; axis titles and y limits; ticks;
+  grid; legend position; custom width; PDF export (600 dpi raster in a hand-written PDF); a
+  minimum-height warning.
+- FTIR atmospheric CO2/H2O flags (NIST CCCBDB); UV-Vis warnings when the derivative maximum is at
+  the edge of the data and when a DRS-named file is treated as absorbance; particle threshold
+  sensitivity (±10 grey levels).
+- Analysis records (Markdown) for XRD, FTIR and UV-Vis: header metadata, SHA-256 of the data, every
+  step with settings and warnings, results with σ, methods text, build id (git commit and date).
+- Shared `Advanced` collapsible sections. There was no Beginner/Intermediate/Expert selector in
+  the code, so nothing was removed.
+
+### Results on the user's data (summary; details in the final report to the user)
+
+- BV-03: 26 peaks; no library BiVO4 polymorph explains it without a shift; clinobisvanite from the
+  COD 9013437 CIF matches 19 of 34 lines after +0.26° (possible displacement or zero error, check
+  with a standard); peaks at 23.6, 32.4, 37.4, 48.5, 55.4, 66.2, 78.2° unexplained, so a second phase
+  is likely but unidentified. Scherrer sizes (no instrument standard) are lower limits.
+- FTIR, UV-Vis, Au colloid and TEM numbers as reported; the files look synthetic (smooth bands,
+  perfect discs, an R² = 1.0000 Tauc line).
+
+### Known issues
+
+- arPLS citation and the width-to-λ relation are marked TODO(verify).
+- PDF is raster; SVG stays the vector format.
+- The calculated overlay refines no positions, cell or profile; it is not Rietveld.
+- Clinobisvanite is not in the bundled library (COD entry has a negative U); load it as a CIF.
+
 ## Stage 13: Multi-heating-rate kinetics (done)
 
 Branch `claude/friendly-cray-f64dgw`. Optional stage, run at the user's request.
