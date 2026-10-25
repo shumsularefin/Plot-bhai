@@ -3,7 +3,9 @@ import { guessMapping } from '../../../core/thermal/import';
 import {
   EXAMPLE_DSC_MASS_MG,
   EXAMPLE_DSC_RATE,
+  EXAMPLE_STA_MASS_MG,
   exampleDscTable,
+  exampleStaTable,
 } from '../../../core/thermal/synthetic';
 import type { Atmosphere, RunInfo, SampleCategory } from '../../../core/thermal/types';
 import type { HeatFlowUnit } from '../../../core/thermal/dscClean';
@@ -12,7 +14,7 @@ import { HelpTip } from '../../../ui/HelpTip';
 import type { StepContext } from '../../../ui/wizard/types';
 import { NumberInput } from '../../xrd/NumberInput';
 import { mappingProblem, runOf } from '../analysis';
-import { ColumnSelect, loadTable, TablePreview } from '../UploadStep';
+import { ColumnSelect, loadTable, MappingForm, TablePreview } from '../UploadStep';
 import type { DscData } from './data';
 
 const ATMOSPHERES: Record<Atmosphere, string> = {
@@ -57,7 +59,8 @@ export function DscUploadStep({ data, update }: StepContext<DscData>) {
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
-  const { file, info, setup } = data;
+  const tgaInput = useRef<HTMLInputElement>(null);
+  const { file, tgaFile, info, setup } = data;
   const run = useMemo(() => runOf(file), [file]);
   const mapProblem = mappingProblem(file);
 
@@ -72,7 +75,13 @@ export function DscUploadStep({ data, update }: StepContext<DscData>) {
       return;
     }
     setProblem(null);
-    update({ file: result, limits: null, glassWindows: null, assignments: {} });
+    update({
+      file: result,
+      limits: null,
+      glassWindows: null,
+      assignments: {},
+      stepAssignments: {},
+    });
   };
 
   const loadExample = () => {
@@ -98,7 +107,49 @@ export function DscUploadStep({ data, update }: StepContext<DscData>) {
       limits: null,
       glassWindows: null,
       assignments: {},
+      tgaFile: null,
+      stepAssignments: {},
     });
+  };
+
+  const loadStaExample = () => {
+    setProblem(null);
+    const table = exampleStaTable();
+    update({
+      file: {
+        name: 'Example TGA-DSC (synthetic)',
+        table,
+        mapping: guessMapping(table),
+        synthetic: true,
+      },
+      setup: { unit: 'mW', fileExoUp: true, displayExoUp: null },
+      info: {
+        ...info,
+        atmosphere: 'nitrogen',
+        heatingRate: EXAMPLE_DSC_RATE,
+        initialMassMg: EXAMPLE_STA_MASS_MG,
+        sample: 'Synthetic example (not a real sample)',
+        category: 'unspecified',
+      },
+      clean: { ...data.clean, segmentId: null },
+      limits: null,
+      glassWindows: null,
+      assignments: {},
+      tgaFile: null,
+      stepAssignments: {},
+    });
+  };
+
+  const loadTga = async (list: FileList | null) => {
+    const picked = list?.[0];
+    if (!picked) return;
+    const result = await loadTable(picked);
+    if (typeof result === 'string') {
+      setProblem(`${picked.name}: ${result}`);
+      return;
+    }
+    setProblem(null);
+    update({ tgaFile: result, stepAssignments: {} });
   };
 
   const setInfo = (patch: Partial<RunInfo>) => update({ info: { ...info, ...patch } });
@@ -153,6 +204,14 @@ export function DscUploadStep({ data, update }: StepContext<DscData>) {
         </button>
         <span class="field-hint">
           Loads a synthetic heat, cool, heat run with made-up events. It is not a real measurement.
+        </span>
+      </div>
+      <div class="upload-actions">
+        <button type="button" class="btn" onClick={loadStaExample}>
+          Try with combined TGA-DSC example
+        </button>
+        <span class="field-hint">
+          Loads a synthetic simultaneous run with mass and heat flow in one file, for step 5.
         </span>
       </div>
       <p class="upload-status" role="status">
@@ -263,6 +322,37 @@ export function DscUploadStep({ data, update }: StepContext<DscData>) {
                 </select>
               </label>
             </div>
+            <div class="mapping-row">
+              <ColumnSelect
+                label="Mass column (optional, for a simultaneous TGA-DSC run)"
+                names={names}
+                value={file.mapping.mass}
+                optional
+                onChange={(v) =>
+                  update({ file: { ...file, mapping: { ...file.mapping, mass: v } } })
+                }
+              />
+              <label class="inline-field">
+                Mass unit
+                <select
+                  value={file.mapping.massUnit}
+                  onChange={(e) =>
+                    update({
+                      file: {
+                        ...file,
+                        mapping: {
+                          ...file.mapping,
+                          massUnit: e.currentTarget.value as 'mg' | 'percent',
+                        },
+                      },
+                    })
+                  }
+                >
+                  <option value="mg">mg</option>
+                  <option value="percent">% of the starting mass</option>
+                </select>
+              </label>
+            </div>
           </div>
           <fieldset class="exo-choice">
             <legend>
@@ -310,6 +400,63 @@ export function DscUploadStep({ data, update }: StepContext<DscData>) {
             </ul>
           )}
           <TablePreview table={file.table} />
+        </section>
+      )}
+
+      {file && (
+        <section class="process-step is-on" aria-labelledby="dsc-tga-title">
+          <h3 id="dsc-tga-title" class="process-step-title">
+            Mass curve for the combined view (optional){' '}
+            <HelpTip term="combined TGA-DSC">
+              <p>
+                Reading the DSC peaks against the mass shows whether a peak comes with a mass loss.
+                If your file has a mass column (a simultaneous run), choose it above. Otherwise load
+                the TGA run here as a second file. It is matched to the DSC on temperature, so both
+                runs should use the same heating rate and atmosphere.
+              </p>
+            </HelpTip>
+          </h3>
+          {tgaFile ? (
+            <>
+              <p role="status">
+                Separate TGA file: <strong>{tgaFile.name}</strong>
+              </p>
+              <MappingForm
+                loaded={tgaFile}
+                onChange={(mapping) => update({ tgaFile: { ...tgaFile, mapping } })}
+              />
+              <button
+                type="button"
+                class="btn btn-quiet"
+                onClick={() => update({ tgaFile: null, stepAssignments: {} })}
+              >
+                Remove the TGA file
+              </button>
+            </>
+          ) : (
+            <>
+              <p class="field-hint" role="status">
+                {file.mapping.mass !== null
+                  ? 'The mass column of the file above is used.'
+                  : 'No mass curve yet. Step 5 needs one.'}
+              </p>
+              <button type="button" class="btn" onClick={() => tgaInput.current?.click()}>
+                Load a separate TGA file
+              </button>
+              <input
+                ref={tgaInput}
+                type="file"
+                class="visually-hidden"
+                tabIndex={-1}
+                aria-hidden="true"
+                data-testid="tga-file-input"
+                onChange={(e) => {
+                  void loadTga(e.currentTarget.files);
+                  e.currentTarget.value = '';
+                }}
+              />
+            </>
+          )}
         </section>
       )}
 
