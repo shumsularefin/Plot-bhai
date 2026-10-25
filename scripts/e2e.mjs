@@ -483,7 +483,10 @@ try {
     .getByText(/Mass is lost .* while heat is absorbed/)
     .first()
     .waitFor();
-  await page.getByText(/The mass does not change .* while heat is released/).waitFor();
+  await page
+    .getByText(/The mass does not change .* while heat is released/)
+    .first()
+    .waitFor();
   await page.getByText(/Heat flow: exo up/).waitFor();
   await page
     .getByText(/Table not verified yet/)

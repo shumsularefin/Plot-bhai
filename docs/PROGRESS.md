@@ -1,5 +1,68 @@
 # Progress
 
+## Sub-stage 12b: Combined TGA-DSC (done)
+
+Branch `claude/friendly-cray-f64dgw`, started from the merge of pull request 20 (12a is in `main`).
+Stage 12 items 7 and 8: combined TGA-DSC, export, methods text, session file, and the end-to-end test.
+
+### What was built
+
+- **Step 5 "Combined interpretation"** in the DSC wizard (Results is now step 6). The mass curve comes
+  from a mass column of the DSC file (a simultaneous run) or an optional second TGA file, both chosen
+  in step 1. The mass is interpolated onto the DSC temperatures (`alignOnTemperature`, no
+  extrapolation), so the two curves share exactly the same temperatures. They are drawn as a dual
+  panel (mass on top, heat flow below on one temperature axis, exo direction in the axis label).
+- `src/core/thermal/combined.ts`: the four correlation rules in plain language (mass loss with an
+  endotherm → dehydration, evaporation or decomposition; with an exotherm → combustion or oxidation;
+  no mass change with an exotherm → crystallisation, phase transition or ordering; with an endotherm
+  → melting or solid-solid transition); re-ranking of the DSC suggestions and of the TGA step
+  suggestions; calcination marks for an exotherm without mass change above the last mass loss step,
+  with the candidate temperatures below it and the advice to check by XRD.
+- Accept, own words and reject for every DSC event and every mass loss step; the "guidance" and
+  "DSC alone / TGA alone cannot identify…" notes, the calcination warning and a "not verified" note.
+- **Results (step 6)**: combined table with CSV, calcination marks with CSV, **Methods text** written
+  from the settings used (`dscMethods.ts`) with a Copy button, and a **session file** (`dsc-session`,
+  re-importable). The DSC state is now version 2, with a migration for version 1 saves.
+- Event detection (12a) no longer reports the ridge between two neighbouring peaks of the opposite
+  sign as an event; found while building the simultaneous example, which has four well-separated
+  events but gave six.
+- Example data: a synthetic simultaneous run (`exampleStaTable`, "Try with combined TGA-DSC example").
+- Tests: `combined` (9, known answers on the synthetic run: alignment, four rules, re-ranking, the
+  520 °C mark), 7 more UI tests in `dscSteps`, and an e2e block for the whole path.
+
+### Decisions (my own, please confirm)
+
+- The combined view lives in the DSC wizard. It reads its own mass steps (default cleaning and
+  detection), so it does not read the separate TGA wizard's assignments; it keeps its own
+  assignments for the steps.
+- Re-ranking adds or removes 0.25 of score, and "high" confidence is only possible when the mass
+  curve supports an in-range suggestion. A rule counted against drops one confidence level. These
+  weights only order the suggestions.
+- "No mass change" means less than 0.5 % points between the start and end of the event (adjustable).
+- The combined view needs a heating ramp; a cooling ramp gives a message instead.
+- The calcination suggestion uses the default calcination settings.
+
+### Needs your input (not verified)
+
+- **`data/thermal/combined-rules.json`**: the usual heat flow direction of each TGA rule is my own
+  placeholder, flagged "TODO, verify". The UI says so. Please give sources or corrections.
+- **`data/thermal/dsc-events.json`** (12a) is still placeholders. For example its crystallisation
+  range is 50 to 350 °C, so the 520 °C exotherm of the example is described as crystallisation by the
+  mass reading but is not offered as a ranked suggestion.
+- The weights, the 0.5 % points threshold and the synthetic example values are mine.
+- **A real DSC file and a real combined TGA-DSC file** are still wanted; only synthetic data were used.
+
+### Known issues
+
+- The mass and DSC curves are matched on temperature only. The mass curve uses the first heating ramp
+  of its file; if the DSC ramp chosen in step 2 is a later heating ramp, the two are not the same scan.
+- The mass steps in step 5 use default settings and cannot be edited there.
+- Sigmoidal baselines (12a) still assume a step across the event.
+
+### Next
+
+14a: polish (responsive, Lighthouse, accessibility, states). Stage 13 is optional and skipped.
+
 ## Sub-stage 12a: DSC (done)
 
 Branch `claude/friendly-cray-f64dgw`, started from the merge of pull request 19 (11b is in `main`).
