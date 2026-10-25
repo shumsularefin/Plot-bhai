@@ -302,10 +302,11 @@ try {
   await page.getByRole('button', { name: 'Line', exact: true }).click();
   await page.locator('.image-viewer').scrollIntoViewIfNeeded();
   const viewerBox = await page.locator('.image-viewer').boundingBox();
-  const fitScale = Math.min(viewerBox.width / 1024, viewerBox.height / 864);
+  // The viewer opens fitted to the crop: the 1024 × 864 image without its bottom 96 px.
+  const fitScale = Math.min(viewerBox.width / 1024, viewerBox.height / 768);
   const at = (x, y) => [
     viewerBox.x + (viewerBox.width - 1024 * fitScale) / 2 + x * fitScale,
-    viewerBox.y + (viewerBox.height - 864 * fitScale) / 2 + y * fitScale,
+    viewerBox.y + (viewerBox.height - 768 * fitScale) / 2 + y * fitScale,
   ];
   const [x0, y0] = at(500, 400);
   const [x1, y1] = at(600, 400);

@@ -754,6 +754,7 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
           image={image}
           tool={tool}
           crop={data.crop}
+          focusCrop
           particles={overlays}
           workScale={work.scale}
           mask={mask}
