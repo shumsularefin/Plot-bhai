@@ -24,6 +24,7 @@ import type {
   ReferencePhase,
 } from '../src/core/xrd/reference/types.ts';
 import { ANODES } from '../src/core/xrd/radiation.ts';
+import { roundedContents } from '../src/core/xrd/reference/fromCif.ts';
 import { FAMILIES, PHASES, type PhaseRequest } from './reference-phases.ts';
 
 const COD = 'https://www.crystallography.net/cod';
@@ -428,6 +429,7 @@ function buildPhase(
       beta: crystal.cell.beta,
       gamma: crystal.cell.gamma,
     },
+    cellContents: roundedContents(cellComposition(expandAtoms(crystal))),
     citation: {
       journal: item('_journal_name_full') ?? row.journal ?? '',
       volume: item('_journal_volume') ?? row.volume ?? '',

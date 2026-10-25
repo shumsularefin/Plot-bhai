@@ -7,6 +7,11 @@ import { DEFAULT_RADIATION, type RadiationSettings } from '../../core/xrd/radiat
 import { examplePatterns } from '../../core/xrd/synthetic';
 import type { ReferencePhase } from '../../core/xrd/reference/types';
 import type { Pattern } from '../../core/xrd/types';
+import {
+  DEFAULT_CHOICES,
+  type RefineChoices,
+  type RietveldResult,
+} from '../../core/xrd/rietveld/refine';
 import { DEFAULT_EXPORT_SETTINGS } from '../../ui/plot/export';
 import type { PlotSettings } from '../../ui/plot/PlotPanel';
 import type { WizardState } from '../../ui/wizard/types';
@@ -27,9 +32,41 @@ export interface XrdData {
   results: ResultsSettings;
   /** Reference phases chosen in steps 3 and 4. */
   material: MaterialState;
-  /** Texture coefficient and crystallinity settings (step 7). */
+  /** Texture coefficient and crystallinity settings (results step). */
   analysis: AnalysisSettings;
+  /** Basic Rietveld refinement (step 5). */
+  rietveld: RietveldState;
 }
+
+/** Settings and last result of the basic Rietveld refinement. */
+export interface RietveldState {
+  /** Pattern refined; missing means the first. */
+  patternId?: string;
+  /** Candidate phases left out of the refinement. */
+  excluded: string[];
+  /** Preferred-orientation direction typed per phase id, for example "0 0 1"; empty means none. */
+  orientation: Record<string, string>;
+  choices: RefineChoices;
+  backgroundTerms: number;
+  /** 2θ range refined, degrees; null means the whole pattern. */
+  from: number | null;
+  to: number | null;
+  /**
+   * Last result, with a key of the settings it was made with (to tell when it is out of date) and
+   * its methods sentences.
+   */
+  result: { key: string; outcome: RietveldResult; methods: string } | null;
+}
+
+export const DEFAULT_RIETVELD: RietveldState = {
+  excluded: [],
+  orientation: {},
+  choices: DEFAULT_CHOICES,
+  backgroundTerms: 6,
+  from: null,
+  to: null,
+  result: null,
+};
 
 /** Settings of the extra analyses in the results step. */
 export interface AnalysisSettings {
@@ -246,24 +283,30 @@ export const initialXrdData: XrdData = {
   results: DEFAULT_RESULTS,
   material: DEFAULT_MATERIAL,
   analysis: DEFAULT_ANALYSIS,
+  rietveld: DEFAULT_RIETVELD,
 };
 
 /** Version of the saved shape. Bump it, and extend migrateXrdData, when the shape changes. */
-export const XRD_STATE_VERSION = 9;
+export const XRD_STATE_VERSION = 10;
 
 /**
  * Upgrades saved sessions: version 2 (Stage 1) had no radiation or processing settings;
  * version 3 (Stage 2) had no peak state; version 4 (Stage 3) had no instrument settings;
  * version 5 (Stage 4) had no size and strain settings; version 6 (Stage 5) had no reference
  * material choice; version 7 (sub-stage 6c) had no texture and crystallinity settings;
- * version 8 chose one library family instead of a list of candidate phases (see upgradeMaterial).
+ * version 8 chose one library family instead of a list of candidate phases (see upgradeMaterial);
+ * version 9 had no Rietveld step, so steps from "Fit peaks" on were one place earlier.
  */
 export function migrateXrdData(saved: unknown, version: number): WizardState<XrdData> | undefined {
-  if (version < 2 || version > 8) return undefined;
+  if (version < 2 || version > 9) return undefined;
   const state = saved as WizardState<Partial<XrdData> & Pick<XrdData, 'patterns' | 'plot'>>;
   if (!state || typeof state !== 'object' || !state.data) return undefined;
+  const RIETVELD_STEP = 4;
+  const shift = (index: number) => (index >= RIETVELD_STEP ? index + 1 : index);
   return {
     ...state,
+    step: shift(state.step),
+    furthest: shift(state.furthest),
     data: {
       ...state.data,
       radiation: state.data.radiation ?? DEFAULT_RADIATION,
@@ -271,8 +314,12 @@ export function migrateXrdData(saved: unknown, version: number): WizardState<Xrd
       peaks: state.data.peaks ?? {},
       instrument: state.data.instrument ?? DEFAULT_INSTRUMENT,
       results: state.data.results ?? DEFAULT_RESULTS,
-      material: upgradeMaterial(state.data.material as Record<string, unknown> | undefined),
+      material:
+        version <= 8
+          ? upgradeMaterial(state.data.material as Record<string, unknown> | undefined)
+          : (state.data.material ?? DEFAULT_MATERIAL),
       analysis: state.data.analysis ?? DEFAULT_ANALYSIS,
+      rietveld: DEFAULT_RIETVELD,
     },
   };
 }

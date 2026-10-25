@@ -64,7 +64,7 @@ const next = async (expected) => {
 };
 const step = (n) => console.log(`ok  ${n}`);
 
-/** Example data through steps 1 to 7 and on to Export. */
+/** Example data through steps 1 to 8 and on to Export. */
 async function walkToExport(log) {
   const note = log ? step : () => {};
   // 1 Upload
@@ -91,6 +91,14 @@ async function walkToExport(log) {
   // 4 Compare phases
   await page.getByLabel('Use this phase').first().check();
   note('4 Compare phases: first phase used');
+  await next('Rietveld refinement (optional)');
+
+  // 5 Rietveld refinement of the candidate (optional; run once to check it works in a worker).
+  await page.getByRole('button', { name: 'Refine', exact: true }).click();
+  await page.getByText('Refinement results (estimates)').waitFor({ timeout: 60_000 });
+  const rwp = await page.locator('.result-summary dd').first().textContent();
+  assert.match(rwp ?? '', /^\d+\.\d\d %$/);
+  note(`5 Rietveld: refined, Rwp ${rwp}`);
   await next('Fit peaks');
 
   // 5 Fit peaks
@@ -105,17 +113,17 @@ async function walkToExport(log) {
   );
   await fit.click();
   await page.locator('.peak-table').waitFor({ timeout: 60_000 });
-  note('5 Fit peaks: peak table shown');
+  note('6 Fit peaks: peak table shown');
   await next('Instrument correction');
 
   // 6 Instrument correction: skip, which is allowed and warned about in the results.
   await page.getByLabel(/skip/i).first().check();
-  note('6 Instrument correction: skipped');
+  note('7 Instrument correction: skipped');
   await next('Results tables');
 
   // 7 Results
   await page.getByText('Summary').first().waitFor({ timeout: 20_000 });
-  note('7 Results tables shown');
+  note('8 Results tables shown');
   await next('Export');
 }
 
@@ -126,12 +134,12 @@ try {
 
   await walkToExport(true);
 
-  // 8 Export
+  // 9 Export
   const text = await page.getByTestId('methods-text').textContent();
   assert.match(text, /Cu Kα/);
   assert.match(text, /generated example data/);
   assert.doesNotMatch(text, /NaN|undefined/);
-  step('8 Export: methods text from the real settings');
+  step('9 Export: methods text from the real settings');
 
   await page.getByRole('button', { name: 'Download SVG' }).waitFor({ timeout: 20_000 });
   const [svgDownload] = await Promise.all([
@@ -141,7 +149,7 @@ try {
   const svg = readFileSync(await svgDownload.path(), 'utf8');
   assert.match(svg, /^<\?xml/);
   assert.match(svg, /COD \d+/);
-  step('8 Export: SVG figure with reference lanes and COD IDs');
+  step('9 Export: SVG figure with reference lanes and COD IDs');
 
   const [pngDownload] = await Promise.all([
     page.waitForEvent('download'),
@@ -149,7 +157,7 @@ try {
   ]);
   const png = readFileSync(await pngDownload.path());
   assert.equal(png.subarray(1, 4).toString(), 'PNG');
-  step('8 Export: PNG 300 dpi');
+  step('9 Export: PNG 300 dpi');
 
   const [csvDownload] = await Promise.all([
     page.waitForEvent('download'),
@@ -157,7 +165,7 @@ try {
   ]);
   const csv = readFileSync(await csvDownload.path(), 'utf8');
   assert.match(csv, /## .*-peaks/);
-  step('8 Export: all tables in one CSV');
+  step('9 Export: all tables in one CSV');
 
   const [sessionDownload] = await Promise.all([
     page.waitForEvent('download'),
@@ -168,7 +176,7 @@ try {
   const first = JSON.parse(sessionText);
   assert.equal(first.app, 'xrd-toolkit');
   assert.ok(first.state.data.patterns.length >= 1);
-  step('8 Export: session file written');
+  step('9 Export: session file written');
 
   // Round trip: reload (persisted state is kept), clear, import, export again, compare.
   await page.evaluate(() =>
@@ -187,7 +195,7 @@ try {
   ]);
   const second = JSON.parse(readFileSync(await again.path(), 'utf8'));
   assert.deepEqual(second.state.data, first.state.data);
-  step('8 Export: session JSON round-trips');
+  step('9 Export: session JSON round-trips');
 
   // A damaged file is refused with a plain message.
   await page.getByLabel('Session file to open').setInputFiles({
@@ -196,7 +204,7 @@ try {
     buffer: Buffer.from('{"hello": 1}'),
   });
   await page.getByText('This is not an XRD Toolkit session file.').waitFor();
-  step('8 Export: a foreign JSON file is refused');
+  step('9 Export: a foreign JSON file is refused');
 
   // UV-Vis: example data, blank subtraction, Tauc band gap, results, methods text.
   await page.goto(`http://localhost:${PORT}/#/uvvis`);

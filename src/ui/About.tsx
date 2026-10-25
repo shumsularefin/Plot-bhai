@@ -34,8 +34,11 @@ export default function About() {
         <h2 id="about-limits">Limitations</h2>
         <ul>
           <li>
-            There is no Rietveld refinement. Phase comparison is a visual and numerical aid for
-            simple phases, not a proof of identity.
+            The Rietveld refinement is basic: it refines scale factors, background, zero shift,
+            cells, peak widths and shape, preferred orientation and an overall B, but not atom
+            positions, occupancies or individual displacement parameters, so it is not a structure
+            refinement. Phase comparison is a visual and numerical aid for simple phases, not a
+            proof of identity.
           </li>
           <li>
             Automatic phase matching, single-crystal or polycrystalline hints, thermal event
@@ -127,8 +130,31 @@ export default function About() {
         <p>
           The calculated overlay draws each candidate as a pseudo-Voigt profile (with Kα2 when the
           scan has it) at the width you choose and fits only one non-negative scale per phase. The
-          difference curve under it shows what the candidates do not explain. It is not a Rietveld
-          refinement: positions, cell, preferred orientation and peak shapes are not refined.
+          difference curve under it shows what the candidates do not explain. It refines nothing
+          else; the optional Rietveld step that follows does.
+        </p>
+        <h3>Basic Rietveld refinement</h3>
+        <p>
+          The calculated pattern is y = b + Σ S Σ M|F|² · LP · P · exp(−B/2d²) · Ω, summed over the
+          phases, their reflections and the Kα1 and Kα2 lines. Here b is a Chebyshev background, S a
+          scale factor, M|F|² comes from the reference structure, and LP = (1 + cos²2θ)/(sin²θ
+          cosθ). P is the March–Dollase factor (r² cos²α + sin²α/r)<sup>−3/2</sup>, averaged over
+          each family. Ω is a pseudo-Voigt peak with FWHM² = U tan²θ + V tanθ + W. Peak positions
+          include a zero shift and, if chosen, a sample displacement D·cosθ.
+        </p>
+        <p>
+          The fit minimises Σ w(y<sub>obs</sub> − y<sub>calc</sub>)² with w = 1/y<sub>obs</sub>.
+          Parameters are released in stages: scales and background, zero shift, cells, width and
+          shape, then orientation and B. R<sub>wp</sub>, R<sub>p</sub>, R<sub>exp</sub>, χ² and R
+          <sub>Bragg</sub> follow Young (The Rietveld Method, 1993). Weight fractions use Hill and
+          Howard (J. Appl. Cryst. 20 (1987) 467): W = S·ZMV / Σ S·ZMV, among the phases refined,
+          with no microabsorption correction. Uncertainties come from the least-squares covariance
+          and usually underestimate the real ones.
+        </p>
+        <p>
+          It was checked against GSAS-II. On an anatase and rutile pattern simulated by GSAS-II, it
+          recovered the cells within 1 × 10<sup>−4</sup> Å, the zero shift within 0.001° and the
+          weight fractions within 0.2 %, as close as GSAS-II's own refinement of the same data.
         </p>
         <h3>Background</h3>
         <p>

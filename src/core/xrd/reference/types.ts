@@ -42,6 +42,11 @@ export interface ReferencePhase {
   cell: { a: number; b: number; c: number; alpha: number; beta: number; gamma: number };
   /** Literature reference given in the CIF. */
   citation: { journal: string; volume: string; page: string; year: string; doi: string | null };
+  /**
+   * Atoms of each element in one unit cell (occupancies summed), from the CIF's atom sites and
+   * symmetry. Used for the cell mass in Rietveld weight fractions. Missing in old sessions.
+   */
+  cellContents?: Record<string, number>;
   /** Peaks with d ≥ 0.8 Å, from the largest d. */
   peaks: ReferencePeak[];
 }

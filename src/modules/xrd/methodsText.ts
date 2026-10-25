@@ -87,7 +87,8 @@ export function methodsInput(data: XrdData, library: readonly ReferencePhase[]):
 
 /** The methods paragraph for the whole session; says so when patterns were treated differently. */
 export function methodsFor(data: XrdData, library: readonly ReferencePhase[]): string {
-  const text = methodsParagraph(methodsInput(data, library));
+  const rietveld = data.rietveld?.result?.methods;
+  const text = [methodsParagraph(methodsInput(data, library)), rietveld].filter(Boolean).join(' ');
   const [first, ...others] = data.patterns;
   if (!first) return text;
   const key = (id: string) =>
