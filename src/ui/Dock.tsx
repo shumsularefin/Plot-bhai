@@ -138,14 +138,6 @@ export function Dock({ label, mode = 'auto', children }: DockProps) {
 
   return (
     <div class="dock-slot">
-      {docked && (
-        <p class="dock-placeholder">
-          This figure is kept in view while you change the settings.{' '}
-          <button type="button" class="btn btn-quiet" onClick={() => setEnabled(false)}>
-            Show it here instead
-          </button>
-        </p>
-      )}
       <div
         ref={frame}
         class={docked ? `dock-frame${collapsed ? ' is-collapsed' : ''}` : 'dock-inline'}

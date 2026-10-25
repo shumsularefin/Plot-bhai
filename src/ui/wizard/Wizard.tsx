@@ -106,6 +106,9 @@ export function Wizard<D>({ title, steps, store }: WizardProps<D>) {
           <button type="button" class="btn" onClick={() => goTo(index - 1)} disabled={index === 0}>
             Back
           </button>
+          <span class="wizard-position" aria-hidden="true">
+            {index + 1} of {steps.length}: {step.title}
+          </span>
           <button
             type="button"
             class="btn btn-primary"

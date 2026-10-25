@@ -1,3 +1,4 @@
+import type { ComponentChildren } from 'preact';
 import { useMemo, useRef, useState } from 'preact/hooks';
 import { formatNumber } from '../../core/xrd/parsers/numbers';
 import {
@@ -14,6 +15,7 @@ import {
   type RadiationSettings,
 } from '../../core/xrd/radiation';
 import { stepStats } from '../../core/xrd/summary';
+import { Advanced } from '../../ui/Advanced';
 import { HelpTip } from '../../ui/HelpTip';
 import { PlotPanel } from '../../ui/plot/PlotPanel';
 import type { SeriesSource } from '../../ui/plot/series';
@@ -182,7 +184,18 @@ export function CleanStep({ data, update }: StepContext<XrdData>) {
             />
             Data contain Kα1 only (monochromator)
           </label>
-          {!radiation.kAlpha1Only && (
+          {!same(radiation, DEFAULT_RADIATION) && (
+            <button
+              type="button"
+              class="btn btn-quiet"
+              onClick={() => setRadiation(DEFAULT_RADIATION)}
+            >
+              Reset<span class="visually-hidden"> radiation</span>
+            </button>
+          )}
+        </div>
+        {!radiation.kAlpha1Only && (
+          <Advanced id="xrd-ka2-ratio" title="Kα2/Kα1 intensity ratio">
             <label class="inline-field">
               Kα2/Kα1 intensity ratio
               <input
@@ -198,17 +211,8 @@ export function CleanStep({ data, update }: StepContext<XrdData>) {
                 }}
               />
             </label>
-          )}
-          {!same(radiation, DEFAULT_RADIATION) && (
-            <button
-              type="button"
-              class="btn btn-quiet"
-              onClick={() => setRadiation(DEFAULT_RADIATION)}
-            >
-              Reset<span class="visually-hidden"> radiation</span>
-            </button>
-          )}
-        </div>
+          </Advanced>
+        )}
         <p class="field-hint">
           λ(Kα1) = {lines.kAlpha1} Å{!radiation.kAlpha1Only && <>, λ(Kα2) = {lines.kAlpha2} Å</>}.
           Source: {lines.source}
@@ -464,32 +468,6 @@ export function CleanStep({ data, update }: StepContext<XrdData>) {
         </label>
       </StepSection>
 
-      <div class="clean-view">
-        <fieldset class="segmented">
-          <legend>Show</legend>
-          {(Object.keys(VIEW_LABELS) as View[]).map((v) => (
-            <label key={v} class={view === v ? 'is-selected' : undefined}>
-              <input
-                type="radio"
-                name="clean-view"
-                checked={view === v}
-                onChange={() => setView(v)}
-              />
-              {VIEW_LABELS[v]}
-            </label>
-          ))}
-        </fieldset>
-        {view === 'both' && settings.normalise.enabled && (
-          <p class="field-hint clean-view-note">
-            The processed pattern is normalised, so it is on a different scale from the original.
-            Choose After to see it in full.
-          </p>
-        )}
-        <p class="process-status" role="status">
-          {busy ? 'Updating…' : ''}
-        </p>
-      </div>
-
       <CleanPlot
         data={data}
         update={update}
@@ -499,6 +477,33 @@ export function CleanStep({ data, update }: StepContext<XrdData>) {
         view={view}
         unit={pattern.intensityUnit === 'counts' ? 'counts' : 'cps'}
         name={pattern.name}
+        toolbar={
+          <div class="clean-view">
+            <fieldset class="segmented">
+              <legend>Show</legend>
+              {(Object.keys(VIEW_LABELS) as View[]).map((v) => (
+                <label key={v} class={view === v ? 'is-selected' : undefined}>
+                  <input
+                    type="radio"
+                    name="clean-view"
+                    checked={view === v}
+                    onChange={() => setView(v)}
+                  />
+                  {VIEW_LABELS[v]}
+                </label>
+              ))}
+            </fieldset>
+            {view === 'both' && settings.normalise.enabled && (
+              <p class="field-hint clean-view-note">
+                The processed pattern is normalised, so it is on a different scale from the
+                original. Choose After to see it in full.
+              </p>
+            )}
+            <p class="process-status" role="status">
+              {busy ? 'Updating…' : ''}
+            </p>
+          </div>
+        }
         anchors={manual ? settings.background.anchors : []}
         onAddAnchor={
           placing
@@ -519,6 +524,7 @@ interface CleanPlotProps extends StepContext<XrdData> {
   name: string;
   anchors: readonly [number, number][];
   onAddAnchor: ((x: number, y: number) => void) | undefined;
+  toolbar: ComponentChildren;
 }
 
 function CleanPlot(props: CleanPlotProps) {
@@ -574,6 +580,7 @@ function CleanPlot(props: CleanPlotProps) {
       xUnit="°"
       exportName={`${name}-processed`}
       showOverlayOptions={false}
+      toolbar={props.toolbar}
       interaction={{
         markers,
         ...(onAddAnchor && {

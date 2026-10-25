@@ -259,24 +259,7 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
               }
             />
           </label>
-          <label class="inline-field">
-            Minimum separation (°)
-            <input
-              type="number"
-              inputMode="decimal"
-              min={0}
-              max={5}
-              step={0.01}
-              value={state.detection.minSeparationDeg}
-              disabled={fitting}
-              onChange={(e) => {
-                const value = Number(e.currentTarget.value);
-                if (value >= 0 && value <= 5)
-                  void detect({ ...state.detection, minSeparationDeg: value }, true);
-              }}
-            />
-          </label>
-          <Advanced id="xrd-noise-filter" title="Noise filter">
+          <Advanced id="xrd-noise-filter" title="Separation and noise filter">
             <p class="field-hint">
               A peak must stand out from the local noise (estimated from the point-to-point scatter)
               and be several data steps wide; counting spikes are one step wide. The defaults gave
@@ -284,6 +267,23 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
               each one by eye.
             </p>
             <div class="radiation-fields">
+              <label class="inline-field">
+                Minimum separation (°)
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  max={5}
+                  step={0.01}
+                  value={state.detection.minSeparationDeg}
+                  disabled={fitting}
+                  onChange={(e) => {
+                    const value = Number(e.currentTarget.value);
+                    if (value >= 0 && value <= 5)
+                      void detect({ ...state.detection, minSeparationDeg: value }, true);
+                  }}
+                />
+              </label>
               <NumberInput
                 label="Minimum signal-to-noise (prominence ÷ noise)"
                 value={state.detection.minSnr}
@@ -336,29 +336,6 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
               </label>
             ))}
           </fieldset>
-          <form
-            class="add-peak"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const value = Number(addAt);
-              if (Number.isFinite(value)) addPeak(value);
-              setAddAt('');
-            }}
-          >
-            <label class="inline-field">
-              Add a peak at 2θ (°)
-              <input
-                type="number"
-                inputMode="decimal"
-                step="any"
-                value={addAt}
-                onInput={(e) => setAddAt(e.currentTarget.value)}
-              />
-            </label>
-            <button type="submit" class="btn" disabled={addAt === '' || fitting}>
-              Add
-            </button>
-          </form>
           <button
             type="button"
             class="btn btn-quiet"
@@ -367,6 +344,31 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
           >
             Remove all peaks
           </button>
+          <Advanced id="xrd-add-peak" title="Add a peak by its position">
+            <form
+              class="add-peak"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const value = Number(addAt);
+                if (Number.isFinite(value)) addPeak(value);
+                setAddAt('');
+              }}
+            >
+              <label class="inline-field">
+                Add a peak at 2θ (°)
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="any"
+                  value={addAt}
+                  onInput={(e) => setAddAt(e.currentTarget.value)}
+                />
+              </label>
+              <button type="submit" class="btn" disabled={addAt === '' || fitting}>
+                Add
+              </button>
+            </form>
+          </Advanced>
         </div>
       </section>
 

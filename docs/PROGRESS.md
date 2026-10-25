@@ -1,5 +1,37 @@
 # Progress
 
+## UI pass: always-visible Next, export with the plot, basic vs Advanced (done)
+
+Branch `claude/zen-edison-acnmco`, from the owner's request that beginners see only the basics,
+that exporting a figure needs no scrolling and that Next is always reachable.
+
+### What was built
+
+- Wizard footer (Back, "n of N: step", Next) is sticky at the bottom of the screen on every tool;
+  above the plot panel on narrow screens.
+- The pinned plot panel now holds the export buttons (SVG, PNG 300 and 600 dpi, PDF, journal
+  width); custom size, font and line width moved under Advanced "Figure size and font". The
+  view switches that change the plot (XRD and FTIR "Show" before/after, FTIR fingerprint region
+  and absorbance/transmittance, overlay normalise/offset) moved into the panel too, and a "Show the
+  whole range" button appears when zoomed. The typed plot range moved under Advanced.
+- Redundant controls removed: the dock note "Show it here instead" (same as Unpin) and FTIR
+  "Whole range" (same as "Show the whole range"). The full step list is shown compact while a plot
+  is pinned and the screen is under 1800 px.
+- Moved under Advanced: XRD Kα2/Kα1 ratio, XRD peak minimum separation (with the noise filter),
+  XRD "Add a peak by its position", TGA DTG window, minimum separation and DTG unit, particle
+  noise smoothing.
+- Fixed a phone-width sideways scroll caused by the footer's text.
+
+### Checks
+
+- Lint, typecheck, 715 tests (1 skipped), production build and bundle budget pass; e2e passes,
+  including no horizontal scroll at 360 and 1280 px. Every step of every tool checked at 360 px for
+  sideways scroll (none) and by screenshot at 360, 768, 1280 and 1920 px.
+
+### Next
+
+- Basic Rietveld refinement (approved by the owner): plan, core engine, validation, wizard step.
+
 ## Online COD search through a Cloudflare Worker (done)
 
 Branch `claude/zen-edison-acnmco`. The owner approved relaxing the "no backend" rule for one

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'preact/hooks';
 import { deconvolveSteps, type DtgDeconvolution } from '../../core/thermal/deconvolve';
 import type { StepLimit, StepResult } from '../../core/thermal/steps';
 import { formatNumber } from '../../core/xrd/parsers/numbers';
+import { Advanced } from '../../ui/Advanced';
 import { HelpTip } from '../../ui/HelpTip';
 import type { PlotMarker } from '../../ui/plot/types';
 import type { StepContext } from '../../ui/wizard/types';
@@ -125,20 +126,6 @@ export function StepsStep({ data, update }: StepContext<ThermalData>) {
         </h3>
         <div class="radiation-fields">
           <NumberInput
-            label="DTG window (°C)"
-            value={settings.dtgWindowC}
-            min={0}
-            onChange={(v) => setSteps({ dtgWindowC: v ?? DEFAULT_STEP_SETTINGS.dtgWindowC })}
-            help={
-              <HelpTip term="DTG window">
-                <p>
-                  Width of the temperature window used to estimate the slope at each point. Use a
-                  larger window for noisy data. Too large a window merges neighbouring steps.
-                </p>
-              </HelpTip>
-            }
-          />
-          <NumberInput
             label="Smallest peak (% of the tallest)"
             value={settings.detect.prominencePercent}
             min={0}
@@ -161,41 +148,60 @@ export function StepsStep({ data, update }: StepContext<ThermalData>) {
               </HelpTip>
             }
           />
-          <NumberInput
-            label="Minimum separation (°C)"
-            value={settings.detect.minSeparationC}
-            min={0}
-            onChange={(v) =>
-              setSteps({
-                detect: {
-                  ...settings.detect,
-                  minSeparationC: v ?? DEFAULT_STEP_SETTINGS.detect.minSeparationC,
-                },
-              })
-            }
-            help={
-              <HelpTip term="minimum separation">
-                <p>
-                  Two DTG peaks closer than this are treated as one step (the taller peak is kept).
-                </p>
-              </HelpTip>
-            }
-          />
-          <label class="inline-field">
-            DTG unit
-            <select
-              value={perMinute ? 'per-minute' : 'per-degree'}
-              onChange={(e) =>
-                setSteps({ dtgUnit: e.currentTarget.value as StepSettings['dtgUnit'] })
-              }
-            >
-              <option value="per-degree">% per °C</option>
-              <option value="per-minute" disabled={rate === null || rate <= 0}>
-                % per minute{rate === null ? ' (needs the heating rate)' : ''}
-              </option>
-            </select>
-          </label>
         </div>
+        <Advanced id="thermal-detection" title="Derivative window, separation and unit">
+          <div class="radiation-fields">
+            <NumberInput
+              label="DTG window (°C)"
+              value={settings.dtgWindowC}
+              min={0}
+              onChange={(v) => setSteps({ dtgWindowC: v ?? DEFAULT_STEP_SETTINGS.dtgWindowC })}
+              help={
+                <HelpTip term="DTG window">
+                  <p>
+                    Width of the temperature window used to estimate the slope at each point. Use a
+                    larger window for noisy data. Too large a window merges neighbouring steps.
+                  </p>
+                </HelpTip>
+              }
+            />
+            <NumberInput
+              label="Minimum separation (°C)"
+              value={settings.detect.minSeparationC}
+              min={0}
+              onChange={(v) =>
+                setSteps({
+                  detect: {
+                    ...settings.detect,
+                    minSeparationC: v ?? DEFAULT_STEP_SETTINGS.detect.minSeparationC,
+                  },
+                })
+              }
+              help={
+                <HelpTip term="minimum separation">
+                  <p>
+                    Two DTG peaks closer than this are treated as one step (the taller peak is
+                    kept).
+                  </p>
+                </HelpTip>
+              }
+            />
+            <label class="inline-field">
+              DTG unit
+              <select
+                value={perMinute ? 'per-minute' : 'per-degree'}
+                onChange={(e) =>
+                  setSteps({ dtgUnit: e.currentTarget.value as StepSettings['dtgUnit'] })
+                }
+              >
+                <option value="per-degree">% per °C</option>
+                <option value="per-minute" disabled={rate === null || rate <= 0}>
+                  % per minute{rate === null ? ' (needs the heating rate)' : ''}
+                </option>
+              </select>
+            </label>
+          </div>
+        </Advanced>
         {settings.limits && (
           <p class="field-hint">
             You edited the step limits by hand, so they stay as they are when the detection changes.{' '}
