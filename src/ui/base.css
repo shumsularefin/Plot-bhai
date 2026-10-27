@@ -161,3 +161,35 @@ textarea {
   gap: var(--space-3);
   padding: 0 var(--space-3) var(--space-3);
 }
+
+/* Every collapsible section shows a chevron, so it reads as something to open. */
+details > summary {
+  list-style: none;
+}
+
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+details > summary::before {
+  content: '';
+  display: inline-block;
+  flex: none;
+  width: 0.45em;
+  height: 0.45em;
+  margin: 0 0.35em 0.15em 0.1em;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 150ms ease;
+}
+
+details[open] > summary::before {
+  transform: rotate(45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  details > summary::before {
+    transition: none;
+  }
+}

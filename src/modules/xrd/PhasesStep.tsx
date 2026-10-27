@@ -4,6 +4,7 @@ import {
   DEFAULT_MATCH,
   matchPhase,
   referenceLines,
+  unexplainedPeaks,
   type MatchResult,
 } from '../../core/xrd/reference/match';
 import type { ReferencePhase } from '../../core/xrd/reference/types';
@@ -33,6 +34,14 @@ import { useMeasured } from './useMeasured';
 /** Palette indices for the phases; the measured pattern uses 7 (the dark colour). */
 const PHASE_COLORS = [0, 1, 2, 3, 4, 5, 6];
 
+/** Short lane label: the phase name and its COD entry (or file name when it has none). */
+function laneName(phase: ReferencePhase): string {
+  const origin = phase.origin;
+  const source =
+    origin?.kind === 'cif' ? (origin.database ?? origin.fileName) : phaseReference(phase);
+  return `${phase.name} · ${source}`;
+}
+
 /** Median fitted FWHM of a pattern (degrees), the starting width of the calculated lines. */
 function medianFwhm(data: XrdData, patternId: string | undefined): number | null {
   if (!patternId) return null;
@@ -48,6 +57,8 @@ export function PhasesStep({ data, update }: StepContext<XrdData>) {
   const material = data.material;
   const simulation = material.simulation;
   const [patternId, setPatternId] = useState(data.patterns[0]?.id);
+  /** Phase drawn as guide lines through the plot, or null to compare all shown phases. */
+  const [focusId, setFocusId] = useState<string | null>(null);
   const { pattern, processed, detected } = useMeasured(data, patternId);
   const { phases, failed } = useCandidatePhases(material);
 
@@ -81,6 +92,20 @@ export function PhasesStep({ data, update }: StepContext<XrdData>) {
   const visible = useMemo(
     () => (analysis ?? []).filter((a) => !material.hidden.includes(a.phase.id)),
     [analysis, material.hidden],
+  );
+  const focus = visible.find((a) => a.phase.id === focusId) ?? null;
+  const unexplained = useMemo(
+    () =>
+      detected && visible.length > 0
+        ? unexplainedPeaks(
+            detected.map((p) => p.center),
+            visible.map((a) =>
+              a.lines.filter((l) => l.intensity >= 1).map((l) => l.twoTheta + a.match.shift),
+            ),
+            material.toleranceDeg,
+          )
+        : [],
+    [detected, visible, material.toleranceDeg],
   );
 
   /** Calculated profiles of the shown phases, scaled together to the data by least squares. */
@@ -122,7 +147,7 @@ export function PhasesStep({ data, update }: StepContext<XrdData>) {
     if (calculated) {
       visible.forEach((a, k) => {
         const scale = calculated.scales[k] as number;
-        if (scale > 0)
+        if (scale > 0 && (!focus || focus === a))
           list.push({
             id: `calc-${a.phase.id}`,
             name: `${a.phase.name} (calculated)`,
@@ -135,7 +160,7 @@ export function PhasesStep({ data, update }: StepContext<XrdData>) {
       });
     }
     return list;
-  }, [processed, pattern, unit, calculated, visible]);
+  }, [processed, pattern, unit, calculated, visible, focus]);
   const residual = useMemo<SeriesSource | undefined>(
     () =>
       calculated && processed
@@ -160,18 +185,25 @@ export function PhasesStep({ data, update }: StepContext<XrdData>) {
         const found = new Map(a.match.lines.map((l) => [l.d, l.observed !== null]));
         return {
           id: a.phase.id,
-          name: `${a.phase.name}, ${phaseReference(a.phase)}`,
+          name: laneName(a.phase),
+          note: `score ${Math.round(a.match.score * 100)} %`,
           colorIndex: a.color,
+          focused: a === focus,
           lines: a.lines
             .filter((l) => l.intensity >= 1)
-            .map((l) => ({
-              x: l.twoTheta + a.match.shift,
-              height: l.intensity / 100,
-              ...(found.has(l.d) && { found: found.get(l.d) as boolean }),
-            })),
+            .map((l) => {
+              const x = l.twoTheta + a.match.shift;
+              const isFound = found.get(l.d);
+              return {
+                x,
+                height: l.intensity / 100,
+                label: `${a.phase.name} ${formatHkl(l.hkl)}, 2θ ${x.toFixed(2)}°, I ${l.intensity.toFixed(0)} %${isFound === false ? ', no measured peak' : ''}`,
+                ...(isFound !== undefined && { found: isFound }),
+              };
+            }),
         };
       }),
-    [visible],
+    [visible, focus],
   );
 
   const setMaterial = (patch: Partial<MaterialState>) =>
@@ -337,6 +369,47 @@ export function PhasesStep({ data, update }: StepContext<XrdData>) {
           showOverlayOptions={false}
           interaction={{ markers }}
           lanes={lanes}
+          {...(visible.length > 0 && {
+            toolbar: (
+              <fieldset class="segmented">
+                <legend>
+                  Compare{' '}
+                  <HelpTip term="compare">
+                    <p>
+                      Pick one phase to draw its reference lines as dashed guides through your
+                      pattern and to show only its calculated profile. Solid sticks in the lanes
+                      have a measured peak within the tolerance; dashed, faint sticks have none.
+                      Hover or tap a stick to see its (hkl) and position.
+                    </p>
+                  </HelpTip>
+                </legend>
+                {[null, ...visible].map((a) => {
+                  const id = a?.phase.id ?? null;
+                  return (
+                    <label
+                      key={id ?? 'all'}
+                      class={focusId === id || (!focus && id === null) ? 'is-selected' : undefined}
+                    >
+                      <input
+                        type="radio"
+                        name="phase-focus"
+                        checked={focus ? focus === a : id === null}
+                        onChange={() => setFocusId(id)}
+                      />
+                      {a ? (
+                        <>
+                          <span class={`plot-swatch series-${a.color % 8}`} aria-hidden="true" />
+                          {a.phase.name}
+                        </>
+                      ) : (
+                        'All shown phases'
+                      )}
+                    </label>
+                  );
+                })}
+              </fieldset>
+            ),
+          })}
           {...(residual && {
             residual,
             lowerAxis: { y: 'Meas. − calc.', description: 'Measured minus calculated pattern.' },
@@ -346,6 +419,13 @@ export function PhasesStep({ data, update }: StepContext<XrdData>) {
         <p aria-busy="true">Preparing the pattern…</p>
       )}
 
+      {detected && visible.length > 0 && (
+        <p class="field-hint">
+          {unexplained.length === 0
+            ? 'Every peak found in your pattern lies near a line of a shown phase.'
+            : `Peaks no shown phase explains (${unexplained.length}): ${unexplained.map((x) => `${x.toFixed(2)}°`).join(', ')}. They may belong to another phase, Kα2, or be noise.`}
+        </p>
+      )}
       {!phases && <p aria-busy="true">Loading the reference lines…</p>}
       <ul class="phase-cards" aria-label="Candidate phases">
         {(analysis ?? []).map(({ phase, match, color }) => (
@@ -390,6 +470,10 @@ interface PhaseCardProps {
 function PhaseCard({ phase, match, colorIndex, shown, used, onShown, onUsed }: PhaseCardProps) {
   const percent = Math.round(match.score * 100);
   const found = match.lines.filter((l) => l.observed !== null).length;
+  const missing = match.lines
+    .filter((l) => l.observed === null)
+    .sort((a, b) => b.intensity - a.intensity)
+    .slice(0, 3);
   return (
     <li class="phase-card">
       <div class="phase-card-header">
@@ -414,6 +498,8 @@ function PhaseCard({ phase, match, colorIndex, shown, used, onShown, onUsed }: P
           <strong>Score {percent} %</strong> (guide only): {found} of {match.lines.length} lines
           stronger than 5 % found, zero shift {match.shift >= 0 ? '+' : '−'}
           {Math.abs(match.shift).toFixed(2)}°.
+          {missing.length > 0 &&
+            ` Strongest lines with no peak: ${missing.map((l) => `${formatHkl(l.hkl)} at ${l.twoTheta.toFixed(2)}° (${l.intensity.toFixed(0)} %)`).join(', ')}.`}
         </p>
       </div>
       <div class="phase-card-actions">

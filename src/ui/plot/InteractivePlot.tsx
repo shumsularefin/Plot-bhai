@@ -33,6 +33,8 @@ export interface InteractivePlotProps {
   bands?: readonly PlotBand[];
   /** Labels above peaks, for example (hkl) indices. */
   peakLabels?: PeakLabelSet;
+  /** Dashed vertical lines across the plot (screen only), for example one phase's reference lines. */
+  guides?: readonly { x: number; colorIndex: number; found?: boolean }[];
   /** Readout text shown before the first hover. */
   hint?: string;
   /** Called when a marker is clicked or tapped (instead of onPlotClick). */
@@ -85,6 +87,7 @@ export function InteractivePlot(props: InteractivePlotProps) {
     onPlotClick,
     markers,
     bands,
+    guides,
     onMarkerClick,
     onMarkerDrag,
     onMarkerDragEnd,
@@ -366,6 +369,21 @@ export function InteractivePlot(props: InteractivePlotProps) {
             {...(peakLabels && { peakLabels })}
             {...(figure && { figure })}
           >
+            {guides
+              ?.filter((g) => g.x >= domain[0] && g.x <= domain[1])
+              .map((g, i) => {
+                const x = ((g.x - domain[0]) / (domain[1] - domain[0])) * innerW;
+                return (
+                  <line
+                    key={i}
+                    class={`plot-guide series-${g.colorIndex % 8}${g.found === false ? ' lane-missing' : ''}`}
+                    x1={x}
+                    x2={x}
+                    y1={0}
+                    y2={innerH}
+                  />
+                );
+              })}
             {readoutX !== undefined && (
               <line
                 class="plot-crosshair"
