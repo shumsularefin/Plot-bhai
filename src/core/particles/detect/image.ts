@@ -33,6 +33,17 @@ export function gaussianBlur(
   sigma: number,
 ): Uint8Array {
   if (!(sigma > 0)) return src.slice();
+  return Uint8Array.from(gaussianBlurExact(src, width, height, sigma), (v) => Math.round(v));
+}
+
+/** gaussianBlur without rounding: fractional grey levels, so smooth slopes have no flat steps. */
+export function gaussianBlurExact(
+  src: Uint8Array,
+  width: number,
+  height: number,
+  sigma: number,
+): Float32Array {
+  if (!(sigma > 0)) return Float32Array.from(src);
   const radius = Math.ceil(3 * sigma);
   const kernel = new Float32Array(2 * radius + 1);
   let sum = 0;
@@ -55,7 +66,7 @@ export function gaussianBlur(
       tmp[row + x] = acc;
     }
   }
-  const out = new Uint8Array(width * height);
+  const out = new Float32Array(width * height);
   for (let x = 0; x < width; x++) {
     for (let y = 0; y < height; y++) {
       let acc = 0;
@@ -63,7 +74,7 @@ export function gaussianBlur(
         const yy = Math.min(height - 1, Math.max(0, y + k));
         acc += (kernel[k + radius] as number) * (tmp[yy * width + x] as number);
       }
-      out[y * width + x] = Math.round(acc);
+      out[y * width + x] = acc;
     }
   }
   return out;

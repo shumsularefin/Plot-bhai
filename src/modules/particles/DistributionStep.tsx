@@ -122,6 +122,7 @@ export function DistributionStep({ data, update }: StepContext<ParticleData>) {
         ? {
             settings: data.detect.settings,
             edited: data.detect.edited,
+            diameterUsed: data.detect.diameterUsed,
             filters: data.detect.filters,
           }
         : null,
@@ -317,7 +318,7 @@ export function DistributionStep({ data, update }: StepContext<ParticleData>) {
                 onChange={(e) => set({ includeHand: e.currentTarget.checked })}
               />
               Also use the {data.measurements.length} hand measurement
-              {data.measurements.length === 1 ? '' : 's'} from step 4
+              {data.measurements.length === 1 ? '' : 's'} from step 3
             </label>
             <div class="export-actions">
               <button

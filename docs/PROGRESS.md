@@ -1,5 +1,47 @@
 # Progress
 
+## Owner feedback round: hand measuring inside Detect particles, separating clumps (done)
+
+Branch `claude/zen-edison-acnmco`. No new dependencies.
+
+### What was built
+
+- The particle wizard has four steps: the separate "Measure by hand" step is gone. Detect
+  particles now has an "Add a line" tool next to Select, Add a circle, Add an ellipse, Cut and
+  Move. Lines (and typed coordinates) are listed under "Measured by hand" in the same step, with
+  delete, delete all and CSV; the step's "Undo the last edit" also takes lines back. Circles and
+  ellipses measured in older sessions are still listed. Saved sessions are upgraded (version 4):
+  a session on the old last step opens on the new last step.
+- New splitting choice for clumped and overlapping particles (agglomerates in TEM):
+  `src/core/particles/detect/clusters.ts`. Particle centres are found with a circular Hough
+  transform on the edges (gradient-direction voting, radii 0.7 to 1.3 of the typical radius),
+  kept when their votes reach a set share of a whole, clear outline at the image's contrast, at
+  least 0.6 diameters apart; each mask pixel then goes to the nearest centre that reaches it
+  through the mask. The typical diameter is typed, taken from the last line drawn ("Use the last
+  line drawn"), or estimated from the mask (twice the median distance-transform maximum). The
+  step suggests clumps when one outline holds over 30 % of all particle area. The methods text
+  describes the method, the diameter used and whether it was estimated.
+- `gaussianBlurExact` (fractional grey levels) added; `gaussianBlur` now rounds it.
+
+### Checked
+
+- The TEM image from the owner's screenshot (a crop of it, not committed): the neck watershed
+  gave 9 particles; clumps gave about 130 to 200 regions of particle size that follow the
+  particles. Synthetic tests: six overlapping spheres (2 × 3 grid, 28 px apart, 40 px wide) are
+  all found where the neck watershed finds one; flat overlapping discs in a row split into 3;
+  a single particle stays whole. A dense 4 MP image with about 5,000 particles takes about 4 s
+  in the worker (neck watershed about 3 s).
+- Type check, lint, 784 tests (1 skipped), production build, bundle size and e2e all pass.
+
+### Known issues
+
+- The estimated diameter comes out too large when nearly every particle is in a clump, and a
+  little small on rough-edged TEM particles (the owner's image: 26 px estimated, about 35 px by
+  eye), which over-splits large particles. Drawing a line across a typical particle and pressing
+  "Use the last line drawn" is the reliable route; the help text says so.
+- Very heavy overlaps (centres closer than about 0.65 diameters) are still merged. The result
+  is an estimate and the outlines must be reviewed, as the step says.
+
 ## Owner feedback round: graph images inside every tool, Plot Bhai name, home page (done)
 
 Branch `claude/zen-edison-acnmco`. No new dependencies.

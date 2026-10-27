@@ -4,10 +4,13 @@ import { connectedComponents } from './label';
 import { close, fillHoles, open } from './morphology';
 import { labelsToRuns, type Runs } from './regions';
 import { adaptiveThreshold, applyThreshold, histogram, otsuThreshold } from './threshold';
+import { estimateDiameter, splitClusters } from './clusters';
 import { splitTouching } from './watershed';
 
 export type DenoiseMethod = 'none' | 'gaussian' | 'median';
 export type ThresholdMethod = 'otsu' | 'adaptive' | 'manual';
+/** How touching particles are separated: by narrow necks only, or as clumps of a typical size. */
+export type SplitMethod = 'necks' | 'clumps';
 
 /** Everything the detection pipeline can be told. All lengths are pixels of the image given to it. */
 export interface DetectSettings {
@@ -28,7 +31,13 @@ export interface DetectSettings {
   fillHoles: boolean;
   split: {
     enabled: boolean;
-    /** Merge blobs whose neck is at least this percent of the smaller radius. */ neckPercent: number;
+    method: SplitMethod;
+    /** Necks: merge blobs whose neck is at least this percent of the smaller radius. */
+    neckPercent: number;
+    /** Clumps: typical particle diameter in pixels; null estimates it from the mask. */
+    diameter: number | null;
+    /** Clumps: least share of a whole, clear outline a particle centre needs, percent. */
+    outlinePercent: number;
   };
 }
 
@@ -40,7 +49,13 @@ export const DEFAULT_DETECT_SETTINGS: DetectSettings = {
   open: 1,
   close: 1,
   fillHoles: true,
-  split: { enabled: true, neckPercent: 70 },
+  split: {
+    enabled: true,
+    method: 'necks',
+    neckPercent: 70,
+    diameter: null,
+    outlinePercent: 5,
+  },
 };
 
 export interface Segmentation {
@@ -48,6 +63,8 @@ export interface Segmentation {
   mask: Uint8Array;
   /** The grey level used (for Otsu the computed one, for adaptive the offset is not a level: NaN). */
   threshold: number;
+  /** The image after inverting and denoising, the one the threshold was applied to. */
+  image: Uint8Array;
 }
 
 /**
@@ -97,15 +114,16 @@ export function segment(
   mask = open(mask, width, height, settings.open);
   mask = close(mask, width, height, settings.close);
   if (settings.fillHoles) mask = fillHoles(mask, width, height);
-  return { mask, threshold: used };
+  return { mask, threshold: used, image };
 }
 
 /**
  * Finds the particles of a grayscale image: segmentation, then labelling. With splitting on,
- * touching particles are separated by a watershed on the distance transform (see
- * splitTouching); otherwise every connected blob is one particle. Returns each particle as
- * pixel runs on the image grid. Filtering by size, shape or edge contact is done afterwards,
- * from the measurements.
+ * touching particles are separated either at narrow necks, by a watershed on the distance
+ * transform (see splitTouching), or as clumps of particles of a typical diameter, from the
+ * visible arcs of their outlines (see splitClusters); otherwise every connected blob is one particle.
+ * Returns each particle as pixel runs on the image grid, and the diameter used for clumps (null
+ * otherwise). Filtering by size, shape or edge contact is done afterwards, from the measurements.
  */
 export function detectParticles(
   gray: Uint8Array,
@@ -113,10 +131,24 @@ export function detectParticles(
   height: number,
   settings: DetectSettings,
   area?: Rect | null,
-): { particles: Runs[]; threshold: number } {
-  const { mask, threshold } = segment(gray, width, height, settings, area);
-  const { labels, count } = settings.split.enabled
-    ? splitTouching(mask, width, height, settings.split.neckPercent / 100)
-    : connectedComponents(mask, width, height);
-  return { particles: labelsToRuns(labels, width, height, count), threshold };
+): { particles: Runs[]; threshold: number; diameter: number | null } {
+  const { mask, threshold, image } = segment(gray, width, height, settings, area);
+  const { split } = settings;
+  let diameter: number | null = null;
+  let result;
+  if (!split.enabled) result = connectedComponents(mask, width, height);
+  else if (split.method === 'necks')
+    result = splitTouching(mask, width, height, split.neckPercent / 100);
+  else {
+    diameter = split.diameter ?? estimateDiameter(mask, width, height);
+    result =
+      diameter === null
+        ? connectedComponents(mask, width, height)
+        : splitClusters(mask, image, width, height, diameter, split.outlinePercent / 100);
+  }
+  return {
+    particles: labelsToRuns(result.labels, width, height, result.count),
+    threshold,
+    diameter,
+  };
 }

@@ -8,6 +8,7 @@ import {
   NM_PER_UNIT,
   UNIT_LABELS,
   type LengthUnit,
+  type Measurement,
   type Point,
 } from '../../core/particles/geometry';
 import { formatNumber } from '../../core/xrd/parsers/numbers';
@@ -27,6 +28,7 @@ import {
 import { DetectClient } from './detectClient';
 import type { DecodedImage } from './decode';
 import { grayOf, maskCanvas, workingSize } from './grayImage';
+import { HandMeasurements } from './HandMeasurements';
 import { ImageGate } from './ImageGate';
 import { ImageViewer, type DrawTool, type ParticleOverlay, type Tool } from './ImageViewer';
 import { applyFilters, outlinePath, sizesOf } from './particleView';
@@ -36,6 +38,11 @@ const TOOLS: { tool: Tool; label: string; hint: string }[] = [
     tool: 'select',
     label: 'Select',
     hint: 'Click a particle to select it; click again to deselect. Hold Shift or Ctrl to select several. Drag to move the image.',
+  },
+  {
+    tool: 'line',
+    label: 'Add a line',
+    hint: 'Drag across a particle from edge to edge to measure its diameter by hand. Lines are listed under "Measured by hand", not as outlines.',
   },
   {
     tool: 'add-circle',
@@ -67,16 +74,22 @@ const MASK_DELAY_MS = 400;
 interface Snapshot {
   particles: Particle[];
   nextParticleId: number;
+  measurements: Measurement[];
+  nextId: number;
 }
 
-/** Wizard step 3: find particles automatically, then review, filter and correct them. */
+/**
+ * Wizard step 3: find particles automatically, then review, filter and correct them, and measure
+ * by hand the ones the detection cannot outline.
+ */
 export function DetectStep({ data, update }: StepContext<ParticleData>) {
   return (
     <div class="particle-step">
       <p class="message">
         <strong>Review the outlines.</strong> Automatic detection works best on well separated
-        particles with good contrast. Check every outline against the image: merge, cut, delete or
-        add particles where it went wrong. The result is an estimate.
+        particles with good contrast; for clumps, choose "In clumps or overlapping" in part 3. Check
+        every outline against the image: merge, cut, delete or add particles where it went wrong, or
+        measure a particle by hand with a line. The result is an estimate.
       </p>
       <ImageGate data={data}>
         {(image) => <Detector data={data} update={update} image={image} />}
@@ -197,7 +210,12 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
   const remember = () => {
     history.current = [
       ...history.current,
-      { particles: detect.particles, nextParticleId: detect.nextParticleId },
+      {
+        particles: detect.particles,
+        nextParticleId: detect.nextParticleId,
+        measurements: data.measurements,
+        nextId: data.nextId,
+      },
     ].slice(-UNDO_LIMIT);
     setCanUndo(true);
   };
@@ -205,13 +223,28 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
     remember();
     setDetect({ particles, nextParticleId, edited: true });
   };
+  const editHand = (measurements: Measurement[], nextId = data.nextId) => {
+    remember();
+    update({ measurements, nextId });
+  };
+  const addLine = (a: Point, b: Point) =>
+    editHand([...data.measurements, { id: data.nextId, kind: 'line', a, b }], data.nextId + 1);
   const undo = () => {
     const last = history.current[history.current.length - 1];
     if (!last) return;
     history.current = history.current.slice(0, -1);
     setCanUndo(history.current.length > 0);
     setSelected(new Set());
-    setDetect({ particles: last.particles, nextParticleId: last.nextParticleId, edited: true });
+    update({
+      measurements: last.measurements,
+      nextId: last.nextId,
+      detect: {
+        ...detect,
+        particles: last.particles,
+        nextParticleId: last.nextParticleId,
+        edited: true,
+      },
+    });
   };
 
   const run = async () => {
@@ -250,6 +283,7 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
         detectedWith: key,
         edited: false,
         thresholdUsed: Number.isFinite(result.threshold) ? result.threshold : null,
+        diameterUsed: result.diameter,
       });
     } catch {
       setProblem('The image could not be prepared for detection in this browser.');
@@ -338,7 +372,8 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
   const draw = (drawn: DrawTool, a: Point, b: Point) => {
     const wa = toWork(a);
     const wb = toWork(b);
-    if (drawn === 'add-circle') {
+    if (drawn === 'line') addLine(a, b);
+    else if (drawn === 'add-circle') {
       const r = Math.hypot(wb.x - wa.x, wb.y - wa.y) / 2;
       const runs = ellipseRuns((wa.x + wb.x) / 2, (wa.y + wb.y) / 2, r, r, work.width, work.height);
       if (runs.length > 0)
@@ -394,6 +429,11 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
     setSettings({ ...settings, denoise: { ...settings.denoise, ...patch } });
   const patchThreshold = (patch: Partial<DetectSettings['threshold']>) =>
     setSettings({ ...settings, threshold: { ...settings.threshold, ...patch } });
+  const patchSplit = (patch: Partial<DetectSettings['split']>) =>
+    setSettings({ ...settings, split: { ...settings.split, ...patch } });
+  const lines = data.measurements.filter((m) => m.kind === 'line');
+  const last = lines[lines.length - 1];
+  const lastLine = last ? Math.hypot(last.b.x - last.a.x, last.b.y - last.a.y) : null;
   const current = TOOLS.find((t) => t.tool === tool);
   const pixelsNote =
     work.scale < 1
@@ -405,9 +445,10 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
       ? `${formatNumber(px, 4)} px`
       : `${formatNumber((px * perPixelNm) / NM_PER_UNIT[showUnit], 4)} ${UNIT_LABELS[showUnit]}`;
   const rows = kept.slice().sort((a, b) => a.id - b.id);
-  const foregroundShare =
-    detect.particles.reduce((sum, p) => sum + sizesOf(p.runs, work.scale).area, 0) /
-    (image.width * image.height);
+  const areas = detect.particles.map((p) => sizesOf(p.runs, work.scale).area);
+  const totalArea = areas.reduce((sum, a) => sum + a, 0);
+  const foregroundShare = totalArea / (image.width * image.height);
+  const largestShare = areas.length > 1 ? Math.max(...areas) / totalArea : 0;
 
   return (
     <>
@@ -654,16 +695,32 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
           <input
             type="checkbox"
             checked={settings.split.enabled}
-            onChange={(e) =>
-              setSettings({
-                ...settings,
-                split: { ...settings.split, enabled: e.currentTarget.checked },
-              })
-            }
+            onChange={(e) => patchSplit({ enabled: e.currentTarget.checked })}
           />
           Split touching particles
         </label>
         {settings.split.enabled && (
+          <fieldset class="method-choice">
+            <legend>The particles are</legend>
+            {(
+              [
+                ['necks', 'Separate or touching at narrow necks'],
+                ['clumps', 'In clumps or overlapping (agglomerates)'],
+              ] as const
+            ).map(([method, name]) => (
+              <label key={method} class="check">
+                <input
+                  type="radio"
+                  name="particle-split"
+                  checked={settings.split.method === method}
+                  onChange={() => patchSplit({ method })}
+                />
+                {name}
+              </label>
+            ))}
+          </fieldset>
+        )}
+        {settings.split.enabled && settings.split.method === 'necks' && (
           <label class="slider-field">
             Split where the neck is narrower than <strong>{settings.split.neckPercent} %</strong> of
             the smaller radius
@@ -673,14 +730,67 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
               max={95}
               step={5}
               value={settings.split.neckPercent}
-              onInput={(e) =>
-                setSettings({
-                  ...settings,
-                  split: { ...settings.split, neckPercent: Number(e.currentTarget.value) },
-                })
-              }
+              onInput={(e) => patchSplit({ neckPercent: Number(e.currentTarget.value) })}
             />
           </label>
+        )}
+        {settings.split.enabled && settings.split.method === 'clumps' && (
+          <>
+            <div class="radiation-fields">
+              <NumberInput
+                label="Typical particle diameter (px)"
+                value={settings.split.diameter}
+                min={4}
+                max={2000}
+                step={1}
+                onChange={(diameter) => patchSplit({ diameter })}
+              />
+              <button
+                type="button"
+                class="btn"
+                disabled={lastLine === null}
+                onClick={() =>
+                  lastLine !== null && patchSplit({ diameter: Math.round(lastLine * work.scale) })
+                }
+              >
+                Use the last line drawn
+              </button>
+              <HelpTip term="separating clumps">
+                <p>
+                  Particles in a clump hide only part of each other's outlines. Every edge in the
+                  image votes for the centre of a circle 0.7 to 1.3 times the typical size lying
+                  behind it (a circular Hough transform), so the visible arcs of one particle all
+                  point to its centre. The strongest centres, at least 0.6 diameters apart, become
+                  particles, and each part of the clump goes to the nearest centre.
+                </p>
+                <p>
+                  Leave the diameter empty to estimate it from the image, or draw a line across a
+                  typical particle with "Add a line" and press "Use the last line drawn" (best for
+                  dense clumps). Too small a diameter splits particles in pieces; too large joins
+                  neighbours.
+                </p>
+              </HelpTip>
+            </div>
+            <p class="field-hint">
+              {settings.split.diameter === null
+                ? detect.diameterUsed !== null && !stale
+                  ? `Empty: estimated from the image. The last detection used ${formatNumber(detect.diameterUsed, 3)} px.`
+                  : 'Empty: estimated from the image when you detect.'
+                : 'Set by you.'}
+            </p>
+            <label class="slider-field">
+              A centre needs at least <strong>{settings.split.outlinePercent} %</strong> of a whole,
+              clear outline (lower finds more particles, higher fewer)
+              <input
+                type="range"
+                min={1}
+                max={40}
+                step={1}
+                value={settings.split.outlinePercent}
+                onInput={(e) => patchSplit({ outlinePercent: Number(e.currentTarget.value) })}
+              />
+            </label>
+          </>
         )}
         <p class="field-hint">Radii are in pixels.{pixelsNote}</p>
       </section>
@@ -734,6 +844,13 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
           may be darker than the background (tick the box in part 1), or the threshold is too low.
         </p>
       )}
+      {foregroundShare <= 0.5 && largestShare > 0.3 && settings.split.method !== 'clumps' && (
+        <p class="message is-warning" role="status">
+          <strong>Check:</strong> one outline holds {Math.round(largestShare * 100)} % of all
+          particle area. If the particles sit in clumps, choose "In clumps or overlapping" in part 3
+          and detect again.
+        </p>
+      )}
 
       <div class="tool-buttons" role="group" aria-label="Tool">
         {TOOLS.map((t) => (
@@ -758,6 +875,7 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
           particles={overlays}
           workScale={work.scale}
           mask={mask}
+          measurements={data.measurements}
           onPick={pick}
           onDraw={draw}
           label="Image with the detected particles"
@@ -960,6 +1078,17 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
           </>
         )}
       </section>
+
+      <HandMeasurements
+        measurements={data.measurements}
+        width={image.width}
+        height={image.height}
+        perPixelNm={perPixelNm}
+        unit={showUnit}
+        name={data.image?.name ?? 'image'}
+        onAddLine={addLine}
+        onChange={(measurements) => editHand(measurements)}
+      />
     </>
   );
 }

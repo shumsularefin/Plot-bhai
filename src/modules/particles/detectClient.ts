@@ -52,11 +52,15 @@ export class DetectClient {
 
   async detect(
     input: DetectInput,
-  ): Promise<{ particles: Runs[]; threshold: number } | 'error' | null> {
+  ): Promise<{ particles: Runs[]; threshold: number; diameter: number | null } | 'error' | null> {
     const response = await this.run({ kind: 'detect', ...input });
     if (!response) return null;
     return response.kind === 'detect'
-      ? { particles: response.particles, threshold: response.threshold }
+      ? {
+          particles: response.particles,
+          threshold: response.threshold,
+          diameter: response.diameter,
+        }
       : 'error';
   }
 

@@ -37,7 +37,7 @@ export function keptParticles(data: ParticleData) {
 
 /**
  * Diameters of the particles of the image on screen: the detected particles that pass the
- * filters of step 3 and, when asked, the hand measurements of step 4. A line gives the same
+ * filters of step 3 and, when asked, the hand measurements made in the same step. A line gives the same
  * value for all three diameters. Lengths are mapped from the working copy back to original pixels
  * and then to nm when the image has a scale.
  */

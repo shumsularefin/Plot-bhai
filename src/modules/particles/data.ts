@@ -70,6 +70,8 @@ export interface DetectState {
   edited: boolean;
   /** The grey level Otsu chose in the last detection, if it was used. */
   thresholdUsed: number | null;
+  /** The typical diameter (working copy pixels) the last detection used to separate clumps. */
+  diameterUsed: number | null;
 }
 
 export const initialDetectState: DetectState = {
@@ -80,6 +82,7 @@ export const initialDetectState: DetectState = {
   detectedWith: null,
   edited: false,
   thresholdUsed: null,
+  diameterUsed: null,
 };
 
 /** Which diameter of each particle goes into the distribution. */
@@ -155,25 +158,38 @@ export const initialParticleData: ParticleData = {
 };
 
 /** Version of the saved shape. Bump it, and add a migration, when the shape changes. */
-export const PARTICLE_STATE_VERSION = 3;
+export const PARTICLE_STATE_VERSION = 4;
+
+/** Index of the "Measure by hand" step, which versions 1 to 3 had before the last step. */
+const OLD_MEASURE_STEP = 3;
 
 /**
- * Upgrades saved sessions: version 1 (sub-stage 10a) had no automatic detection state, and
- * version 2 (10b) had no distribution settings or pool.
+ * Upgrades saved sessions: version 1 (sub-stage 10a) had no automatic detection state, version 2
+ * (10b) had no distribution settings or pool, and versions 1 to 3 had a separate step for hand
+ * measurements (now part of Detect particles) and splitting by necks only.
  */
 export function migrateParticleData(
   saved: unknown,
   version: number,
 ): WizardState<ParticleData> | undefined {
-  if (version !== 1 && version !== 2) return undefined;
+  if (version < 1 || version > 3) return undefined;
   const state = saved as WizardState<Partial<ParticleData>>;
   if (!state || typeof state !== 'object' || !state.data) return undefined;
+  const detect: Partial<DetectState> =
+    version === 1 ? initialDetectState : (state.data.detect ?? initialDetectState);
+  const settings = { ...DEFAULT_DETECT_SETTINGS, ...detect.settings };
+  const shift = (step: number) => (step > OLD_MEASURE_STEP ? step - 1 : step);
   return {
-    ...state,
+    step: shift(state.step),
+    furthest: shift(state.furthest),
     data: {
       ...initialParticleData,
       ...state.data,
-      detect: version === 1 ? initialDetectState : (state.data.detect ?? initialDetectState),
+      detect: {
+        ...initialDetectState,
+        ...detect,
+        settings: { ...settings, split: { ...DEFAULT_DETECT_SETTINGS.split, ...settings.split } },
+      },
     },
   };
 }

@@ -2,7 +2,6 @@ import type { WizardStep } from '../../ui/wizard/types';
 import type { ParticleData } from './data';
 import { DetectStep } from './DetectStep';
 import { DistributionStep } from './DistributionStep';
-import { MeasureStep } from './MeasureStep';
 import { ScaleStep } from './ScaleStep';
 import { UploadStep } from './UploadStep';
 
@@ -36,21 +35,12 @@ export const particleSteps: readonly WizardStep<ParticleData>[] = [
     id: 'detect',
     title: 'Detect particles',
     guide: [
-      'Press Detect particles.',
+      'Tick "darker than the background" for TEM images, then press Detect particles.',
+      'If the particles sit in clumps, choose "In clumps or overlapping" under part 3 and detect again.',
       'Check every outline against the image: merge, cut, delete or add particles where it went wrong.',
-      'Adjust the sensitivity if many particles are missed or split, then press Next.',
+      'Measure particles the detection cannot outline with Add a line, then press Next.',
     ],
     render: (context) => <DetectStep {...context} />,
-  },
-  {
-    id: 'measure',
-    title: 'Measure by hand',
-    guide: [
-      'Optional: measure particles by hand with a line, circle or ellipse.',
-      'Drag on the image to draw; each measurement appears in the table.',
-      'Then press Next.',
-    ],
-    render: (context) => <MeasureStep {...context} />,
   },
   {
     id: 'results',

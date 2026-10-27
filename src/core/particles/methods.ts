@@ -24,6 +24,8 @@ export interface ParticleMethodsInput {
     settings: DetectSettings;
     /** True when particles were merged, cut, added or deleted by hand after detection. */
     edited: boolean;
+    /** Typical diameter used to separate clumps, in pixels of the working copy; null otherwise. */
+    diameterUsed: number | null;
     filters: {
       unit: string;
       minDiameter: number | null;
@@ -71,9 +73,13 @@ function detectionSentence(d: NonNullable<ParticleMethodsInput['detection']>): s
   if (s.close > 0) clean.push(`closing (radius ${number(s.close)} px)`);
   if (s.fillHoles) clean.push('hole filling');
   if (clean.length > 0) parts.push(`cleaned by ${clean.join(', ')}`);
-  if (s.split.enabled) {
+  if (s.split.enabled && s.split.method === 'necks') {
     parts.push(
       `and touching particles were separated with a distance-transform watershed (neck threshold ${number(s.split.neckPercent)} %)`,
+    );
+  } else if (s.split.enabled && d.diameterUsed !== null) {
+    parts.push(
+      `and clumps were separated into particles by finding particle centres with a circular Hough transform on the edges (typical diameter ${number(d.diameterUsed, 3)} px${s.split.diameter === null ? ', estimated from the image' : ''}, radii 0.7 to 1.3 times half of it; centres needing at least ${number(s.split.outlinePercent)} % of a whole outline) and giving each mask pixel to the nearest centre`,
     );
   }
   const limits: string[] = [];
