@@ -21,6 +21,12 @@ const library = (file: string) =>
   (JSON.parse(text(`tests/fixtures/cod-reference/${file}`)) as ReferenceFamilyFile).phases;
 
 describe('a CIF loaded by the user', () => {
+  it('names a phase by formula when the file names only its crystal system (ZnO, COD 1577381)', () => {
+    const result = phaseFromCif(text('scripts/cif-cache/1577381.cif'), 'zno.cif', factors, 'cif-z');
+    if (!result.ok) throw new Error(result.error);
+    expect(result.phase.name).toBe('OZn (hexagonal)');
+  });
+
   it('gives exactly the library pattern for the same COD file (anatase)', () => {
     const anatase = library('tio2.json').find((p) => p.id === 'anatase');
     if (!anatase) throw new Error('missing');

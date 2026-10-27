@@ -41,6 +41,10 @@ export const xrdSteps: readonly WizardStep<XrdData>[] = [
     render: (context) => <InstrumentStep {...context} />,
     validate: instrumentProblem,
   },
-  { id: 'results', title: 'Results tables', render: (context) => <ResultsStep {...context} /> },
-  { id: 'export', title: 'Export', render: (context) => <ExportStep {...context} /> },
+  { id: 'results', title: 'Results', render: (context) => <ResultsStep {...context} /> },
+  {
+    id: 'export',
+    title: 'Export for your paper',
+    render: (context) => <ExportStep {...context} />,
+  },
 ];

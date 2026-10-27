@@ -3,6 +3,7 @@ import { useMemo } from 'preact/hooks';
 import type { CharacterHint } from '../../core/xrd/analysis/character';
 import { xrayDensity } from '../../core/xrd/analysis/density';
 import { peakTable } from '../../core/xrd/peaks/table';
+import type { DataMessage } from '../../core/xrd/types';
 import { ANODES } from '../../core/xrd/radiation';
 import { formatWithSigma } from '../../ui/format';
 import { HelpTip } from '../../ui/HelpTip';
@@ -28,7 +29,7 @@ import {
   type PhaseTexture,
 } from './extraAnalysis';
 import { xrdLabels } from './labels';
-import { TableBox } from './MethodDetails';
+import { CheckLog, TableBox } from './MethodDetails';
 import { NumberInput } from './NumberInput';
 import { useProcessed } from './useProcessed';
 
@@ -211,28 +212,20 @@ function TextureBlock({
             but have no fitted peak count as intensity 0, so fit every visible peak in step 5 first.
             With few reflections the coefficients are only a rough guide.
           </p>
-          {textures.map(({ phase, result }) =>
-            'reason' in result ? (
-              <p key={phase.id} class="message is-warning">
-                <strong>Check:</strong> {phase.name}: {result.reason}
-              </p>
-            ) : null,
-          )}
-          {textures.flatMap(({ phase, result }) =>
-            'rows' in result
-              ? result.rows.filter(unfittedSignal).map((row) => (
-                  <p key={`${phase.id}-${row.hklText}-unfitted`} class="message is-warning">
-                    <strong>Check:</strong> {phase.name} {row.hklText}: the pattern rises{' '}
-                    {Number.isFinite(row.expected?.signal?.ratio)
-                      ? `${row.expected?.signal?.ratio.toFixed(1)} times the local noise`
-                      : 'clearly above a noise-free baseline'}{' '}
-                    near {row.expected?.twoTheta.toFixed(2)}° 2θ, where this reference line is
-                    expected, but no peak was fitted. It is counted as intensity 0, which lowers its
-                    TC and raises the others. Fit it in step 5 for a fair coefficient.
-                  </p>
-                ))
-              : [],
-          )}
+          <CheckLog
+            messages={textures.flatMap(({ phase, result }): DataMessage[] =>
+              'reason' in result
+                ? [{ level: 'warning', text: `${phase.name}: ${result.reason}` }]
+                : result.rows.filter(unfittedSignal).map((row) => ({
+                    level: 'warning',
+                    text: `${phase.name} ${row.hklText}: the pattern rises ${
+                      Number.isFinite(row.expected?.signal?.ratio)
+                        ? `${row.expected?.signal?.ratio.toFixed(1)} times the local noise`
+                        : 'clearly above a noise-free baseline'
+                    } near ${row.expected?.twoTheta.toFixed(2)}° 2θ, where this reference line is expected, but no peak was fitted. It is counted as intensity 0, which lowers its TC and raises the others. Fit it in step 5 for a fair coefficient.`,
+                  })),
+            )}
+          />
           {textures.some((t) => 'rows' in t.result) && (
             <TableBox label="Texture coefficients" onExport={exportCsv}>
               <thead>

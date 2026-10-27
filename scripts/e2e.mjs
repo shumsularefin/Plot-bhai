@@ -122,12 +122,12 @@ async function walkToExport(log) {
   // 6 Instrument correction: skip, which is allowed and warned about in the results.
   await page.getByLabel(/skip/i).first().check();
   note('7 Instrument correction: skipped');
-  await next('Results tables');
+  await next('Results');
 
   // 7 Results
   await page.getByText('Summary').first().waitFor({ timeout: 20_000 });
-  note('8 Results tables shown');
-  await next('Export');
+  note('8 Results shown');
+  await next('Export for your paper');
 }
 
 try {

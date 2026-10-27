@@ -1,5 +1,75 @@
 # Progress
 
+## Owner feedback round: Materials Project-style search, polymer library, comparison, Results (done)
+
+Branch `claude/zen-edison-acnmco`, from the owner's annotated screenshots. No new dependencies.
+
+### What was built
+
+- Choose material (step 3) works like the Materials Project: one search bar, a periodic table
+  under it and the results under the table. Clicking elements fills the bar ("Bi-V-O" for only
+  those elements, "Bi V" for at least those), and the bar also takes a formula, a COD number, a
+  space group or a name. The same query searches the natural-polymer library and COD (through
+  the lookup Worker). Each table cell shows Z and symbol, is coloured by category (alkali
+  metals, alkaline earth metals, transition metals, post-transition metals, metalloids,
+  nonmetals, halogens, noble gases, lanthanides, actinides) with a legend, and on hover or
+  keyboard focus shows the name, Z, category, period, group, block and the CIAAW standard
+  atomic weight (`src/core/elements.ts`, names checked against `data/thermal/atomic-weights.json`
+  by a test).
+- The 70 inorganic phases were removed from the app. Their JSON files moved to
+  `tests/fixtures/cod-reference/` and stay as the validation set of the pattern calculator,
+  matcher, Rietveld engine and tables (the build script writes there now). `data/reference/`
+  keeps the scattering factors and an empty natural-polymer library index.
+- Compare reference phases (step 4): a "Compare" selector focuses one phase: its reference
+  lines are drawn as dashed guides through the pattern, the other lanes fade and only its
+  calculated profile is overlaid. Lanes are taller, striped, named "phase · COD id · score",
+  and each stick shows (hkl), 2θ and intensity on hover. Each phase card lists its strongest
+  reference lines with no measured peak, and a line under the plot lists the measured peaks no
+  shown phase explains (`unexplainedPeaks` in `src/core/xrd/reference/match.ts`, tested).
+- Rietveld refinement now refines the cleaned data of step 2 by default (Kα2 stripping is then
+  respected), with a choice of the uploaded, unprocessed data; the plot, refinement and methods
+  text follow the choice. Normalisation is never applied, so counts stay counts.
+- Results (renamed from "Results tables"): an "At a glance (estimates)" box, then three views:
+  Size and strain (settings, method guide, summary table and charts, peaks used, each method),
+  Phases, (hkl) and lattice, and Texture and crystallinity. Checks and notes of the summary,
+  each method and the texture coefficients are a compact list that opens on demand (open from
+  the start when it holds a problem). The assigned-peaks table is compact: (hkl), 2θ, Δ2θ, d,
+  intensities, FWHM and notes, with the phase column only for several phases and the structure
+  source and JCPDS number listed once above it; the CSV keeps every column.
+- Every collapsible section in the app has a chevron that turns when it opens.
+- Export is renamed "Export for your paper" and says it collects the figure, methods text,
+  tables, record and session file, while Results is for reading and checking the numbers.
+- A CIF whose only name is a crystal system (COD 1577381 names ZnO "hexagonal") is named by its
+  formula, for example "OZn (hexagonal)".
+
+### Decisions
+
+- Element categories follow the common periodic-table convention. Borderline choices, flagged
+  for the owner to check: B, Si, Ge, As, Sb and Te are metalloids; Po is a post-transition
+  metal; Zn, Cd and Hg are transition metals.
+- The polymer library ships empty (TODO). COD holds no structures for the natural polymers, and
+  the publishers' supplementary files cannot be fetched from here. The owner chose to supply
+  the CIF files (cellulose Iα, Iβ, II and III; chitin and chitosan; starch and amylose A, B and
+  V; silk fibroin; collagen; others) with their papers; each phase will cite its paper.
+- The Results views are tabs (a segmented control) rather than one long page, so a beginner
+  sees one topic at a time; per-table CSV buttons stay, and Export gathers everything.
+
+### Verification (real results)
+
+- `npm run typecheck`, `npm run lint` (ESLint and Prettier on tracked files): clean.
+- `npm test`: 71 files passed, 1 skipped; 767 tests passed, 1 skipped.
+- `npm run build` and `npm run size`: built, bundle within budget.
+- `node scripts/e2e.mjs`: passed (all tools).
+- In a browser at 1280 and 360 px: no sideways scroll on Choose material, Compare and Results;
+  the Rietveld plot shows the background-removed pattern with "Cleaned data" and the sloped
+  raw background with "Uploaded data"; the live COD search from localhost returned 23 Bi-V-O
+  entries.
+
+### Known issues and to-dos
+
+- TODO: natural-polymer library, waiting for the owner's CIF files.
+- The owner should check the element category borderline choices above.
+
 ## XRD from a screenshot: digitize a published figure and check its sizes (done)
 
 Branch `claude/zen-edison-acnmco`, from the owner's "Add Screenshot-Based XRD Analysis Feature"
