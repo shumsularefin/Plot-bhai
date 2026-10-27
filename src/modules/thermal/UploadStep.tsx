@@ -16,6 +16,7 @@ import type {
   TimeUnit,
 } from '../../core/thermal/types';
 import { formatNumber } from '../../core/xrd/parsers/numbers';
+import { DataSources } from '../../ui/DataSources';
 import { HelpTip } from '../../ui/HelpTip';
 import type { StepContext } from '../../ui/wizard/types';
 import { NumberInput } from '../xrd/NumberInput';
@@ -263,42 +264,44 @@ export function UploadStep({ data, update }: StepContext<ThermalData>) {
         Load a thermogravimetric (TGA) run as a text or csv file with temperature and mass columns.
         If your software only saves a binary format, export the run as text or csv from it first.
       </p>
-      <div
-        class={`drop-zone${dragging ? ' is-dragging' : ''}`}
-        onDragEnter={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        onDragOver={(e) => e.preventDefault()}
-        onDragLeave={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false);
-        }}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragging(false);
-          void load(e.dataTransfer?.files ?? null);
-        }}
-      >
-        <p class="drop-zone-title">Drag and drop a file here</p>
-        <p class="field-hint">
-          .csv, .txt or .xy with temperature and mass in columns. Header lines, tab, semicolon or
-          comma separators and decimal commas are handled. Files stay on your device.
-        </p>
-        <button type="button" class="btn btn-primary" onClick={() => fileInput.current?.click()}>
-          Choose a file
-        </button>
-        <input
-          ref={fileInput}
-          type="file"
-          class="visually-hidden"
-          tabIndex={-1}
-          aria-hidden="true"
-          onChange={(e) => {
-            void load(e.currentTarget.files);
-            e.currentTarget.value = '';
+      <DataSources imageHref="#/thermal/image">
+        <div
+          class={`drop-zone${dragging ? ' is-dragging' : ''}`}
+          onDragEnter={(e) => {
+            e.preventDefault();
+            setDragging(true);
           }}
-        />
-      </div>
+          onDragOver={(e) => e.preventDefault()}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragging(false);
+            void load(e.dataTransfer?.files ?? null);
+          }}
+        >
+          <p class="drop-zone-title">Drag and drop a file here</p>
+          <p class="field-hint">
+            .csv, .txt or .xy with temperature and mass in columns. Header lines, tab, semicolon or
+            comma separators and decimal commas are handled. Files stay on your device.
+          </p>
+          <button type="button" class="btn btn-primary" onClick={() => fileInput.current?.click()}>
+            Choose a file
+          </button>
+          <input
+            ref={fileInput}
+            type="file"
+            class="visually-hidden"
+            tabIndex={-1}
+            aria-hidden="true"
+            onChange={(e) => {
+              void load(e.currentTarget.files);
+              e.currentTarget.value = '';
+            }}
+          />
+        </div>
+      </DataSources>
       <div class="upload-actions">
         <button type="button" class="btn" onClick={loadExample}>
           Try with example data

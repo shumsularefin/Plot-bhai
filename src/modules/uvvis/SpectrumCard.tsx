@@ -9,6 +9,7 @@ const SOURCE_LABELS: Record<SpectrumSource, string> = {
   csv: '.csv',
   pasted: 'Pasted',
   synthetic: 'Example',
+  digitized: 'From a graph image',
 };
 const KIND_LABELS: Record<SpectrumKind, string> = {
   absorbance: 'Absorbance',

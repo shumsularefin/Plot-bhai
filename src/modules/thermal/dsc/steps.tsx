@@ -14,6 +14,7 @@ export const dscSteps: readonly WizardStep<DscData>[] = [
     title: 'Upload and describe the run',
     guide: [
       'Drop your DSC file on the box, or press Choose a file. Or press Try with example data.',
+      'Only have a picture of a graph? Press Use a graph image.',
       'Check the columns and the heat flow sign convention (exo up or exo down).',
       'Fill in the sample mass and run details, then press Next.',
     ],

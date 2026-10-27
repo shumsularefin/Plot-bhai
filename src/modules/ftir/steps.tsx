@@ -13,6 +13,7 @@ export const ftirSteps: readonly WizardStep<FtirData>[] = [
     title: 'Upload',
     guide: [
       'Drop your spectrum files on the box, or press Choose files (.csv, .txt, .dpt, .jdx).',
+      'Only have a picture of a graph? Press Use a graph image.',
       'No file at hand? Press Try with example data.',
       'Check in each card that absorbance or transmittance was detected correctly, then press Next.',
     ],

@@ -1,3 +1,4 @@
+import { digitizedSentence } from '../digitize/methods';
 import { HC_EV_NM } from './conversions';
 import { TRANSITIONS, type TransitionId } from './tauc';
 import type { SpectrumKind } from './types';
@@ -11,6 +12,8 @@ export interface UvvisMethodsInput {
   software: string;
   /** True when every spectrum is generated example data; then no measurement is described. */
   allSynthetic: boolean;
+  /** Number of spectra digitized from figure images. */
+  digitized: number;
   spectra: {
     name: string;
     kind: SpectrumKind;
@@ -51,6 +54,8 @@ export function uvvisMethodsParagraph(input: UvvisMethodsInput): string {
       ? `The spectra analysed here are generated example data, not measurements. They were treated as ${list(kinds)} spectra.`
       : `UV-Vis ${list(kinds)} spectra (${spectra.length} in total) were analysed.`,
   );
+  const digitized = digitizedSentence(input.digitized, spectra.length, ['spectrum', 'spectra']);
+  if (digitized) sentences.push(digitized);
 
   const prepared: string[] = [];
   const withBlank = spectra.filter((s) => s.cleaning.blank).length;

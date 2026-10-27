@@ -11,7 +11,10 @@ const loadUvvis = () => import('../modules/uvvis/UvvisTool');
 const loadFtir = () => import('../modules/ftir/FtirTool');
 const loadParticles = () => import('../modules/particles/ParticlesTool');
 const loadThermal = () => import('../modules/thermal/ThermalTool');
-const loadXrdShot = () => import('../modules/xrdshot/ShotTool');
+const loadXrdImage = () => import('../modules/digitize/targets/xrd');
+const loadFtirImage = () => import('../modules/digitize/targets/ftir');
+const loadUvvisImage = () => import('../modules/digitize/targets/uvvis');
+const loadThermalImage = () => import('../modules/digitize/targets/thermal');
 
 export function App() {
   const path = useHashPath();
@@ -21,9 +24,15 @@ export function App() {
       <header class="site-header">
         <div class="container">
           <a href="#/" class="brand">
-            XRD Toolkit
+            <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 20h18M4 17c3 0 3-9 6-9s3 6 5 6 2-8 5-8" />
+            </svg>
+            Plot Bhai
           </a>
-          <ThemeToggle />
+          <nav class="site-nav" aria-label="Site">
+            <a href="#/about">About</a>
+            <ThemeToggle />
+          </nav>
         </div>
       </header>
       <main class="site-main">
@@ -33,8 +42,14 @@ export function App() {
               <About />
             ) : path === '/xrd' ? (
               <LazyTool load={loadXrd} />
-            ) : path === '/xrd-screenshot' ? (
-              <LazyTool load={loadXrdShot} />
+            ) : path === '/xrd/image' || path === '/xrd-screenshot' ? (
+              <LazyTool load={loadXrdImage} />
+            ) : path === '/ftir/image' ? (
+              <LazyTool load={loadFtirImage} />
+            ) : path === '/uvvis/image' ? (
+              <LazyTool load={loadUvvisImage} />
+            ) : path === '/thermal/image' ? (
+              <LazyTool load={loadThermalImage} />
             ) : path === '/uvvis' ? (
               <LazyTool load={loadUvvis} />
             ) : path === '/ftir' ? (
@@ -51,8 +66,9 @@ export function App() {
       </main>
       <footer class="site-footer">
         <div class="container">
+          <p>© 2026 Shumsul Arefin. All rights reserved.</p>
           <p>
-            Free and open. Your data stays on your device.{' '}
+            Free to use. Your data stays on your device.{' '}
             <a href="#/about">About, equations and limits</a>
           </p>
         </div>

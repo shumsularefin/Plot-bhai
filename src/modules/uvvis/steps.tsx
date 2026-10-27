@@ -12,6 +12,7 @@ export const uvvisSteps: readonly WizardStep<UvvisData>[] = [
     title: 'Upload',
     guide: [
       'Drop your spectrum files on the box, or press Choose files.',
+      'Only have a picture of a graph? Press Use a graph image.',
       'No file at hand? Press Try with example data.',
       'In each card, check the data type (absorbance, transmittance or reflectance), then press Next.',
     ],

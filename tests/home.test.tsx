@@ -5,16 +5,15 @@ import { Home } from '../src/ui/Home';
 describe('Home', () => {
   it('shows every tool card, each with a link', () => {
     render(<Home />);
-    const names = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
-    expect(names).toEqual([
-      'XRD',
-      'XRD from a screenshot',
-      'UV-Vis',
-      'FTIR',
-      'Particle size',
-      'TGA and DSC',
+    const names = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
+    expect(names.slice(0, 5)).toEqual(['XRD', 'FTIR', 'UV-Vis', 'TGA and DSC', 'Particle size']);
+    expect(screen.getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual([
+      '#/xrd',
+      '#/ftir',
+      '#/uvvis',
+      '#/thermal',
+      '#/particles',
     ]);
-    expect(screen.queryAllByText('Coming soon')).toHaveLength(0);
-    expect(screen.getAllByRole('link')).toHaveLength(6);
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Plot Bhai');
   });
 });

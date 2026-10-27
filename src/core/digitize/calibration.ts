@@ -27,6 +27,16 @@ export interface Calibration {
   yScale: AxisScale;
 }
 
+/** What the axes show, for the messages: for example 2θ and intensity, or wavenumber and transmittance. */
+export interface AxisNames {
+  x: string;
+  y: string;
+  /** False when figures of this kind are often drawn with x decreasing to the right (FTIR). */
+  xIncreasesRight: boolean;
+}
+
+export const GENERIC_AXES: AxisNames = { x: 'x', y: 'y', xIncreasesRight: true };
+
 /** Points closer than this (pixels) give too coarse a scale. */
 const MIN_SPAN_PX = 20;
 /** Tilt of the x axis (degrees) above which the image should be straightened first. */
@@ -48,24 +58,24 @@ const toAxis = (value: number, scale: AxisScale) => (scale === 'log' ? Math.log1
 const fromAxis = (value: number, scale: AxisScale) => (scale === 'log' ? 10 ** value : value);
 
 /** A plain-language reason the calibration cannot be used, or null when it can. */
-export function calibrationError(c: Calibration): string | null {
+export function calibrationError(c: Calibration, names: AxisNames = GENERIC_AXES): string | null {
   const [x1, x2] = c.x;
   const [y1, y2] = c.y;
   const finite = [x1.value, x2.value, y1.value, y2.value].every(Number.isFinite);
   if (!finite) return 'Type a number for each of the four marked points.';
-  if (x1.value === x2.value) return 'The two 2θ points need different values.';
-  if (y1.value === y2.value) return 'The two intensity points need different values.';
+  if (x1.value === x2.value) return `The two ${names.x} points need different values.`;
+  if (y1.value === y2.value) return `The two ${names.y} points need different values.`;
   if (c.yScale === 'log' && (y1.value <= 0 || y2.value <= 0))
-    return 'On a logarithmic axis the intensity values must be above zero.';
+    return `On a logarithmic axis the ${names.y} values must be above zero.`;
   if (length(sub(x2.at, x1.at)) < 1 || length(sub(y2.at, y1.at)) < 1)
     return 'Each pair of points must be at two different places on the image.';
   if (!decompose({ x: 0, y: 0 }, sub(x2.at, x1.at), sub(y2.at, y1.at)))
-    return 'The x and y points lie along the same line. Mark two points along the 2θ axis and two along the intensity axis.';
+    return `The two pairs of points lie along the same line. Mark two points along the ${names.x} axis and two along the ${names.y} axis.`;
   return null;
 }
 
 /** Things that work but make the result less accurate, in plain language. */
-export function calibrationWarnings(c: Calibration): string[] {
+export function calibrationWarnings(c: Calibration, names: AxisNames = GENERIC_AXES): string[] {
   const out: string[] = [];
   const u = sub(c.x[1].at, c.x[0].at);
   const v = sub(c.y[1].at, c.y[0].at);
@@ -77,21 +87,21 @@ export function calibrationWarnings(c: Calibration): string[] {
   const tiltFromLevel = Math.abs(((tilt + 90) % 180) - 90);
   if (tiltFromLevel > MAX_TILT_DEG)
     out.push(
-      `The 2θ axis is tilted by ${tiltFromLevel.toFixed(1)}°. The values are still mapped correctly, but the curve is read column by column, so straighten the image in step 1 for a cleaner trace.`,
+      `The ${names.x} axis is tilted by ${tiltFromLevel.toFixed(1)}°. The values are still mapped correctly, but the curve is read column by column, so straighten the image in step 1 for a cleaner trace.`,
     );
   const angle = (Math.acos((u.x * v.x + u.y * v.y) / (length(u) * length(v))) * 180) / Math.PI;
   if (Math.abs(angle - 90) > MAX_SKEW_DEG)
     out.push(
-      `The two axes meet at ${angle.toFixed(1)}°, not 90°. Check that the 2θ points are on the horizontal axis and the intensity points on the vertical one.`,
+      `The two axes meet at ${angle.toFixed(1)}°, not 90°. Check that the ${names.x} points are on the horizontal axis and the ${names.y} points on the vertical one.`,
     );
-  if (Math.sign(c.x[1].value - c.x[0].value) !== Math.sign(u.x))
+  if (names.xIncreasesRight && Math.sign(c.x[1].value - c.x[0].value) !== Math.sign(u.x))
     out.push(
-      '2θ increases to the left on this calibration. Check the values typed for the 2θ points.',
+      `${names.x} increases to the left on this calibration. Check the values typed for the ${names.x} points.`,
     );
   return out;
 }
 
-/** The data value (2θ, intensity) at an image pixel. Call only with a calibration without error. */
+/** The data value (x, y) at an image pixel. Call only with a calibration without error. */
 export function toData(c: Calibration, p: Point): { x: number; y: number } {
   const u = sub(c.x[1].at, c.x[0].at);
   const v = sub(c.y[1].at, c.y[0].at);
@@ -118,8 +128,8 @@ export function toPixel(c: Calibration, value: { x: number; y: number }): Point 
   return { x: c.x[0].at.x + a * u.x + b * v.x, y: c.x[0].at.y + a * u.y + b * v.y };
 }
 
-/** Degrees 2θ covered by one pixel along the 2θ axis. */
-export function degreesPerPixel(c: Calibration): number {
+/** x units covered by one pixel along the x axis (degrees 2θ for an XRD figure). */
+export function xPerPixel(c: Calibration): number {
   const u = sub(c.x[1].at, c.x[0].at);
   return Math.abs(c.x[1].value - c.x[0].value) / length(u);
 }

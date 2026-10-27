@@ -12,6 +12,7 @@ export function methodsInput(data: FtirData): FtirMethodsInput {
   return {
     software: SOFTWARE,
     allSynthetic: data.spectra.length > 0 && data.spectra.every((s) => s.synthetic),
+    digitized: data.spectra.filter((s) => s.source === 'digitized').length,
     spectra: data.spectra.map((s) => {
       const p = data.processing[s.id] ?? DEFAULT_FTIR_PROCESSING;
       const own = rows.filter((r) => r.spectrum.id === s.id);

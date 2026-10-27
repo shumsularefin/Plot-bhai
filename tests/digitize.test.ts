@@ -3,12 +3,12 @@ import { describe, expect, it } from 'vitest';
 import {
   calibrationError,
   calibrationWarnings,
-  degreesPerPixel,
+  xPerPixel,
   toData,
   toPixel,
   type Calibration,
 } from '../src/core/digitize/calibration';
-import { applyEdits, toPattern } from '../src/core/digitize/curve';
+import { applyEdits, toCurve } from '../src/core/digitize/curve';
 import { backgroundColor, extractCurve, pickCurve, type Rgb } from '../src/core/digitize/extract';
 import { fitPeaks } from '../src/core/xrd/peaks/fit';
 import { scherrer } from '../src/core/xrd/size/methods';
@@ -46,7 +46,7 @@ describe('axis calibration', () => {
     const v = toData(c, pixelOf(spec, 47.5, 600));
     expect(v.x).toBeCloseTo(47.5, 9);
     expect(v.y).toBeCloseTo(600, 9);
-    expect(degreesPerPixel(c)).toBeCloseTo(0.1, 12);
+    expect(xPerPixel(c)).toBeCloseTo(0.1, 12);
 
     // The same plot turned by 7° about (0, 0): the affine map still recovers every value.
     const a = (7 * Math.PI) / 180;
@@ -113,7 +113,7 @@ function digitize(
     region: { x: l - 2, y: t - 2, width: r - l + 4, height: b - t + 4 },
     seeds: [picked.at],
   });
-  const result = toPattern(extraction.points, exactCalibration(plot));
+  const result = toCurve(extraction.points, exactCalibration(plot));
   if (!result) throw new Error('no pattern');
   return { result, extraction, picked };
 }
@@ -132,9 +132,9 @@ describe('curve extraction', () => {
     drawCurve(img, spec, { f: pattern, color: BLACK, thickness: 2 });
     const { result, extraction } = digitize(img, spec, 50, pattern);
     expect(extraction.removedLines).toBeGreaterThan(0);
-    expect(result.twoTheta[0]).toBeLessThan(20.3);
-    expect(result.twoTheta[result.twoTheta.length - 1]).toBeGreaterThan(79.7);
-    expect(rmsError(result.twoTheta, result.intensity, pattern, spec)).toBeLessThan(0.004);
+    expect(result.x[0]).toBeLessThan(20.3);
+    expect(result.x[result.x.length - 1]).toBeGreaterThan(79.7);
+    expect(rmsError(result.x, result.y, pattern, spec)).toBeLessThan(0.004);
     expect(result.gaps).toEqual([]);
   });
 
@@ -144,8 +144,8 @@ describe('curve extraction', () => {
     drawCurve(img, spec, { f: pattern, color: BLACK, thickness: 3 });
     const { result } = digitize(img, spec, 50, pattern);
     const peaks = fitPeaks(
-      result.twoTheta,
-      result.intensity,
+      result.x,
+      result.y,
       [
         { center: 35, width: 0.5 },
         { center: 62, width: 0.5 },
@@ -170,13 +170,9 @@ describe('curve extraction', () => {
     drawCurve(img, spec, { f: red, color: RED, thickness: 2 });
     drawBlock(img, 520, 40, 120, 14, BLACK); // a legend
     const black = digitize(img, spec, 50, pattern);
-    expect(rmsError(black.result.twoTheta, black.result.intensity, pattern, spec)).toBeLessThan(
-      0.006,
-    );
+    expect(rmsError(black.result.x, black.result.y, pattern, spec)).toBeLessThan(0.006);
     const second = digitize(img, spec, 40, red, RED, 90);
-    expect(rmsError(second.result.twoTheta, second.result.intensity, red, spec)).toBeLessThan(
-      0.006,
-    );
+    expect(rmsError(second.result.x, second.result.y, red, spec)).toBeLessThan(0.006);
   });
 
   it('follows the seeded curve of two stacked curves of the same colour', () => {
@@ -187,7 +183,7 @@ describe('curve extraction', () => {
     drawCurve(img, spec, { f: upper, color: BLACK, thickness: 2 });
     drawCurve(img, spec, { f: lower, color: BLACK, thickness: 2 });
     const { result } = digitize(img, spec, 50, upper);
-    expect(rmsError(result.twoTheta, result.intensity, upper, spec)).toBeLessThan(0.006);
+    expect(rmsError(result.x, result.y, upper, spec)).toBeLessThan(0.006);
   });
 
   it('copes with a noisy, blurred screenshot', () => {
@@ -196,7 +192,7 @@ describe('curve extraction', () => {
     drawCurve(img, spec, { f: pattern, color: [30, 30, 120], thickness: 2 });
     const noisy = degrade(img, 18);
     const { result } = digitize(noisy, spec, 50, pattern, [30, 30, 120], 150);
-    expect(rmsError(result.twoTheta, result.intensity, pattern, spec)).toBeLessThan(0.008);
+    expect(rmsError(result.x, result.y, pattern, spec)).toBeLessThan(0.008);
   });
 
   it('ignores inward tick marks that touch a low baseline', () => {
@@ -211,9 +207,9 @@ describe('curve extraction', () => {
     }
     const { result } = digitize(img, spec, 45, pattern);
     let worst = 0;
-    result.twoTheta.forEach((x, i) => {
+    result.x.forEach((x, i) => {
       if (ticks.some((t) => Math.abs(x - t) < 1))
-        worst = Math.max(worst, Math.abs((result.intensity[i] as number) - pattern(x)));
+        worst = Math.max(worst, Math.abs((result.y[i] as number) - pattern(x)));
     });
     // One pixel is 3.3 counts; a dip onto a tick would be about 100.
     expect(worst).toBeLessThan(12);
@@ -263,8 +259,8 @@ describe('from screenshot to crystallite size', () => {
     drawCurve(img, plot, { f, color: BLACK, thickness: 2 });
     const { result } = digitize(img, plot, 25, f);
     const regions = fitPeaks(
-      result.twoTheta,
-      result.intensity,
+      result.x,
+      result.y,
       centers.map((c) => ({ center: c, width: 0.6 })),
       { profile: 'pseudo-voigt', fixedEta: null },
     );

@@ -5,6 +5,8 @@ import type { Atmosphere } from './types';
 export interface DscMethodsInput {
   software: string;
   synthetic: boolean;
+  /** True when the curve was digitized from a figure image. */
+  digitized?: boolean;
   atmosphere: Atmosphere;
   atmosphereOther: string;
   heatingRate: number | null;
@@ -60,7 +62,9 @@ export function dscMethodsParagraph(input: DscMethodsInput): string {
   const run = [
     input.synthetic
       ? 'The differential scanning calorimetry (DSC) curve analysed here is generated example data, not a measurement.'
-      : 'A differential scanning calorimetry (DSC) curve was analysed.',
+      : input.digitized
+        ? 'A differential scanning calorimetry (DSC) curve digitized from a figure image was analysed, so the temperatures and heat flows read from it are approximate.'
+        : 'A differential scanning calorimetry (DSC) curve was analysed.',
   ];
   const details = [
     `atmosphere: ${gas}`,

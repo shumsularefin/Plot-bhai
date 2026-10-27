@@ -1,5 +1,55 @@
 # Progress
 
+## Owner feedback round: graph images inside every tool, Plot Bhai name, home page (done)
+
+Branch `claude/zen-edison-acnmco`. No new dependencies.
+
+### What was built
+
+- The separate "XRD from a screenshot" tool is gone. Its reader is now shared
+  (`src/modules/digitize/`) and opens from inside each tool: the Upload steps of XRD, FTIR,
+  UV-Vis, TGA and DSC show "From a data file" and "From a graph image" side by side, and after
+  data are loaded a link under "Add more files" adds a curve from a graph image. Routes:
+  `#/xrd/image`, `#/ftir/image`, `#/uvvis/image`, `#/thermal/image` (the old
+  `#/xrd-screenshot` link still opens the XRD reader, with its saved work).
+- Each tool's reader names its own axes (2θ, wavenumber, wavelength, temperature), draws its
+  own synthetic example figure from the site's existing generators, and ends with "Add to my …
+  analysis", which adds the curve to that tool's saved session and opens its Upload step.
+  FTIR and UV-Vis ask what the y axis shows (suggested from the values with the existing
+  `suggestKind`); TGA/DSC asks whether the curve is mass (% or mg) or heat flow, and the
+  temperature unit. A wavenumber axis drawn high on the left raises no warning.
+- Digitized data keep a "From a graph image" badge and an "approximate" note, and the methods
+  text of FTIR, UV-Vis, TGA and DSC now says when data were digitized (XRD already did).
+- Core: `calibrationError` / `calibrationWarnings` take the axis names; `toPattern` became
+  `toCurve` with generic `x` / `y`; `degreesPerPixel` became `xPerPixel`;
+  `digitizedSentence` added. The tool stores moved to their own modules (`ftirStore.ts`,
+  `uvvisStore.ts`, `tgaStore.ts`, `dsc/dscStore.ts`) so the reader can write to them.
+- The site is now called Plot Bhai (header with a small logo, page title, manifest, PDF
+  producer, software name in records and methods text). XRD session files keep their old
+  internal id, so earlier files still load.
+- New home page: title and tagline, three short points, tool cards with icons and the kinds of
+  input each takes, and a three-step "How it works". Footer: "© 2026 Shumsul Arefin. All rights
+  reserved." The About page has a short section on data from graph images.
+
+### Verification (real results)
+
+- Type check: clean. Lint and Prettier: clean.
+- Tests: 776 passed, 1 skipped (new `tests/digitize-targets.test.ts`: reversed wavenumber axis,
+  axis names in messages, x always increasing, methods sentence).
+- Production build: passes. Bundle size: initial JavaScript 16.8 KB gzipped (budget 150 KB);
+  each reader loads on demand.
+- E2E: passes, including the XRD graph-image flow (example traced over 10.30° to 79.70°, added
+  to the XRD Upload step, marked approximate, no sideways scroll at 360 px).
+- By hand in Chromium: the example figure of each tool (XRD, FTIR, UV-Vis, TGA) traced and
+  added to its tool with no page errors; home, UV-Vis and thermal pages have no sideways
+  scroll at 360 and 1280 px.
+
+### Known issues and TODO
+
+- A TGA-DSC figure with both curves must be read twice (once per curve); the combined view
+  then uses a separate TGA file.
+- UV-Vis figures must be plotted against wavelength in nm (not photon energy).
+
 ## Owner feedback round: fitting check, clearer lanes, upload and search layout, step instructions (done)
 
 Branch `claude/zen-edison-acnmco`. No new dependencies.

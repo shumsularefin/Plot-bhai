@@ -1,4 +1,4 @@
-# XRD Toolkit (working name)
+# Plot Bhai
 
 A free, fast web app that guides early-career researchers through analysing materials
 characterisation data, one step at a time. Four tools are planned: XRD, UV-Vis, FTIR and particle

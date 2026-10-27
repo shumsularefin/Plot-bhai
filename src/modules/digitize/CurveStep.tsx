@@ -6,11 +6,11 @@ import { PlotPanel } from '../../ui/plot/PlotPanel';
 import type { StepContext } from '../../ui/wizard/types';
 import { ImageViewer, type Tool } from '../particles/ImageViewer';
 import { downloadCsv } from '../xrd/csv';
-import { xrdLabels } from '../xrd/labels';
 import type { ShotData } from './data';
 import { calibrationOf, digitize, type Digitization } from './digitized';
 import type { ShotImage } from './prepare';
 import { ShotGate } from './ShotGate';
+import { useTarget } from './target';
 
 type Mode = 'pick' | 'seed' | 'erase' | 'add' | 'pan';
 
@@ -96,14 +96,15 @@ interface WorkspaceProps extends Pick<StepContext<ShotData>, 'data' | 'update'> 
 
 function CurveWorkspace({ data, update, image, mode, setMode, setCurve }: WorkspaceProps) {
   const { curve } = data;
-  const outcome = calibrationOf(data);
+  const { axes } = useTarget();
+  const outcome = calibrationOf(data, axes);
   const calibration = 'calibration' in outcome ? outcome.calibration : null;
   const background = useMemo(
     () => backgroundColor(image.pixels, data.crop ?? undefined),
     [image, data.crop],
   );
   const result = useMemo(
-    () => digitize(data, image, calibration),
+    () => digitize(data, image, calibration, axes),
     // The trace depends only on these parts of the data.
     [image, curve, data.crop, data.marks, data.yScale], // eslint-disable-line react-hooks/exhaustive-deps
   );
@@ -305,31 +306,36 @@ function TraceSummary({
   result: Digitization;
   calibrationProblem: string | null;
 }) {
-  const { pattern } = result;
-  const sources = useMemo(
-    () =>
-      pattern
-        ? [
-            {
-              id: 'digitized',
-              name: data.name || 'Digitized curve',
-              x: pattern.twoTheta,
-              y: pattern.intensity,
-              unit: 'a.u.',
-            },
-          ]
-        : [],
-    [pattern, data.name],
-  );
+  const { curve } = result;
+  const { axes, labels } = useTarget();
+  const sources = useMemo(() => {
+    if (!curve) return [];
+    // A reversed axis is plotted as −x, still increasing (see AxisLabels.reversed).
+    const n = curve.x.length;
+    const at = (i: number) => (labels.reversed ? n - 1 - i : i);
+    return [
+      {
+        id: 'digitized',
+        name: data.name || 'Digitized curve',
+        x: Float64Array.from({ length: n }, (_, i) => {
+          const x = curve.x[at(i)] as number;
+          return labels.reversed ? -x : x;
+        }),
+        y: Float64Array.from({ length: n }, (_, i) => curve.y[at(i)] as number),
+        unit: 'a.u.',
+      },
+    ];
+  }, [curve, data.name, labels.reversed]);
+  const x = (v: number) => `${v.toFixed(axes.xDigits)}${axes.xUnit}`;
   const exportCsv = () =>
-    pattern &&
+    curve &&
     downloadCsv(
-      data.name || 'digitized-xrd',
-      `Digitized from the figure image ${data.image?.name ?? ''}: approximate values. One image pixel = ${pattern.step.toFixed(4)} deg 2theta.`,
-      Array.from(pattern.twoTheta, (x, i) => ({ x, y: pattern.intensity[i] as number })),
+      data.name || 'digitized-curve',
+      `Digitized from the figure image ${data.image?.name ?? ''}: approximate values. One image pixel = ${curve.step.toPrecision(4)} along x.`,
+      Array.from(curve.x, (x, i) => ({ x, y: curve.y[i] as number })),
       [
-        { header: '2theta (deg)', value: (r) => r.x },
-        { header: 'Intensity (a.u., approximate)', value: (r) => r.y },
+        { header: axes.xCsv, value: (r) => r.x },
+        { header: `${axes.y} (as in the figure, approximate)`, value: (r) => r.y },
       ],
     );
   return (
@@ -342,20 +348,19 @@ function TraceSummary({
           <strong>Check:</strong> the axes are not calibrated yet, so the curve cannot be turned
           into numbers. {calibrationProblem} (step 2)
         </p>
-      ) : pattern ? (
+      ) : curve ? (
         <>
           <dl class="summary-grid">
             <div>
-              <dt>2θ range</dt>
+              <dt>Range</dt>
               <dd>
-                {(pattern.twoTheta[0] as number).toFixed(2)}° to{' '}
-                {(pattern.twoTheta[pattern.twoTheta.length - 1] as number).toFixed(2)}°
+                {x(curve.x[0] as number)} to {x(curve.x[curve.x.length - 1] as number)}
               </dd>
             </div>
             <div>
               <dt>Points</dt>
               <dd>
-                {pattern.twoTheta.length} (one per image pixel, {pattern.step.toFixed(4)}° apart)
+                {curve.x.length} (one per image pixel, {x(curve.step)} apart)
               </dd>
             </div>
             <div>
@@ -380,10 +385,10 @@ function TraceSummary({
             sources={sources}
             settings={data.plot}
             onSettingsChange={(plot) => update({ plot: { ...data.plot, ...plot } })}
-            labels={xrdLabels}
-            xName="2θ"
-            xUnit="°"
-            exportName={data.name || 'digitized-xrd'}
+            labels={() => labels}
+            xName={axes.xShort}
+            xUnit={axes.xUnit}
+            exportName={data.name || 'digitized-curve'}
             dock="manual"
           />
         </>

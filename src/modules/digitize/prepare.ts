@@ -125,8 +125,8 @@ export type ShotState =
   | { status: 'ready'; image: ShotImage }
   | { status: 'error'; error: string };
 
-/** The rotated working image of the saved state: from the cache, or from the stored file. */
-export function useShotImage(info: ShotImageInfo | null, degrees: number): ShotState {
+/** The rotated working image of the saved state: from the cache, or from the file stored under `key`. */
+export function useShotImage(key: string, info: ShotImageInfo | null, degrees: number): ShotState {
   const cached = () =>
     info && decoded?.id === info.id
       ? ({ status: 'ready', image: preparedFor(info.id, decoded.bitmap, degrees) } as const)
@@ -148,7 +148,7 @@ export function useShotImage(info: ShotImageInfo | null, degrees: number): ShotS
     let active = true;
     setState({ status: 'loading' });
     void (async () => {
-      const blob = await loadShot(info.id).catch(() => undefined);
+      const blob = await loadShot(key, info.id).catch(() => undefined);
       if (!blob) {
         if (active)
           setState({

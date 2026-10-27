@@ -1326,3 +1326,39 @@
   gap: var(--space-2);
   min-width: 0;
 }
+
+.data-sources {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+@media (min-width: 768px) {
+  .data-sources {
+    grid-template-columns: 3fr 2fr;
+  }
+}
+
+.data-source {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.data-source > .drop-zone {
+  flex: 1;
+}
+
+.data-source-title {
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+}
+
+.image-source-link {
+  margin-top: var(--space-2);
+}
+
+.data-source-image .btn {
+  text-decoration: none;
+}

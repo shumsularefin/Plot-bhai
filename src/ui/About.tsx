@@ -13,7 +13,7 @@ function Eq({ children, note }: { children: string; note: string }) {
 export default function About() {
   return (
     <article class="about">
-      <h1 class="page-title">About this toolkit</h1>
+      <h1 class="page-title">About Plot Bhai</h1>
       <p class="page-lead">
         Free, in-browser tools for XRD, UV-Vis, FTIR, particle size and thermal analysis. This page
         lists the equations used, the assumptions behind them and what the tools cannot do.
@@ -190,6 +190,18 @@ export default function About() {
           structure in the data (an unfitted shoulder, a wrong profile or a background problem), so
           the uncertainties are then too small. Crystallite size is the size of coherently
           diffracting domains, not the particle size seen in a microscope.
+        </p>
+      </section>
+
+      <section aria-labelledby="about-images">
+        <h2 id="about-images">Data from a graph image</h2>
+        <p>
+          The XRD, FTIR, UV-Vis and TGA/DSC tools can also read a curve from a picture of a graph.
+          You mark two labelled ticks on each axis; the pixels of the curve are then mapped to data
+          values with an affine transform, so a slightly tilted image is still read correctly, and
+          resampled one image pixel apart. The result is only as good as the picture: positions are
+          good to about a pixel, while heights and the widths of narrow peaks are rough. Such data
+          stay marked as digitized in every table, export and methods text.
         </p>
       </section>
 
