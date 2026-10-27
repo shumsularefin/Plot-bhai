@@ -1,0 +1,2118 @@
+{
+ "source": "Patterns computed from CIF files of the Crystallography Open Database (COD, http://www.crystallography.net/), kinematic model, Cu Ka1; see docs/PROGRESS.md.",
+ "intensityWavelength": 1.5405929,
+ "families": [
+  {
+   "id": "tio2",
+   "name": "Titanium dioxide",
+   "aliases": [
+    "titania",
+    "titanium oxide",
+    "TiO2"
+   ],
+   "formula": "TiO2",
+   "file": "tio2.json",
+   "phases": [
+    {
+     "id": "anatase",
+     "name": "Anatase",
+     "codId": 9015929,
+     "spaceGroup": "I 41/a m d :1",
+     "crystalSystem": "tetragonal",
+     "formula": "TiO2",
+     "spaceGroupNumber": 141,
+     "elements": [
+      "O",
+      "Ti"
+     ],
+     "cell": {
+      "a": 3.7845,
+      "b": 3.7845,
+      "c": 9.5143,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    },
+    {
+     "id": "rutile",
+     "name": "Rutile",
+     "codId": 9007531,
+     "spaceGroup": "P 42/m n m",
+     "crystalSystem": "tetragonal",
+     "formula": "TiO2",
+     "spaceGroupNumber": 136,
+     "elements": [
+      "O",
+      "Ti"
+     ],
+     "cell": {
+      "a": 4.5941,
+      "b": 4.5941,
+      "c": 2.9589,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    },
+    {
+     "id": "brookite",
+     "name": "Brookite",
+     "codId": 9009087,
+     "spaceGroup": "P b c a",
+     "crystalSystem": "orthorhombic",
+     "formula": "TiO2",
+     "spaceGroupNumber": 61,
+     "elements": [
+      "O",
+      "Ti"
+     ],
+     "cell": {
+      "a": 9.184,
+      "b": 5.447,
+      "c": 5.145,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "zno",
+   "name": "Zinc oxide",
+   "aliases": [
+    "zincite",
+    "zinc oxide",
+    "ZnO"
+   ],
+   "formula": "ZnO",
+   "file": "zno.json",
+   "phases": [
+    {
+     "id": "zno-wurtzite",
+     "name": "Zincite (wurtzite)",
+     "codId": 1577381,
+     "spaceGroup": "P 63 m c",
+     "crystalSystem": "hexagonal",
+     "formula": "ZnO",
+     "spaceGroupNumber": 186,
+     "elements": [
+      "O",
+      "Zn"
+     ],
+     "cell": {
+      "a": 3.251,
+      "b": 3.251,
+      "c": 5.209,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 120
+     }
+    }
+   ]
+  },
+  {
+   "id": "iron-oxides",
+   "name": "Iron oxides",
+   "aliases": [
+    "magnetite",
+    "hematite",
+    "maghemite",
+    "Fe3O4",
+    "Fe2O3",
+    "iron oxide"
+   ],
+   "formula": "Fe-O",
+   "file": "iron-oxides.json",
+   "phases": [
+    {
+     "id": "magnetite",
+     "name": "Magnetite",
+     "codId": 9013529,
+     "spaceGroup": "F d -3 m :2",
+     "crystalSystem": "cubic",
+     "formula": "Fe3O4",
+     "spaceGroupNumber": 227,
+     "elements": [
+      "Fe",
+      "O"
+     ],
+     "cell": {
+      "a": 8.3967,
+      "b": 8.3967,
+      "c": 8.3967,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    },
+    {
+     "id": "hematite",
+     "name": "Hematite (α-Fe2O3)",
+     "codId": 9000139,
+     "spaceGroup": "R -3 c :H",
+     "crystalSystem": "trigonal",
+     "formula": "Fe2O3",
+     "spaceGroupNumber": 167,
+     "elements": [
+      "Fe",
+      "O"
+     ],
+     "cell": {
+      "a": 5.038,
+      "b": 5.038,
+      "c": 13.772,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 120
+     }
+    },
+    {
+     "id": "maghemite",
+     "name": "Maghemite (γ-Fe2O3)",
+     "codId": 1528611,
+     "spaceGroup": "F d -3 m :2",
+     "crystalSystem": "cubic",
+     "formula": "Fe2O3",
+     "spaceGroupNumber": 227,
+     "elements": [
+      "Fe",
+      "O"
+     ],
+     "cell": {
+      "a": 8.4053,
+      "b": 8.4053,
+      "c": 8.4053,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "copper-oxides",
+   "name": "Copper oxides",
+   "aliases": [
+    "tenorite",
+    "cuprite",
+    "CuO",
+    "Cu2O",
+    "copper oxide"
+   ],
+   "formula": "Cu-O",
+   "file": "copper-oxides.json",
+   "phases": [
+    {
+     "id": "tenorite",
+     "name": "Tenorite (CuO)",
+     "codId": 7212242,
+     "spaceGroup": "C 1 2/c 1",
+     "crystalSystem": "monoclinic",
+     "formula": "CuO",
+     "spaceGroupNumber": 15,
+     "elements": [
+      "Cu",
+      "O"
+     ],
+     "cell": {
+      "a": 4.6837,
+      "b": 3.4226,
+      "c": 5.1288,
+      "alpha": 90,
+      "beta": 99.54,
+      "gamma": 90
+     }
+    },
+    {
+     "id": "cuprite",
+     "name": "Cuprite (Cu2O)",
+     "codId": 9007497,
+     "spaceGroup": "P n -3 m :1",
+     "crystalSystem": "cubic",
+     "formula": "Cu2O",
+     "spaceGroupNumber": 224,
+     "elements": [
+      "Cu",
+      "O"
+     ],
+     "cell": {
+      "a": 4.2685,
+      "b": 4.2685,
+      "c": 4.2685,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "nio",
+   "name": "Nickel oxide",
+   "aliases": [
+    "bunsenite",
+    "NiO",
+    "nickel oxide"
+   ],
+   "formula": "NiO",
+   "file": "nio.json",
+   "phases": [
+    {
+     "id": "nio",
+     "name": "Bunsenite (NiO)",
+     "codId": 4329323,
+     "spaceGroup": "F m -3 m",
+     "crystalSystem": "cubic",
+     "formula": "NiO",
+     "spaceGroupNumber": 225,
+     "elements": [
+      "Ni",
+      "O"
+     ],
+     "cell": {
+      "a": 4.17861,
+      "b": 4.17861,
+      "c": 4.17861,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "co3o4",
+   "name": "Cobalt oxide",
+   "aliases": [
+    "cobalt(II,III) oxide",
+    "Co3O4",
+    "cobalt oxide"
+   ],
+   "formula": "Co3O4",
+   "file": "co3o4.json",
+   "phases": [
+    {
+     "id": "co3o4",
+     "name": "Cobalt(II,III) oxide (spinel)",
+     "codId": 1538531,
+     "spaceGroup": "F d -3 m :1",
+     "crystalSystem": "cubic",
+     "formula": "Co3O4",
+     "spaceGroupNumber": 227,
+     "elements": [
+      "Co",
+      "O"
+     ],
+     "cell": {
+      "a": 8.065,
+      "b": 8.065,
+      "c": 8.065,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "ceo2",
+   "name": "Cerium dioxide",
+   "aliases": [
+    "ceria",
+    "cerianite",
+    "CeO2",
+    "cerium oxide"
+   ],
+   "formula": "CeO2",
+   "file": "ceo2.json",
+   "phases": [
+    {
+     "id": "ceo2",
+     "name": "Cerianite (CeO2)",
+     "codId": 9009008,
+     "spaceGroup": "F m -3 m",
+     "crystalSystem": "cubic",
+     "formula": "CeO2",
+     "spaceGroupNumber": 225,
+     "elements": [
+      "Ce",
+      "O"
+     ],
+     "cell": {
+      "a": 5.411,
+      "b": 5.411,
+      "c": 5.411,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "sno2",
+   "name": "Tin dioxide",
+   "aliases": [
+    "cassiterite",
+    "SnO2",
+    "tin oxide"
+   ],
+   "formula": "SnO2",
+   "file": "sno2.json",
+   "phases": [
+    {
+     "id": "sno2",
+     "name": "Cassiterite (SnO2)",
+     "codId": 1000062,
+     "spaceGroup": "P 42/m n m",
+     "crystalSystem": "tetragonal",
+     "formula": "SnO2",
+     "spaceGroupNumber": 136,
+     "elements": [
+      "O",
+      "Sn"
+     ],
+     "cell": {
+      "a": 4.738,
+      "b": 4.738,
+      "c": 3.1865,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "wo3",
+   "name": "Tungsten trioxide",
+   "aliases": [
+    "WO3",
+    "tungsten oxide"
+   ],
+   "formula": "WO3",
+   "file": "wo3.json",
+   "phases": [
+    {
+     "id": "wo3-monoclinic",
+     "name": "WO3 (monoclinic)",
+     "codId": 2106382,
+     "spaceGroup": "P 1 21/n 1",
+     "crystalSystem": "monoclinic",
+     "formula": "WO3",
+     "spaceGroupNumber": 14,
+     "elements": [
+      "O",
+      "W"
+     ],
+     "cell": {
+      "a": 7.306,
+      "b": 7.54,
+      "c": 7.692,
+      "alpha": 90,
+      "beta": 90.881,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "al2o3",
+   "name": "Aluminium oxide",
+   "aliases": [
+    "alumina",
+    "corundum",
+    "Al2O3",
+    "aluminum oxide"
+   ],
+   "formula": "Al2O3",
+   "file": "al2o3.json",
+   "phases": [
+    {
+     "id": "corundum",
+     "name": "Corundum (α-Al2O3)",
+     "codId": 1000032,
+     "spaceGroup": "R -3 c :H",
+     "crystalSystem": "trigonal",
+     "formula": "Al2O3",
+     "spaceGroupNumber": 167,
+     "elements": [
+      "Al",
+      "O"
+     ],
+     "cell": {
+      "a": 4.7605,
+      "b": 4.7605,
+      "c": 12.9956,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 120
+     }
+    },
+    {
+     "id": "gamma-al2o3",
+     "name": "γ-Al2O3",
+     "codId": 1200015,
+     "spaceGroup": "F d -3 m :1",
+     "crystalSystem": "cubic",
+     "formula": "Al2O3",
+     "spaceGroupNumber": 227,
+     "elements": [
+      "Al",
+      "O"
+     ],
+     "cell": {
+      "a": 7.906,
+      "b": 7.906,
+      "c": 7.906,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "sio2",
+   "name": "Silicon dioxide",
+   "aliases": [
+    "quartz",
+    "silica",
+    "SiO2"
+   ],
+   "formula": "SiO2",
+   "file": "sio2.json",
+   "phases": [
+    {
+     "id": "alpha-quartz",
+     "name": "α-Quartz",
+     "codId": 5000035,
+     "spaceGroup": "P 32 2 1",
+     "crystalSystem": "trigonal",
+     "formula": "SiO2",
+     "spaceGroupNumber": 154,
+     "elements": [
+      "O",
+      "Si"
+     ],
+     "cell": {
+      "a": 4.91239,
+      "b": 4.91239,
+      "c": 5.40385,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 120
+     }
+    }
+   ]
+  },
+  {
+   "id": "cds",
+   "name": "Cadmium sulfide",
+   "aliases": [
+    "greenockite",
+    "hawleyite",
+    "CdS",
+    "cadmium sulphide"
+   ],
+   "formula": "CdS",
+   "file": "cds.json",
+   "phases": [
+    {
+     "id": "cds-hexagonal",
+     "name": "Greenockite (hexagonal CdS)",
+     "codId": 9008862,
+     "spaceGroup": "P 63 m c",
+     "crystalSystem": "hexagonal",
+     "formula": "CdS",
+     "spaceGroupNumber": 186,
+     "elements": [
+      "Cd",
+      "S"
+     ],
+     "cell": {
+      "a": 4.1348,
+      "b": 4.1348,
+      "c": 6.749,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 120
+     }
+    },
+    {
+     "id": "cds-cubic",
+     "name": "Hawleyite (cubic CdS)",
+     "codId": 9000108,
+     "spaceGroup": "F -4 3 m",
+     "crystalSystem": "cubic",
+     "formula": "CdS",
+     "spaceGroupNumber": 216,
+     "elements": [
+      "Cd",
+      "S"
+     ],
+     "cell": {
+      "a": 5.833,
+      "b": 5.833,
+      "c": 5.833,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "zns",
+   "name": "Zinc sulfide",
+   "aliases": [
+    "sphalerite",
+    "wurtzite",
+    "ZnS",
+    "zinc blende",
+    "zinc sulphide"
+   ],
+   "formula": "ZnS",
+   "file": "zns.json",
+   "phases": [
+    {
+     "id": "zns-sphalerite",
+     "name": "Sphalerite (cubic ZnS)",
+     "codId": 9000107,
+     "spaceGroup": "F -4 3 m",
+     "crystalSystem": "cubic",
+     "formula": "ZnS",
+     "spaceGroupNumber": 216,
+     "elements": [
+      "S",
+      "Zn"
+     ],
+     "cell": {
+      "a": 5.4093,
+      "b": 5.4093,
+      "c": 5.4093,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    },
+    {
+     "id": "zns-wurtzite",
+     "name": "Wurtzite (hexagonal ZnS)",
+     "codId": 1100044,
+     "spaceGroup": "P 63 m c",
+     "crystalSystem": "hexagonal",
+     "formula": "ZnS",
+     "spaceGroupNumber": 186,
+     "elements": [
+      "S",
+      "Zn"
+     ],
+     "cell": {
+      "a": 3.8227,
+      "b": 3.8227,
+      "c": 6.2607,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 120
+     }
+    }
+   ]
+  },
+  {
+   "id": "batio3",
+   "name": "Barium titanate",
+   "aliases": [
+    "BaTiO3"
+   ],
+   "formula": "BaTiO3",
+   "file": "batio3.json",
+   "phases": [
+    {
+     "id": "batio3-tetragonal",
+     "name": "BaTiO3 (tetragonal)",
+     "codId": 1559964,
+     "spaceGroup": "P 4 m m",
+     "crystalSystem": "tetragonal",
+     "formula": "BaTiO3",
+     "spaceGroupNumber": 99,
+     "elements": [
+      "Ba",
+      "O",
+      "Ti"
+     ],
+     "cell": {
+      "a": 3.99048,
+      "b": 3.99048,
+      "c": 4.02303,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    },
+    {
+     "id": "batio3-cubic",
+     "name": "BaTiO3 (cubic)",
+     "codId": 1571502,
+     "spaceGroup": "P m -3 m",
+     "crystalSystem": "cubic",
+     "formula": "BaTiO3",
+     "spaceGroupNumber": 221,
+     "elements": [
+      "Ba",
+      "O",
+      "Ti"
+     ],
+     "cell": {
+      "a": 4.00944,
+      "b": 4.00944,
+      "c": 4.00944,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "srtio3",
+   "name": "Strontium titanate",
+   "aliases": [
+    "tausonite",
+    "SrTiO3"
+   ],
+   "formula": "SrTiO3",
+   "file": "srtio3.json",
+   "phases": [
+    {
+     "id": "srtio3",
+     "name": "Strontium titanate (cubic)",
+     "codId": 1577245,
+     "spaceGroup": "P m -3 m",
+     "crystalSystem": "cubic",
+     "formula": "SrTiO3",
+     "spaceGroupNumber": 221,
+     "elements": [
+      "O",
+      "Sr",
+      "Ti"
+     ],
+     "cell": {
+      "a": 3.90541,
+      "b": 3.90541,
+      "c": 3.90541,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "caco3",
+   "name": "Calcium carbonate",
+   "aliases": [
+    "calcite",
+    "aragonite",
+    "CaCO3",
+    "limestone"
+   ],
+   "formula": "CaCO3",
+   "file": "caco3.json",
+   "phases": [
+    {
+     "id": "calcite",
+     "name": "Calcite",
+     "codId": 9015390,
+     "spaceGroup": "R -3 c :H",
+     "crystalSystem": "trigonal",
+     "formula": "CaCO3",
+     "spaceGroupNumber": 167,
+     "elements": [
+      "C",
+      "Ca",
+      "O"
+     ],
+     "cell": {
+      "a": 4.99029,
+      "b": 4.99029,
+      "c": 17.0687,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 120
+     }
+    },
+    {
+     "id": "aragonite",
+     "name": "Aragonite",
+     "codId": 9013799,
+     "spaceGroup": "P m c n",
+     "crystalSystem": "orthorhombic",
+     "formula": "CaCO3",
+     "spaceGroupNumber": 62,
+     "elements": [
+      "C",
+      "Ca",
+      "O"
+     ],
+     "cell": {
+      "a": 4.96062,
+      "b": 7.97006,
+      "c": 5.74181,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "mos2",
+   "name": "Molybdenum disulfide",
+   "aliases": [
+    "molybdenite",
+    "MoS2",
+    "molybdenum disulphide"
+   ],
+   "formula": "MoS2",
+   "file": "mos2.json",
+   "phases": [
+    {
+     "id": "mos2-2h",
+     "name": "Molybdenite-2H (MoS2)",
+     "codId": 1531960,
+     "spaceGroup": "P 63/m m c",
+     "crystalSystem": "hexagonal",
+     "formula": "MoS2",
+     "spaceGroupNumber": 194,
+     "elements": [
+      "Mo",
+      "S"
+     ],
+     "cell": {
+      "a": 3.169,
+      "b": 3.169,
+      "c": 12.324,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 120
+     }
+    }
+   ]
+  },
+  {
+   "id": "graphite",
+   "name": "Graphite",
+   "aliases": [
+    "carbon",
+    "C"
+   ],
+   "formula": "C",
+   "file": "graphite.json",
+   "phases": [
+    {
+     "id": "graphite",
+     "name": "Graphite (2H)",
+     "codId": 9011577,
+     "spaceGroup": "P 63/m m c",
+     "crystalSystem": "hexagonal",
+     "formula": "C",
+     "spaceGroupNumber": 194,
+     "elements": [
+      "C"
+     ],
+     "cell": {
+      "a": 2.464,
+      "b": 2.464,
+      "c": 6.711,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 120
+     }
+    }
+   ]
+  },
+  {
+   "id": "si",
+   "name": "Silicon",
+   "aliases": [
+    "Si"
+   ],
+   "formula": "Si",
+   "file": "si.json",
+   "phases": [
+    {
+     "id": "si",
+     "name": "Silicon",
+     "codId": 2104737,
+     "spaceGroup": "F d -3 m",
+     "crystalSystem": "cubic",
+     "formula": "Si",
+     "spaceGroupNumber": 227,
+     "elements": [
+      "Si"
+     ],
+     "cell": {
+      "a": 5.43096,
+      "b": 5.43096,
+      "c": 5.43096,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "lab6",
+   "name": "Lanthanum hexaboride",
+   "aliases": [
+    "LaB6",
+    "NIST 660",
+    "line position standard"
+   ],
+   "formula": "LaB6",
+   "file": "lab6.json",
+   "phases": [
+    {
+     "id": "lab6",
+     "name": "Lanthanum hexaboride",
+     "codId": 2104736,
+     "spaceGroup": "P m -3 m",
+     "crystalSystem": "cubic",
+     "formula": "LaB6",
+     "spaceGroupNumber": 221,
+     "elements": [
+      "B",
+      "La"
+     ],
+     "cell": {
+      "a": 4.15706,
+      "b": 4.15706,
+      "c": 4.15706,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "au",
+   "name": "Gold",
+   "aliases": [
+    "Au"
+   ],
+   "formula": "Au",
+   "file": "au.json",
+   "phases": [
+    {
+     "id": "au",
+     "name": "Gold (fcc)",
+     "codId": 9008463,
+     "spaceGroup": "F m -3 m",
+     "crystalSystem": "cubic",
+     "formula": "Au",
+     "spaceGroupNumber": 225,
+     "elements": [
+      "Au"
+     ],
+     "cell": {
+      "a": 4.07825,
+      "b": 4.07825,
+      "c": 4.07825,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "ag",
+   "name": "Silver",
+   "aliases": [
+    "Ag"
+   ],
+   "formula": "Ag",
+   "file": "ag.json",
+   "phases": [
+    {
+     "id": "ag",
+     "name": "Silver (fcc)",
+     "codId": 9008459,
+     "spaceGroup": "F m -3 m",
+     "crystalSystem": "cubic",
+     "formula": "Ag",
+     "spaceGroupNumber": 225,
+     "elements": [
+      "Ag"
+     ],
+     "cell": {
+      "a": 4.0862,
+      "b": 4.0862,
+      "c": 4.0862,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "cu",
+   "name": "Copper",
+   "aliases": [
+    "Cu"
+   ],
+   "formula": "Cu",
+   "file": "cu.json",
+   "phases": [
+    {
+     "id": "cu",
+     "name": "Copper (fcc)",
+     "codId": 7101264,
+     "spaceGroup": "F m -3 m",
+     "crystalSystem": "cubic",
+     "formula": "Cu",
+     "spaceGroupNumber": 225,
+     "elements": [
+      "Cu"
+     ],
+     "cell": {
+      "a": 3.61696,
+      "b": 3.61696,
+      "c": 3.61696,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "pt",
+   "name": "Platinum",
+   "aliases": [
+    "Pt"
+   ],
+   "formula": "Pt",
+   "file": "pt.json",
+   "phases": [
+    {
+     "id": "pt",
+     "name": "Platinum (fcc)",
+     "codId": 4334349,
+     "spaceGroup": "F m -3 m",
+     "crystalSystem": "cubic",
+     "formula": "Pt",
+     "spaceGroupNumber": 225,
+     "elements": [
+      "Pt"
+     ],
+     "cell": {
+      "a": 3.9218,
+      "b": 3.9218,
+      "c": 3.9218,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "ni",
+   "name": "Nickel",
+   "aliases": [
+    "Ni"
+   ],
+   "formula": "Ni",
+   "file": "ni.json",
+   "phases": [
+    {
+     "id": "ni",
+     "name": "Nickel (fcc)",
+     "codId": 4320486,
+     "spaceGroup": "F m -3 m",
+     "crystalSystem": "cubic",
+     "formula": "Ni",
+     "spaceGroupNumber": 225,
+     "elements": [
+      "Ni"
+     ],
+     "cell": {
+      "a": 3.52288,
+      "b": 3.52288,
+      "c": 3.52288,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "bivo4",
+   "name": "Bismuth vanadate",
+   "aliases": [
+    "BiVO4",
+    "clinobisvanite",
+    "dreyerite",
+    "pucherite",
+    "bismuth vanadium oxide"
+   ],
+   "formula": "BiVO4",
+   "file": "bivo4.json",
+   "phases": [
+    {
+     "id": "dreyerite",
+     "name": "Dreyerite (tetragonal zircon-type BiVO4)",
+     "codId": 9011741,
+     "spaceGroup": "I 41/a m d :2",
+     "crystalSystem": "tetragonal",
+     "formula": "BiVO4",
+     "spaceGroupNumber": 141,
+     "elements": [
+      "Bi",
+      "O",
+      "V"
+     ],
+     "cell": {
+      "a": 7.303,
+      "b": 7.303,
+      "c": 6.584,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    },
+    {
+     "id": "pucherite",
+     "name": "Pucherite (orthorhombic BiVO4)",
+     "codId": 9009870,
+     "spaceGroup": "P n c a",
+     "crystalSystem": "orthorhombic",
+     "formula": "BiVO4",
+     "spaceGroupNumber": 60,
+     "elements": [
+      "Bi",
+      "O",
+      "V"
+     ],
+     "cell": {
+      "a": 5.319,
+      "b": 5.05,
+      "c": 12.011,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "bi2o3",
+   "name": "Bismuth oxide",
+   "aliases": [
+    "Bi2O3",
+    "bismite",
+    "sphaerobismoite",
+    "bismuth trioxide"
+   ],
+   "formula": "Bi2O3",
+   "file": "bi2o3.json",
+   "phases": [
+    {
+     "id": "bismite",
+     "name": "Bismite (α-Bi2O3)",
+     "codId": 9012546,
+     "spaceGroup": "P 1 21/c 1",
+     "crystalSystem": "monoclinic",
+     "formula": "Bi2O3",
+     "spaceGroupNumber": 14,
+     "elements": [
+      "Bi",
+      "O"
+     ],
+     "cell": {
+      "a": 5.8486,
+      "b": 8.1661,
+      "c": 7.5097,
+      "alpha": 90,
+      "beta": 113,
+      "gamma": 90
+     }
+    },
+    {
+     "id": "sphaerobismoite",
+     "name": "Sphaerobismoite (β-Bi2O3)",
+     "codId": 9007723,
+     "spaceGroup": "P -4 21 c",
+     "crystalSystem": "tetragonal",
+     "formula": "Bi2O3",
+     "spaceGroupNumber": 114,
+     "elements": [
+      "Bi",
+      "O"
+     ],
+     "cell": {
+      "a": 7.739,
+      "b": 7.739,
+      "c": 5.636,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "v2o5",
+   "name": "Vanadium pentoxide",
+   "aliases": [
+    "V2O5",
+    "shcherbinaite",
+    "vanadium oxide"
+   ],
+   "formula": "V2O5",
+   "file": "v2o5.json",
+   "phases": [
+    {
+     "id": "v2o5",
+     "name": "V2O5 (orthorhombic)",
+     "codId": 2020756,
+     "spaceGroup": "P m m n :2",
+     "crystalSystem": "orthorhombic",
+     "formula": "V2O5",
+     "spaceGroupNumber": 59,
+     "elements": [
+      "O",
+      "V"
+     ],
+     "cell": {
+      "a": 11.512,
+      "b": 3.564,
+      "c": 4.368,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "zro2",
+   "name": "Zirconium dioxide",
+   "aliases": [
+    "ZrO2",
+    "zirconia",
+    "baddeleyite",
+    "zirconium oxide"
+   ],
+   "formula": "ZrO2",
+   "file": "zro2.json",
+   "phases": [
+    {
+     "id": "baddeleyite",
+     "name": "Baddeleyite (monoclinic ZrO2)",
+     "codId": 9007448,
+     "spaceGroup": "P 1 21/c 1",
+     "crystalSystem": "monoclinic",
+     "formula": "ZrO2",
+     "spaceGroupNumber": 14,
+     "elements": [
+      "O",
+      "Zr"
+     ],
+     "cell": {
+      "a": 5.169,
+      "b": 5.232,
+      "c": 5.341,
+      "alpha": 90,
+      "beta": 99.25,
+      "gamma": 90
+     }
+    },
+    {
+     "id": "zro2-tetragonal",
+     "name": "ZrO2 (tetragonal)",
+     "codId": 2300612,
+     "spaceGroup": "P 42/n m c :1",
+     "crystalSystem": "tetragonal",
+     "formula": "ZrO2",
+     "spaceGroupNumber": 137,
+     "elements": [
+      "O",
+      "Zr"
+     ],
+     "cell": {
+      "a": 3.5961,
+      "b": 3.5961,
+      "c": 5.177,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    },
+    {
+     "id": "zro2-cubic",
+     "name": "ZrO2 (cubic)",
+     "codId": 1538970,
+     "spaceGroup": "F m -3 m",
+     "crystalSystem": "cubic",
+     "formula": "ZrO2",
+     "spaceGroupNumber": 225,
+     "elements": [
+      "O",
+      "Zr"
+     ],
+     "cell": {
+      "a": 5.065,
+      "b": 5.065,
+      "c": 5.065,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "mgo",
+   "name": "Magnesium oxide",
+   "aliases": [
+    "MgO",
+    "periclase",
+    "magnesia"
+   ],
+   "formula": "MgO",
+   "file": "mgo.json",
+   "phases": [
+    {
+     "id": "periclase",
+     "name": "Periclase (MgO)",
+     "codId": 1000053,
+     "spaceGroup": "F m -3 m",
+     "crystalSystem": "cubic",
+     "formula": "MgO",
+     "spaceGroupNumber": 225,
+     "elements": [
+      "Mg",
+      "O"
+     ],
+     "cell": {
+      "a": 4.217,
+      "b": 4.217,
+      "c": 4.217,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "in2o3",
+   "name": "Indium oxide",
+   "aliases": [
+    "In2O3",
+    "indium(III) oxide"
+   ],
+   "formula": "In2O3",
+   "file": "in2o3.json",
+   "phases": [
+    {
+     "id": "in2o3",
+     "name": "In2O3 (cubic bixbyite type)",
+     "codId": 2310009,
+     "spaceGroup": "I a -3",
+     "crystalSystem": "cubic",
+     "formula": "In2O3",
+     "spaceGroupNumber": 206,
+     "elements": [
+      "In",
+      "O"
+     ],
+     "cell": {
+      "a": 10.117,
+      "b": 10.117,
+      "c": 10.117,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "manganese-oxides",
+   "name": "Manganese oxides",
+   "aliases": [
+    "MnO2",
+    "Mn3O4",
+    "pyrolusite",
+    "hausmannite",
+    "manganese oxide"
+   ],
+   "formula": "Mn-O",
+   "file": "manganese-oxides.json",
+   "phases": [
+    {
+     "id": "pyrolusite",
+     "name": "Pyrolusite (β-MnO2)",
+     "codId": 2105790,
+     "spaceGroup": "P 42/m n m",
+     "crystalSystem": "tetragonal",
+     "formula": "MnO2",
+     "spaceGroupNumber": 136,
+     "elements": [
+      "Mn",
+      "O"
+     ],
+     "cell": {
+      "a": 4.3983,
+      "b": 4.3983,
+      "c": 2.873,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    },
+    {
+     "id": "hausmannite",
+     "name": "Hausmannite (Mn3O4)",
+     "codId": 1514115,
+     "spaceGroup": "I 41/a m d :2",
+     "crystalSystem": "tetragonal",
+     "formula": "Mn3O4",
+     "spaceGroupNumber": 141,
+     "elements": [
+      "Mn",
+      "O"
+     ],
+     "cell": {
+      "a": 5.765,
+      "b": 5.765,
+      "c": 9.442,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "fe",
+   "name": "Iron",
+   "aliases": [
+    "Fe",
+    "alpha iron",
+    "ferrite (bcc iron)"
+   ],
+   "formula": "Fe",
+   "file": "fe.json",
+   "phases": [
+    {
+     "id": "fe-bcc",
+     "name": "α-Iron (bcc)",
+     "codId": 9013414,
+     "spaceGroup": "I m -3 m",
+     "crystalSystem": "cubic",
+     "formula": "Fe",
+     "spaceGroupNumber": 229,
+     "elements": [
+      "Fe"
+     ],
+     "cell": {
+      "a": 2.858,
+      "b": 2.858,
+      "c": 2.858,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "al",
+   "name": "Aluminium",
+   "aliases": [
+    "Al",
+    "aluminum"
+   ],
+   "formula": "Al",
+   "file": "al.json",
+   "phases": [
+    {
+     "id": "al",
+     "name": "Aluminium (fcc)",
+     "codId": 4004108,
+     "spaceGroup": "F m -3 m",
+     "crystalSystem": "cubic",
+     "formula": "Al",
+     "spaceGroupNumber": 225,
+     "elements": [
+      "Al"
+     ],
+     "cell": {
+      "a": 4.0494,
+      "b": 4.0494,
+      "c": 4.0494,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "alkali-halides",
+   "name": "Alkali halides",
+   "aliases": [
+    "NaCl",
+    "KCl",
+    "KBr",
+    "halite",
+    "sylvite",
+    "salt",
+    "potassium bromide"
+   ],
+   "formula": "NaCl, KCl, KBr",
+   "file": "alkali-halides.json",
+   "phases": [
+    {
+     "id": "halite",
+     "name": "Halite (NaCl)",
+     "codId": 9008678,
+     "spaceGroup": "F m -3 m",
+     "crystalSystem": "cubic",
+     "formula": "NaCl",
+     "spaceGroupNumber": 225,
+     "elements": [
+      "Cl",
+      "Na"
+     ],
+     "cell": {
+      "a": 5.64056,
+      "b": 5.64056,
+      "c": 5.64056,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    },
+    {
+     "id": "sylvite",
+     "name": "Sylvite (KCl)",
+     "codId": 9008651,
+     "spaceGroup": "F m -3 m",
+     "crystalSystem": "cubic",
+     "formula": "KCl",
+     "spaceGroupNumber": 225,
+     "elements": [
+      "Cl",
+      "K"
+     ],
+     "cell": {
+      "a": 6.29294,
+      "b": 6.29294,
+      "c": 6.29294,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    },
+    {
+     "id": "kbr",
+     "name": "Potassium bromide (KBr)",
+     "codId": 9008650,
+     "spaceGroup": "F m -3 m",
+     "crystalSystem": "cubic",
+     "formula": "KBr",
+     "spaceGroupNumber": 225,
+     "elements": [
+      "Br",
+      "K"
+     ],
+     "cell": {
+      "a": 6.6,
+      "b": 6.6,
+      "c": 6.6,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "caf2",
+   "name": "Calcium fluoride",
+   "aliases": [
+    "CaF2",
+    "fluorite"
+   ],
+   "formula": "CaF2",
+   "file": "caf2.json",
+   "phases": [
+    {
+     "id": "fluorite",
+     "name": "Fluorite (CaF2)",
+     "codId": 1000043,
+     "spaceGroup": "F m -3 m",
+     "crystalSystem": "cubic",
+     "formula": "CaF2",
+     "spaceGroupNumber": 225,
+     "elements": [
+      "Ca",
+      "F"
+     ],
+     "cell": {
+      "a": 5.462,
+      "b": 5.462,
+      "c": 5.462,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "y2o3",
+   "name": "Yttrium oxide",
+   "aliases": [
+    "Y2O3",
+    "yttria"
+   ],
+   "formula": "Y2O3",
+   "file": "y2o3.json",
+   "phases": [
+    {
+     "id": "y2o3",
+     "name": "Y2O3 (cubic)",
+     "codId": 1513300,
+     "spaceGroup": "I a -3",
+     "crystalSystem": "cubic",
+     "formula": "Y2O3",
+     "spaceGroupNumber": 206,
+     "elements": [
+      "O",
+      "Y"
+     ],
+     "cell": {
+      "a": 10.604,
+      "b": 10.604,
+      "c": 10.604,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "bi2wo6",
+   "name": "Bismuth tungstate",
+   "aliases": [
+    "Bi2WO6",
+    "russellite"
+   ],
+   "formula": "Bi2WO6",
+   "file": "bi2wo6.json",
+   "phases": [
+    {
+     "id": "russellite",
+     "name": "Russellite (Bi2WO6)",
+     "codId": 9011799,
+     "spaceGroup": "P c a 21",
+     "crystalSystem": "orthorhombic",
+     "formula": "Bi2WO6",
+     "spaceGroupNumber": 29,
+     "elements": [
+      "Bi",
+      "O",
+      "W"
+     ],
+     "cell": {
+      "a": 5.43726,
+      "b": 16.43018,
+      "c": 5.45842,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "biocl",
+   "name": "Bismuth oxychloride",
+   "aliases": [
+    "BiOCl",
+    "bismoclite",
+    "bismuth oxide chloride"
+   ],
+   "formula": "BiOCl",
+   "file": "biocl.json",
+   "phases": [
+    {
+     "id": "bismoclite",
+     "name": "Bismoclite (BiOCl)",
+     "codId": 9008426,
+     "spaceGroup": "P 4/n m m :2",
+     "crystalSystem": "tetragonal",
+     "formula": "BiOCl",
+     "spaceGroupNumber": 129,
+     "elements": [
+      "Bi",
+      "Cl",
+      "O"
+     ],
+     "cell": {
+      "a": 3.887,
+      "b": 3.887,
+      "c": 7.354,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "silver-compounds",
+   "name": "Silver compounds",
+   "aliases": [
+    "AgCl",
+    "AgBr",
+    "Ag3PO4",
+    "chlorargyrite",
+    "bromargyrite",
+    "silver phosphate"
+   ],
+   "formula": "AgCl, AgBr, Ag3PO4",
+   "file": "silver-compounds.json",
+   "phases": [
+    {
+     "id": "chlorargyrite",
+     "name": "Chlorargyrite (AgCl)",
+     "codId": 9008597,
+     "spaceGroup": "F m -3 m",
+     "crystalSystem": "cubic",
+     "formula": "AgCl",
+     "spaceGroupNumber": 225,
+     "elements": [
+      "Ag",
+      "Cl"
+     ],
+     "cell": {
+      "a": 5.47,
+      "b": 5.47,
+      "c": 5.47,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    },
+    {
+     "id": "bromargyrite",
+     "name": "Bromargyrite (AgBr)",
+     "codId": 9008596,
+     "spaceGroup": "F m -3 m",
+     "crystalSystem": "cubic",
+     "formula": "AgBr",
+     "spaceGroupNumber": 225,
+     "elements": [
+      "Ag",
+      "Br"
+     ],
+     "cell": {
+      "a": 5.7745,
+      "b": 5.7745,
+      "c": 5.7745,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    },
+    {
+     "id": "ag3po4",
+     "name": "Silver phosphate (Ag3PO4)",
+     "codId": 1007043,
+     "spaceGroup": "P -4 3 n",
+     "crystalSystem": "cubic",
+     "formula": "Ag3PO4",
+     "spaceGroupNumber": 218,
+     "elements": [
+      "Ag",
+      "O",
+      "P"
+     ],
+     "cell": {
+      "a": 6.026,
+      "b": 6.026,
+      "c": 6.026,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "spinel-ferrites",
+   "name": "Spinel ferrites and aluminate",
+   "aliases": [
+    "ZnFe2O4",
+    "NiFe2O4",
+    "CoFe2O4",
+    "MgAl2O4",
+    "franklinite",
+    "trevorite",
+    "spinel"
+   ],
+   "formula": "AB2O4",
+   "file": "spinel-ferrites.json",
+   "phases": [
+    {
+     "id": "franklinite",
+     "name": "Franklinite (ZnFe2O4)",
+     "codId": 9012441,
+     "spaceGroup": "F d -3 m :1",
+     "crystalSystem": "cubic",
+     "formula": "ZnFe2O4",
+     "spaceGroupNumber": 227,
+     "elements": [
+      "Fe",
+      "O",
+      "Zn"
+     ],
+     "cell": {
+      "a": 8.416,
+      "b": 8.416,
+      "c": 8.416,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    },
+    {
+     "id": "spinel",
+     "name": "Spinel (MgAl2O4)",
+     "codId": 5000120,
+     "spaceGroup": "F d -3 m :1",
+     "crystalSystem": "cubic",
+     "formula": "MgAl2O4",
+     "spaceGroupNumber": 227,
+     "elements": [
+      "Al",
+      "Mg",
+      "O"
+     ],
+     "cell": {
+      "a": 8.2065,
+      "b": 8.2065,
+      "c": 8.2065,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "cr2o3",
+   "name": "Chromium oxide",
+   "aliases": [
+    "Cr2O3",
+    "eskolaite",
+    "chromia"
+   ],
+   "formula": "Cr2O3",
+   "file": "cr2o3.json",
+   "phases": [
+    {
+     "id": "eskolaite",
+     "name": "Eskolaite (Cr2O3)",
+     "codId": 9016327,
+     "spaceGroup": "R -3 c :H",
+     "crystalSystem": "trigonal",
+     "formula": "Cr2O3",
+     "spaceGroupNumber": 167,
+     "elements": [
+      "Cr",
+      "O"
+     ],
+     "cell": {
+      "a": 4.953,
+      "b": 4.953,
+      "c": 13.578,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 120
+     }
+    }
+   ]
+  },
+  {
+   "id": "moo3",
+   "name": "Molybdenum trioxide",
+   "aliases": [
+    "MoO3",
+    "molybdite"
+   ],
+   "formula": "MoO3",
+   "file": "moo3.json",
+   "phases": [
+    {
+     "id": "molybdite",
+     "name": "Molybdite (α-MoO3)",
+     "codId": 9014987,
+     "spaceGroup": "P b n m",
+     "crystalSystem": "orthorhombic",
+     "formula": "MoO3",
+     "spaceGroupNumber": 62,
+     "elements": [
+      "Mo",
+      "O"
+     ],
+     "cell": {
+      "a": 3.9624,
+      "b": 13.86,
+      "c": 3.6971,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "battery-cathodes",
+   "name": "Lithium cathode materials",
+   "aliases": [
+    "LiFePO4",
+    "LiCoO2",
+    "triphylite",
+    "lithium iron phosphate",
+    "lithium cobalt oxide"
+   ],
+   "formula": "LiFePO4, LiCoO2",
+   "file": "battery-cathodes.json",
+   "phases": [
+    {
+     "id": "licoo2",
+     "name": "LiCoO2 (layered)",
+     "codId": 4505482,
+     "spaceGroup": "R -3 m :H",
+     "crystalSystem": "trigonal",
+     "formula": "LiCoO2",
+     "spaceGroupNumber": 166,
+     "elements": [
+      "Co",
+      "Li",
+      "O"
+     ],
+     "cell": {
+      "a": 2.815,
+      "b": 2.815,
+      "c": 14.0516,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 120
+     }
+    }
+   ]
+  },
+  {
+   "id": "sulfides",
+   "name": "Other sulfides",
+   "aliases": [
+    "SnS2",
+    "Bi2S3",
+    "WS2",
+    "berndtite",
+    "bismuthinite",
+    "tungstenite"
+   ],
+   "formula": "SnS2, Bi2S3, WS2",
+   "file": "sulfides.json",
+   "phases": [
+    {
+     "id": "berndtite",
+     "name": "Berndtite (SnS2)",
+     "codId": 9009120,
+     "spaceGroup": "P -3 m 1",
+     "crystalSystem": "trigonal",
+     "formula": "SnS2",
+     "spaceGroupNumber": 164,
+     "elements": [
+      "S",
+      "Sn"
+     ],
+     "cell": {
+      "a": 3.639,
+      "b": 3.639,
+      "c": 5.868,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 120
+     }
+    },
+    {
+     "id": "bismuthinite",
+     "name": "Bismuthinite (Bi2S3)",
+     "codId": 9007375,
+     "spaceGroup": "P n m a",
+     "crystalSystem": "orthorhombic",
+     "formula": "Bi2S3",
+     "spaceGroupNumber": 62,
+     "elements": [
+      "Bi",
+      "S"
+     ],
+     "cell": {
+      "a": 11.305,
+      "b": 3.981,
+      "c": 11.147,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    },
+    {
+     "id": "tungstenite",
+     "name": "Tungstenite (2H-WS2)",
+     "codId": 9012191,
+     "spaceGroup": "P 63/m m c",
+     "crystalSystem": "hexagonal",
+     "formula": "WS2",
+     "spaceGroupNumber": 194,
+     "elements": [
+      "S",
+      "W"
+     ],
+     "cell": {
+      "a": 3.1532,
+      "b": 3.1532,
+      "c": 12.323,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 120
+     }
+    }
+   ]
+  },
+  {
+   "id": "hydroxides",
+   "name": "Hydroxides and oxyhydroxides",
+   "aliases": [
+    "FeOOH",
+    "goethite",
+    "Ni(OH)2",
+    "theophrastite",
+    "Ca(OH)2",
+    "portlandite"
+   ],
+   "formula": "FeOOH, Ni(OH)2, Ca(OH)2",
+   "file": "hydroxides.json",
+   "phases": [
+    {
+     "id": "portlandite",
+     "name": "Portlandite (Ca(OH)2)",
+     "codId": 1001769,
+     "spaceGroup": "P -3 m 1",
+     "crystalSystem": "trigonal",
+     "formula": "CaO2H2",
+     "spaceGroupNumber": 164,
+     "elements": [
+      "Ca",
+      "H",
+      "O"
+     ],
+     "cell": {
+      "a": 3.589,
+      "b": 3.589,
+      "c": 4.911,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 120
+     }
+    }
+   ]
+  },
+  {
+   "id": "cao",
+   "name": "Calcium oxide",
+   "aliases": [
+    "CaO",
+    "lime",
+    "quicklime"
+   ],
+   "formula": "CaO",
+   "file": "cao.json",
+   "phases": [
+    {
+     "id": "lime",
+     "name": "Lime (CaO)",
+     "codId": 9008605,
+     "spaceGroup": "F m -3 m",
+     "crystalSystem": "cubic",
+     "formula": "CaO",
+     "spaceGroupNumber": 225,
+     "elements": [
+      "Ca",
+      "O"
+     ],
+     "cell": {
+      "a": 4.8105,
+      "b": 4.8105,
+      "c": 4.8105,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "bn",
+   "name": "Boron nitride",
+   "aliases": [
+    "BN",
+    "hexagonal boron nitride",
+    "h-BN"
+   ],
+   "formula": "BN",
+   "file": "bn.json",
+   "phases": [
+    {
+     "id": "h-bn",
+     "name": "Hexagonal boron nitride",
+     "codId": 9008997,
+     "spaceGroup": "P 63/m m c",
+     "crystalSystem": "hexagonal",
+     "formula": "BN",
+     "spaceGroupNumber": 194,
+     "elements": [
+      "B",
+      "N"
+     ],
+     "cell": {
+      "a": 2.50399,
+      "b": 2.50399,
+      "c": 6.6612,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 120
+     }
+    }
+   ]
+  }
+ ]
+}

@@ -79,13 +79,16 @@ async function walkToExport(log) {
   await next('Choose material');
 
   // 3 Choose material
-  await page.getByRole('searchbox').fill('ZnO');
-  await page.getByRole('button', { name: /^Add Zincite/ }).click();
+  // A CIF file, so the run needs no network (the online COD search is tested with a stub).
+  await page
+    .locator('input[type=file][accept*=".cif"]')
+    .setInputFiles('scripts/cif-cache/1577381.cif');
   await page
     .getByRole('list', { name: 'Candidate phases' })
-    .getByText(/Zincite/)
-    .waitFor();
-  note('3 Choose material: ZnO added as a candidate');
+    .getByRole('listitem')
+    .first()
+    .waitFor({ timeout: 20_000 });
+  note('3 Choose material: ZnO (COD 1577381) loaded from its CIF');
   await next('Compare reference phases');
 
   // 4 Compare phases
@@ -119,12 +122,12 @@ async function walkToExport(log) {
   // 6 Instrument correction: skip, which is allowed and warned about in the results.
   await page.getByLabel(/skip/i).first().check();
   note('7 Instrument correction: skipped');
-  await next('Results tables');
+  await next('Results');
 
   // 7 Results
   await page.getByText('Summary').first().waitFor({ timeout: 20_000 });
-  note('8 Results tables shown');
-  await next('Export');
+  note('8 Results shown');
+  await next('Export for your paper');
 }
 
 try {

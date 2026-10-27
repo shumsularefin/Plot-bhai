@@ -89,6 +89,11 @@ export function ExportStep({ data, update }: StepContext<XrdData>) {
 
   return (
     <div class="export-step">
+      <p class="field-hint">
+        Everything for your paper in one place: the figure, a methods paragraph, every results table
+        as CSV, a full record and the session file. To read or change the numbers, go back to
+        Results.
+      </p>
       {data.patterns.map((pattern) => (
         <ProcessedFeed key={pattern.id} pattern={pattern} data={data} onResult={onResult} />
       ))}

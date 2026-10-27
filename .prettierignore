@@ -3,6 +3,7 @@ coverage
 package-lock.json
 CLAUDE.md
 data/reference
+tests/fixtures/cod-reference
 scripts/cif-cache
 scripts/source-cache
 data/ftir

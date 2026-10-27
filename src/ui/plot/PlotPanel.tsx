@@ -9,7 +9,7 @@ import { clicksFor, newAnnotation, resolveFigure, styledSeries, type FigureStyle
 import type { ExportSettings, LowerAxis } from './export';
 import { InteractivePlot, type InteractivePlotProps } from './InteractivePlot';
 import type { PeakLabelSet } from './peakLabels';
-import { ReferenceLanes, type ReferenceLane } from './ReferenceLanes';
+import { laneGuides, ReferenceLanes, type ReferenceLane } from './ReferenceLanes';
 import { prepareSeries, xExtent, type SeriesSource } from './series';
 import type { AxisLabels, Domain, PlotBand, PlotMarker } from './types';
 import { zoomDomain } from './view';
@@ -113,6 +113,7 @@ export function PlotPanel(props: PlotPanelProps) {
   /** The number shown for a plotted x: the same, or its negative on a reversed axis. */
   const shown = (x: number) => (reversed ? -x : x);
   const residual = props.residual;
+  const guides = useMemo(() => laneGuides(props.lanes), [props.lanes]);
   const residualSeries = useMemo(
     () => (residual ? prepareSeries([residual], { normalise: false, offsetFraction: 0 }) : null),
     [residual],
@@ -231,6 +232,7 @@ export function PlotPanel(props: PlotPanelProps) {
             {...(props.points && { markers: props.points })}
             {...(props.bands && { bands: props.bands })}
             {...(props.peakLabels && { peakLabels: props.peakLabels })}
+            guides={guides}
             {...interaction}
             figure={figure}
             description={`Plot of intensity against ${xName}, ${series.length} pattern${series.length === 1 ? '' : 's'}.`}

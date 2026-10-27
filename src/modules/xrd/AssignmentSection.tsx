@@ -97,6 +97,7 @@ function AssignmentBody({
   if (!pattern) return null;
   const material = data.material;
   const jcpds = (id: string) => material.jcpds[id]?.trim() ?? '';
+  const manyPhases = result.phases.length > 1;
   const ambiguous = result.peaks.filter((p) => p.phase && p.assignment.candidates.length > 1);
 
   const exportCsv = () => downloadTable(assignedPeaksTable(data, pattern.name, result));
@@ -136,20 +137,24 @@ function AssignmentBody({
 
       <div class="peak-table-section">
         <h4 class="export-subtitle">Assigned peaks</h4>
-        <TableBox label="Assigned peaks" onExport={exportCsv}>
+        <ul class="phase-sources">
+          {result.phases.map(({ phase }) => (
+            <li key={phase.id}>
+              <strong>{phase.name}</strong>: {phaseReference(phase)}
+              {jcpds(phase.id) && `, JCPDS ${jcpds(phase.id)} (entered by you, not verified)`}
+            </li>
+          ))}
+        </ul>
+        <TableBox label="Assigned peaks" onExport={exportCsv} compact>
           <thead>
             <tr>
-              <th scope="col">Phase</th>
-              <th scope="col">COD ID</th>
-              <th scope="col">JCPDS no. (entered by user, not verified)</th>
               <th scope="col">(hkl)</th>
+              {manyPhases && <th scope="col">Phase</th>}
               <th scope="col">2θ obs (°)</th>
-              <th scope="col">2θ ref (°)</th>
               <th scope="col">Δ2θ (°)</th>
-              <th scope="col">d obs (Å)</th>
-              <th scope="col">d ref (Å)</th>
-              <th scope="col">I/I₀ obs (%)</th>
-              <th scope="col">I/I₀ ref (%)</th>
+              <th scope="col">d (Å)</th>
+              <th scope="col">I obs (%)</th>
+              <th scope="col">I ref (%)</th>
               <th scope="col">FWHM (°)</th>
               <th scope="col">Notes</th>
             </tr>
@@ -157,26 +162,23 @@ function AssignmentBody({
           <tbody>
             {result.peaks.map((p) => (
               <tr key={p.index} class={p.phase ? undefined : 'is-limited'}>
-                <td>{p.phase?.name ?? 'unassigned'}</td>
-                <td>{p.phase ? phaseReference(p.phase) : '–'}</td>
-                <td>{(p.phase && jcpds(p.phase.id)) || '–'}</td>
-                <td>{p.hklText || '–'}</td>
+                <td>{p.hklText || 'unassigned'}</td>
+                {manyPhases && <td>{p.phase?.name ?? '–'}</td>}
                 <td>{p.peak.twoTheta.toFixed(3)}</td>
-                <td>{p.line ? p.line.twoTheta.toFixed(3) : '–'}</td>
-                <td>{p.line ? sign(p.peak.twoTheta - p.line.twoTheta, 3) : '–'}</td>
+                <td>{p.line ? sign(p.peak.twoTheta - p.line.twoTheta, 3) : ''}</td>
                 <td>{p.peak.d.toFixed(4)}</td>
-                <td>{p.line ? p.line.d.toFixed(4) : '–'}</td>
                 <td>{p.peak.relativeIntensity.toFixed(1)}</td>
-                <td>{p.line ? p.line.intensity.toFixed(1) : '–'}</td>
+                <td>{p.line ? p.line.intensity.toFixed(1) : ''}</td>
                 <td>{p.peak.fwhm.toFixed(3)}</td>
-                <td>{notes(p).join(' ') || '–'}</td>
+                <td class="peak-notes">{notes(p).join(' ')}</td>
               </tr>
             ))}
           </tbody>
         </TableBox>
         <p class="field-hint">
-          Reference values are calculated from the COD structure for {data.radiation.anode} Kα1 and
-          are not shifted; Δ2θ = observed − reference.
+          Δ2θ = observed − reference; reference lines are calculated from the structure for{' '}
+          {data.radiation.anode} Kα1 and are not shifted. The CSV also has the reference 2θ and d,
+          the structure source and any JCPDS number.
         </p>
       </div>
 
@@ -309,10 +311,10 @@ function LatticeTable({ fit, summary }: { fit: LatticeFit; summary: LatticeSumma
           ' With no spare peaks the uncertainties cannot be checked against the scatter.'}
       </p>
       <p class="field-hint">
-        For a cell edge the difference is the lattice strain ε = (a − a₀)/a₀ against the library
+        For a cell edge the difference is the lattice strain ε = (a − a₀)/a₀ against the reference
         cell; a zero shift or sample-height error also moves it.
         {mass !== null &&
-          ` The X-ray density is ρ = ZM/(N_A V), from the library cell contents (${mass.toFixed(2)} g/mol per cell) and the refined volume: the density of a perfect crystal, so a measured density is usually lower.`}
+          ` The X-ray density is ρ = ZM/(N_A V), from the reference cell contents (${mass.toFixed(2)} g/mol per cell) and the refined volume: the density of a perfect crystal, so a measured density is usually lower.`}
       </p>
     </>
   );

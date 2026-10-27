@@ -145,7 +145,7 @@ describe('session migration', () => {
     expect(atPhases?.data.rietveld).toEqual(DEFAULT_RIETVELD);
   });
 
-  it('upgrades version 8 sessions: the chosen family becomes the list of candidates', () => {
+  it('upgrades version 8 sessions: the ticked phases become the candidates', () => {
     const material = {
       familyId: 'tio2',
       phaseIds: ['anatase'],
@@ -157,7 +157,8 @@ describe('session migration', () => {
       { step: 3, furthest: 4, data: { patterns: [], plot: {}, material } },
       8,
     )?.data.material;
-    expect(upgraded?.candidates).toEqual(['anatase', 'rutile', 'brookite']);
+    // The inorganic library they came from is gone; the material step asks to add them again.
+    expect(upgraded?.candidates).toEqual(['anatase']);
     expect(upgraded?.phaseIds).toEqual(['anatase']);
     expect(upgraded?.hidden).toEqual(['rutile']);
     expect(upgraded?.jcpds).toEqual({ anatase: '21-1272' });

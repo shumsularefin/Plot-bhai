@@ -17,6 +17,9 @@ import {
 import type { ReferencePhase } from './types.ts';
 import type { DataMessage } from '../types.ts';
 
+/** A name that is only a crystal system, which says nothing about the material. */
+const CRYSTAL_SYSTEM_WORD =
+  /^(cubic|hexagonal|tetragonal|orthorhombic|monoclinic|triclinic|trigonal|rhombohedral)$/i;
 /** Shortest d-spacing kept, Å: the library uses the same (2θ up to about 150° for Cu Kα1). */
 export const CIF_D_MIN = 0.8;
 /** Lines weaker than this (percent of the strongest, Cu Kα1) are dropped, as in the library. */
@@ -167,13 +170,18 @@ export function phaseFromCif(
     text(block, '_space_group_name_h-m_alt', '_symmetry_space_group_name_h-m') ?? 'not stated';
   const sum = text(block, '_chemical_formula_sum');
   const formula = sum ? compactFormula(sum) : formulaFromCell(cellComposition(sites));
-  const name =
-    text(
-      block,
-      '_chemical_name_mineral',
-      '_chemical_name_common',
-      '_chemical_name_systematic',
-    )?.replace(/\s+/g, ' ') ?? formula;
+  const given = text(
+    block,
+    '_chemical_name_mineral',
+    '_chemical_name_common',
+    '_chemical_name_systematic',
+  )?.replace(/\s+/g, ' ');
+  // Some files give only the crystal system as the name (for example "hexagonal" for ZnO).
+  const name = !given
+    ? formula
+    : CRYSTAL_SYSTEM_WORD.test(given)
+      ? `${formula} (${given.toLowerCase()})`
+      : given;
   const cod = cifNumber(block.items.get('_cod_database_code'));
   const icsd = cifNumber(block.items.get('_database_code_icsd'));
   const database = cod !== null ? `COD ${cod}` : icsd !== null ? `ICSD ${icsd}` : null;

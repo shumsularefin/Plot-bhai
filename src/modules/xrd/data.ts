@@ -15,7 +15,6 @@ import {
 import { DEFAULT_EXPORT_SETTINGS } from '../../ui/plot/export';
 import type { PlotSettings } from '../../ui/plot/PlotPanel';
 import type { WizardState } from '../../ui/wizard/types';
-import { libraryIndex } from './referenceLibrary';
 
 /** Everything saved for an XRD analysis. */
 export interface XrdData {
@@ -79,6 +78,11 @@ export interface RietveldState {
   orientation: Record<string, string>;
   choices: RefineChoices;
   backgroundTerms: number;
+  /**
+   * Refine the cleaned data (zero shift, smoothing, background and Kα2 stripping from step 2,
+   * without normalisation) rather than the uploaded data. Missing (older sessions) means true.
+   */
+  useCleaned?: boolean;
   /** 2θ range refined, degrees; null means the whole pattern. */
   from: number | null;
   to: number | null;
@@ -94,6 +98,7 @@ export const DEFAULT_RIETVELD: RietveldState = {
   orientation: {},
   choices: DEFAULT_CHOICES,
   backgroundTerms: 6,
+  useCleaned: true,
   from: null,
   to: null,
   result: null,
@@ -177,19 +182,17 @@ export const DEFAULT_MATERIAL: MaterialState = {
 };
 
 /**
- * The material choice of a version 6 to 8 session, when one family (for example "tio2") was
- * chosen and phases were ticked within it: every phase of that family becomes a candidate, as
- * it was shown before, and the ticked ones stay selected.
+ * The material choice of a version 6 to 8 session, when one family of the former inorganic
+ * library was chosen and phases were ticked within it: the ticked phases become the candidates.
+ * That library has since been replaced by the online COD search, so the material step asks the
+ * user to add them again from COD.
  */
 export function upgradeMaterial(saved: Record<string, unknown> | undefined): MaterialState {
   if (!saved) return DEFAULT_MATERIAL;
-  const familyId = typeof saved['familyId'] === 'string' ? saved['familyId'] : null;
   const phaseIds = Array.isArray(saved['phaseIds']) ? (saved['phaseIds'] as string[]) : [];
-  const family = libraryIndex.families.find((f) => f.id === familyId);
-  const candidates = [...new Set([...(family?.phases.map((p) => p.id) ?? []), ...phaseIds])];
   return {
     ...DEFAULT_MATERIAL,
-    candidates,
+    candidates: phaseIds,
     phaseIds,
     hidden: Array.isArray(saved['hidden']) ? (saved['hidden'] as string[]) : [],
     jcpds: (saved['jcpds'] as Record<string, string> | undefined) ?? {},

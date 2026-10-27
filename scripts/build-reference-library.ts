@@ -1,6 +1,8 @@
 /*
- * Builds the reference pattern library in data/reference/ from the Crystallography Open
- * Database (COD). Run on a developer machine or in CI, never in the browser:
+ * Builds the COD validation set in tests/fixtures/cod-reference/ (inorganic phases calculated from
+ * Crystallography Open Database CIFs; the tests use them to check the pattern calculation) and the
+ * scattering-factor table the app uses, data/reference/scattering-factors.json. Run on a developer
+ * machine or in CI, never in the browser:
  *
  *   npm run build:refs              reuse scripts/cif-cache/ and rebuild the JSON files
  *   npm run build:refs -- --refresh search COD again and download the CIFs again
@@ -33,7 +35,8 @@ const SCATTERING_URL =
 const root = new URL('../', import.meta.url);
 const cifDir = new URL('scripts/cif-cache/', root);
 const sourceDir = new URL('scripts/source-cache/', root);
-const outDir = new URL('data/reference/', root);
+const outDir = new URL('tests/fixtures/cod-reference/', root);
+const factorsDir = new URL('data/reference/', root);
 const selectionFile = new URL('selection.json', cifDir);
 
 const D_MIN = 0.8;
@@ -137,7 +140,7 @@ async function scatteringFactors(): Promise<FormFactors> {
   }
   mkdirSync(outDir, { recursive: true });
   writeFileSync(
-    new URL('scattering-factors.json', outDir),
+    new URL('scattering-factors.json', factorsDir),
     JSON.stringify(
       {
         source:

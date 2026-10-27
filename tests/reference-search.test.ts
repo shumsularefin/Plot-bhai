@@ -10,7 +10,7 @@ import {
 import type { ReferenceIndex } from '../src/core/xrd/reference/types';
 
 const index = JSON.parse(
-  readFileSync(new URL('../data/reference/index.json', import.meta.url), 'utf8'),
+  readFileSync(new URL('./fixtures/cod-reference/index.json', import.meta.url), 'utf8'),
 ) as ReferenceIndex;
 const ids = (query: string) => searchPhases(index.families, query).map((h) => h.phase.id);
 

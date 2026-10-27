@@ -16,7 +16,7 @@ import { DEFAULT_PEAK_STATE, initialXrdData, type XrdData } from '../src/modules
 import { referenceLanesFor } from '../src/modules/xrd/figure';
 import { allTables, combinedCsv } from '../src/modules/xrd/tables';
 
-const dir = new URL('../data/reference/', import.meta.url);
+const dir = new URL('./fixtures/cod-reference/', import.meta.url);
 const read = <T>(name: string) => JSON.parse(readFileSync(new URL(name, dir), 'utf8')) as T;
 const index = read<ReferenceIndex>('index.json');
 const zno = read<ReferenceFamilyFile>(

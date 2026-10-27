@@ -3,7 +3,12 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { detectPeaks, DEFAULT_DETECTION } from '../src/core/xrd/peaks/detect';
 import { ANODES } from '../src/core/xrd/radiation';
-import { matchPhase, referenceLines, searchFamilies } from '../src/core/xrd/reference/match';
+import {
+  matchPhase,
+  referenceLines,
+  searchFamilies,
+  unexplainedPeaks,
+} from '../src/core/xrd/reference/match';
 import type { PatternPeak } from '../src/core/xrd/reference/powder';
 import type {
   ReferenceFamilyFile,
@@ -12,7 +17,7 @@ import type {
 } from '../src/core/xrd/reference/types';
 import { generatePattern } from '../src/core/xrd/synthetic';
 
-const dir = new URL('../data/reference/', import.meta.url);
+const dir = new URL('./fixtures/cod-reference/', import.meta.url);
 const read = <T>(name: string) => JSON.parse(readFileSync(new URL(name, dir), 'utf8')) as T;
 const index = read<ReferenceIndex>('index.json');
 const phases = index.families.flatMap((f) => read<ReferenceFamilyFile>(f.file).phases);
@@ -154,5 +159,16 @@ describe('matchPhase on patterns built from the library (anatase, rutile, brooki
     const score = (id: string) => matchPhase(referenceLines(phase(id), CU), found, range).score;
     expect(score('anatase')).toBeGreaterThan(0.5);
     expect(score('rutile')).toBeGreaterThan(0.5);
+  });
+});
+
+describe('unexplainedPeaks', () => {
+  it('keeps only peaks with no line of any phase within the tolerance', () => {
+    const peaks = [25.3, 27.45, 31.0, 48.0];
+    const anatase = [25.28, 48.05];
+    const rutile = [27.4, 36.1];
+    expect(unexplainedPeaks(peaks, [anatase, rutile], 0.1)).toEqual([31.0]);
+    expect(unexplainedPeaks(peaks, [anatase], 0.1)).toEqual([27.45, 31.0]);
+    expect(unexplainedPeaks(peaks, [], 0.1)).toEqual(peaks);
   });
 });

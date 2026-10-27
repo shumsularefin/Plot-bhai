@@ -180,3 +180,18 @@ export function matchPhase(
     lines: best.matched,
   };
 }
+
+/**
+ * Measured peaks that no shown phase explains: those with no reference line of any phase within
+ * toleranceDeg. peaks: measured positions, degrees 2θ. lineSets: each phase's line positions in
+ * degrees 2θ, already including its zero shift. Returns the unexplained positions in input order.
+ */
+export function unexplainedPeaks(
+  peaks: readonly number[],
+  lineSets: readonly (readonly number[])[],
+  toleranceDeg: number,
+): number[] {
+  return peaks.filter((p) =>
+    lineSets.every((lines) => lines.every((x) => Math.abs(x - p) > toleranceDeg)),
+  );
+}

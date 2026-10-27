@@ -2,14 +2,7 @@ import type { ComponentChildren } from 'preact';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { formatNumber } from '../../core/xrd/parsers/numbers';
 import { DEFAULT_MATCH, matchPhase, referenceLines } from '../../core/xrd/reference/match';
-import {
-  describeQuery,
-  hillFormula,
-  parseFormula,
-  parseQuery,
-  searchPhases,
-  type PhaseQuery,
-} from '../../core/xrd/reference/search';
+import type { PhaseHit } from '../../core/xrd/reference/search';
 import { phaseReference } from '../../core/xrd/reference/source';
 import type {
   ReferenceIndexEntry,
@@ -20,13 +13,10 @@ import { ANODES } from '../../core/xrd/radiation';
 import { HelpTip } from '../../ui/HelpTip';
 import type { StepContext } from '../../ui/wizard/types';
 import { readCifFile } from './cifClient';
-import { CodSearch } from './CodSearch';
+import { PhaseSearch } from './PhaseSearch';
 import { DEFAULT_MATERIAL, type MaterialState, type XrdData } from './data';
 import { codUrl, familyOf, libraryIndex, loadReferenceFamily } from './referenceLibrary';
 import { useMeasured } from './useMeasured';
-
-/** Search hits shown at first; more on request. */
-const FIRST_HITS = 24;
 
 const GUIDE_NOTE =
   'A guide only. Works for simple, well-separated phases; not reliable for mixtures.';
@@ -64,22 +54,6 @@ const fromCif = (phase: ReferencePhase): ListedPhase => ({
   notes: phase.origin?.kind === 'cif' ? (phase.origin.notes ?? []) : [],
 });
 
-/** A COD search page for what was typed (formula or elements), checked to work in October 2026. */
-function codSearchUrl(query: PhaseQuery): string | null {
-  const base = 'https://www.crystallography.net/cod/result';
-  if (query.kind === 'formula') {
-    const counts = parseFormula(query.formula);
-    return counts ? `${base}?formula=${encodeURIComponent(hillFormula(counts))}` : null;
-  }
-  if (query.kind === 'chemicalSystem' || query.kind === 'elements') {
-    const params = query.elements.map((e, i) => `el${i + 1}=${e}`).join('&');
-    return query.kind === 'chemicalSystem'
-      ? `${base}?${params}&nel=${query.elements.length}`
-      : `${base}?${params}`;
-  }
-  return null;
-}
-
 function cellText(cell: ListedPhase['cell'], system: string): string {
   const len = (v: number) => formatNumber(v, 4);
   const ang = (v: number) => formatNumber(v, 3);
@@ -100,15 +74,9 @@ function cellText(cell: ListedPhase['cell'], system: string): string {
 /** Wizard step 3: search for the phases the sample may contain, or load their CIF files. */
 export function MaterialStep({ data, update }: StepContext<XrdData>) {
   const material = data.material;
-  const [query, setQuery] = useState('');
-  const [shown, setShown] = useState(FIRST_HITS);
   const [unknown, setUnknown] = useState(false);
   const setMaterial = (patch: Partial<MaterialState>) =>
     update({ material: { ...material, ...patch } });
-
-  const parsed = useMemo(() => parseQuery(query), [query]);
-  const hits = useMemo(() => searchPhases(libraryIndex.families, query), [query]);
-  useEffect(() => setShown(FIRST_HITS), [query]);
 
   const isCandidate = (id: string) => material.candidates.includes(id);
   const add = (id: string) => {
@@ -143,16 +111,38 @@ export function MaterialStep({ data, update }: StepContext<XrdData>) {
     const loaded = material.userPhases.find((p) => p.id === id);
     return loaded ? [fromCif(loaded)] : [];
   });
-  const codLink = codSearchUrl(parsed);
+  // Phases of the former built-in inorganic library, kept by sessions saved before it was removed.
+  const missing = material.candidates.filter(
+    (id) => !familyOf(id) && !material.userPhases.some((p) => p.id === id),
+  );
+  const libraryPhases = libraryIndex.families.reduce((n, f) => n + f.phases.length, 0);
+
+  const libraryRow = ({ family, phase }: PhaseHit) => (
+    <PhaseRow
+      key={phase.id}
+      phase={fromIndex(phase)}
+      family={family}
+      action={
+        <button
+          type="button"
+          class={isCandidate(phase.id) ? 'btn' : 'btn btn-primary'}
+          aria-pressed={isCandidate(phase.id)}
+          aria-label={`${isCandidate(phase.id) ? 'Remove' : 'Add'} ${phase.name}`}
+          onClick={() => (isCandidate(phase.id) ? remove(phase.id) : add(phase.id))}
+        >
+          {isCandidate(phase.id) ? 'Added ✓' : 'Add'}
+        </button>
+      }
+    />
+  );
 
   return (
     <div class="material-step">
       <p class="field-hint">
         Choose every phase your sample might contain. The next step draws their calculated lines
-        under your pattern and scores how well each one fits. Search the built-in library (
-        {libraryIndex.families.reduce((n, f) => n + f.phases.length, 0)} phases calculated from the
-        Crystallography Open Database), or load the CIF file of any other structure. You can skip
-        this step if you do not need reference phases.{' '}
+        under your pattern and scores how well each one fits. Search the Crystallography Open
+        Database by formula or elements, or load the CIF file of any structure. You can skip this
+        step if you do not need reference phases.{' '}
         <HelpTip term="reference pattern">
           <p>
             A reference pattern is the list of diffraction lines a known crystal structure should
@@ -163,100 +153,61 @@ export function MaterialStep({ data, update }: StepContext<XrdData>) {
           </p>
         </HelpTip>
       </p>
+      {libraryPhases === 0 && (
+        <p class="field-hint">
+          A library of natural polymers that COD does not hold (cellulose, chitin and chitosan,
+          starch, silk fibroin, collagen) is being prepared. Until then, load their CIF files below.
+        </p>
+      )}
 
-      <section class="material-section" aria-labelledby="search-title">
-        <h3 id="search-title" class="export-title">
-          Search the library
-        </h3>
-        <div class="material-search">
-          <label class="inline-field material-query">
-            Formula, elements, name, COD ID or space group
-            <input
-              type="search"
-              value={query}
-              placeholder="for example BiVO4, Bi-V-O, anatase, 9009086, P21/c"
-              autocomplete="off"
-              spellcheck={false}
-              onInput={(e) => setQuery(e.currentTarget.value)}
-            />
-          </label>
+      <PhaseSearch
+        onLoaded={addCifPhases}
+        loadedIds={candidateCodIds}
+        renderLibraryPhase={libraryRow}
+      />
+
+      {libraryPhases > 0 && data.patterns.length > 0 && (
+        <section class="material-section" aria-labelledby="unknown-title">
           <button
             type="button"
             class="btn"
             aria-pressed={unknown}
             onClick={() => setUnknown(!unknown)}
-            disabled={data.patterns.length === 0}
           >
-            I don't know
+            Not sure? Compare your peaks with the library
           </button>
-        </div>
-        <p class="field-hint" role="status">
-          {describeQuery(parsed)} {hits.length} phase{hits.length === 1 ? '' : 's'} found.{' '}
-          <HelpTip term="search">
-            <p>
-              A formula (BiVO4, Fe2O3, Ni(OH)2) finds phases of that composition in any element
-              order. Elements joined by hyphens (Bi-V-O) find phases made of exactly those elements,
-              as in the Materials Project; elements separated by spaces (Bi V) find phases that
-              contain them all. A 7-digit number is a COD ID; a number up to 230 or a symbol such as
-              P21/c is a space group. Anything else is matched against names and minerals.
-            </p>
-          </HelpTip>
-        </p>
+          {unknown && <UnknownGuide data={data} onAdd={add} isCandidate={isCandidate} />}
+        </section>
+      )}
 
-        {unknown ? (
-          <UnknownGuide data={data} onAdd={add} isCandidate={isCandidate} />
-        ) : hits.length === 0 ? (
-          <p class="message is-info">
-            <strong>Not in the library.</strong> Load the structure as a CIF file below.
-            {codLink && (
-              <>
-                {' '}
-                <a href={codLink} target="_blank" rel="noopener noreferrer">
-                  Search COD for “{query.trim()}”
-                </a>{' '}
-                (opens a new tab) and download a CIF from the result list.
-              </>
-            )}
-          </p>
-        ) : (
-          <>
-            <ul class="phase-results" aria-label="Search results">
-              {hits.slice(0, shown).map(({ family, phase }) => (
-                <PhaseRow
-                  key={phase.id}
-                  phase={fromIndex(phase)}
-                  family={family}
-                  action={
-                    <button
-                      type="button"
-                      class={isCandidate(phase.id) ? 'btn' : 'btn btn-primary'}
-                      aria-pressed={isCandidate(phase.id)}
-                      aria-label={`${isCandidate(phase.id) ? 'Remove' : 'Add'} ${phase.name}`}
-                      onClick={() => (isCandidate(phase.id) ? remove(phase.id) : add(phase.id))}
-                    >
-                      {isCandidate(phase.id) ? 'Added ✓' : 'Add'}
-                    </button>
-                  }
-                />
-              ))}
-            </ul>
-            {hits.length > shown && (
-              <button type="button" class="btn btn-quiet" onClick={() => setShown(shown * 2)}>
-                Show more ({hits.length - shown} left)
-              </button>
-            )}
-          </>
-        )}
-      </section>
-
-      <CodSearch onLoaded={addCifPhases} loadedIds={candidateCodIds} />
-
-      <CifLoader onLoaded={addCifPhases} codLink={codLink} query={query.trim()} />
+      <CifLoader onLoaded={addCifPhases} />
 
       <section class="material-section" aria-labelledby="candidates-title">
         <h3 id="candidates-title" class="export-title">
           Your candidate phases ({candidates.length})
         </h3>
+        {missing.length > 0 && (
+          <div class="message is-warning" role="alert">
+            <p>
+              <strong>Check:</strong> {missing.length} phase{missing.length === 1 ? '' : 's'} (
+              {missing.join(', ')}) came from the former built-in library, which has been replaced
+              by the online COD search. Search for {missing.length === 1 ? 'it' : 'them'} by formula
+              above and add {missing.length === 1 ? 'it' : 'them'} again.
+            </p>
+            <button
+              type="button"
+              class="btn"
+              onClick={() =>
+                setMaterial({
+                  candidates: material.candidates.filter((id) => !missing.includes(id)),
+                  phaseIds: material.phaseIds.filter((id) => !missing.includes(id)),
+                })
+              }
+            >
+              Remove {missing.length === 1 ? 'it' : 'them'} from the list
+            </button>
+          </div>
+        )}
         {candidates.length === 0 ? (
           <p class="field-hint">
             None yet. Add phases from the search results or load CIF files; step 4 then compares
@@ -357,15 +308,7 @@ function PhaseRow({ phase, family, action, children }: PhaseRowProps) {
 }
 
 /** Loads CIF files and calculates their lines in a worker. */
-function CifLoader({
-  onLoaded,
-  codLink,
-  query,
-}: {
-  onLoaded: (phases: ReferencePhase[]) => void;
-  codLink: string | null;
-  query: string;
-}) {
+function CifLoader({ onLoaded }: { onLoaded: (phases: ReferencePhase[]) => void }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [problems, setProblems] = useState<{ name: string; error: string }[]>([]);
@@ -467,19 +410,13 @@ function CifLoader({
       )}
       <p class="field-hint">
         Where to find a CIF:{' '}
-        {codLink ? (
-          <a href={codLink} target="_blank" rel="noopener noreferrer">
-            COD search for “{query}”
-          </a>
-        ) : (
-          <a
-            href="https://www.crystallography.net/cod/search.html"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Crystallography Open Database
-          </a>
-        )}{' '}
+        <a
+          href="https://www.crystallography.net/cod/search.html"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Crystallography Open Database
+        </a>{' '}
         (free, experimental structures) or{' '}
         <a
           href="https://next-gen.materialsproject.org/materials"

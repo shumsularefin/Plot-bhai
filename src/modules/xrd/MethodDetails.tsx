@@ -11,16 +11,40 @@ import type { XrdData } from './data';
 import { METHOD_NAMES, type ResultPeak } from './sizeResults';
 
 const LEVEL_LABELS = { error: 'Problem', warning: 'Check', info: 'Note' } as const;
+const LEVEL_ORDER = ['error', 'warning', 'info'] as const;
 
-export function Messages({ messages }: { messages: readonly DataMessage[] }) {
+/**
+ * Problems, checks and notes as a compact log that opens on demand. It starts open when it
+ * holds a problem, so errors are never hidden.
+ */
+export function CheckLog({ messages }: { messages: readonly DataMessage[] }) {
+  if (messages.length === 0) return null;
+  const counts = LEVEL_ORDER.map((level) => ({
+    level,
+    n: messages.filter((m) => m.level === level).length,
+  })).filter((c) => c.n > 0);
   return (
-    <>
-      {messages.map((m, i) => (
-        <p key={i} class={`message is-${m.level}`}>
-          <strong>{LEVEL_LABELS[m.level]}:</strong> {m.text}
-        </p>
-      ))}
-    </>
+    <details class="check-log" open={counts[0]?.level === 'error'}>
+      <summary>
+        Checks and notes{' '}
+        <span class="check-log-count">
+          (
+          {counts
+            .map((c) => `${c.n} ${LEVEL_LABELS[c.level].toLowerCase()}${c.n === 1 ? '' : 's'}`)
+            .join(', ')}
+          )
+        </span>
+      </summary>
+      <ul class="check-log-list">
+        {[...messages]
+          .sort((a, b) => LEVEL_ORDER.indexOf(a.level) - LEVEL_ORDER.indexOf(b.level))
+          .map((m, i) => (
+            <li key={i} class={`message is-${m.level}`}>
+              <strong>{LEVEL_LABELS[m.level]}:</strong> {m.text}
+            </li>
+          ))}
+      </ul>
+    </details>
   );
 }
 
@@ -227,7 +251,7 @@ export function ScherrerDetails({ result, peaks, patternName, k, lambdaNm }: Sch
         D = Kλ/(β cos θ) for each peak, with β the corrected FWHM in radians. The mean and the
         standard deviation (SD) over the selected peaks go into the summary.
       </p>
-      <Messages messages={result.messages} />
+      <CheckLog messages={result.messages} />
       <TableBox label="Scherrer sizes" onExport={exportCsv}>
         <thead>
           <tr>
@@ -316,7 +340,7 @@ export function LineDetails({ result, patternName, data, update }: LineProps) {
     <MethodSection id={`method-${method}`} title={name} headline={headline}>
       <p class="field-hint">{EQUATIONS[method]}</p>
       {result.unavailable && <p class="field-hint">{result.unavailable}</p>}
-      <Messages messages={result.messages} />
+      <CheckLog messages={result.messages} />
       {fit && (
         <>
           <dl class="fit-values">
@@ -378,11 +402,13 @@ export function LineDetails({ result, patternName, data, update }: LineProps) {
 interface TableBoxProps {
   label: string;
   onExport: () => void;
+  /** Tighter rows, for long tables. */
+  compact?: boolean;
   children: ComponentChildren;
 }
 
 /** A scrolling table with a CSV button above it. */
-export function TableBox({ label, onExport, children }: TableBoxProps) {
+export function TableBox({ label, onExport, compact, children }: TableBoxProps) {
   return (
     <div class="table-box">
       <button type="button" class="btn" onClick={onExport}>
@@ -394,7 +420,7 @@ export function TableBox({ label, onExport, children }: TableBoxProps) {
         role="region"
         aria-label={`${label}, scrolls sideways`}
       >
-        <table class="peak-table">{children}</table>
+        <table class={compact ? 'peak-table is-compact' : 'peak-table'}>{children}</table>
       </div>
     </div>
   );

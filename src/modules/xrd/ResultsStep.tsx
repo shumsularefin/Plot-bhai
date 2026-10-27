@@ -13,7 +13,7 @@ import { downloadTable } from './csv';
 import { ExtraAnalysisSection } from './ExtraAnalysisSection';
 import type { PatternChoices, ResultsSettings, XrdData } from './data';
 import { NumberInput } from './NumberInput';
-import { LineDetails, Messages, ScherrerDetails, TableBox } from './MethodDetails';
+import { CheckLog, LineDetails, ScherrerDetails, TableBox } from './MethodDetails';
 import { sizePeaksTable, sizeSummaryTable } from './tables';
 import { useCandidatePhases } from './useReferencePhases';
 import {
@@ -29,6 +29,14 @@ import {
 
 /** Methods that give a size only, left out of the strain chart. */
 const SIZE_ONLY: readonly MethodId[] = ['scherrer', 'monshi', 'linear-scherrer', 'sahadat'];
+
+type Tab = 'size' | 'phases' | 'more';
+
+const TAB_LABELS: Record<Tab, string> = {
+  size: 'Size and strain',
+  phases: 'Phases, (hkl) and lattice',
+  more: 'Texture and crystallinity',
+};
 
 const CORRECTION_LABELS: Record<CorrectionMethod, string> = {
   gaussian: 'Gaussian',
@@ -47,6 +55,7 @@ export function ResultsStep({ data, update }: StepContext<XrdData>) {
   const skipped = data.instrument.source === 'skip';
   const [refineZeroShift, setRefineZeroShift] = useState(false);
   const { phases, failed } = useCandidatePhases(data.material);
+  const [tab, setTab] = useState<Tab>('size');
 
   if (!pattern) return <p>No patterns are loaded. Go back to Upload to add one.</p>;
   const results = sizeResults(data, pattern.id);
@@ -71,6 +80,11 @@ export function ResultsStep({ data, update }: StepContext<XrdData>) {
       },
     });
 
+  const glance = results.kind === 'ok' ? results.summary : [];
+  const glanceRow = (method: MethodId) => glance.find((r) => r.method === method && !r.unavailable);
+  const scherrer = glanceRow('scherrer');
+  const udm = glanceRow('wh-udm');
+
   return (
     <div class="fit-step">
       {skipped && (
@@ -81,9 +95,10 @@ export function ResultsStep({ data, update }: StepContext<XrdData>) {
         </p>
       )}
       <p class="field-hint">
-        Every number here is an estimate from a model of peak broadening. The methods make different
-        assumptions, so their answers differ; report which method you used, with K, the wavelength
-        and the instrument correction.
+        Read and check your results here. Every number is an estimate from a model; report the
+        method, K, the wavelength and the instrument correction with it. Each table has its own CSV
+        button; the next step, Export, collects the figure, methods text, every table and the
+        session file for your paper.
       </p>
 
       {patterns.length > 1 && (
@@ -99,158 +114,211 @@ export function ResultsStep({ data, update }: StepContext<XrdData>) {
         </label>
       )}
 
-      <section class="process-step is-on" aria-labelledby="settings-title">
-        <h3 id="settings-title" class="process-step-title">
-          Settings
+      <section class="process-step is-on" aria-labelledby="glance-title">
+        <h3 id="glance-title" class="process-step-title">
+          At a glance (estimates)
         </h3>
-        <div class="process-step-body">
-          <div class="radiation-fields">
-            <NumberInput
-              label="Shape factor K"
-              value={settings.k}
-              min={0.5}
-              max={2}
-              step={0.01}
-              onChange={(k) => k !== null && setResults({ k })}
-              help={
-                <HelpTip term="the shape factor K">
-                  <p>
-                    K links peak width to crystallite size and depends on the crystallite shape and
-                    on how width is measured. 0.9 is the usual choice with FWHM. Use the value your
-                    field or reference uses, and report it. Some papers use K = 3/4 with the
-                    size–strain plot.
-                  </p>
-                </HelpTip>
-              }
-            />
-            <NumberInput
-              label="Young's modulus E (GPa)"
-              value={settings.modulusGPa}
-              min={0}
-              onChange={(modulusGPa) => setResults({ modulusGPa })}
-              help={
-                <HelpTip term="Young's modulus">
-                  <p>
-                    Needed by the USDM and UDEDM Williamson–Hall models. Crystals are often stiffer
-                    in some directions than others; if you know the modulus for each peak&apos;s
-                    direction (E_hkl), enter it in the peak table below. Take values from a
-                    reference you can cite.
-                  </p>
-                </HelpTip>
-              }
-            />
-            <NumberInput
-              label="Density ρ (g/cm³)"
-              value={settings.densityGcm3}
-              min={0}
-              onChange={(densityGcm3) => setResults({ densityGcm3 })}
-              help={
-                <HelpTip term="density">
-                  <p>
-                    Used only for the specific surface area S = 6/(ρD), which assumes separate,
-                    dense, spherical crystallites. Real powders are usually agglomerated, so the
-                    measured (BET) surface area is normally smaller.
-                  </p>
-                </HelpTip>
-              }
-            />
+        <dl class="summary-grid">
+          <div>
+            <dt>Crystallite size, Scherrer (mean of peaks)</dt>
+            <dd>{scherrer?.size ? `${value(scherrer.size)} nm` : '–'}</dd>
           </div>
-          {xray && Number(xray.rho.toFixed(3)) !== settings.densityGcm3 && (
-            <p class="field-hint">
-              <button
-                type="button"
-                class="btn"
-                onClick={() => setResults({ densityGcm3: Number(xray.rho.toFixed(3)) })}
-              >
-                Use the X-ray density of {xray.name}, {xray.rho.toFixed(3)} g/cm³
-              </button>{' '}
-              (from its cell contents and refined volume, see the lattice parameters below).
-            </p>
-          )}
-          {skipped ? (
-            <p class="field-hint">Instrument correction: skipped (change it in step 6).</p>
-          ) : (
-            <fieldset class="method-choice">
-              <legend>Instrument correction (also set in step 6)</legend>
-              {(Object.keys(CORRECTION_LABELS) as CorrectionMethod[]).map((m) => (
-                <label key={m} class="check">
-                  <input
-                    type="radio"
-                    name="results-correction"
-                    checked={data.instrument.method === m}
-                    onChange={() => update({ instrument: { ...data.instrument, method: m } })}
-                  />
-                  {CORRECTION_LABELS[m]}
-                </label>
-              ))}
-            </fieldset>
-          )}
-        </div>
+          <div>
+            <dt>Size and microstrain, Williamson–Hall UDM</dt>
+            <dd>
+              {udm?.size || udm?.strain
+                ? `${udm.size ? `${value(udm.size)} nm` : 'no size'}; ε ${udm.strain ? `${value(udm.strain, 1e3)} × 10⁻³` : '–'}`
+                : '–'}
+            </dd>
+          </div>
+          <div>
+            <dt>Peaks used for size</dt>
+            <dd>
+              {results.kind === 'ok'
+                ? `${results.peaks.filter((p) => p.used).length} of ${results.peaks.length}`
+                : '–'}
+            </dd>
+          </div>
+          <div>
+            <dt>Phases assigned</dt>
+            <dd>
+              {assignment?.phases.length
+                ? assignment.phases.map((a) => `${a.phase.name} (${a.assigned} peaks)`).join(', ')
+                : 'none'}
+            </dd>
+          </div>
+        </dl>
       </section>
 
       {pattern.digitized && <PaperComparison data={data} update={update} pattern={pattern} />}
 
-      <Guidance />
+      <fieldset class="segmented results-tabs">
+        <legend>Show</legend>
+        {(Object.keys(TAB_LABELS) as Tab[]).map((t) => (
+          <label key={t} class={tab === t ? 'is-selected' : undefined}>
+            <input type="radio" name="results-tab" checked={tab === t} onChange={() => setTab(t)} />
+            {TAB_LABELS[t]}
+          </label>
+        ))}
+      </fieldset>
 
-      <AssignmentSection
-        data={data}
-        update={update}
-        patternId={pattern.id}
-        result={assignment ?? { reason: assignmentReason }}
-        refineZeroShift={refineZeroShift}
-        onRefineZeroShift={setRefineZeroShift}
-      />
-
-      <ExtraAnalysisSection
-        data={data}
-        update={update}
-        patternId={pattern.id}
-        assignment={assignment}
-      />
-
-      {results.kind === 'none' ? (
-        <p class="message is-warning">
-          <strong>Check:</strong> {results.reason}
-        </p>
-      ) : (
+      {tab === 'size' && (
         <>
-          <PeakChoices
-            peaks={results.peaks}
-            patternName={pattern.name}
-            skipped={results.skipped}
-            hkl={assignment?.peaks.map((p) => p.hklText)}
-            setUse={(index, use) => {
-              const c = choicesFor(data, pattern.id, results.fitKey);
-              setChoices(results.fitKey, { use: { ...c.use, [index]: use } });
-            }}
-            setModulus={(index, value) => {
-              const c = choicesFor(data, pattern.id, results.fitKey);
-              const modulus = Object.fromEntries(
-                Object.entries(c.modulus).filter(([k]) => Number(k) !== index),
-              );
-              if (value !== null) modulus[index] = value;
-              setChoices(results.fitKey, { modulus });
-            }}
-          />
-          <Summary rows={results.summary} patternName={pattern.name} data={data} />
-          <h3 class="export-title">Each method</h3>
-          <ScherrerDetails
-            result={results.scherrer}
-            peaks={results.peaks}
-            patternName={pattern.name}
-            k={settings.k}
-            lambdaNm={results.settings.lambdaNm}
-          />
-          {LINE_METHODS.map((m) => (
-            <LineDetails
-              key={m}
-              result={results.lines[m]}
-              patternName={pattern.name}
-              data={data}
-              update={update}
-            />
-          ))}
+          <section class="process-step is-on" aria-labelledby="settings-title">
+            <h3 id="settings-title" class="process-step-title">
+              Settings
+            </h3>
+            <div class="process-step-body">
+              <div class="radiation-fields">
+                <NumberInput
+                  label="Shape factor K"
+                  value={settings.k}
+                  min={0.5}
+                  max={2}
+                  step={0.01}
+                  onChange={(k) => k !== null && setResults({ k })}
+                  help={
+                    <HelpTip term="the shape factor K">
+                      <p>
+                        K links peak width to crystallite size and depends on the crystallite shape
+                        and on how width is measured. 0.9 is the usual choice with FWHM. Use the
+                        value your field or reference uses, and report it. Some papers use K = 3/4
+                        with the size–strain plot.
+                      </p>
+                    </HelpTip>
+                  }
+                />
+                <NumberInput
+                  label="Young's modulus E (GPa)"
+                  value={settings.modulusGPa}
+                  min={0}
+                  onChange={(modulusGPa) => setResults({ modulusGPa })}
+                  help={
+                    <HelpTip term="Young's modulus">
+                      <p>
+                        Needed by the USDM and UDEDM Williamson–Hall models. Crystals are often
+                        stiffer in some directions than others; if you know the modulus for each
+                        peak&apos;s direction (E_hkl), enter it in the peak table below. Take values
+                        from a reference you can cite.
+                      </p>
+                    </HelpTip>
+                  }
+                />
+                <NumberInput
+                  label="Density ρ (g/cm³)"
+                  value={settings.densityGcm3}
+                  min={0}
+                  onChange={(densityGcm3) => setResults({ densityGcm3 })}
+                  help={
+                    <HelpTip term="density">
+                      <p>
+                        Used only for the specific surface area S = 6/(ρD), which assumes separate,
+                        dense, spherical crystallites. Real powders are usually agglomerated, so the
+                        measured (BET) surface area is normally smaller.
+                      </p>
+                    </HelpTip>
+                  }
+                />
+              </div>
+              {xray && Number(xray.rho.toFixed(3)) !== settings.densityGcm3 && (
+                <p class="field-hint">
+                  <button
+                    type="button"
+                    class="btn"
+                    onClick={() => setResults({ densityGcm3: Number(xray.rho.toFixed(3)) })}
+                  >
+                    Use the X-ray density of {xray.name}, {xray.rho.toFixed(3)} g/cm³
+                  </button>{' '}
+                  (from its cell contents and refined volume, see the lattice parameters below).
+                </p>
+              )}
+              {skipped ? (
+                <p class="field-hint">Instrument correction: skipped (change it in step 6).</p>
+              ) : (
+                <fieldset class="method-choice">
+                  <legend>Instrument correction (also set in step 6)</legend>
+                  {(Object.keys(CORRECTION_LABELS) as CorrectionMethod[]).map((m) => (
+                    <label key={m} class="check">
+                      <input
+                        type="radio"
+                        name="results-correction"
+                        checked={data.instrument.method === m}
+                        onChange={() => update({ instrument: { ...data.instrument, method: m } })}
+                      />
+                      {CORRECTION_LABELS[m]}
+                    </label>
+                  ))}
+                </fieldset>
+              )}
+            </div>
+          </section>
+          <Guidance />
+          {results.kind === 'none' ? (
+            <p class="message is-warning">
+              <strong>Check:</strong> {results.reason}
+            </p>
+          ) : (
+            <>
+              <Summary rows={results.summary} patternName={pattern.name} data={data} />
+              <PeakChoices
+                peaks={results.peaks}
+                patternName={pattern.name}
+                skipped={results.skipped}
+                hkl={assignment?.peaks.map((p) => p.hklText)}
+                setUse={(index, use) => {
+                  const c = choicesFor(data, pattern.id, results.fitKey);
+                  setChoices(results.fitKey, { use: { ...c.use, [index]: use } });
+                }}
+                setModulus={(index, value) => {
+                  const c = choicesFor(data, pattern.id, results.fitKey);
+                  const modulus = Object.fromEntries(
+                    Object.entries(c.modulus).filter(([k]) => Number(k) !== index),
+                  );
+                  if (value !== null) modulus[index] = value;
+                  setChoices(results.fitKey, { modulus });
+                }}
+              />
+              <h3 class="export-title">Each method</h3>
+              <p class="field-hint">Open a method to see its plot, line fit and checks.</p>
+              <ScherrerDetails
+                result={results.scherrer}
+                peaks={results.peaks}
+                patternName={pattern.name}
+                k={settings.k}
+                lambdaNm={results.settings.lambdaNm}
+              />
+              {LINE_METHODS.map((m) => (
+                <LineDetails
+                  key={m}
+                  result={results.lines[m]}
+                  patternName={pattern.name}
+                  data={data}
+                  update={update}
+                />
+              ))}
+            </>
+          )}
         </>
+      )}
+
+      {tab === 'phases' && (
+        <AssignmentSection
+          data={data}
+          update={update}
+          patternId={pattern.id}
+          result={assignment ?? { reason: assignmentReason }}
+          refineZeroShift={refineZeroShift}
+          onRefineZeroShift={setRefineZeroShift}
+        />
+      )}
+
+      {tab === 'more' && (
+        <ExtraAnalysisSection
+          data={data}
+          update={update}
+          patternId={pattern.id}
+          assignment={assignment}
+        />
       )}
     </div>
   );
@@ -429,9 +497,9 @@ function Summary({
           </p>
         </HelpTip>{' '}
         S = 6/(ρD) is the specific surface area. Blank: not defined by the method or not physical
-        (see the method below). Problems and checks for every method are listed here too.
+        (see the method below). The checks of every method are collected in the list below.
       </p>
-      <Messages messages={problems} />
+      <CheckLog messages={problems} />
       <TableBox label="Summary" onExport={exportCsv}>
         <thead>
           <tr>
