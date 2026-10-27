@@ -108,6 +108,9 @@ export function PhaseSearch({
   const [shown, setShown] = useState(FIRST);
   const [adding, setAdding] = useState<Record<number, string>>({});
   const asked = useRef(0);
+  // Pressing Search (or Enter) searches at once instead of after the typing pause.
+  const [pressed, setPressed] = useState(0);
+  const immediate = useRef(false);
 
   const parsed = useMemo(() => parseQuery(query), [query]);
   const selected = elementsOf(parsed);
@@ -129,15 +132,17 @@ export function PhaseSearch({
       return;
     }
     setSearching(true);
+    const delay = immediate.current ? 0 : DEBOUNCE_MS;
+    immediate.current = false;
     const timer = setTimeout(() => {
       void searchCod(search, base).then((r) => {
         if (ticket !== asked.current) return; // an older search answered late
         setResult(r);
         setSearching(false);
       });
-    }, DEBOUNCE_MS);
+    }, delay);
     return () => clearTimeout(timer);
-  }, [searchKey]); // eslint-disable-line react-hooks/exhaustive-deps -- search is derived from searchKey
+  }, [searchKey, pressed]); // eslint-disable-line react-hooks/exhaustive-deps -- search is derived from searchKey
 
   const writeElements = (elements: readonly string[], asExact: boolean) =>
     setQuery(elements.join(asExact ? '-' : ' '));
@@ -220,7 +225,16 @@ export function PhaseSearch({
           </p>
         </HelpTip>
       </h3>
-      <div class="material-search">
+      <PeriodicTable selected={selected} onToggle={toggle} max={MAX_ELEMENTS} />
+      <form
+        class="material-search"
+        role="search"
+        onSubmit={(e) => {
+          e.preventDefault();
+          immediate.current = true;
+          setPressed((n) => n + 1);
+        }}
+      >
         <label class="inline-field material-query">
           Formula, elements or COD ID
           <input
@@ -232,12 +246,15 @@ export function PhaseSearch({
             onInput={(e) => setQuery(e.currentTarget.value)}
           />
         </label>
+        <button type="submit" class="btn btn-primary" disabled={!search && libraryCount === 0}>
+          Search
+        </button>
         {query && (
           <button type="button" class="btn btn-quiet" onClick={() => setQuery('')}>
             Clear
           </button>
         )}
-      </div>
+      </form>
       <p class="field-hint" role="status">
         {describe(parsed)}
       </p>
@@ -270,7 +287,6 @@ export function PhaseSearch({
           </label>
         </fieldset>
       )}
-      <PeriodicTable selected={selected} onToggle={toggle} max={MAX_ELEMENTS} />
 
       <div class="phase-search-results" aria-label="Search results" role="region">
         {libraryHits.length > 0 && (

@@ -3,6 +3,7 @@ import { useStore, type PersistedStore } from '../persist/persistedStore';
 import { editsText, emptyHistory, historyKey, record, redo, undo, type History } from './history';
 import { Stepper } from './Stepper';
 import type { WizardState, WizardStep } from './types';
+import { StepGuide } from './StepGuide';
 import './wizard.css';
 
 interface WizardProps<D> {
@@ -147,6 +148,7 @@ export function Wizard<D>({ title, steps, store }: WizardProps<D>) {
         <h2 id="wizard-step-heading" class="wizard-step-title" tabIndex={-1} ref={headingRef}>
           {step.title}
         </h2>
+        {step.guide && <StepGuide items={step.guide} />}
         <div class="wizard-content">{step.render({ data: state.data, update })}</div>
       </div>
 

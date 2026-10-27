@@ -1,9 +1,9 @@
 import type { CorrectionMethod } from '../../core/xrd/instrument/correction';
 import type { CurveKind } from '../../core/xrd/instrument/curve';
 import { DEFAULT_DETECTION, type DetectionOptions } from '../../core/xrd/peaks/detect';
-import type { FitOptions, PeakGuess, RegionFit } from '../../core/xrd/peaks/fit';
+import type { FitOptions, KAlpha2Pair, PeakGuess, RegionFit } from '../../core/xrd/peaks/fit';
 import { DEFAULT_PROCESSING, type ProcessingSettings } from '../../core/xrd/process/pipeline';
-import { DEFAULT_RADIATION, type RadiationSettings } from '../../core/xrd/radiation';
+import { ANODES, DEFAULT_RADIATION, type RadiationSettings } from '../../core/xrd/radiation';
 import { examplePatterns } from '../../core/xrd/synthetic';
 import type { ReferencePhase } from '../../core/xrd/reference/types';
 import type { Pattern } from '../../core/xrd/types';
@@ -289,14 +289,40 @@ export const DEFAULT_PEAK_STATE: PeakState = {
   fit: null,
 };
 
-/** Identifies the inputs of a fit, so a later change to any of them marks the fit out of date. */
+/**
+ * The Kα doublet to fit each peak with, when the data still contain Kα2: the radiation is not
+ * Kα1 only and Kα2 was not stripped in Clean data. Null otherwise.
+ */
+export function kAlpha2PairFor(
+  processing: ProcessingSettings,
+  radiation: RadiationSettings,
+): KAlpha2Pair | null {
+  if (radiation.kAlpha1Only || processing.kAlpha2.enabled) return null;
+  const lines = ANODES[radiation.anode];
+  return { lambda1: lines.kAlpha1, lambda2: lines.kAlpha2, ratio: radiation.kAlpha2Ratio };
+}
+
+/** Fit options as sent to the fitter: the stored choices plus the Kα doublet, if any. */
+export function fitOptionsFor(
+  fitOptions: FitOptions,
+  processing: ProcessingSettings,
+  radiation: RadiationSettings,
+): FitOptions {
+  return { ...fitOptions, kAlpha2: kAlpha2PairFor(processing, radiation) };
+}
+
+/**
+ * Identifies the inputs of a fit, so a later change to any of them marks the fit out of date.
+ * `model` changes when the fit model itself changes: 2 since peaks are fitted as Kα1 + Kα2
+ * pairs while the data contain Kα2, so fits saved before then show as out of date.
+ */
 export function fitInputKey(
   guesses: readonly PeakGuess[],
   fitOptions: FitOptions,
   processing: ProcessingSettings,
   radiation: RadiationSettings,
 ): string {
-  return JSON.stringify({ guesses, fitOptions, processing, radiation });
+  return JSON.stringify({ model: 2, guesses, fitOptions, processing, radiation });
 }
 
 /*

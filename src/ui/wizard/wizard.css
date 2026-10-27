@@ -269,3 +269,35 @@ html:has(.wizard-footer) {
 .placeholder-note {
   color: var(--color-text-muted);
 }
+
+.step-guide {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-accent-soft);
+  font-size: var(--text-sm);
+}
+
+.step-guide-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.step-guide-title {
+  font-weight: var(--weight-bold);
+}
+
+.step-guide ol {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: 1.4em;
+}
+
+.step-guide-show {
+  justify-self: start;
+}

@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { DetectionOptions } from '../../core/xrd/peaks/detect';
 import {
+  peakValue,
   regionValue,
   type FitOptions,
   type PeakGuess,
   type RegionFit,
 } from '../../core/xrd/peaks/fit';
-import { profile, type ProfileKind } from '../../core/xrd/peaks/profiles';
+import type { ProfileKind } from '../../core/xrd/peaks/profiles';
 import { lowerBoundIndex } from '../../core/xrd/peaks/search';
 import { missedPeaks } from '../../core/xrd/peaks/missed';
 import { peakTable } from '../../core/xrd/peaks/table';
@@ -18,7 +19,14 @@ import { HelpTip } from '../../ui/HelpTip';
 import { PlotPanel, type PlotInteraction } from '../../ui/plot/PlotPanel';
 import type { SeriesSource } from '../../ui/plot/series';
 import type { StepContext } from '../../ui/wizard/types';
-import { fitInputKey, peaksFor, processingFor, type PeakState, type XrdData } from './data';
+import {
+  fitInputKey,
+  fitOptionsFor,
+  peaksFor,
+  processingFor,
+  type PeakState,
+  type XrdData,
+} from './data';
 import { xrdLabels } from './labels';
 import { PeaksClient } from './peaksClient';
 import { assignmentFor, peakLabelSet } from './assignment';
@@ -65,6 +73,8 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
   const [dragged, setDragged] = useState<PeakGuess[] | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  /** What the automatic refinement of the last fit changed, shown under the fit. */
+  const [refined, setRefined] = useState<{ added: number[]; removed: number[] } | null>(null);
   const [addAt, setAddAt] = useState('');
   // While the prominence slider is dragged: its value and the peaks found with it (not saved yet).
   const [sliding, setSliding] = useState<number | null>(null);
@@ -130,15 +140,46 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
   const runFit = async (toFit: PeakGuess[] = state.guesses) => {
     if (!x || !y || !client.current || toFit.length === 0) return;
     setFailed(false);
+    setRefined(null);
     setProgress('Starting…');
-    const regions = await client.current.fitPeaks(x, y, toFit, state.fitOptions, (done, total) =>
-      setProgress(`Fitting region ${done} of ${total}…`),
-    );
-    setProgress(null);
+    const options = fitOptionsFor(state.fitOptions, processing, radiation);
+    const fitOnce = (guesses: PeakGuess[]) =>
+      client.current?.fitPeaks(x, y, guesses, options, (done, total) =>
+        setProgress(`Fitting region ${done} of ${total}…`),
+      ) ?? Promise.resolve(null);
+    let regions = await fitOnce(toFit);
     if (!regions) {
+      setProgress(null);
       setFailed(true);
       return;
     }
+    // One automatic refinement: drop peaks that shrank to a single data step (noise), add the
+    // peaks the residual shows were missed (for example one half of an unresolved pair), drop a
+    // very broad peak (over 4 × the median width) that an added peak falls inside, since it was
+    // standing in for the missed ones, and fit again. Undo goes back to the peaks before the fit.
+    const first = regions.flatMap((r) => r.peaks);
+    const added = missedPeaks(x, y, regions, state.detection);
+    const widths = first.map((p) => p.fwhm).sort((a, b) => a - b);
+    const median = widths[widths.length >> 1] ?? 0;
+    const dropped = first.filter(
+      (p) =>
+        p.fwhm <= step * 1.01 ||
+        (p.fwhm > 4 * median && added.some((a) => Math.abs(a.center - p.center) < p.fwhm)),
+    );
+    if (dropped.length > 0 || added.length > 0) {
+      const next = [
+        ...first
+          .filter((p) => !dropped.includes(p))
+          .map((p) => ({ center: p.center, width: p.fwhm })),
+        ...added.map((p) => ({ center: p.center, width: p.width })),
+      ].sort((a, b) => a.center - b.center);
+      const second = next.length > 0 ? await fitOnce(next) : null;
+      if (second) {
+        regions = second;
+        setRefined({ added: added.map((p) => p.center), removed: dropped.map((p) => p.center) });
+      }
+    }
+    setProgress(null);
     // The fitted peaks become the new starting positions, so editing and re-fitting continues from them.
     const fitted = regions.flatMap((r) =>
       r.peaks.map((p) => ({ center: p.center, width: p.fwhm })),
@@ -250,10 +291,10 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
         </p>
       )}
       {kAlpha2Present && (
-        <p class="message is-warning">
-          <strong>Check:</strong> Kα2 has not been removed, so each peak is a Kα1 + Kα2 pair. Fitted
-          widths will be broader than Kα1 alone. Turn on Kα2 stripping in Clean data, or keep this
-          in mind.
+        <p class="message is-info">
+          <strong>Note:</strong> Kα2 is still in your data, so each peak is fitted as a Kα1 + Kα2
+          pair (same shape and width, Kα2 at its Bragg position with {radiation.kAlpha2Ratio} of the
+          height). The positions and widths shown are those of Kα1.
         </p>
       )}
 
@@ -523,6 +564,16 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
         </p>
       )}
 
+      {refined && state.fit && !stale && !fitting && (
+        <p class="message is-info" role="status">
+          <strong>Note:</strong> the fit was refined automatically.
+          {refined.added.length > 0 &&
+            ` Added ${refined.added.length === 1 ? 'a peak' : 'peaks'} the first fit missed at ${refined.added.map((c) => `${c.toFixed(2)}°`).join(', ')}.`}
+          {refined.removed.length > 0 &&
+            ` Removed ${refined.removed.length === 1 ? 'a peak' : 'peaks'} at ${refined.removed.map((c) => `${c.toFixed(2)}°`).join(', ')} that shrank to one data step (noise) or were too broad and stood in for the added ones.`}{' '}
+          Check them on the plot; Undo restores the peaks you had before.
+        </p>
+      )}
       {missed.length > 0 && !fitting && (
         <div class="message is-warning missed-peaks" role="status">
           <p>
@@ -656,7 +707,7 @@ export function FitPlot(props: FitPlotProps) {
           name: 'Components',
           x: xs,
           y: xs.map((v) => {
-            const value = profile(v, peak);
+            const value = peakValue(v, peak, region.kAlpha2);
             return value >= cut ? bg(v) + value : NaN;
           }),
           unit,
