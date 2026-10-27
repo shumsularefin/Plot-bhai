@@ -4,6 +4,8 @@ import type { Atmosphere, SampleCategory } from './types';
 export interface ThermalMethodsInput {
   software: string;
   synthetic: boolean;
+  /** True when the curve was digitized from a figure image. */
+  digitized?: boolean;
   atmosphere: Atmosphere;
   atmosphereOther: string;
   heatingRate: number | null;
@@ -40,7 +42,9 @@ export function thermalMethodsParagraph(input: ThermalMethodsInput): string {
   const run = [
     input.synthetic
       ? 'The thermogravimetric curve analysed here is generated example data, not a measurement.'
-      : 'A thermogravimetric (TGA) curve was analysed.',
+      : input.digitized
+        ? 'A thermogravimetric (TGA) curve digitized from a figure image was analysed, so the temperatures and mass losses read from it are approximate.'
+        : 'A thermogravimetric (TGA) curve was analysed.',
   ];
   const details = [
     `atmosphere: ${gas}`,

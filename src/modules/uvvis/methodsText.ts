@@ -10,6 +10,7 @@ export function methodsInput(data: UvvisData): UvvisMethodsInput {
   return {
     software: SOFTWARE,
     allSynthetic: data.spectra.length > 0 && data.spectra.every((s) => s.synthetic),
+    digitized: data.spectra.filter((s) => s.source === 'digitized').length,
     spectra: rows.map(({ spectrum, choice, analysis }) => {
       const cleaning = data.cleaning[spectrum.id] ?? DEFAULT_CLEANING;
       return {

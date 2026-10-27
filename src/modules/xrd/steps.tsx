@@ -18,6 +18,7 @@ export const xrdSteps: readonly WizardStep<XrdData>[] = [
     title: 'Upload',
     guide: [
       'Drop your pattern files on the box, or press Choose files (.xy, .csv, .xrdml, .ras and more).',
+      'Only have a picture of a graph? Press Use a graph image.',
       'No file at hand? Press Try with example data.',
       "Check each pattern's name and 2θ range in its card, then press Next.",
     ],

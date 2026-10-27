@@ -67,3 +67,45 @@
 .loading {
   color: var(--color-text-muted);
 }
+
+.brand-mark {
+  width: 26px;
+  height: 26px;
+  margin-right: var(--space-2);
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.site-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target);
+  padding: 0 var(--space-2);
+}
+
+.site-footer .container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.back-link {
+  margin-bottom: var(--space-3);
+}
+
+.back-link a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target);
+}

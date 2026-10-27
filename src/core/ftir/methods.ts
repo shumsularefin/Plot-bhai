@@ -1,3 +1,4 @@
+import { digitizedSentence } from '../digitize/methods';
 import type { BaselineMethod, NormaliseMethod } from './process';
 
 /**
@@ -8,6 +9,8 @@ import type { BaselineMethod, NormaliseMethod } from './process';
 export interface FtirMethodsInput {
   software: string;
   allSynthetic: boolean;
+  /** Number of spectra digitized from figure images. */
+  digitized: number;
   spectra: {
     kind: 'absorbance' | 'transmittance';
     baseline: { method: BaselineMethod; degree: number; logLambda: number; p: number } | null;
@@ -58,6 +61,8 @@ export function ftirMethodsParagraph(input: FtirMethodsInput): string {
       ? `The spectra analysed here are generated example data, not measurements. They were treated as ${list(kinds)} spectra.`
       : `FTIR ${list(kinds)} spectra (${spectra.length} in total) were analysed.`,
   );
+  const digitized = digitizedSentence(input.digitized, spectra.length, ['spectrum', 'spectra']);
+  if (digitized) sentences.push(digitized);
   if (kinds.includes('transmittance')) {
     sentences.push(
       'Transmittance was converted to absorbance with A = 2 − log10(%T) before processing and peak picking.',

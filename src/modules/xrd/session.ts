@@ -2,7 +2,10 @@ import { migrateXrdData, XRD_STATE_VERSION, type XrdData } from './data';
 import { sessionReplacer, sessionReviver } from '../../ui/persist/sessionJson';
 import type { WizardState } from '../../ui/wizard/types';
 
-/** Marks a file as an XRD Toolkit session, so other JSON files are refused with a clear message. */
+/**
+ * Marks a file as an XRD session of this site, so other JSON files are refused with a clear
+ * message. The id is kept from the site's earlier name so older session files still load.
+ */
 const APP = 'xrd-toolkit';
 const KIND = 'xrd-session';
 
@@ -49,7 +52,7 @@ export function parseSession(text: string): ParsedSession {
     return { ok: false, reason: 'This file is not valid JSON, so it cannot be a session file.' };
   }
   if (!file || file.app !== APP || file.kind !== KIND)
-    return { ok: false, reason: 'This is not an XRD Toolkit session file.' };
+    return { ok: false, reason: 'This is not a Plot Bhai XRD session file.' };
   const version = file.version;
   if (typeof version !== 'number' || !Number.isInteger(version) || version < 1)
     return { ok: false, reason: 'The session file has no valid version number.' };

@@ -13,6 +13,8 @@ export interface ShotImageInfo {
   height: number;
   /** True for the generated example figure. */
   synthetic: boolean;
+  /** What the example figure shows. */
+  description?: string;
   notes: string[];
 }
 
@@ -48,7 +50,7 @@ export interface ShotData {
   marks: Record<MarkId, AxisMark>;
   yScale: AxisScale;
   curve: CurveSettings;
-  /** Name the pattern gets in the XRD tool. */
+  /** Name the curve gets in the analysis tool. */
   name: string;
   plot: PlotSettings;
 }

@@ -125,7 +125,7 @@ describe('session file', () => {
     expect(parseSession('not json')).toMatchObject({ ok: false });
     expect(parseSession('{"app":"other"}')).toMatchObject({
       ok: false,
-      reason: 'This is not an XRD Toolkit session file.',
+      reason: 'This is not a Plot Bhai XRD session file.',
     });
     const newer = JSON.parse(serialiseSession(state)) as { version: number };
     newer.version += 1;

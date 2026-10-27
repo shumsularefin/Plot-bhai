@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'preact/hooks';
 import type { Spectrum } from '../../core/uvvis/types';
+import { DataSources, ImageSourceLink } from '../../ui/DataSources';
 import { FileDrop } from '../../ui/FileDrop';
 import { HelpTip } from '../../ui/HelpTip';
 import { MAX_SERIES } from '../../ui/plot/palette';
@@ -124,11 +125,13 @@ export function UploadStep({ data, update }: StepContext<UvvisData>) {
 
       {spectra.length === 0 && (
         <>
-          <FileDrop
-            formats=".csv, .txt or .dat with wavelength (nm) in the first column and one or more spectra in the other columns. Files stay on your device."
-            onFiles={importFiles}
-            disabled={full}
-          />
+          <DataSources imageHref="#/uvvis/image">
+            <FileDrop
+              formats=".csv, .txt or .dat with wavelength (nm) in the first column and one or more spectra in the other columns. Files stay on your device."
+              onFiles={importFiles}
+              disabled={full}
+            />
+          </DataSources>
           <div class="upload-actions">
             <button type="button" class="btn" onClick={loadExample} disabled={full}>
               Try with example data
@@ -207,6 +210,7 @@ export function UploadStep({ data, update }: StepContext<UvvisData>) {
             disabled={full}
             compact
           />
+          <ImageSourceLink href="#/uvvis/image" />
           <details class="paste-box">
             <summary>Paste data instead</summary>
             <div class="field paste-field">

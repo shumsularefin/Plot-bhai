@@ -15,6 +15,7 @@ export const thermalSteps: readonly WizardStep<ThermalData>[] = [
     title: 'Upload and describe the run',
     guide: [
       'Drop your TGA file on the box, or press Choose a file. Or press Try with example data.',
+      'Only have a picture of a graph? Press Use a graph image.',
       'Check which columns are temperature and mass.',
       'Fill in the atmosphere, heating rate and sample mass, then press Next.',
     ],

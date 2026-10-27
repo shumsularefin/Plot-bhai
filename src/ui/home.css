@@ -1,8 +1,51 @@
+.home {
+  display: grid;
+  gap: var(--space-7);
+}
+
+.home-hero {
+  padding: var(--space-5) 0 0;
+}
+
+.home-title {
+  font-size: clamp(2.25rem, 6vw, 3.25rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.home-tagline {
+  margin-top: var(--space-3);
+  max-width: 40rem;
+  color: var(--color-text-muted);
+  font-size: var(--text-lg);
+}
+
+.home-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-5) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-points li {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  font-size: var(--text-sm);
+}
+
+.home-section-title {
+  font-size: var(--text-xl);
+}
+
 .tool-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--space-4);
-  margin: var(--space-6) 0 0;
+  margin: var(--space-4) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -13,9 +56,9 @@
   }
 }
 
-@media (min-width: 1280px) {
+@media (min-width: 1100px) {
   .tool-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -23,20 +66,33 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
   padding: var(--space-5);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
 }
 
-.tool-card:not(.is-soon):hover {
+.tool-card:hover {
   border-color: var(--color-accent);
 }
 
 .tool-card:focus-within {
   outline: 3px solid var(--color-focus);
   outline-offset: 2px;
+}
+
+.tool-icon {
+  width: 40px;
+  height: 40px;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .tool-name {
@@ -65,17 +121,58 @@
   color: var(--color-text-muted);
 }
 
+.tool-inputs {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
 .tool-cta {
   color: var(--color-accent);
   font-weight: var(--weight-medium);
 }
 
-.tool-badge {
-  align-self: flex-start;
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-pill);
-  background: var(--color-surface-muted);
+.home-steps {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+@media (min-width: 768px) {
+  .home-steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.home-steps li {
+  counter-increment: step;
+  padding-left: calc(32px + var(--space-3));
+  position: relative;
+}
+
+.home-steps li::before {
+  content: counter(step);
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-weight: var(--weight-bold);
+}
+
+.home-steps h3 {
+  font-size: var(--text-lg);
+}
+
+.home-steps p {
+  margin-top: var(--space-1);
   color: var(--color-text-muted);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
 }

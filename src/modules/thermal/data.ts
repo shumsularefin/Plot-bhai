@@ -14,6 +14,8 @@ export interface LoadedTable {
   mapping: ColumnMapping;
   /** True for the generated example run. */
   synthetic: boolean;
+  /** True for a curve digitized from a figure image. */
+  digitized?: boolean;
 }
 
 /** How the mass loss steps are found and shown. */

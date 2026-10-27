@@ -9,44 +9,58 @@ import { calibrationOf, calibrationWarnings } from './digitized';
 import type { MarkId, ShotData } from './data';
 import type { ShotImage } from './prepare';
 import { ShotGate } from './ShotGate';
+import { useTarget, type DigitizeTarget } from './target';
 
-const MARKS: { id: MarkId; label: string; short: string; hint: string }[] = [
-  {
-    id: 'x1',
-    label: '2θ point 1',
-    short: '2θ₁',
-    hint: 'a labelled tick near the left end of the 2θ axis',
-  },
-  {
-    id: 'x2',
-    label: '2θ point 2',
-    short: '2θ₂',
-    hint: 'a labelled tick near the right end of the 2θ axis',
-  },
-  {
-    id: 'y1',
-    label: 'Intensity point 1',
-    short: 'I₁',
-    hint: 'a labelled tick near the bottom of the intensity axis',
-  },
-  {
-    id: 'y2',
-    label: 'Intensity point 2',
-    short: 'I₂',
-    hint: 'a labelled tick near the top of the intensity axis',
-  },
-];
+interface MarkInfo {
+  id: MarkId;
+  label: string;
+  short: string;
+  hint: string;
+}
+
+/** The four calibration marks, named for the axes of the target tool. */
+function marksFor({ x, y, xShort, yShort }: DigitizeTarget['axes']): MarkInfo[] {
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  return [
+    {
+      id: 'x1',
+      label: `${cap(x)} point 1`,
+      short: `${xShort}₁`,
+      hint: `a labelled tick near the left end of the ${x} axis`,
+    },
+    {
+      id: 'x2',
+      label: `${cap(x)} point 2`,
+      short: `${xShort}₂`,
+      hint: `a labelled tick near the right end of the ${x} axis`,
+    },
+    {
+      id: 'y1',
+      label: `${cap(y)} point 1`,
+      short: `${yShort}₁`,
+      hint: `a labelled tick near the bottom of the ${y} axis`,
+    },
+    {
+      id: 'y2',
+      label: `${cap(y)} point 2`,
+      short: `${yShort}₂`,
+      hint: `a labelled tick near the top of the ${y} axis`,
+    },
+  ];
+}
 
 /** Wizard step 2: mark two ticks on each axis and type their values. */
 export function AxesStep({ data, update }: StepContext<ShotData>) {
+  const { axes } = useTarget();
+  const MARKS = marksFor(axes);
   const [active, setActive] = useState<MarkId>(
     () => MARKS.find((m) => !data.marks[m.id].at)?.id ?? 'x1',
   );
   const setMark = (id: MarkId, patch: Partial<ShotData['marks'][MarkId]>) =>
     update({ marks: { ...data.marks, [id]: { ...data.marks[id], ...patch } } });
-  const outcome = calibrationOf(data);
+  const outcome = calibrationOf(data, axes);
   const calibration = 'calibration' in outcome ? outcome.calibration : null;
-  const warnings = calibration ? calibrationWarnings(calibration) : [];
+  const warnings = calibration ? calibrationWarnings(calibration, axes) : [];
 
   const place = (p: Point) => {
     const at = { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 };
@@ -60,8 +74,8 @@ export function AxesStep({ data, update }: StepContext<ShotData>) {
   return (
     <div class="particle-step shot-step">
       <p>
-        Tell the app what the axes mean: click two labelled ticks on the 2θ axis and two on the
-        intensity axis, then type the value of each{' '}
+        Tell the app what the axes mean: click two labelled ticks on the {axes.x} axis and two on
+        the {axes.y} axis, then type the value of each{' '}
         <HelpTip term="axis calibration">
           <p>
             Two points per axis fix its scale and position. Pick ticks far apart, and zoom in to
@@ -71,7 +85,7 @@ export function AxesStep({ data, update }: StepContext<ShotData>) {
       </p>
 
       <fieldset class="method-choice">
-        <legend>Intensity axis</legend>
+        <legend>Scale of the {axes.y} axis</legend>
         <label class="check">
           <input
             type="radio"
@@ -115,7 +129,7 @@ export function AxesStep({ data, update }: StepContext<ShotData>) {
                 </span>
               </label>
               <label class="inline-field">
-                <span>{m.id.startsWith('x') ? 'Value (° 2θ)' : 'Value (intensity)'}</span>
+                <span>Value</span>
                 <input
                   id={`mark-${m.id}-value`}
                   type="number"
@@ -231,7 +245,7 @@ export function AxesStep({ data, update }: StepContext<ShotData>) {
   );
 }
 
-/** Lines at round 2θ and intensity values, drawn with the calibration, to compare with the figure's ticks. */
+/** Lines at round x and y values, drawn with the calibration, to compare with the figure's ticks. */
 function CalibrationGrid({
   calibration,
   image,

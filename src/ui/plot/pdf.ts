@@ -65,7 +65,7 @@ export function pdfFromRgb(
     encoder.encode('\nendstream'),
   ]);
   object(5, `<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
-  object(6, '<< /Producer (XRD Toolkit) >>');
+  object(6, '<< /Producer (Plot Bhai) >>');
   const xref = length;
   const rows = offsets.slice(1).map((o) => `${String(o).padStart(10, '0')} 00000 n \n`);
   push(`xref\n0 ${offsets.length}\n0000000000 65535 f \n${rows.join('')}`);

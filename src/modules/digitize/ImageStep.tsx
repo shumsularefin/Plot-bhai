@@ -4,27 +4,22 @@ import { HelpTip } from '../../ui/HelpTip';
 import type { StepContext } from '../../ui/wizard/types';
 import { ImageViewer } from '../particles/ImageViewer';
 import { DEFAULT_CURVE, EMPTY_MARKS, initialShotData, type ShotData } from './data';
-import {
-  EXAMPLE_COLOR,
-  EXAMPLE_CROP,
-  EXAMPLE_DESCRIPTION,
-  EXAMPLE_MARKS,
-  EXAMPLE_SEED,
-  makeExampleShot,
-} from './example';
 import { removeShot, saveShot } from './imageStore';
 import { cacheShot, clearShotCache, decodeShot, type ShotImage } from './prepare';
 import { ShotGate } from './ShotGate';
+import { useTarget, type ExampleFigure } from './target';
 
 /** Wizard step 1: load the screenshot, straighten it and crop it to the plot. */
 export function ImageStep({ data, update }: StepContext<ShotData>) {
+  const target = useTarget();
   const [busy, setBusy] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const hasWork = data.marks.x1.at !== null || data.curve.seeds.length > 0;
 
-  const load = async (name: string, blob: Blob, synthetic: boolean) => {
+  const load = async (name: string, blob: Blob, figure: ExampleFigure | null) => {
+    const synthetic = figure !== null;
     if (hasWork && !window.confirm('Replace the image? This clears the calibration and the curve.'))
       return;
     setBusy('Opening the image…');
@@ -38,7 +33,7 @@ export function ImageStep({ data, update }: StepContext<ShotData>) {
     const id = crypto.randomUUID();
     const notes = [...result.notes];
     try {
-      await saveShot(id, blob);
+      await saveShot(target.imageKey, id, blob);
     } catch {
       notes.push(
         'This browser would not store the image, so it will have to be loaded again after a refresh.',
@@ -49,12 +44,20 @@ export function ImageStep({ data, update }: StepContext<ShotData>) {
     update({
       ...initialShotData,
       plot: data.plot,
-      image: { id, name, width: result.width, height: result.height, synthetic, notes },
+      image: {
+        id,
+        name,
+        width: result.width,
+        height: result.height,
+        synthetic,
+        notes,
+        ...(figure && { description: figure.description }),
+      },
       name: synthetic ? 'Example figure (synthetic)' : `${stem} (digitized)`,
-      ...(synthetic && {
-        crop: EXAMPLE_CROP,
-        marks: EXAMPLE_MARKS,
-        curve: { ...DEFAULT_CURVE, color: EXAMPLE_COLOR, seeds: [EXAMPLE_SEED] },
+      ...(figure && {
+        crop: figure.crop,
+        marks: figure.marks,
+        curve: { ...DEFAULT_CURVE, color: figure.color, seeds: [figure.seed] },
       }),
     });
     setBusy(null);
@@ -62,13 +65,14 @@ export function ImageStep({ data, update }: StepContext<ShotData>) {
 
   const loadFiles = (list: FileList | null) => {
     const file = list?.[0];
-    if (file) void load(file.name, file, false);
+    if (file) void load(file.name, file, null);
   };
 
   const loadExample = async () => {
     setBusy('Drawing the example…');
     try {
-      await load('example-xrd-figure-synthetic.png', await makeExampleShot(), true);
+      const figure = await target.example();
+      await load('example-figure-synthetic.png', figure.blob, figure);
     } catch {
       setProblem('The example figure could not be drawn in this browser.');
       setBusy(null);
@@ -81,7 +85,7 @@ export function ImageStep({ data, update }: StepContext<ShotData>) {
       const file = [...(event.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'));
       if (file) {
         event.preventDefault();
-        void load('pasted-screenshot.png', file, false);
+        void load('pasted-screenshot.png', file, null);
       }
     };
     window.addEventListener('paste', onPaste);
@@ -90,7 +94,7 @@ export function ImageStep({ data, update }: StepContext<ShotData>) {
 
   const remove = () => {
     clearShotCache();
-    void removeShot();
+    void removeShot(target.imageKey);
     update({ ...initialShotData, plot: data.plot });
   };
 
@@ -114,7 +118,7 @@ export function ImageStep({ data, update }: StepContext<ShotData>) {
   return (
     <div class="particle-step shot-step">
       <p>
-        Load a screenshot of an XRD figure, for example from a paper{' '}
+        Load a picture of {target.figure}, for example a screenshot of a figure in a paper{' '}
         <HelpTip term="digitizing a figure">
           <p>
             The curve is read off the picture pixel by pixel and turned back into numbers using the
@@ -167,8 +171,7 @@ export function ImageStep({ data, update }: StepContext<ShotData>) {
           Try with example data
         </button>
         <span class="field-hint">
-          Draws a synthetic figure with peaks of known width, already calibrated, so every step can
-          be tried at once.
+          Draws a synthetic figure, already calibrated, so every step can be tried at once.
         </span>
       </div>
 
@@ -198,7 +201,7 @@ export function ImageStep({ data, update }: StepContext<ShotData>) {
               Remove<span class="visually-hidden"> the image</span>
             </button>
           </header>
-          {info.synthetic && <p class="message">{EXAMPLE_DESCRIPTION}</p>}
+          {info.description && <p class="message">{info.description}</p>}
           {info.notes.map((note) => (
             <p key={note} class="message is-warning">
               <strong>Check:</strong> {note}
@@ -218,9 +221,9 @@ export function ImageStep({ data, update }: StepContext<ShotData>) {
                 Fine angle (°){' '}
                 <HelpTip term="straightening">
                   <p>
-                    A photographed or skewed figure should be turned until its 2θ axis is level: the
-                    curve is read one pixel column at a time. The calibration in step 2 says how far
-                    off the axis still is.
+                    A photographed or skewed figure should be turned until its {target.axes.x} axis
+                    is level: the curve is read one pixel column at a time. The calibration in step
+                    2 says how far off the axis still is.
                   </p>
                 </HelpTip>
               </span>

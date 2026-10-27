@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'preact/hooks';
 import { importFtirFile, importFtirText } from '../../core/ftir/import';
 import type { FtirImportResult, FtirSpectrum } from '../../core/ftir/types';
+import { DataSources, ImageSourceLink } from '../../ui/DataSources';
 import { FileDrop } from '../../ui/FileDrop';
 import { HelpTip } from '../../ui/HelpTip';
 import { MAX_SERIES } from '../../ui/plot/palette';
@@ -137,11 +138,13 @@ export function UploadStep({ data, update }: StepContext<FtirData>) {
 
       {spectra.length === 0 && (
         <>
-          <FileDrop
-            formats=".csv, .txt, .dpt or JCAMP-DX (.jdx, .dx) with wavenumber (cm⁻¹) in the first column and one or more spectra in the other columns. Files stay on your device."
-            onFiles={importFiles}
-            disabled={full}
-          />
+          <DataSources imageHref="#/ftir/image">
+            <FileDrop
+              formats=".csv, .txt, .dpt or JCAMP-DX (.jdx, .dx) with wavenumber (cm⁻¹) in the first column and one or more spectra in the other columns. Files stay on your device."
+              onFiles={importFiles}
+              disabled={full}
+            />
+          </DataSources>
           <div class="upload-actions">
             <button type="button" class="btn" onClick={loadExample} disabled={full}>
               Try with example data
@@ -220,6 +223,7 @@ export function UploadStep({ data, update }: StepContext<FtirData>) {
             disabled={full}
             compact
           />
+          <ImageSourceLink href="#/ftir/image" />
           <details class="paste-box">
             <summary>Paste data instead</summary>
             <div class="field paste-field">

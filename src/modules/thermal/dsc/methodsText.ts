@@ -16,6 +16,7 @@ export function dscMethodsInput(
   return {
     software: SOFTWARE,
     synthetic: data.file?.synthetic ?? false,
+    digitized: data.file?.digitized ?? false,
     atmosphere: data.info.atmosphere,
     atmosphereOther: data.info.atmosphereOther,
     heatingRate: curve.rateKPerMin,

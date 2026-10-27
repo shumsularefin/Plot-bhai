@@ -10,6 +10,7 @@ const SOURCE_LABELS: Record<FtirSource, string> = {
   jcamp: 'JCAMP-DX',
   pasted: 'Pasted',
   synthetic: 'Example',
+  digitized: 'From a graph image',
 };
 const KIND_LABELS: Record<FtirKind, string> = {
   absorbance: 'Absorbance',
