@@ -1034,7 +1034,20 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
               <table class="peak-table">
                 <thead>
                   <tr>
-                    <th scope="col">Select</th>
+                    <th scope="col">
+                      <label class="check">
+                        <input
+                          type="checkbox"
+                          checked={rows.length > 0 && rows.every((p) => selected.has(p.id))}
+                          onChange={(e) =>
+                            setSelected(
+                              e.currentTarget.checked ? new Set(rows.map((p) => p.id)) : new Set(),
+                            )
+                          }
+                        />
+                        Select all
+                      </label>
+                    </th>
                     <th scope="col">ID</th>
                     <th scope="col">Origin</th>
                     <th scope="col">Diameter (equal area)</th>

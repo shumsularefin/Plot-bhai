@@ -93,65 +93,6 @@ export function UploadStep({ data, update }: StepContext<ParticleData>) {
         </HelpTip>
       </p>
 
-      <div
-        class={`drop-zone${dragging ? ' is-dragging' : ''}`}
-        onDragEnter={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        onDragOver={(e) => e.preventDefault()}
-        onDragLeave={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false);
-        }}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragging(false);
-          loadFiles(e.dataTransfer?.files ?? null);
-        }}
-      >
-        <p class="drop-zone-title">Drag and drop an image here</p>
-        <p class="field-hint">
-          PNG, JPEG or TIFF (8 or 16 bit grayscale, or colour). The image stays on your device.
-          Gatan .dm3 and .dm4 files must be exported as PNG or TIFF first.
-        </p>
-        <button type="button" class="btn btn-primary" onClick={() => fileInput.current?.click()}>
-          Choose an image
-        </button>
-        <input
-          ref={fileInput}
-          type="file"
-          accept=".png,.jpg,.jpeg,.tif,.tiff,image/png,image/jpeg,image/tiff"
-          class="visually-hidden"
-          tabIndex={-1}
-          aria-hidden="true"
-          onChange={(e) => {
-            loadFiles(e.currentTarget.files);
-            e.currentTarget.value = '';
-          }}
-        />
-      </div>
-
-      <div class="upload-actions">
-        <button type="button" class="btn" onClick={() => void loadExample()}>
-          Try with example data
-        </button>
-        <span class="field-hint">
-          Draws a synthetic image with discs of known size. It is not a real micrograph.
-        </span>
-      </div>
-
-      <p class="upload-status" role="status">
-        {busy}
-      </p>
-      {problem && (
-        <div class="import-problems" role="alert">
-          <p>{problem}</p>
-          <button type="button" class="btn btn-quiet" onClick={() => setProblem(null)}>
-            Dismiss
-          </button>
-        </div>
-      )}
-
       {info && (
         <article class="pattern-card" aria-label="Loaded image">
           <header class="pattern-card-header">
@@ -205,6 +146,79 @@ export function UploadStep({ data, update }: StepContext<ParticleData>) {
             )}
           </ImageGate>
         </article>
+      )}
+
+      <div
+        class={`drop-zone${info ? ' is-compact' : ''}${dragging ? ' is-dragging' : ''}`}
+        onDragEnter={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragOver={(e) => e.preventDefault()}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          loadFiles(e.dataTransfer?.files ?? null);
+        }}
+      >
+        {info ? (
+          <p class="drop-zone-line">
+            <strong>Use another image</strong> by dropping it here, or
+          </p>
+        ) : (
+          <>
+            <p class="drop-zone-title">Drag and drop an image here</p>
+            <p class="field-hint">
+              PNG, JPEG or TIFF (8 or 16 bit grayscale, or colour). The image stays on your device.
+              Gatan .dm3 and .dm4 files must be exported as PNG or TIFF first.
+            </p>
+          </>
+        )}
+        <button
+          type="button"
+          class={info ? 'btn' : 'btn btn-primary'}
+          onClick={() => fileInput.current?.click()}
+        >
+          Choose an image
+        </button>
+        <input
+          ref={fileInput}
+          type="file"
+          accept=".png,.jpg,.jpeg,.tif,.tiff,image/png,image/jpeg,image/tiff"
+          class="visually-hidden"
+          tabIndex={-1}
+          aria-hidden="true"
+          onChange={(e) => {
+            loadFiles(e.currentTarget.files);
+            e.currentTarget.value = '';
+          }}
+        />
+      </div>
+
+      {!info && (
+        <div class="upload-actions">
+          <button type="button" class="btn" onClick={() => void loadExample()}>
+            Try with example data
+          </button>
+          <span class="field-hint">
+            Draws a synthetic image with discs of known size. It is not a real micrograph.
+          </span>
+        </div>
+      )}
+
+      <p class="upload-status" role="status">
+        {busy}
+      </p>
+      {problem && (
+        <div class="import-problems" role="alert">
+          <p>{problem}</p>
+          <button type="button" class="btn btn-quiet" onClick={() => setProblem(null)}>
+            Dismiss
+          </button>
+        </div>
       )}
     </div>
   );
