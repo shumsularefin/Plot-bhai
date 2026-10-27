@@ -38,6 +38,7 @@ import {
   histogram,
   otsuThreshold,
 } from '../src/core/particles/detect/threshold';
+import { estimateDiameter, splitClusters } from '../src/core/particles/detect/clusters';
 import { splitTouching } from '../src/core/particles/detect/watershed';
 import { seededNoise } from '../src/core/uvvis/synthetic';
 
@@ -425,7 +426,7 @@ describe('detectParticles on synthetic images with known diameters', () => {
     for (const m of match(split.particles, pair)) expect(m.relative).toBeLessThan(0.05);
     const noSplit = detectParticles(image, 260, 200, {
       ...DEFAULT_DETECT_SETTINGS,
-      split: { enabled: false, neckPercent: 70 },
+      split: { ...DEFAULT_DETECT_SETTINGS.split, enabled: false },
     });
     expect(noSplit.particles).toHaveLength(1);
   });
@@ -580,5 +581,98 @@ describe('cutting particles along a drawn segment', () => {
     const [left, right] = cuts[0]?.pieces ?? [Int32Array.from([]), Int32Array.from([])];
     expect(Math.abs(shapeOf(left).eqDiameter - 40) / 40).toBeLessThan(0.1);
     expect(Math.abs(shapeOf(right).eqDiameter - 40) / 40).toBeLessThan(0.1);
+  });
+});
+
+/**
+ * A transmission-like image of a clump, particles bright: every disc adds its projected
+ * thickness, k · √(r² − ρ²) / r grey levels, to the background, as overlapping spheres do.
+ */
+function sphereImage(width: number, height: number, discs: readonly Disc[], k = 120): Uint8Array {
+  const image = new Uint8Array(width * height);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let v = 30;
+      for (const c of discs) {
+        const r = c.d / 2;
+        const rho2 = (x + 0.5 - c.x) ** 2 + (y + 0.5 - c.y) ** 2;
+        if (rho2 <= r * r) v += (k * Math.sqrt(r * r - rho2)) / r;
+      }
+      image[y * width + x] = Math.min(255, Math.round(v));
+    }
+  }
+  return image;
+}
+
+/** The label under each disc centre. */
+const labelsAt = (labels: Int32Array, width: number, discs: readonly Disc[]) =>
+  discs.map((c) => labels[Math.floor(c.y) * width + Math.floor(c.x)] as number);
+
+describe('separating clumps', () => {
+  // Six spheres of 40 px on a 2 × 3 grid, 28 px apart: they overlap by 12 px, so the necks are
+  // as wide as the particles and no neck can be seen in the outline.
+  const clump: Disc[] = [0, 1, 2].flatMap((col) =>
+    [0, 1].map((row) => ({ x: 60 + 28 * col, y: 60 + 28 * row, d: 40 })),
+  );
+  const width = 180;
+  const height = 150;
+
+  it('estimates the typical diameter from separate particles, and returns null for an empty mask', () => {
+    const image = discImage(300, 200, [
+      { x: 60, y: 60, d: 40 },
+      { x: 160, y: 60, d: 40 },
+      { x: 100, y: 140, d: 40 },
+    ]);
+    const d = estimateDiameter(applyThreshold(image, 100), 300, 200) as number;
+    expect(Math.abs(d - 40) / 40).toBeLessThan(0.1);
+    expect(estimateDiameter(new Uint8Array(100), 10, 10)).toBeNull();
+  });
+
+  it('finds the six spheres of a clump from their visible arcs, where the neck watershed finds one', () => {
+    const image = sphereImage(width, height, clump);
+    const mask = applyThreshold(image, 50);
+    expect(splitTouching(mask, width, height, 0.7).count).toBe(1);
+    const { labels, count } = splitClusters(mask, image, width, height, 40, 0.05);
+    expect(count).toBe(6);
+    expect(new Set(labelsAt(labels, width, clump)).size).toBe(6);
+  });
+
+  it('through the pipeline with a typical diameter, and reports the diameter used', () => {
+    const image = sphereImage(width, height, clump);
+    const split = { ...DEFAULT_DETECT_SETTINGS.split, method: 'clumps' as const };
+    const set = detectParticles(image, width, height, {
+      ...DEFAULT_DETECT_SETTINGS,
+      split: { ...split, diameter: 40 },
+    });
+    expect(set.particles).toHaveLength(6);
+    expect(set.diameter).toBe(40);
+    // Estimated from a clump alone, the diameter comes out too large (the documented
+    // limitation), so fewer particles are found: a line drawn across one particle is better.
+    const estimated = detectParticles(image, width, height, { ...DEFAULT_DETECT_SETTINGS, split });
+    expect(estimated.diameter).toBeGreaterThan(40);
+    expect(estimated.particles.length).toBeLessThan(6);
+    expect(detectParticles(image, width, height, DEFAULT_DETECT_SETTINGS).diameter).toBeNull();
+  });
+
+  it('keeps one particle whole, and a needed outline share above what is visible finds none', () => {
+    const one: Disc[] = [{ x: 60, y: 60, d: 50 }];
+    const image = sphereImage(120, 120, one);
+    const mask = applyThreshold(image, 50);
+    expect(splitClusters(mask, image, 120, 120, 50, 0.05).count).toBe(1);
+    // With no centre accepted, the blob is still kept as one particle.
+    expect(splitClusters(mask, image, 120, 120, 50, 5).count).toBe(1);
+  });
+
+  it('splits a row of flat, overlapping discs (as in SEM) from the outer arcs alone', () => {
+    const row: Disc[] = [
+      { x: 40, y: 50, d: 40 },
+      { x: 70, y: 50, d: 40 },
+      { x: 100, y: 50, d: 40 },
+    ];
+    const image = discImage(150, 100, row);
+    const mask = applyThreshold(image, 100);
+    const { labels, count } = splitClusters(mask, image, 150, 100, 40, 0.05);
+    expect(count).toBe(3);
+    expect(new Set(labelsAt(labels, 150, row)).size).toBe(3);
   });
 });

@@ -295,14 +295,14 @@ try {
       );
     });
   step('Particles: 12 particles detected, every diameter within 3 % of the true one');
-  await next('Measure by hand');
+  // Hand measuring is part of the detection step: a typed line and a drawn one.
   await page.getByText('Enter coordinates instead of drawing').click();
   await page.getByLabel('First point x (px)').fill('300');
   await page.getByLabel('First point y (px)').fill('300');
   await page.getByLabel('Second point x (px)').fill('400');
   await page.getByLabel('Second point y (px)').fill('300');
-  await page.getByRole('button', { name: 'Add the measurement' }).click();
-  await page.getByRole('button', { name: 'Line', exact: true }).click();
+  await page.getByRole('button', { name: 'Add the line' }).click();
+  await page.getByRole('button', { name: 'Add a line', exact: true }).click();
   await page.locator('.image-viewer').scrollIntoViewIfNeeded();
   const viewerBox = await page.locator('.image-viewer').boundingBox();
   // The viewer opens fitted to the crop: the 1024 × 864 image without its bottom 96 px.
@@ -317,11 +317,14 @@ try {
   await page.mouse.down();
   await page.mouse.move(x1, y1, { steps: 5 });
   await page.mouse.up();
-  await page.getByText('Measurements (2)').waitFor();
-  const cells = await page.locator('.peak-table tbody tr').allInnerTexts();
-  assert.match(cells[0], /Circle\s+50 nm/);
+  await page.getByText('Measured by hand (2)').waitFor();
+  await page.getByLabel('Show sizes in').selectOption('nm');
+  const hand = page.locator('section[aria-labelledby="hand-title"] tbody tr');
+  const cells = await hand.allInnerTexts();
+  assert.match(cells[0], /Line\s+50 nm/);
   assert.match(cells[1], /Line\s+5\d(\.\d+)? nm/);
-  step('Particles: example image, scale, a typed circle (50 nm) and a drawn line (about 50 nm)');
+  await page.getByText('12 of 12 particles shown').waitFor();
+  step('Particles: hand lines in the detection step, typed (50 nm) and drawn (about 50 nm)');
 
   // Distribution: the true diameters are 30 … 60 nm (mean 43.96 nm, median 43.75 nm by hand).
   await next('Distribution and export');

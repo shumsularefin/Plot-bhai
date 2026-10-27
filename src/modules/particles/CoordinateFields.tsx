@@ -1,4 +1,3 @@
-import type { ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
 import type { Point } from '../../core/particles/geometry';
 
@@ -9,21 +8,13 @@ interface CoordinateFieldsProps {
   width: number;
   height: number;
   onApply: (a: Point, b: Point) => void;
-  /** Extra controls placed before the numbers, for example a choice of shape. */
-  children?: ComponentChildren;
 }
 
 /**
  * A keyboard alternative to drawing: type the pixel coordinates of two points of the original
  * image (x to the right, y down, from the top left corner).
  */
-export function CoordinateFields({
-  action,
-  width,
-  height,
-  onApply,
-  children,
-}: CoordinateFieldsProps) {
+export function CoordinateFields({ action, width, height, onApply }: CoordinateFieldsProps) {
   const [values, setValues] = useState({ x1: '', y1: '', x2: '', y2: '' });
   const numbers = Object.values(values).map((v) => (v.trim() === '' ? NaN : Number(v)));
   const [x1, y1, x2, y2] = numbers as [number, number, number, number];
@@ -45,7 +36,6 @@ export function CoordinateFields({
     <details class="paste-box">
       <summary>Enter coordinates instead of drawing</summary>
       <div class="radiation-fields">
-        {children}
         {field('x1', 'First point x (px)')}
         {field('y1', 'First point y (px)')}
         {field('x2', 'Second point x (px)')}

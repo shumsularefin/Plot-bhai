@@ -56,6 +56,10 @@ vi.mock('../src/modules/particles/detectClient', () => ({
           ellipseRuns(500, 300, 10, 10, 1024, 864),
         ],
         threshold: 117,
+        diameter:
+          (input as { settings: { split: { method: string } } }).settings.split.method === 'clumps'
+            ? 33
+            : null,
       };
     }
     async mask() {
@@ -83,6 +87,23 @@ function setup(start: Partial<ParticleData> = {}) {
   view.rerender(<DetectStep data={data} update={update} />);
   return { get: () => data };
 }
+
+/** Fills the four coordinate boxes (opened first) and presses the button. */
+function enterLine([x1, y1, x2, y2]: number[]) {
+  for (const [label, value] of [
+    ['First point x (px)', x1],
+    ['First point y (px)', y1],
+    ['Second point x (px)', x2],
+    ['Second point y (px)', y2],
+  ] as const) {
+    fireEvent.input(screen.getByLabelText(label), { target: { value: String(value) } });
+  }
+  fireEvent.click(screen.getByRole('button', { name: 'Add the line' }));
+}
+
+const calibrated: Partial<ParticleData> = {
+  scale: { p1: { x: 0, y: 0 }, p2: { x: 200, y: 0 }, length: 100, unit: 'nm' },
+};
 
 async function detect(store: ReturnType<typeof setup>) {
   fireEvent.click(screen.getByRole('button', { name: 'Detect particles' }));
@@ -183,5 +204,76 @@ describe('detect step', () => {
     expect(screen.getByRole('slider', { name: /Level/ })).toBeTruthy();
     fireEvent.click(screen.getByLabelText('Adaptive (uneven background)'));
     expect(screen.getByLabelText('Neighbourhood radius (px)')).toBeTruthy();
+  });
+
+  it('offers clumps: a typical diameter (from the last line drawn), the outline share, and reports the estimate', async () => {
+    const store = setup();
+    expect(screen.queryByLabelText('Typical particle diameter (px)')).toBeNull();
+    fireEvent.click(screen.getByLabelText('In clumps or overlapping (agglomerates)'));
+    expect(store.get().detect.settings.split.method).toBe('clumps');
+    expect(screen.getByText('Empty: estimated from the image when you detect.')).toBeTruthy();
+    expect(
+      (screen.getByRole('button', { name: 'Use the last line drawn' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    await detect(store);
+    expect(store.get().detect.diameterUsed).toBe(33);
+    expect(screen.getByText(/The last detection used 33 px/)).toBeTruthy();
+    fireEvent.click(screen.getByText('Enter coordinates instead of drawing'));
+    enterLine([100, 100, 100, 141]);
+    fireEvent.click(screen.getByRole('button', { name: 'Use the last line drawn' }));
+    expect(store.get().detect.settings.split.diameter).toBe(41);
+    fireEvent.input(screen.getByRole('slider', { name: /of a whole, clear outline/ }), {
+      target: { value: '12' },
+    });
+    expect(store.get().detect.settings.split.outlinePercent).toBe(12);
+  });
+
+  it('suggests clumps when one outline holds most of the particle area', async () => {
+    const store = setup();
+    await detect(store);
+    expect(screen.getByText(/one outline holds 76 % of all particle area/)).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('In clumps or overlapping (agglomerates)'));
+    expect(screen.queryByText(/one outline holds/)).toBeNull();
+  });
+
+  it('measures a line by hand in nm at 2 pixels per nm, next to the detected particles', () => {
+    const store = setup(calibrated);
+    fireEvent.click(screen.getByRole('button', { name: 'Add a line' }));
+    expect(screen.getByText(/measure its diameter by hand/)).toBeTruthy();
+    fireEvent.click(screen.getByText('Enter coordinates instead of drawing'));
+    enterLine([300, 300, 400, 300]);
+    expect(store.get().measurements).toEqual([
+      { id: 1, kind: 'line', a: { x: 300, y: 300 }, b: { x: 400, y: 300 } },
+    ]);
+    fireEvent.change(screen.getByLabelText('Show sizes in'), { target: { value: 'nm' } });
+    expect(screen.getByRole('row', { name: /Line/ }).textContent).toContain('50 nm');
+  });
+
+  it('never reuses a hand measurement ID, and the step undo takes lines back too', () => {
+    const store = setup();
+    fireEvent.click(screen.getByText('Enter coordinates instead of drawing'));
+    enterLine([0, 0, 10, 0]);
+    enterLine([0, 0, 20, 0]);
+    fireEvent.click(screen.getByRole('button', { name: /Delete\s*measurement 1/ }));
+    enterLine([0, 0, 30, 0]);
+    expect(store.get().measurements.map((m) => m.id)).toEqual([2, 3]);
+    expect(screen.getAllByRole('row', { name: /Line/ })[0]?.textContent).toContain('20 px');
+    fireEvent.click(screen.getByRole('button', { name: 'Undo the last edit' }));
+    expect(store.get().measurements.map((m) => m.id)).toEqual([2]);
+    fireEvent.click(screen.getByRole('button', { name: 'Undo the last edit' }));
+    expect(store.get().measurements.map((m) => m.id)).toEqual([1, 2]);
+  });
+
+  it('still lists circles measured in older sessions', () => {
+    setup({
+      ...calibrated,
+      measurements: [{ id: 4, kind: 'circle', a: { x: 300, y: 300 }, b: { x: 400, y: 300 } }],
+    });
+    fireEvent.change(screen.getByLabelText('Show sizes in'), { target: { value: 'nm' } });
+    const row = screen.getByRole('row', { name: /Circle/ });
+    expect(row.textContent).toContain('50 nm');
+    // Area of a 50 nm circle: π · 50² / 4 = 1963.5 nm².
+    expect(row.textContent).toContain('1963');
   });
 });

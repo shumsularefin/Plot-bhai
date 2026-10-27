@@ -5,7 +5,6 @@ import {
   type ImageInfo,
   type ParticleData,
 } from '../src/modules/particles/data';
-import { MeasureStep } from '../src/modules/particles/MeasureStep';
 import { ScaleStep } from '../src/modules/particles/ScaleStep';
 import { particleSteps } from '../src/modules/particles/steps';
 import { UploadStep } from '../src/modules/particles/UploadStep';
@@ -50,7 +49,7 @@ const image: ImageInfo = {
   notes: [],
 };
 
-type Step = typeof UploadStep | typeof ScaleStep | typeof MeasureStep;
+type Step = typeof UploadStep | typeof ScaleStep;
 
 function setup(Step: Step, start: Partial<ParticleData> = {}) {
   let data: ParticleData = { ...initialParticleData, image, ...start };
@@ -85,7 +84,6 @@ describe('particle wizard', () => {
       'Upload',
       'Crop and scale',
       'Detect particles',
-      'Measure by hand',
       'Distribution and export',
     ]);
   });
@@ -141,53 +139,5 @@ describe('scale and crop step', () => {
     expect(screen.getByText(/1024 × 768 pixels/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Use the whole image' }));
     expect(store.get().crop).toBeNull();
-  });
-});
-
-describe('measure step', () => {
-  const calibrated: Partial<ParticleData> = {
-    scale: { p1: { x: 0, y: 0 }, p2: { x: 200, y: 0 }, length: 100, unit: 'nm' },
-  };
-
-  it('measures a typed circle in nm at 2 pixels per nm', () => {
-    const store = setup(MeasureStep, calibrated);
-    fireEvent.click(screen.getByText('Enter coordinates instead of drawing'));
-    enterCoordinates('Add the measurement', [300, 300, 400, 300]);
-    expect(store.get().measurements).toHaveLength(1);
-    const row = screen.getByRole('row', { name: /Circle/ });
-    expect(row.textContent).toContain('50 nm');
-    // Area of a 50 nm circle: π · 50² / 4 = 1963.5 nm².
-    expect(row.textContent).toContain('1963');
-  });
-
-  it('measures an ellipse box with its short axis and aspect ratio', () => {
-    setup(MeasureStep, calibrated);
-    fireEvent.click(screen.getByText('Enter coordinates instead of drawing'));
-    fireEvent.change(screen.getByLabelText('Shape'), { target: { value: 'ellipse' } });
-    enterCoordinates('Add the measurement', [100, 100, 200, 160]);
-    const row = screen.getByRole('row', { name: /Ellipse/ });
-    expect(row.textContent).toContain('50 nm');
-    expect(row.textContent).toContain('30 nm');
-    expect(row.textContent).toContain('1.667');
-  });
-
-  it('never reuses an ID, and undo and delete work', () => {
-    const store = setup(MeasureStep, calibrated);
-    fireEvent.click(screen.getByText('Enter coordinates instead of drawing'));
-    enterCoordinates('Add the measurement', [0, 0, 10, 0]);
-    enterCoordinates('Add the measurement', [0, 0, 20, 0]);
-    fireEvent.click(screen.getByRole('button', { name: /Delete\s*measurement 1/ }));
-    enterCoordinates('Add the measurement', [0, 0, 30, 0]);
-    expect(store.get().measurements.map((m) => m.id)).toEqual([2, 3]);
-    fireEvent.click(screen.getByRole('button', { name: 'Undo the last' }));
-    expect(store.get().measurements.map((m) => m.id)).toEqual([2]);
-  });
-
-  it('shows pixels and a warning when there is no scale', () => {
-    setup(MeasureStep);
-    expect(screen.getByText(/No scale yet/)).toBeTruthy();
-    fireEvent.click(screen.getByText('Enter coordinates instead of drawing'));
-    enterCoordinates('Add the measurement', [0, 0, 30, 40]);
-    expect(screen.getByRole('row', { name: /Circle/ }).textContent).toContain('50 px');
   });
 });

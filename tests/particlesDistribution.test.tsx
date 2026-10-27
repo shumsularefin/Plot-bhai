@@ -153,6 +153,35 @@ describe('saved state', () => {
     expect(upgraded?.data.distribution).toEqual(DEFAULT_DISTRIBUTION);
     expect(upgraded?.data.nextId).toBe(5);
     expect(upgraded?.data.detect.particles).toEqual([]);
+    // The old step 5 (Distribution and export) is step 4 now that hand measuring is in step 3.
+    expect(upgraded?.step).toBe(3);
+    expect(upgraded?.furthest).toBe(3);
+  });
+
+  it('upgrades version 3: keeps the detection and its splitting, adds the clump settings', () => {
+    const { diameterUsed: _new, ...v3Detect } = initialParticleData.detect;
+    void _new;
+    const v3 = {
+      ...initialParticleData,
+      measurements: [{ id: 1, kind: 'circle', a: { x: 0, y: 0 }, b: { x: 30, y: 0 } }],
+      detect: {
+        ...v3Detect,
+        settings: {
+          ...initialParticleData.detect.settings,
+          split: { enabled: false, neckPercent: 55 },
+        },
+      },
+    };
+    const upgraded = migrateParticleData({ step: 3, furthest: 4, data: v3 }, 3);
+    expect(upgraded?.step).toBe(3);
+    expect(upgraded?.furthest).toBe(3);
+    expect(upgraded?.data.measurements).toHaveLength(1);
+    expect(upgraded?.data.detect.diameterUsed).toBeNull();
+    expect(upgraded?.data.detect.settings.split).toEqual({
+      ...DEFAULT_DETECT_SETTINGS.split,
+      enabled: false,
+      neckPercent: 55,
+    });
   });
 });
 
@@ -166,6 +195,7 @@ describe('methods text', () => {
     detection: {
       settings: DEFAULT_DETECT_SETTINGS,
       edited: true,
+      diameterUsed: null,
       filters: {
         unit: 'nm',
         minDiameter: 5,
@@ -201,6 +231,32 @@ describe('methods text', () => {
     expect(text).toContain('D10, D50 and D90');
     expect(text).toContain('lognormal');
     expect(text).not.toMatch(/Hitachi|JEOL|kV/i);
+  });
+
+  it('describes clump separation with the diameter used and whether it was estimated', () => {
+    const clumps = { ...DEFAULT_DETECT_SETTINGS.split, method: 'clumps' as const };
+    const estimated = particleMethodsParagraph({
+      ...base,
+      detection: {
+        ...base.detection,
+        settings: { ...DEFAULT_DETECT_SETTINGS, split: clumps },
+        diameterUsed: 33.1,
+      },
+    });
+    expect(estimated).toContain('clumps were separated');
+    expect(estimated).toContain('circular Hough transform');
+    expect(estimated).toContain('typical diameter 33.1 px, estimated from the image');
+    expect(estimated).toContain('at least 5 % of a whole outline');
+    expect(estimated).not.toContain('neck threshold');
+    const chosen = particleMethodsParagraph({
+      ...base,
+      detection: {
+        ...base.detection,
+        settings: { ...DEFAULT_DETECT_SETTINGS, split: { ...clumps, diameter: 40 } },
+        diameterUsed: 40,
+      },
+    });
+    expect(chosen).toContain('typical diameter 40 px, radii');
   });
 
   it('leaves out what was not used', () => {

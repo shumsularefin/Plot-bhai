@@ -23,7 +23,7 @@ export type DetectRequest =
     };
 
 export type DetectResponse =
-  | { id: number; kind: 'detect'; particles: Runs[]; threshold: number }
+  | { id: number; kind: 'detect'; particles: Runs[]; threshold: number; diameter: number | null }
   | { id: number; kind: 'mask'; mask: Uint8Array; threshold: number }
   | { id: number; kind: 'error' };
 
@@ -41,9 +41,15 @@ scope.onmessage = ({ data: request }) => {
       const { mask, threshold } = segment(gray, width, height, settings, area);
       scope.postMessage({ id: request.id, kind: 'mask', mask, threshold }, [mask.buffer]);
     } else {
-      const { particles, threshold } = detectParticles(gray, width, height, settings, area);
+      const { particles, threshold, diameter } = detectParticles(
+        gray,
+        width,
+        height,
+        settings,
+        area,
+      );
       scope.postMessage(
-        { id: request.id, kind: 'detect', particles, threshold },
+        { id: request.id, kind: 'detect', particles, threshold, diameter },
         particles.map((p) => p.buffer as ArrayBuffer),
       );
     }
