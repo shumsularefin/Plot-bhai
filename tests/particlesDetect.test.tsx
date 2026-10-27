@@ -276,4 +276,13 @@ describe('detect step', () => {
     // Area of a 50 nm circle: π · 50² / 4 = 1963.5 nm².
     expect(row.textContent).toContain('1963');
   });
+
+  it('selects every shown particle with Select all, and clears them again', async () => {
+    const store = setup();
+    await detect(store);
+    fireEvent.click(screen.getByLabelText('Select all'));
+    expect(screen.getByRole('button', { name: 'Delete selected (3)' })).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('Select all'));
+    expect(screen.getByRole('button', { name: 'Delete selected (0)' })).toBeTruthy();
+  });
 });
