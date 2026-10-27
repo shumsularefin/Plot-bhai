@@ -8,6 +8,7 @@ import type { StepContext } from '../../ui/wizard/types';
 import {
   DEFAULT_PEAK_STATE,
   fitInputKey,
+  fitOptionsFor,
   newId,
   type InstrumentState,
   type StandardState,
@@ -192,7 +193,7 @@ function StandardFit({ data, update, standard, setStandard }: StandardFitProps) 
       x,
       y,
       peaks.guesses,
-      peaks.fitOptions,
+      fitOptionsFor(peaks.fitOptions, standard.processing, data.radiation),
       (done, total) => setProgress(`Fitting region ${done} of ${total}…`),
     );
     setProgress(null);

@@ -20,6 +20,8 @@ export interface WizardStep<D> {
   /** Full title, shown as the step heading. */
   title: string;
   render: (context: StepContext<D>) => ComponentChildren;
+  /** Short instructions shown at the top of the step: what to do, in order. */
+  guide?: readonly string[];
   /**
    * Validation hook, run when the user presses Next. Return a plain-language message that
    * explains what to do, or null when the step is complete.

@@ -1,5 +1,56 @@
 # Progress
 
+## Owner feedback round: fitting check, clearer lanes, upload and search layout, step instructions (done)
+
+Branch `claude/zen-edison-acnmco`. No new dependencies.
+
+### What was built
+
+- Peak fitting checked on the owner's BV-03 pattern (default settings). The fits converged with
+  R² 0.97 to 0.998 on the strong peaks, but three problems were found and fixed:
+  - Kα2 was left in the data by default and not modelled, so widths were too broad (24 % at
+    76.5° on a synthetic test) and sizes too small. When the data still contain Kα2, each peak
+    is now fitted as a Kα1 + Kα2 pair: same profile, width and η, height × the Kα2 ratio, at
+    the Kα2 position from Bragg's law (`kAlpha2Copy` in `src/core/xrd/peaks/fit.ts`, with its
+    analytic Jacobian). Positions and widths are those of Kα1. The instrument standard is fitted
+    the same way. Saved fits made before this show as out of date (the fit key has a model
+    version). Test: synthetic Kα1 + Kα2 data at 28.9° and 76.5° give back position, width and
+    height within 1 %.
+  - Unresolved pairs (58.89 / 59.57°) were fitted as one 1.4°-wide peak, and a noise blip at
+    70° as a peak one data step wide. Fit peaks now does one automatic refinement: it removes
+    peaks that shrank to one data step, adds the peaks the residual shows were missed, removes a
+    very broad peak (over 4 × the median width) that an added peak falls inside, and fits
+    again. A note lists what changed; Undo restores the earlier peaks. On BV-03 the 58–61°
+    region then fits to within the noise (χ²ν 1.1).
+- Compare reference phases: lanes are 72 px tall with thicker lines, the five strongest lines of
+  each phase carry an (hkl) tag, line heights on screen are on a square-root scale (stated in
+  the key) so weak lines stay visible, and a key explains solid (peak found) and dashed (no
+  peak) lines. With one phase shown, its lines are drawn as guides through the pattern by
+  default. Exported figures keep linear heights and no tags.
+- Upload (XRD, FTIR, UV-Vis): once data are loaded, the large drop zone, example button and
+  screenshot link give way to the loaded files, followed by a one-line "Add more files" bar and
+  the paste box (shared `src/ui/FileDrop.tsx`).
+- Choose material: the periodic table comes first, then the search bar with a Search button
+  (Enter or Search searches at once; typing still searches after a pause), then the results.
+- Every wizard step of every tool has a short "How to do this step" box (`guide` in the step
+  definitions, `src/ui/wizard/StepGuide.tsx`). "Hide tips" hides them in all tools; the choice
+  is kept in this browser only.
+
+### Verification (real results)
+
+- typecheck, lint: clean. Unit tests: 72 files passed, 1 skipped; 770 tests passed, 1 skipped.
+- Build and bundle-size check: within budget. `node scripts/e2e.mjs`: passed.
+- Browser, with BV-03 and clinobisvanite (COD 9012062): lanes, key and guides as above; the
+  automatic refinement added 56.25, 58.89 and 59.57° and removed 59.22 and 69.98°. No
+  sideways scroll at 360 px on Upload, Clean, Choose material, Compare and the other tools'
+  first steps; no page errors.
+
+### Known issues and to-dos
+
+- The automatic refinement runs one extra pass only; peaks still missed after it are listed
+  with an "Add and fit again" button as before.
+- TODO: natural-polymer library, waiting for the owner's CIF files.
+
 ## Owner feedback round: Materials Project-style search, polymer library, comparison, Results (done)
 
 Branch `claude/zen-edison-acnmco`, from the owner's annotated screenshots. No new dependencies.

@@ -8,7 +8,7 @@ export interface ReferenceLane {
   name: string;
   /** Index into the plot palette. */
   colorIndex: number;
-  lines: { x: number; height: number; found?: boolean; label?: string }[];
+  lines: { x: number; height: number; found?: boolean; label?: string; tag?: string }[];
   /** Screen only: short text after the name, for example the score. */
   note?: string;
   /** Screen only: draw this lane's lines as guides through the plot above, and fade the others. */
@@ -17,14 +17,18 @@ export interface ReferenceLane {
 
 /** Same font size as the interactive plot, so the lanes line up with its plot area. */
 const FONT_SIZE = 12;
-const LANE_HEIGHT = 48;
+const LANE_HEIGHT = 72;
 const BASE_GAP = 4;
 /** Room above the sticks for the lane name. */
-const NAME_ROOM = 16;
+const NAME_ROOM = 18;
+/** Room above a stick for its short tag, for example (hkl). */
+const TAG_ROOM = 12;
 
 interface ReferenceLanesProps {
   lanes: readonly ReferenceLane[];
   domain: Domain;
+  /** How the line heights are scaled, for the key. */
+  keyNote?: string;
 }
 
 /**
@@ -32,7 +36,11 @@ interface ReferenceLanesProps {
  * the measured data are solid; reference lines without a measured peak are dashed and faint.
  * Hovering a line shows its label (hkl, 2θ, intensity).
  */
-export function ReferenceLanes({ lanes, domain }: ReferenceLanesProps) {
+export function ReferenceLanes({
+  lanes,
+  domain,
+  keyNote = 'Taller lines are stronger in the reference. Point at a line to see its (hkl) and 2θ.',
+}: ReferenceLanesProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   useLayoutEffect(() => {
@@ -54,9 +62,11 @@ export function ReferenceLanes({ lanes, domain }: ReferenceLanesProps) {
   const anyFocused = lanes.some((l) => l.focused);
 
   return (
-    <div class="reference-lanes" ref={containerRef} style={{ height: `${height}px` }}>
+    <div class="reference-lanes" ref={containerRef}>
+      {width === 0 && <div style={{ height: `${height}px` }} />}
       {width > 0 && (
         <svg
+          style={{ height: `${height}px` }}
           viewBox={`0 0 ${width} ${height}`}
           width={width}
           height={height}
@@ -76,18 +86,29 @@ export function ReferenceLanes({ lanes, domain }: ReferenceLanesProps) {
                 <line class="lane-base" x1={0} x2={innerW} y1={base} y2={base} />
                 {lane.lines
                   .filter((l) => l.x >= x0 && l.x <= x1)
-                  .map((l, k) => (
-                    <line
-                      key={k}
-                      class={`plot-line ${series}${l.found === false ? ' lane-missing' : ''}`}
-                      x1={px(l.x)}
-                      x2={px(l.x)}
-                      y1={base}
-                      y2={base - Math.max(3, l.height * (LANE_HEIGHT - BASE_GAP - NAME_ROOM))}
-                    >
-                      {l.label && <title>{l.label}</title>}
-                    </line>
-                  ))}
+                  .map((l, k) => {
+                    const top =
+                      base -
+                      Math.max(4, l.height * (LANE_HEIGHT - BASE_GAP - NAME_ROOM - TAG_ROOM));
+                    return (
+                      <g key={k}>
+                        <line
+                          class={`plot-line ${series}${l.found === false ? ' lane-missing' : ''}`}
+                          x1={px(l.x)}
+                          x2={px(l.x)}
+                          y1={base}
+                          y2={top}
+                        >
+                          {l.label && <title>{l.label}</title>}
+                        </line>
+                        {l.tag && (
+                          <text class="lane-tag" x={px(l.x)} y={top - 3} text-anchor="middle">
+                            {l.tag}
+                          </text>
+                        )}
+                      </g>
+                    );
+                  })}
                 <rect class={`lane-swatch ${series}`} x={4} y={4} width={10} height={10} rx={2} />
                 <text class="lane-name" x={19} y={FONT_SIZE + 1}>
                   {lane.name}
@@ -98,6 +119,15 @@ export function ReferenceLanes({ lanes, domain }: ReferenceLanesProps) {
           })}
         </svg>
       )}
+      <ul class="lanes-key">
+        <li>
+          <span class="lanes-key-solid" aria-hidden="true" /> peak found in your pattern
+        </li>
+        <li>
+          <span class="lanes-key-dashed" aria-hidden="true" /> no peak in your pattern
+        </li>
+        <li>{keyNote}</li>
+      </ul>
     </div>
   );
 }

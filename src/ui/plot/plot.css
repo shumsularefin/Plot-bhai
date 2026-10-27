@@ -320,7 +320,37 @@
 }
 
 .reference-lanes .plot-line {
-  stroke-width: 2.5;
+  stroke-width: 3;
+}
+
+.reference-lanes .lane-tag {
+  fill: var(--color-text-muted);
+  font-size: 10px;
+}
+
+.lanes-key {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-4);
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.lanes-key-solid,
+.lanes-key-dashed {
+  display: inline-block;
+  width: 0;
+  height: 14px;
+  border-left: 3px solid var(--color-text-muted);
+}
+
+.lanes-key-dashed {
+  border-left-style: dashed;
+  opacity: 0.7;
 }
 
 .reference-lanes .lane-missing {

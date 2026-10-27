@@ -139,10 +139,8 @@ export function MaterialStep({ data, update }: StepContext<XrdData>) {
   return (
     <div class="material-step">
       <p class="field-hint">
-        Choose every phase your sample might contain. The next step draws their calculated lines
-        under your pattern and scores how well each one fits. Search the Crystallography Open
-        Database by formula or elements, or load the CIF file of any structure. You can skip this
-        step if you do not need reference phases.{' '}
+        Pick every phase your sample might contain; the next step compares their reference patterns
+        with yours.{' '}
         <HelpTip term="reference pattern">
           <p>
             A reference pattern is the list of diffraction lines a known crystal structure should

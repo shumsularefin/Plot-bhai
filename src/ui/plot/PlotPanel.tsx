@@ -47,6 +47,8 @@ interface PlotPanelProps {
   bands?: readonly PlotBand[];
   /** Reference stick patterns drawn under the plot on the same 2θ range (on screen and in the exported figure). */
   lanes?: readonly ReferenceLane[];
+  /** How the lanes' line heights are scaled, shown in their key on screen. */
+  lanesKey?: string;
   /** Labels above peaks (for example hkl), on screen and in the exported figure. */
   peakLabels?: PeakLabelSet;
   /** When it changes, the view jumps to this x range (in plotted x, so −wavenumber on a reversed axis). */
@@ -239,7 +241,11 @@ export function PlotPanel(props: PlotPanelProps) {
           />
         </div>
         {props.lanes && props.lanes.length > 0 && (
-          <ReferenceLanes lanes={props.lanes} domain={domain} />
+          <ReferenceLanes
+            lanes={props.lanes}
+            domain={domain}
+            {...(props.lanesKey && { keyNote: props.lanesKey })}
+          />
         )}
         {residualSeries && (
           <InteractivePlot

@@ -1,4 +1,5 @@
 import { levenbergMarquardt } from '../../math/levenbergMarquardt';
+import { kAlpha2Position } from '../process/kAlpha2';
 import { localNoise } from './noise';
 import { lowerBoundIndex } from './search';
 import {
@@ -24,6 +25,39 @@ export interface FitOptions {
   profile: ProfileKind;
   /** Pseudo-Voigt only: a fixed Lorentzian fraction, or null to fit it. */
   fixedEta: number | null;
+  /** When the data still contain Kα2: fit each peak as a Kα1 + Kα2 pair (see kAlpha2Copy). */
+  kAlpha2?: KAlpha2Pair | null;
+}
+
+/** Wavelengths (Å, same unit for both) and intensity ratio I(Kα2)/I(Kα1) of a Kα doublet. */
+export interface KAlpha2Pair {
+  lambda1: number;
+  lambda2: number;
+  ratio: number;
+}
+
+/**
+ * The Kα2 partner of a fitted Kα1 peak, as used in the fit: the same profile, width and η,
+ * height × ratio, at the Kα2 position from Bragg's law with d fixed, sin θ2 = (λ2/λ1) sin θ1
+ * (kAlpha2Position). Also returns d(2θ2)/d(2θ1) = (λ2/λ1) cos θ1 / cos θ2, for the Jacobian.
+ * Centre in degrees 2θ. Null when Kα2 cannot diffract at that angle.
+ */
+export function kAlpha2Copy(
+  peak: PeakParameters,
+  pair: KAlpha2Pair,
+): { peak: PeakParameters; dCenter: number } | null {
+  const center = kAlpha2Position(peak.center, pair.lambda1, pair.lambda2);
+  if (!Number.isFinite(center)) return null;
+  const rad = Math.PI / 360;
+  const dCenter =
+    ((pair.lambda2 / pair.lambda1) * Math.cos(peak.center * rad)) / Math.cos(center * rad);
+  return { peak: { ...peak, height: peak.height * pair.ratio, center }, dCenter };
+}
+
+/** A fitted peak's contribution at x: the Kα1 profile plus its Kα2 partner when there is one. */
+export function peakValue(x: number, peak: PeakParameters, pair: KAlpha2Pair | null | undefined) {
+  const copy = pair ? kAlpha2Copy(peak, pair) : null;
+  return profile(x, peak) + (copy ? profile(x, copy.peak) : 0);
 }
 
 /** Fitted peak with standard uncertainties (σ, from the covariance matrix). */
@@ -46,6 +80,8 @@ export interface RegionFit {
   /** Background = intercept + slope × (2θ − pivot), intensity units. */
   background: { intercept: number; slope: number; pivot: number };
   peaks: PeakFit[];
+  /** The Kα doublet the peaks were fitted with (each peak is then Kα1; see kAlpha2Copy). */
+  kAlpha2?: KAlpha2Pair | null;
   /** Coefficient of determination over the region: 1 − SSR / SST. */
   rSquared: number;
   /**
@@ -77,19 +113,23 @@ const REGION_WIDTHS = 3;
 
 /**
  * Groups peaks whose ranges (centre ± 3 × width) overlap, so overlapping peaks are fitted
- * together. Returns [start, end] ranges in degrees with the guesses inside each, clipped to
- * the data range [xMin, xMax].
+ * together. With a Kα doublet each range also reaches 3 widths beyond the Kα2 partner.
+ * Returns [start, end] ranges in degrees with the guesses inside each, clipped to the data
+ * range [xMin, xMax].
  */
 export function groupRegions(
   guesses: readonly PeakGuess[],
   xMin: number,
   xMax: number,
+  pair: KAlpha2Pair | null = null,
 ): { start: number; end: number; peaks: PeakGuess[] }[] {
   const sorted = [...guesses].sort((a, b) => a.center - b.center);
   const regions: { start: number; end: number; peaks: PeakGuess[] }[] = [];
   for (const g of sorted) {
+    const partner = pair ? kAlpha2Position(g.center, pair.lambda1, pair.lambda2) : NaN;
+    const right = Number.isFinite(partner) ? partner : g.center;
     const start = Math.max(xMin, g.center - REGION_WIDTHS * g.width);
-    const end = Math.min(xMax, g.center + REGION_WIDTHS * g.width);
+    const end = Math.min(xMax, right + REGION_WIDTHS * g.width);
     const last = regions[regions.length - 1];
     if (last && start <= last.end) {
       last.end = Math.max(last.end, end);
@@ -105,7 +145,8 @@ const PARAMS_PER_PEAK = 4;
 
 /**
  * Fits one region: the sum of k peaks (see profiles.ts) plus a straight background line,
- * by bounded Levenberg–Marquardt. Bounds: height ≥ 0; centre within one starting width of its
+ * by bounded Levenberg–Marquardt. With options.kAlpha2 each peak is a Kα1 + Kα2 pair (see
+ * kAlpha2Copy), so the fitted height, centre, width and η are those of Kα1. Bounds: height ≥ 0; centre within one starting width of its
  * guess; FWHM between one data step and the region width; 0 ≤ η ≤ 1.
  * x in degrees 2θ (increasing), y in intensity units.
  */
@@ -196,6 +237,8 @@ export function fitRegion(
   });
 
   const gradient = new Float64Array(PARAMS_PER_PEAK);
+  const gradient2 = new Float64Array(PARAMS_PER_PEAK);
+  const pair = options.kAlpha2 ?? null;
   const peakAt = (p: Float64Array, o: number): PeakParameters => ({
     height: p[o] as number,
     center: p[o + 1] as number,
@@ -219,10 +262,18 @@ export function fitRegion(
           jacobian[row + 1] = xi - pivot;
           peaks.forEach((peak, q) => {
             value += profileWithGradient(xi, peak, gradient);
+            const copy = pair ? kAlpha2Copy(peak, pair) : null;
+            if (copy && pair) {
+              value += profileWithGradient(xi, copy.peak, gradient2);
+              gradient[0] = (gradient[0] as number) + pair.ratio * (gradient2[0] as number);
+              gradient[1] = (gradient[1] as number) + copy.dCenter * (gradient2[1] as number);
+              gradient[2] = (gradient[2] as number) + (gradient2[2] as number);
+              gradient[3] = (gradient[3] as number) + (gradient2[3] as number);
+            }
             jacobian.set(gradient, row + 2 + PARAMS_PER_PEAK * q);
           });
         } else {
-          for (const peak of peaks) value += profile(xi, peak);
+          for (const peak of peaks) value += peakValue(xi, peak, pair);
         }
         model[i] = value;
       }
@@ -350,6 +401,7 @@ export function fitRegion(
     end: xs[n - 1] as number,
     background,
     peaks,
+    kAlpha2: pair,
     rSquared,
     reducedChiSquared,
     noiseSd,
@@ -394,7 +446,7 @@ export function backgroundTooLow(
 /** Background plus all peaks of a region at x. */
 export function regionValue(region: RegionFit, x: number): number {
   let value = region.background.intercept + region.background.slope * (x - region.background.pivot);
-  for (const peak of region.peaks) value += profile(x, peak);
+  for (const peak of region.peaks) value += peakValue(x, peak, region.kAlpha2);
   return value;
 }
 
@@ -409,7 +461,12 @@ export function fitPeaks(
   options: FitOptions,
   onProgress?: (done: number, total: number) => void,
 ): RegionFit[] {
-  const regions = groupRegions(guesses, x[0] as number, x[x.length - 1] as number);
+  const regions = groupRegions(
+    guesses,
+    x[0] as number,
+    x[x.length - 1] as number,
+    options.kAlpha2 ?? null,
+  );
   return regions.map((region, i) => {
     const fit = fitRegion(x, y, region, options);
     onProgress?.(i + 1, regions.length);

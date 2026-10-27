@@ -42,6 +42,19 @@ function laneName(phase: ReferencePhase): string {
   return `${phase.name} · ${source}`;
 }
 
+/**
+ * The few strongest lines of a phase that get an (hkl) tag in its lane: at most 5, strongest
+ * first, skipping any within 1.5° of a line already tagged so the tags do not overlap.
+ */
+function tagged<T extends { twoTheta: number; intensity: number }>(lines: readonly T[]): Set<T> {
+  const chosen: T[] = [];
+  for (const line of [...lines].sort((a, b) => b.intensity - a.intensity)) {
+    if (chosen.length >= 5 || line.intensity < 10) break;
+    if (chosen.every((c) => Math.abs(c.twoTheta - line.twoTheta) > 1.5)) chosen.push(line);
+  }
+  return new Set(chosen);
+}
+
 /** Median fitted FWHM of a pattern (degrees), the starting width of the calculated lines. */
 function medianFwhm(data: XrdData, patternId: string | undefined): number | null {
   if (!patternId) return null;
@@ -58,7 +71,8 @@ export function PhasesStep({ data, update }: StepContext<XrdData>) {
   const simulation = material.simulation;
   const [patternId, setPatternId] = useState(data.patterns[0]?.id);
   /** Phase drawn as guide lines through the plot, or null to compare all shown phases. */
-  const [focusId, setFocusId] = useState<string | null>(null);
+  // undefined until the user picks: then a single shown phase is focused, several are not.
+  const [focusId, setFocusId] = useState<string | null | undefined>(undefined);
   const { pattern, processed, detected } = useMeasured(data, patternId);
   const { phases, failed } = useCandidatePhases(material);
 
@@ -93,7 +107,10 @@ export function PhasesStep({ data, update }: StepContext<XrdData>) {
     () => (analysis ?? []).filter((a) => !material.hidden.includes(a.phase.id)),
     [analysis, material.hidden],
   );
-  const focus = visible.find((a) => a.phase.id === focusId) ?? null;
+  const focus =
+    focusId === undefined && visible.length === 1
+      ? (visible[0] ?? null)
+      : (visible.find((a) => a.phase.id === focusId) ?? null);
   const unexplained = useMemo(
     () =>
       detected && visible.length > 0
@@ -183,6 +200,7 @@ export function PhasesStep({ data, update }: StepContext<XrdData>) {
     () =>
       visible.map((a) => {
         const found = new Map(a.match.lines.map((l) => [l.d, l.observed !== null]));
+        const tags = tagged(a.lines);
         return {
           id: a.phase.id,
           name: laneName(a.phase),
@@ -196,7 +214,9 @@ export function PhasesStep({ data, update }: StepContext<XrdData>) {
               const isFound = found.get(l.d);
               return {
                 x,
-                height: l.intensity / 100,
+                // Square-root scale on screen, so weak lines stay visible (said in the lanes' key).
+                height: Math.sqrt(l.intensity / 100),
+                ...(tags.has(l) && { tag: formatHkl(l.hkl.slice(0, 1)) }),
                 label: `${a.phase.name} ${formatHkl(l.hkl)}, 2θ ${x.toFixed(2)}°, I ${l.intensity.toFixed(0)} %${isFound === false ? ', no measured peak' : ''}`,
                 ...(isFound !== undefined && { found: isFound }),
               };
@@ -369,6 +389,7 @@ export function PhasesStep({ data, update }: StepContext<XrdData>) {
           showOverlayOptions={false}
           interaction={{ markers }}
           lanes={lanes}
+          lanesKey="Line height is the square root of the reference intensity, so weak lines stay visible. Point at a line to see its (hkl) and 2θ."
           {...(visible.length > 0 && {
             toolbar: (
               <fieldset class="segmented">
@@ -388,7 +409,7 @@ export function PhasesStep({ data, update }: StepContext<XrdData>) {
                   return (
                     <label
                       key={id ?? 'all'}
-                      class={focusId === id || (!focus && id === null) ? 'is-selected' : undefined}
+                      class={(focus ? focus === a : id === null) ? 'is-selected' : undefined}
                     >
                       <input
                         type="radio"
