@@ -13,6 +13,8 @@ export interface MethodsInput {
   patterns: number;
   /** True when every pattern is generated example data; then no real measurement is described. */
   allSynthetic: boolean;
+  /** Patterns read off figure images, and the coarsest 2θ per image pixel among them. */
+  digitized?: { count: number; pixelDeg: number };
   /** Preprocessing of the first pattern. Null entries mean "not used". */
   processing: {
     zeroShiftDeg: number | null;
@@ -77,7 +79,12 @@ export function methodsParagraph(input: MethodsInput): string {
       ? `The patterns analysed here are generated example data, not measurements. Analysis assumed ${lines}.`
       : `Powder X-ray diffraction patterns were analysed assuming ${lines}.`,
   );
-  if (input.scan && !input.allSynthetic)
+  const d = input.digitized;
+  if (d && d.count > 0)
+    sentences.push(
+      `${d.count === input.patterns ? (d.count === 1 ? 'The pattern was' : 'All patterns were') : `${d.count} of the ${input.patterns} patterns were`} digitized from figure images (about ${number(d.pixelDeg)}° 2θ per image pixel), so the intensities, positions and widths derived from ${d.count === 1 ? 'it' : 'them'} are approximate.`,
+    );
+  if (input.scan && !input.allSynthetic && !(d && d.count === input.patterns))
     sentences.push(
       `The scan covered ${number(input.scan.fromDeg)}° to ${number(input.scan.toDeg)}° 2θ in steps of ${number(input.scan.stepDeg)}°.`,
     );

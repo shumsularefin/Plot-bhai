@@ -1,5 +1,96 @@
 # Progress
 
+## XRD from a screenshot: digitize a published figure and check its sizes (done)
+
+Branch `claude/zen-edison-acnmco`, from the owner's "Add Screenshot-Based XRD Analysis Feature"
+request. A new lazy-loaded tool (`#/xrd-screenshot`, card on the home page, link in the XRD
+Upload step) reads an XRD pattern off a figure image and hands it to the existing XRD wizard.
+No new dependencies; everything runs in the browser.
+
+### What was built
+
+- Step 1, Image: PNG, JPEG or WebP by file, drop or paste (checked by content, not extension;
+  images larger than 4000 px a side are scaled down with a note). Rotate by 90° steps or a fine
+  angle, crop by dragging (box editable), and a preview of the cropped, straightened image. The
+  file is kept in IndexedDB, so a refresh keeps the work. "Try with example data" draws a
+  synthetic figure (made-up peaks whose widths match 18 nm by Scherrer, a red reference curve,
+  gridlines, legend) and fills in every step.
+- Step 2, Calibrate axes: click two labelled 2θ ticks and two intensity ticks and type their
+  values; linear or logarithmic intensity. The positions can be typed too. The calibration is an
+  affine map, so a slightly rotated or skewed scan still maps correctly; tilt over 1°, skew,
+  marks too close together and a reversed 2θ axis are warned about. Preview: a dashed grid at
+  round values drawn from the calibration over the image, to check against the figure's ticks.
+- Step 3, Digitize the curve: click the curve. Its colour is taken from the click; pixels of
+  that colour are kept, straight lines spanning the plot (axes, gridlines) are dropped, and the
+  trace follows the connected line from the click, so a legend, labels or another curve of the
+  same colour are not followed. Steep flanks are read across rows, so narrow peaks keep their
+  apex and width. Inward tick marks touching a low baseline are cut off. Corrections: extra
+  start points, erase boxes, points added by hand, colour tolerance. The trace is drawn over the
+  image; a plot of the digitized pattern; CSV export (2θ, intensity, marked approximate).
+  Warnings: few points, poor coverage, gaps, pixel resolution (widths under 5 pixels), thick
+  lines, negative intensities.
+- Step 4, Analyse in XRD: add the pattern to the current XRD analysis or start a new one; the
+  XRD wizard opens at Clean data. The XRD store moved to `src/modules/xrd/xrdStore.ts` so both
+  tools share it.
+- In the XRD tool, a digitized pattern is labelled "Digitized from a figure: approximate" with
+  the image name, degrees per pixel and line width; the methods text says the data were
+  digitized from figure images and are approximate. Background, Kα2, peak finding, fitting,
+  instrument correction, all size methods, plots and exports are the existing ones, unchanged.
+- XRD Results, "Compare with the paper" (digitized patterns only): tick the peaks the paper
+  used, type its FWHM and sizes, its K, λ, instrument width and correction. Sizes are
+  recalculated with the paper's settings from the fitted widths, by the existing Scherrer and
+  Williamson–Hall UDM functions (`src/core/xrd/size/compare.ts` only combines them). Shown:
+  difference (over 15 % highlighted), the FWHM the paper's size implies, possible explanations
+  of a large difference (FWHM in degrees used as radians, cos 2θ instead of cos θ, Å for nm,
+  half width instead of full width; tested only to within 5 %), warnings (widths under 5
+  pixels, no instrument width) and the calculation details. CSV export.
+
+### Decisions
+
+- A separate tool rather than a tenth XRD step: images need their own steps, and the XRD
+  wizard stays as it was for measured data.
+- Tracing runs on the main thread: it is a few linear passes over the cropped area, and the
+  20 MP images of the particle tool are not expected here (larger images are scaled to 4000 px
+  a side). Very large screenshots may make the curve step pause briefly.
+- No OCR of tick labels: the user types the values. OCR would need a large library or a
+  network service.
+- Upward narrow spikes are never removed automatically (they may be real peaks); labels
+  touching a peak are erased by hand.
+
+### Verification (real results)
+
+- Unit tests (`tests/digitize.test.ts`, `tests/paperCompare.test.ts`, 15 tests) on images drawn
+  in the test with known curves: calibration round trip including a 7° rotation, log axis,
+  error messages; black curve with gridlines (RMS error < 0.4 % of range); 3 px line (heights
+  and FWHM within 8 %); two colours with a legend; two stacked curves of one colour; noise and
+  blur; inward ticks touching the baseline (fails without the fix: 36 counts off, passes: under
+  12); screenshot to fit to Scherrer, D = 15 nm recovered within 8 %; comparison agreement,
+  instrument correction round trip, degrees/radians slip detection, W–H size and strain.
+- Browser (Playwright, production build): the example figure through all steps, sent to XRD,
+  fitted, and compared: recalculated Scherrer sizes 17.4–17.7 nm (mean 17.6 nm) for the true
+  18 nm. A separate figure made with matplotlib (serif font, inward ticks, two stacked curves of
+  the same colour, hkl labels, JPEG quality 70, 0.04° per pixel, peaks for D = 25 nm), uploaded,
+  cropped, calibrated and traced by clicking: mean 24.6 nm (24.3–24.9 per peak) for 25 nm. No
+  browser errors. These test figures are generated, not taken from papers.
+- `npm run e2e` has a new screenshot section: example traced over 10.3–79.7°, no sideways scroll
+  at 360 and 1280 px, pattern handed to Clean data and marked approximate.
+- Lint, type check, 761 unit tests, build and bundle-size budget pass (the tool is its own
+  chunk, about 14 KB gzipped).
+
+### Known issues and limitations
+
+- Accuracy is limited by the image: one pixel is the finest 2θ step, and widths of peaks under
+  about 5 pixels are rough. Thick lines round off narrow apexes (heights a few per cent low).
+- Curves of the same colour that cross or overlap, dashed or dotted curves, and labels touching
+  a peak need extra start points or erasing. Gridlines of the curve's colour that do not span
+  the crop are not removed automatically.
+- Tick values are typed by the user (no OCR). Figures with a broken (split) axis are not
+  supported.
+- Intensities are in the figure's units (often arbitrary), so intensity-based results
+  (crystallinity, texture) from a digitized pattern are approximate at best.
+- Not checked against real published figures: no paper figures are bundled, so all tests use
+  generated images with known answers.
+
 ## Owner feedback round: peaks, fit plot, figure editor, crop, undo, more XRD methods (done)
 
 Branch `claude/zen-edison-acnmco`, from the owner's list of problems (with screenshots) and the

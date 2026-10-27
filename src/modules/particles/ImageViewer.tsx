@@ -1,3 +1,4 @@
+import type { ComponentChildren } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import {
   distance,
@@ -51,8 +52,11 @@ const MIN_DRAG_PX = 4;
 /** How close (screen pixels) a press must be to a crop edge to grab it. */
 const GRAB_PX = 10;
 
+/** What the viewer draws: a decoded image, or any canvas with its original size. */
+export type ViewerImage = Pick<DecodedImage, 'source' | 'width' | 'height' | 'workScale'>;
+
 interface ImageViewerProps {
-  image: DecodedImage;
+  image: ViewerImage;
   tool: Tool;
   crop?: Rect | null;
   /** Show only the crop area: the view fits it and the rest of the image is darkened. */
@@ -70,6 +74,8 @@ interface ImageViewerProps {
   mask?: HTMLCanvasElement | null;
   /** Called when the Select tool is clicked (not dragged); extend is true with Shift, Ctrl or Cmd. */
   onPick?: (point: Point, extend: boolean) => void;
+  /** Extra marks drawn over the image, given the map from image to screen pixels and the zoom. */
+  overlay?: (s: (p: Point) => Point, scale: number) => ComponentChildren;
   /** Accessible description of what the viewer is for. */
   label: string;
 }
@@ -376,6 +382,7 @@ export function ImageViewer(props: ImageViewerProps) {
                   })}
               </>
             )}
+            {props.overlay?.(s, view.scale)}
             {draft && tool !== 'pan' && tool !== 'select' && (
               <Shape kind={draftKind(tool)} a={s(draft.a)} b={s(draft.b)} draft />
             )}

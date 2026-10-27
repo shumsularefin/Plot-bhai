@@ -10,7 +10,19 @@ export interface DataMessage {
 }
 
 /** Format a file was read as. */
-export type SourceFormat = 'xy' | 'xye' | 'csv' | 'text' | 'xrdml' | 'ras' | 'pasted' | 'synthetic';
+export type SourceFormat =
+  'xy' | 'xye' | 'csv' | 'text' | 'xrdml' | 'ras' | 'pasted' | 'synthetic' | 'digitized';
+
+/** How a pattern read off a figure image was made. Its values are approximate. */
+export interface DigitizedInfo {
+  /** Name of the image the curve was read from. */
+  image: string;
+  /** 2θ covered by one image pixel, degrees: the finest detail the image holds. */
+  pixelDeg: number;
+  /** Thickness of the drawn line, pixels. */
+  lineWidthPx: number;
+  yScale: 'linear' | 'log';
+}
 
 /** One scan as read from a file, before validation. Angles are 2θ in degrees. */
 export interface RawScan {
@@ -49,6 +61,8 @@ export interface Pattern {
   metadata?: { key: string; value: string }[];
   /** True for generated example data. Never a real measurement. */
   synthetic: boolean;
+  /** Present when the pattern was digitized from a figure image (approximate values). */
+  digitized?: DigitizedInfo;
   /** Messages from reading and checking the file. */
   notes: DataMessage[];
 }

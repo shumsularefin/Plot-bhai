@@ -157,6 +157,11 @@ export function UploadStep({ data, update }: StepContext<XrdData>) {
         </span>
       </div>
 
+      <p class="field-hint">
+        Only have a figure from a paper? <a href="#/xrd-screenshot">Digitize an XRD screenshot</a>{' '}
+        and it comes back here as an approximate pattern.
+      </p>
+
       <details class="paste-box">
         <summary>Paste data instead</summary>
         <div class="field paste-field">

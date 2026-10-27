@@ -14,6 +14,7 @@ const FORMAT_LABELS: Record<Pattern['source'], string> = {
   ras: 'Rigaku RAS',
   pasted: 'Pasted',
   synthetic: 'Example',
+  digitized: 'From an image',
 };
 const UNIT_NAMES: Record<IntensityUnit, string> = { counts: 'counts', cps: 'cps' };
 const LEVEL_LABELS = { error: 'Problem', warning: 'Check', info: 'Note' } as const;
@@ -52,6 +53,9 @@ export function PatternCard({ pattern, onChange, onConvertRadians, onRemove }: P
           />
           <span class="badge">{FORMAT_LABELS[pattern.source]}</span>
           {pattern.synthetic && <span class="badge badge-accent">Synthetic, not real data</span>}
+          {pattern.digitized && (
+            <span class="badge badge-accent">Digitized from a figure: approximate</span>
+          )}
         </div>
         <button type="button" class="btn btn-quiet" onClick={onRemove}>
           Remove<span class="visually-hidden"> {pattern.name}</span>
@@ -88,6 +92,15 @@ export function PatternCard({ pattern, onChange, onConvertRadians, onRemove }: P
             <dd>{formatNumber(pattern.countingTimeS)} s per point</dd>
           </div>
         )}
+        {pattern.digitized && (
+          <div>
+            <dt>Read from</dt>
+            <dd>
+              {pattern.digitized.image}, {formatNumber(pattern.digitized.pixelDeg, 3)}° per pixel,
+              line {formatNumber(pattern.digitized.lineWidthPx, 2)} px thick
+            </dd>
+          </div>
+        )}
         {pattern.wavelengthFromFileA !== undefined && (
           <div>
             <dt>Wavelength in file</dt>
@@ -109,26 +122,31 @@ export function PatternCard({ pattern, onChange, onConvertRadians, onRemove }: P
         </details>
       )}
 
-      <div class="pattern-unit">
-        <label for={`${id}-unit`}>Intensity unit</label>
-        <select
-          id={`${id}-unit`}
-          value={pattern.intensityUnit}
-          onChange={(e) =>
-            onChange({ intensityUnit: e.currentTarget.value as IntensityUnit, unitOrigin: 'user' })
-          }
-        >
-          <option value="counts">Counts (raw detector counts)</option>
-          <option value="cps">Counts per second (cps)</option>
-        </select>
-        <HelpTip term="counts versus counts per second">
-          <p>
-            Counts are the number of X-ray photons detected at each point. Counts per second (cps)
-            are counts divided by the counting time. Raw counts are whole numbers; cps usually are
-            not. Knowing which one you have matters later when estimating noise.
-          </p>
-        </HelpTip>
-      </div>
+      {!pattern.digitized && (
+        <div class="pattern-unit">
+          <label for={`${id}-unit`}>Intensity unit</label>
+          <select
+            id={`${id}-unit`}
+            value={pattern.intensityUnit}
+            onChange={(e) =>
+              onChange({
+                intensityUnit: e.currentTarget.value as IntensityUnit,
+                unitOrigin: 'user',
+              })
+            }
+          >
+            <option value="counts">Counts (raw detector counts)</option>
+            <option value="cps">Counts per second (cps)</option>
+          </select>
+          <HelpTip term="counts versus counts per second">
+            <p>
+              Counts are the number of X-ray photons detected at each point. Counts per second (cps)
+              are counts divided by the counting time. Raw counts are whole numbers; cps usually are
+              not. Knowing which one you have matters later when estimating noise.
+            </p>
+          </HelpTip>
+        </div>
+      )}
 
       {messages.length > 0 && (
         <ul class="pattern-messages">

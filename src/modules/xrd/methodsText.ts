@@ -42,6 +42,10 @@ export function methodsInput(data: XrdData, library: readonly ReferencePhase[]):
         : null,
     patterns: data.patterns.length,
     allSynthetic: data.patterns.length > 0 && data.patterns.every((p) => p.synthetic),
+    digitized: {
+      count: data.patterns.filter((p) => p.digitized).length,
+      pixelDeg: Math.max(0, ...data.patterns.map((p) => p.digitized?.pixelDeg ?? 0)),
+    },
     processing: {
       zeroShiftDeg: processing.zeroShift.enabled ? processing.zeroShift.shiftDeg : null,
       smoothing: processing.smoothing.enabled

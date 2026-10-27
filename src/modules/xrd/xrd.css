@@ -1106,3 +1106,8 @@
   margin: var(--space-3) 0 0;
   padding-left: var(--space-5);
 }
+
+.peak-table td.is-large {
+  color: var(--color-danger);
+  font-weight: 600;
+}
