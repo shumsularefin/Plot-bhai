@@ -1,4 +1,4 @@
-"""Independent check of data/reference/*.json against pymatgen.
+"""Independent check of tests/fixtures/cod-reference/*.json against pymatgen.
 
 For every phase in the library this recomputes the powder pattern with pymatgen's
 XRDCalculator from the same cached CIF (Cu Ka1, the wavelength used by the library) and
@@ -35,7 +35,7 @@ from pymatgen.analysis.diffraction.xrd import XRDCalculator
 from pymatgen.io.cif import CifParser
 
 ROOT = Path(__file__).resolve().parent.parent
-LIB = ROOT / "data" / "reference"
+LIB = ROOT / "tests" / "fixtures" / "cod-reference"
 CACHE = ROOT / "scripts" / "cif-cache"
 TOP = 10
 TOL_2THETA = 0.01

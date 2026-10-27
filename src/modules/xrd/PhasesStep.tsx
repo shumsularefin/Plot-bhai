@@ -185,7 +185,7 @@ export function PhasesStep({ data, update }: StepContext<XrdData>) {
     return (
       <p class="message is-info">
         <strong>Note:</strong> no candidate phase is chosen, so there is nothing to compare. Go back
-        one step to search the library or load a CIF file, or continue without reference phases.
+        one step to search COD or load a CIF file, or continue without reference phases.
       </p>
     );
   if (failed)

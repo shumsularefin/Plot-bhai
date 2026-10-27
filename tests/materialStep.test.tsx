@@ -1,7 +1,31 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { fireEvent, render, screen, within } from '@testing-library/preact';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { phaseFromCif } from '../src/core/xrd/reference/fromCif';
+import type { FormFactors } from '../src/core/xrd/reference/powder';
 import { MaterialStep } from '../src/modules/xrd/MaterialStep';
-import { initialXrdData, type XrdData } from '../src/modules/xrd/data';
+import { DEFAULT_MATERIAL, initialXrdData, type XrdData } from '../src/modules/xrd/data';
+
+// No network in these tests.
+vi.mock('../src/modules/xrd/codLookup', () => ({
+  COD_API: '',
+  searchCod: vi.fn(),
+  fetchCodCif: vi.fn(),
+}));
+
+const text = (path: string) => readFileSync(join(process.cwd(), path), 'utf8');
+const factors = (
+  JSON.parse(text('data/reference/scattering-factors.json')) as { factors: FormFactors }
+).factors;
+const read = phaseFromCif(
+  text('scripts/cif-cache/9013437.cif'),
+  'COD 9013437.cif',
+  factors,
+  'cod-9013437',
+);
+if (!read.ok) throw new Error(read.error);
+const clinobisvanite = read.phase;
 
 /** Renders the step with a small stand-in for the wizard's data store. */
 function setup(start: Partial<XrdData> = {}) {
@@ -15,60 +39,45 @@ function setup(start: Partial<XrdData> = {}) {
   return { get: () => data };
 }
 
-const search = () => screen.getByLabelText(/Formula, elements, name, COD ID or space group/);
-
 describe('MaterialStep', () => {
-  it('finds phases by formula in any element order and adds them as candidates', () => {
-    const store = setup();
-    fireEvent.input(search(), { target: { value: 'VBiO4' } });
-    const results = screen.getByRole('list', { name: 'Search results' });
-    expect(within(results).getByText(/Dreyerite/)).toBeTruthy();
-    expect(within(results).getByText(/Pucherite/)).toBeTruthy();
-    // Each result shows its crystal system, space group with number and a COD link.
-    expect(within(results).getAllByText(/tetragonal, I 41\/a m d :2 \(No\. 141\)/).length).toBe(1);
-    expect(within(results).getAllByRole('link', { name: /COD \d{7}/ }).length).toBe(2);
-    fireEvent.click(screen.getByRole('button', { name: /Add Dreyerite/ }));
-    expect(store.get().material.candidates).toEqual(['dreyerite']);
-  });
-
-  it('keeps candidates from different families, with a JCPDS field marked as not verified', () => {
-    const store = setup();
-    fireEvent.input(search(), { target: { value: 'anatase' } });
-    fireEvent.click(screen.getByRole('button', { name: /Add Anatase/ }));
-    fireEvent.input(search(), { target: { value: 'ZnO' } });
-    fireEvent.click(screen.getByRole('button', { name: /Add Zincite/ }));
-    expect(store.get().material.candidates).toEqual(['anatase', 'zno-wurtzite']);
-    const list = screen.getByRole('list', { name: 'Candidate phases' });
-    expect(within(list).getAllByRole('listitem')).toHaveLength(2);
-    const jcpds = within(list).getAllByLabelText(
-      /JCPDS\/ICDD card number \(typed by you, not verified\)/,
-    )[0] as HTMLInputElement;
-    fireEvent.input(jcpds, { target: { value: '21-1272' } });
-    expect(store.get().material.jcpds).toEqual({ anatase: '21-1272' });
-    fireEvent.click(within(list).getByRole('button', { name: 'Remove Anatase' }));
-    expect(store.get().material.candidates).toEqual(['zno-wurtzite']);
-  });
-
-  it('searches a chemical system, a COD ID and a space group', () => {
+  it('has one search with the periodic table under it, then CIF loading and the candidates', () => {
     setup();
-    fireEvent.input(search(), { target: { value: 'Bi-O' } });
-    expect(screen.getByText(/Phases made of exactly Bi, O/)).toBeTruthy();
-    expect(screen.getByText(/Bismite/)).toBeTruthy();
-    expect(screen.queryByText(/Dreyerite/)).toBeNull();
-    fireEvent.input(search(), { target: { value: '9011741' } });
-    expect(screen.getByText(/Dreyerite/)).toBeTruthy();
-    fireEvent.input(search(), { target: { value: 'Fm-3m' } });
-    expect(screen.getByText(/Gold \(fcc\)/)).toBeTruthy();
-  });
-
-  it('points to COD and to loading a CIF when nothing in the library matches', () => {
-    setup();
-    fireEvent.input(search(), { target: { value: 'Cs2AgBiBr6' } });
-    expect(screen.getByText(/Not in the library/)).toBeTruthy();
-    const link = screen.getByRole('link', { name: /Search COD for/ }) as HTMLAnchorElement;
-    expect(link.href).toBe(
-      'https://www.crystallography.net/cod/result?formula=Ag%20Bi%20Br6%20Cs2',
-    );
+    expect(screen.getByLabelText('Formula, elements or COD ID')).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'Periodic table' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Choose CIF files' })).toBeTruthy();
+    expect(screen.getByText(/natural polymers that COD does not hold/)).toBeTruthy();
+    expect(screen.getByText(/None yet/)).toBeTruthy();
+  });
+
+  it('lists a phase from a CIF as a candidate, with a JCPDS field marked as not verified', () => {
+    const store = setup({
+      material: {
+        ...DEFAULT_MATERIAL,
+        candidates: [clinobisvanite.id],
+        userPhases: [clinobisvanite],
+      },
+    });
+    const list = screen.getByRole('list', { name: 'Candidate phases' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+    expect(within(list).getByRole('link', { name: /COD 9013437/ })).toBeTruthy();
+    const jcpds = within(list).getByLabelText(
+      /JCPDS\/ICDD card number \(typed by you, not verified\)/,
+    );
+    fireEvent.input(jcpds, { target: { value: '14-0688' } });
+    expect(store.get().material.jcpds).toEqual({ [clinobisvanite.id]: '14-0688' });
+    fireEvent.click(within(list).getByRole('button', { name: /^Remove / }));
+    expect(store.get().material.candidates).toEqual([]);
+  });
+
+  it('asks to add phases of the former built-in library again, and can drop them', () => {
+    const store = setup({
+      material: { ...DEFAULT_MATERIAL, candidates: ['anatase', 'rutile'], phaseIds: ['anatase'] },
+    });
+    expect(
+      screen.getByText(/2 phases \(anatase, rutile\) came from the former built-in library/),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove them from the list' }));
+    expect(store.get().material.candidates).toEqual([]);
+    expect(store.get().material.phaseIds).toEqual([]);
   });
 });

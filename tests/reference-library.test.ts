@@ -8,7 +8,7 @@ import type {
   ReferencePhase,
 } from '../src/core/xrd/reference/types';
 
-const dir = new URL('../data/reference/', import.meta.url);
+const dir = new URL('./fixtures/cod-reference/', import.meta.url);
 const read = <T>(name: string) => JSON.parse(readFileSync(new URL(name, dir), 'utf8')) as T;
 
 const index = read<ReferenceIndex>('index.json');
@@ -17,11 +17,9 @@ const phases: ReferencePhase[] = index.families.flatMap(
 );
 const phase = (id: string) => phases.find((p) => p.id === id) as ReferencePhase;
 
-describe('reference library files', () => {
+describe('COD validation set files', () => {
   it('has an index entry for every family file and no stray files', () => {
-    const files = readdirSync(dir).filter(
-      (n) => n.endsWith('.json') && !['index.json', 'scattering-factors.json'].includes(n),
-    );
+    const files = readdirSync(dir).filter((n) => n.endsWith('.json') && n !== 'index.json');
     expect(files.sort()).toEqual(index.families.map((f) => f.file).sort());
   });
 
@@ -71,9 +69,9 @@ describe('reference library files', () => {
   });
 
   it('ships scattering factors with their source', () => {
-    const file = read<{ url: string; factors: Record<string, number[]> }>(
-      'scattering-factors.json',
-    );
+    const file = JSON.parse(
+      readFileSync(new URL('../data/reference/scattering-factors.json', import.meta.url), 'utf8'),
+    ) as { url: string; factors: Record<string, number[]> };
     expect(file.url).toContain('it92');
     expect(Object.keys(file.factors)).toHaveLength(98);
     expect(file.factors['Ti']).toHaveLength(9);
@@ -154,5 +152,16 @@ describe('screened library (sub-stage 6a-fix)', () => {
     expect(twoTheta(line([1, 0, 0]))).toBeCloseTo(31.76, 1);
     expect(twoTheta(line([0, 0, 2]))).toBeCloseTo(34.41, 1);
     expect(twoTheta(line([1, 0, 1]))).toBeCloseTo(36.24, 1);
+  });
+});
+
+describe('app library index', () => {
+  it('is the natural-polymer library, empty until its structure files are supplied', () => {
+    const app = JSON.parse(
+      readFileSync(new URL('../data/reference/index.json', import.meta.url), 'utf8'),
+    ) as ReferenceIndex;
+    expect(app.intensityWavelength).toBe(ANODES.Cu.kAlpha1);
+    expect(app.source).toMatch(/polymers/);
+    expect(app.families).toEqual([]);
   });
 });

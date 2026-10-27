@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { DEFAULT_PROCESSING, type ProcessingSettings } from '../../core/xrd/process/pipeline';
 import { ANODES } from '../../core/xrd/radiation';
 import { formatHkl } from '../../core/xrd/reference/hkl';
 import { phaseReference } from '../../core/xrd/reference/source';
@@ -19,10 +20,11 @@ import type { ReferenceLane } from '../../ui/plot/ReferenceLanes';
 import type { SeriesSource } from '../../ui/plot/series';
 import type { StepContext } from '../../ui/wizard/types';
 import { downloadCsv } from './csv';
-import { DEFAULT_RIETVELD, type RietveldState, type XrdData } from './data';
+import { DEFAULT_RIETVELD, processingFor, type RietveldState, type XrdData } from './data';
 import { xrdLabels } from './labels';
 import { NumberInput } from './NumberInput';
 import { RietveldClient } from './rietveldClient';
+import { useProcessed } from './useProcessed';
 import { useCandidatePhases } from './useReferencePhases';
 import { ATOMIC_WEIGHTS } from './atomicWeights';
 
@@ -49,6 +51,16 @@ const CHOICE_LABELS: [keyof RefineChoices, string, string][] = [
     'Thermal vibration on top of the values in the reference structures. Strongly correlated with the background; refine it last and only with good data to high angle.',
   ],
 ];
+
+/** The cleaning steps switched on, in words, for the plot legend and the methods text. */
+function cleaningNames(p: ProcessingSettings): string[] {
+  return [
+    p.zeroShift.enabled && `zero shift ${p.zeroShift.shiftDeg}°`,
+    p.smoothing.enabled && 'smoothing',
+    p.background.enabled && 'background removed',
+    p.kAlpha2.enabled && 'Kα2 stripped',
+  ].filter((s): s is string => typeof s === 'string');
+}
 
 /** "0 0 1", "001" or "1,0,0" as (h k l); null when empty or not three integers. */
 function parseDirection(text: string): Hkl | null {
@@ -80,8 +92,33 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
     return () => client.current?.dispose();
   }, []);
 
+  // The cleaned data without normalisation: scaling to 1 or 100 would spoil the 1/counts weights.
+  const useCleaned = settings.useCleaned ?? true;
+  const stored = pattern ? processingFor(data, pattern.id) : null;
+  const cleaning = useMemo(
+    () => stored && { ...stored, normalise: { ...stored.normalise, enabled: false } },
+    [stored],
+  );
+  const { result: processed } = useProcessed(
+    useCleaned && cleaning ? pattern : undefined,
+    cleaning ?? DEFAULT_PROCESSING,
+    data.radiation,
+  );
+  const measured = useMemo(
+    () =>
+      pattern && !useCleaned
+        ? { x: pattern.twoTheta, y: pattern.intensity }
+        : processed && { x: processed.twoTheta, y: processed.intensity },
+    [pattern, useCleaned, processed],
+  );
+  const cleaningSteps = cleaning ? cleaningNames(cleaning) : [];
+
   const lines = ANODES[data.radiation.anode];
-  const ratio = data.radiation.kAlpha1Only ? 0 : data.radiation.kAlpha2Ratio;
+  // Kα2 stripped from the data must not be put back by the model.
+  const ratio =
+    data.radiation.kAlpha1Only || (useCleaned && cleaning?.kAlpha2.enabled)
+      ? 0
+      : data.radiation.kAlpha2Ratio;
   const orientationOf = (phase: ReferencePhase) =>
     parseDirection(settings.orientation[phase.id] ?? '');
   const key = JSON.stringify([
@@ -92,13 +129,14 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
     settings.from,
     settings.to,
     data.radiation,
+    useCleaned && cleaning,
   ]);
   const result: RietveldResult | null =
     settings.result?.outcome.ok === true ? settings.result.outcome : null;
   const stale = settings.result !== null && settings.result.key !== key;
 
   const methodsOf = (outcome: RietveldResult) =>
-    rietveldMethods({
+    `${rietveldMethods({
       result: outcome,
       choices: settings.choices,
       backgroundTerms: settings.backgroundTerms,
@@ -110,19 +148,23 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
         ratio > 0
           ? `${data.radiation.anode} Kα1/Kα2 radiation (λ = ${lines.kAlpha1}, ${lines.kAlpha2} Å, intensity ratio ${ratio})`
           : `${data.radiation.anode} Kα1 radiation (λ = ${lines.kAlpha1} Å)`,
-    });
+    })} ${
+      useCleaned && cleaningSteps.length > 0
+        ? `The refinement was made on the cleaned data (${cleaningSteps.join(', ')}), so R_exp and χ² do not follow counting statistics exactly.`
+        : 'The refinement was made on the unprocessed data.'
+    }`;
 
   const run = async () => {
-    if (!pattern || included.length === 0 || !client.current) return;
+    if (!measured || included.length === 0 || !client.current) return;
     const lo = settings.from ?? -Infinity;
     const hi = settings.to ?? Infinity;
     const keep: number[] = [];
-    pattern.twoTheta.forEach((x, i) => {
+    measured.x.forEach((x, i) => {
       if (x >= lo && x <= hi) keep.push(i);
     });
     const input: RietveldInput = {
-      x: Float64Array.from(keep, (i) => pattern.twoTheta[i] as number),
-      y: Float64Array.from(keep, (i) => pattern.intensity[i] as number),
+      x: Float64Array.from(keep, (i) => measured.x[i] as number),
+      y: Float64Array.from(keep, (i) => measured.y[i] as number),
       wavelengths: { kAlpha1: lines.kAlpha1, kAlpha2: lines.kAlpha2, ratio },
       phases: included.map((p) => ({
         id: p.id,
@@ -157,16 +199,18 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
   const sources = useMemo<SeriesSource[]>(() => {
     if (!pattern) return [];
     if (!result)
-      return [
-        {
-          id: 'obs',
-          name: pattern.name,
-          x: pattern.twoTheta,
-          y: pattern.intensity,
-          unit,
-          colorIndex: 7,
-        },
-      ];
+      return measured
+        ? [
+            {
+              id: 'obs',
+              name: useCleaned ? `${pattern.name} (cleaned)` : pattern.name,
+              x: measured.x,
+              y: measured.y,
+              unit,
+              colorIndex: 7,
+            },
+          ]
+        : [];
     const x = Float64Array.from(result.x);
     return [
       {
@@ -195,7 +239,7 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
         dashed: true,
       },
     ];
-  }, [pattern, result, unit]);
+  }, [pattern, result, unit, measured, useCleaned]);
   const residual = useMemo<SeriesSource | undefined>(
     () =>
       result
@@ -249,9 +293,11 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
           <p>
             Every reflection of every phase is drawn with a peak shape whose width follows FWHM² = U
             tan²θ + V tanθ + W, and its intensity comes from the reference structure. The parameters
-            are refined in stages by weighted least squares (weights 1/counts). It uses your
-            original data, not the cleaned copy, because the weights need raw counts; the zero shift
-            and background are refined here.
+            are refined in stages by weighted least squares (weights 1/counts). By default it uses
+            your cleaned data from step 2 (without normalisation), so the plot matches what you
+            prepared; a background and zero shift are still refined on top. Smoothing and background
+            removal change the counting statistics, so R_exp and χ² are then only indicative; for
+            strict statistics refine the uploaded data instead.
           </p>
         </HelpTip>
       </p>
@@ -279,6 +325,31 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
         </label>
       )}
 
+      <fieldset class="method-choice">
+        <legend>Data to refine</legend>
+        <label class="check">
+          <input
+            type="radio"
+            name="rietveld-data"
+            checked={useCleaned}
+            onChange={() => set({ useCleaned: true })}
+          />
+          Cleaned data from step 2
+          {cleaningSteps.length > 0
+            ? ` (${cleaningSteps.join(', ')})`
+            : ' (no cleaning switched on)'}
+        </label>
+        <label class="check">
+          <input
+            type="radio"
+            name="rietveld-data"
+            checked={!useCleaned}
+            onChange={() => set({ useCleaned: false })}
+          />
+          Uploaded data, unprocessed (strict counting statistics)
+        </label>
+      </fieldset>
+
       <fieldset class="rietveld-phases">
         <legend>Phases to refine</legend>
         {!phases && <p aria-busy="true">Loading the reference phases…</p>}
@@ -305,7 +376,7 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
           <button
             type="button"
             class="btn btn-primary"
-            disabled={included.length === 0}
+            disabled={included.length === 0 || !measured}
             onClick={() => void run()}
           >
             {result ? 'Refine again' : 'Refine'}

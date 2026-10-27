@@ -25,7 +25,7 @@ import { withUncertainty } from '../src/core/xrd/rietveld/report';
 const json = (path: string) =>
   JSON.parse(readFileSync(join(process.cwd(), path), 'utf8')) as unknown;
 const phase = (file: string, id: string) =>
-  (json(`data/reference/${file}.json`) as ReferenceFamilyFile).phases.find(
+  (json(`tests/fixtures/cod-reference/${file}.json`) as ReferenceFamilyFile).phases.find(
     (p) => p.id === id,
   ) as ReferencePhase;
 const weightsFile = json('data/thermal/atomic-weights.json') as {

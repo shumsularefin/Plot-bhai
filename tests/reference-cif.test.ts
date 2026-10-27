@@ -18,7 +18,7 @@ const factors = (
   }
 ).factors;
 const library = (file: string) =>
-  (JSON.parse(text(`data/reference/${file}`)) as ReferenceFamilyFile).phases;
+  (JSON.parse(text(`tests/fixtures/cod-reference/${file}`)) as ReferenceFamilyFile).phases;
 
 describe('a CIF loaded by the user', () => {
   it('gives exactly the library pattern for the same COD file (anatase)', () => {

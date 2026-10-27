@@ -975,7 +975,88 @@
   margin: var(--space-3) 0;
 }
 
-/* Online COD search: periodic table and controls. */
+/* Phase search: periodic table coloured by element category, with a details panel. */
+.periodic,
+.phase-search-results {
+  /* Grid children: without this the table's minimum width widens the page on phones. */
+  min-width: 0;
+}
+
+.periodic {
+  --cat-alkali-metal: #fbdada;
+  --cat-alkaline-earth-metal: #fde4c8;
+  --cat-transition-metal: #f8efc0;
+  --cat-post-transition-metal: #d9efd2;
+  --cat-lanthanide: #f4dcf3;
+  --cat-actinide: #e4daf6;
+  --cat-metalloid: #cfede8;
+  --cat-nonmetal: #d5e6fa;
+  --cat-halogen: #dcdffb;
+  --cat-noble-gas: #e6e7ec;
+  --cat-text: #17191c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .periodic {
+    --cat-alkali-metal: #4d2828;
+    --cat-alkaline-earth-metal: #4b351f;
+    --cat-transition-metal: #463f1a;
+    --cat-post-transition-metal: #263f25;
+    --cat-lanthanide: #462a47;
+    --cat-actinide: #372c50;
+    --cat-metalloid: #1d413c;
+    --cat-nonmetal: #1d3453;
+    --cat-halogen: #272c57;
+    --cat-noble-gas: #34363c;
+    --cat-text: #eceef1;
+  }
+}
+
+:root[data-theme='dark'] .periodic {
+  --cat-alkali-metal: #4d2828;
+  --cat-alkaline-earth-metal: #4b351f;
+  --cat-transition-metal: #463f1a;
+  --cat-post-transition-metal: #263f25;
+  --cat-lanthanide: #462a47;
+  --cat-actinide: #372c50;
+  --cat-metalloid: #1d413c;
+  --cat-nonmetal: #1d3453;
+  --cat-halogen: #272c57;
+  --cat-noble-gas: #34363c;
+  --cat-text: #eceef1;
+}
+
+.cat-alkali-metal {
+  --cat: var(--cat-alkali-metal);
+}
+.cat-alkaline-earth-metal {
+  --cat: var(--cat-alkaline-earth-metal);
+}
+.cat-transition-metal {
+  --cat: var(--cat-transition-metal);
+}
+.cat-post-transition-metal {
+  --cat: var(--cat-post-transition-metal);
+}
+.cat-lanthanide {
+  --cat: var(--cat-lanthanide);
+}
+.cat-actinide {
+  --cat: var(--cat-actinide);
+}
+.cat-metalloid {
+  --cat: var(--cat-metalloid);
+}
+.cat-nonmetal {
+  --cat: var(--cat-nonmetal);
+}
+.cat-halogen {
+  --cat: var(--cat-halogen);
+}
+.cat-noble-gas {
+  --cat: var(--cat-noble-gas);
+}
+
 .periodic-scroll {
   overflow-x: auto;
   padding-bottom: var(--space-1);
@@ -984,32 +1065,48 @@
 .periodic-table {
   display: grid;
   grid-template-columns: repeat(18, minmax(var(--touch-target), 1fr));
+  grid-template-rows: repeat(7, auto) var(--space-2) repeat(2, auto);
   gap: 2px;
   min-width: calc(18 * var(--touch-target) + 17 * 2px);
   max-width: 62rem;
 }
 
 .periodic-cell {
-  min-height: var(--touch-target);
-  padding: 0;
-  border: 1px solid var(--color-border);
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: calc(var(--touch-target) + 4px);
+  padding: 2px 3px;
+  border: 1px solid transparent;
   border-radius: 4px;
-  background: var(--color-surface);
-  color: var(--color-text);
+  background: var(--cat, var(--color-surface));
+  color: var(--cat-text);
   font: inherit;
-  font-size: var(--text-sm);
   cursor: pointer;
+  text-align: left;
+}
+
+.periodic-z {
+  font-size: 0.625rem;
+  line-height: 1;
+  opacity: 0.8;
+}
+
+.periodic-symbol {
+  justify-self: center;
+  align-self: center;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
 }
 
 .periodic-cell:hover:not(:disabled) {
-  border-color: var(--color-accent);
+  border-color: var(--color-text);
 }
 
 .periodic-cell.is-on {
   border-color: var(--color-accent);
   background: var(--color-accent);
   color: var(--color-on-accent, #fff);
-  font-weight: var(--weight-medium);
+  box-shadow: 0 0 0 1px var(--color-accent);
 }
 
 .periodic-cell:disabled {
@@ -1029,9 +1126,57 @@
   font-size: var(--text-sm);
 }
 
-.periodic-gap {
-  grid-column: 1 / -1;
-  height: var(--space-2);
+.periodic-info {
+  grid-row: 1 / 4;
+  grid-column: 3 / 13;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0 var(--space-2) var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: 6px;
+  background: var(--cat, var(--color-surface-muted));
+  color: var(--cat-text);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.periodic-info.is-empty {
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px dashed var(--color-border);
+}
+
+.periodic-info-symbol {
+  min-width: 3.5rem;
+  font-size: 2rem;
+  font-weight: var(--weight-medium);
+  text-align: center;
+}
+
+.periodic-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.periodic-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.periodic-swatch {
+  width: 0.875rem;
+  height: 0.875rem;
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  background: var(--cat);
 }
 
 .cod-controls {

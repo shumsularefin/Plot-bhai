@@ -136,28 +136,6 @@ export interface PhaseHit {
   rank: number;
 }
 
-/** Plain-language description of how a query was read, for the line under the search box. */
-export function describeQuery(query: PhaseQuery): string {
-  switch (query.kind) {
-    case 'all':
-      return 'Showing every phase in the library.';
-    case 'codId':
-      return `Looking for COD entry ${query.codId}.`;
-    case 'spaceGroupNumber':
-      return `Looking for space group number ${query.number}.`;
-    case 'spaceGroupSymbol':
-      return 'Looking for that space-group symbol.';
-    case 'chemicalSystem':
-      return `Phases made of exactly ${query.elements.join(', ')}.`;
-    case 'elements':
-      return `Phases that contain ${query.elements.join(' and ')}.`;
-    case 'formula':
-      return `Phases with the composition ${query.formula} (any order of elements).`;
-    case 'text':
-      return 'Matching names, minerals and other names.';
-  }
-}
-
 /**
  * Library phases that match a search text, best first. Formula and element searches compare
  * compositions, so "VBiO4" finds BiVO4; text searches look at phase names, family names and

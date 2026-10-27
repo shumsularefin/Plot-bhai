@@ -12,7 +12,7 @@ import type {
 } from '../src/core/xrd/reference/types';
 import { generatePattern } from '../src/core/xrd/synthetic';
 
-const dir = new URL('../data/reference/', import.meta.url);
+const dir = new URL('./fixtures/cod-reference/', import.meta.url);
 const read = <T>(name: string) => JSON.parse(readFileSync(new URL(name, dir), 'utf8')) as T;
 const index = read<ReferenceIndex>('index.json');
 const phases = index.families.flatMap((f) => read<ReferenceFamilyFile>(f.file).phases);

@@ -115,20 +115,20 @@ export default function About() {
         </p>
         <h3>Finding and adding reference phases</h3>
         <p>
-          The bundled library is searched by formula (for example BiVO4), by chemical system
-          (Bi-V-O), by elements, by space group symbol or number, by COD ID or by name. It holds a
-          limited set of common phases, so a phase that is not listed is not ruled out. Any other
-          structure can be added as a CIF file, for example one downloaded from COD or the Materials
-          Project; its pattern is calculated in your browser in the same way, with notes on partial
-          occupancy, missing displacement parameters and hydrogen.
+          One search box with a periodic table under it searches the whole of COD online: by formula
+          (BiVO4), by exactly these elements (Bi-V-O), by elements with any others (Bi V) or by COD
+          ID; clicking elements writes them into the box. COD does not accept requests from other
+          websites, so a small lookup service run for this site on Cloudflare passes the search on
+          and returns the chosen CIF. Only the formula, element symbols and COD numbers are sent;
+          your data files never leave your browser. Searches with more than 300 results must be
+          narrowed. A library of natural polymers that COD does not hold is being prepared from
+          published structure files.
         </p>
         <p>
-          The whole of COD can also be searched online from a periodic table (elements, only those
-          elements, or an exact formula). COD does not accept requests from other websites, so a
-          small lookup service run for this site on Cloudflare passes the search on and returns the
-          chosen CIF. Only the elements, formula and COD numbers you choose are sent; your data
-          files never leave your browser. Searches with more than 300 results must be narrowed. The
-          Materials Project cannot be searched from here; download its CIF files instead.
+          Any other structure can be added as a CIF file, for example one downloaded from COD or the
+          Materials Project (which cannot be searched from here); its pattern is calculated in your
+          browser in the same way, with notes on partial occupancy, missing displacement parameters
+          and hydrogen.
         </p>
         <p>
           The calculated overlay draws each candidate as a pseudo-Voigt profile (with Kα2 when the

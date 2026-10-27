@@ -309,10 +309,10 @@ function LatticeTable({ fit, summary }: { fit: LatticeFit; summary: LatticeSumma
           ' With no spare peaks the uncertainties cannot be checked against the scatter.'}
       </p>
       <p class="field-hint">
-        For a cell edge the difference is the lattice strain ε = (a − a₀)/a₀ against the library
+        For a cell edge the difference is the lattice strain ε = (a − a₀)/a₀ against the reference
         cell; a zero shift or sample-height error also moves it.
         {mass !== null &&
-          ` The X-ray density is ρ = ZM/(N_A V), from the library cell contents (${mass.toFixed(2)} g/mol per cell) and the refined volume: the density of a perfect crystal, so a measured density is usually lower.`}
+          ` The X-ray density is ρ = ZM/(N_A V), from the reference cell contents (${mass.toFixed(2)} g/mol per cell) and the refined volume: the density of a perfect crystal, so a measured density is usually lower.`}
       </p>
     </>
   );
