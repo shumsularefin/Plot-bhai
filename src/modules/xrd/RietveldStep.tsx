@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import weightsFile from '../../../data/thermal/atomic-weights.json';
 import { ANODES } from '../../core/xrd/radiation';
 import { formatHkl } from '../../core/xrd/reference/hkl';
 import { phaseReference } from '../../core/xrd/reference/source';
@@ -25,8 +24,8 @@ import { xrdLabels } from './labels';
 import { NumberInput } from './NumberInput';
 import { RietveldClient } from './rietveldClient';
 import { useCandidatePhases } from './useReferencePhases';
+import { ATOMIC_WEIGHTS } from './atomicWeights';
 
-const ATOMIC_WEIGHTS = Object.fromEntries(weightsFile.elements.map((e) => [e.symbol, e.weight]));
 const PHASE_COLORS = [0, 1, 2, 3, 4, 5, 6];
 
 const CHOICE_LABELS: [keyof RefineChoices, string, string][] = [

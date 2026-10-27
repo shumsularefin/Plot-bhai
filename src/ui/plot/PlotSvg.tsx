@@ -10,6 +10,7 @@ import {
   styledYDomain,
   type Annotation,
   type FigureStyle,
+  type MarkerShape,
 } from './figure';
 import { PRINT_COLORS } from './palette';
 import { labelRoom, placeLabels, textWidth, type PeakLabelSet } from './peakLabels';
@@ -516,6 +517,57 @@ export function PlotSvg(props: PlotSvgProps) {
   );
 }
 
+/** A marker of radius r (px) centred on (x, y): filled shapes, or a cross or short vertical line. */
+function MarkerShapePath(props: {
+  shape: MarkerShape;
+  x: number;
+  y: number;
+  r: number;
+  color: string;
+  lineWidth: number;
+}) {
+  const { shape, x, y, r, color, lineWidth } = props;
+  const f = (v: number) => v.toFixed(2);
+  switch (shape) {
+    case 'square':
+      return <rect x={f(x - r)} y={f(y - r)} width={f(2 * r)} height={f(2 * r)} fill={color} />;
+    case 'triangle':
+      return (
+        <path
+          d={`M${f(x)} ${f(y - 1.2 * r)}L${f(x + 1.1 * r)} ${f(y + 0.8 * r)}L${f(x - 1.1 * r)} ${f(y + 0.8 * r)}Z`}
+          fill={color}
+        />
+      );
+    case 'diamond':
+      return (
+        <path
+          d={`M${f(x)} ${f(y - 1.3 * r)}L${f(x + r)} ${f(y)}L${f(x)} ${f(y + 1.3 * r)}L${f(x - r)} ${f(y)}Z`}
+          fill={color}
+        />
+      );
+    case 'cross':
+      return (
+        <path
+          d={`M${f(x - r)} ${f(y - r)}L${f(x + r)} ${f(y + r)}M${f(x - r)} ${f(y + r)}L${f(x + r)} ${f(y - r)}`}
+          stroke={color}
+          stroke-width={Math.max(lineWidth, r * 0.35)}
+          fill="none"
+        />
+      );
+    case 'tick':
+      return (
+        <path
+          d={`M${f(x)} ${f(y - 1.6 * r)}V${f(y + 1.6 * r)}`}
+          stroke={color}
+          stroke-width={Math.max(lineWidth, r * 0.3)}
+          fill="none"
+        />
+      );
+    default:
+      return <circle cx={f(x)} cy={f(y)} r={f(r)} fill={color} stroke="none" />;
+  }
+}
+
 interface AnnotationProps {
   a: Annotation;
   /** Plotted x (px) of a value in shown units. */
@@ -550,7 +602,14 @@ function AnnotationLines(props: AnnotationProps) {
     case 'marker':
       return (
         <g>
-          <circle cx={ax(a.x)} cy={py(a.y)} r={size * 0.35} fill={a.color} stroke="none" />
+          <MarkerShapePath
+            shape={a.shape ?? 'circle'}
+            x={ax(a.x)}
+            y={py(a.y)}
+            r={size * 0.35}
+            color={a.color}
+            lineWidth={lineWidth}
+          />
           {label && at(ax(a.x) + size * 0.6, py(a.y) + size * 0.35, label)}
         </g>
       );

@@ -150,6 +150,64 @@ export function rectFromCorners(a: Point, b: Point, width: number, height: numbe
   return x1 - x0 >= 1 && y1 - y0 >= 1 ? { x: x0, y: y0, width: x1 - x0, height: y1 - y0 } : null;
 }
 
+/** Which part of a rectangle a drag holds: the whole of it, or one or two of its edges. */
+export type RectGrab = 'move' | { left: boolean; right: boolean; top: boolean; bottom: boolean };
+
+/**
+ * The part of `rect` under point p: an edge (or a corner, two edges) within `tolerance` of p,
+ * else 'move' when p is inside, else null. All in the same units (for example screen pixels).
+ */
+export function grabAt(rect: Rect, p: Point, tolerance: number): RectGrab | null {
+  const x1 = rect.x + rect.width;
+  const y1 = rect.y + rect.height;
+  const withinX = p.x >= rect.x - tolerance && p.x <= x1 + tolerance;
+  const withinY = p.y >= rect.y - tolerance && p.y <= y1 + tolerance;
+  if (!withinX || !withinY) return null;
+  const grab = {
+    left: Math.abs(p.x - rect.x) <= tolerance,
+    right: Math.abs(p.x - x1) <= tolerance,
+    top: Math.abs(p.y - rect.y) <= tolerance,
+    bottom: Math.abs(p.y - y1) <= tolerance,
+  };
+  // A rectangle narrower than twice the tolerance: take the nearer edge only.
+  if (grab.left && grab.right) grab[p.x - rect.x < x1 - p.x ? 'right' : 'left'] = false;
+  if (grab.top && grab.bottom) grab[p.y - rect.y < y1 - p.y ? 'bottom' : 'top'] = false;
+  if (grab.left || grab.right || grab.top || grab.bottom) return grab;
+  return 'move';
+}
+
+/**
+ * `start` after a drag by (dx, dy) of the grabbed part, in image pixels: moved whole and kept
+ * inside the image, or with the grabbed edges moved, limited to the image and to at least `min`
+ * pixels in each direction.
+ */
+export function dragRect(
+  start: Rect,
+  grab: RectGrab,
+  dx: number,
+  dy: number,
+  width: number,
+  height: number,
+  min = 8,
+): Rect {
+  if (grab === 'move') {
+    return {
+      ...start,
+      x: Math.min(Math.max(0, start.x + dx), width - start.width),
+      y: Math.min(Math.max(0, start.y + dy), height - start.height),
+    };
+  }
+  let x0 = start.x;
+  let y0 = start.y;
+  let x1 = start.x + start.width;
+  let y1 = start.y + start.height;
+  if (grab.left) x0 = Math.min(Math.max(0, x0 + dx), x1 - min);
+  if (grab.right) x1 = Math.max(Math.min(width, x1 + dx), x0 + min);
+  if (grab.top) y0 = Math.min(Math.max(0, y0 + dy), y1 - min);
+  if (grab.bottom) y1 = Math.max(Math.min(height, y1 + dy), y0 + min);
+  return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
+}
+
 /**
  * The whole image without its bottom `strip` pixels (SEM and TEM data bars are usually at the
  * bottom). Returns null when nothing would be left.

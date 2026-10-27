@@ -1,6 +1,15 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
-import { distance, type Measurement, type Point, type Rect } from '../../core/particles/geometry';
 import {
+  distance,
+  dragRect,
+  grabAt,
+  type Measurement,
+  type Point,
+  type Rect,
+  type RectGrab,
+} from '../../core/particles/geometry';
+import {
+  fitRect,
   fitView,
   MAX_ZOOM_FACTOR,
   pan,
@@ -39,11 +48,17 @@ export interface ParticleOverlay {
 
 /** A drag shorter than this many screen pixels is a click, not a drawing. */
 const MIN_DRAG_PX = 4;
+/** How close (screen pixels) a press must be to a crop edge to grab it. */
+const GRAB_PX = 10;
 
 interface ImageViewerProps {
   image: DecodedImage;
   tool: Tool;
   crop?: Rect | null;
+  /** Show only the crop area: the view fits it and the rest of the image is darkened. */
+  focusCrop?: boolean;
+  /** With the crop tool: drag the crop's edges or inside to change it (image pixels). */
+  onCropChange?: (crop: Rect) => void;
   scale?: { p1: Point; p2: Point } | null;
   measurements?: readonly Measurement[];
   /** Called when the user finishes dragging with a drawing tool; points are in original pixels. */
@@ -60,7 +75,10 @@ interface ImageViewerProps {
 }
 
 interface Gesture {
-  mode: 'none' | 'draw' | 'pan' | 'pinch';
+  mode: 'none' | 'draw' | 'pan' | 'pinch' | 'crop';
+  /** Crop editing: which part is held and the crop when the drag began. */
+  grab?: RectGrab;
+  startCrop?: Rect;
   start?: { distance: number; view: ViewTransform; mid: Point };
   last?: Point;
   /** Where a drawing began, in original pixels, and the screen position of it. */
@@ -76,7 +94,12 @@ interface Gesture {
  * are in pixels of the original image.
  */
 export function ImageViewer(props: ImageViewerProps) {
-  const { image, tool, crop, scale, measurements = [], onDraw, onPick, label } = props;
+  const { image, tool, scale, measurements = [], onDraw, onPick, label } = props;
+  const { focusCrop = false, onCropChange } = props;
+  // While a crop edge is dragged, the changed crop is shown before it is saved.
+  const [editedCrop, setEditedCrop] = useState<Rect | null>(null);
+  const crop = editedCrop ?? props.crop ?? null;
+  const focus = focusCrop ? (props.crop ?? null) : null;
   const particles = props.particles ?? [];
   const workScale = props.workScale ?? 1;
   const box = useRef<HTMLDivElement>(null);
@@ -87,8 +110,9 @@ export function ImageViewer(props: ImageViewerProps) {
   const pointers = useRef(new Map<number, Point>());
   const gesture = useRef<Gesture>({ mode: 'none' });
 
-  const fit = size.width > 0 ? fitView(size.width, size.height, image.width, image.height) : null;
-  const minScale = fit?.scale ?? 1;
+  const whole = size.width > 0 ? fitView(size.width, size.height, image.width, image.height) : null;
+  const fit = whole && focus ? fitRect(size.width, size.height, focus) : whole;
+  const minScale = Math.min(whole?.scale ?? 1, fit?.scale ?? 1);
 
   useLayoutEffect(() => {
     const element = box.current;
@@ -102,7 +126,9 @@ export function ImageViewer(props: ImageViewerProps) {
 
   // Fit the image when it first has a size and when the image changes; refit when the box
   // changes size (window resize, rotation, a panel docking) unless the user has zoomed or panned.
-  const imageKey = `${image.width}x${image.height}-${image.workScale}`;
+  const imageKey = `${image.width}x${image.height}-${image.workScale}${
+    focus ? `-${focus.x},${focus.y},${focus.width},${focus.height}` : ''
+  }`;
   const fittedFor = useRef('');
   const lastFit = useRef<ViewTransform | null>(null);
   useEffect(() => {
@@ -176,7 +202,10 @@ export function ImageViewer(props: ImageViewerProps) {
       setDraft(null);
       return;
     }
-    if (tool === 'pan' || tool === 'select') {
+    const grab = cropGrab(p);
+    if (grab && crop) {
+      gesture.current = { mode: 'crop', grab, startCrop: crop, from: toImage(p, view) };
+    } else if (tool === 'pan' || tool === 'select') {
       gesture.current = { mode: 'pan', last: p, fromScreen: p };
     } else {
       const from = toImage(p, view);
@@ -185,12 +214,36 @@ export function ImageViewer(props: ImageViewerProps) {
     }
   };
 
+  /** The part of the crop under a screen point, when the crop can be edited. */
+  const cropGrab = (p: Point): RectGrab | null => {
+    if (!view || !crop || tool !== 'crop' || !onCropChange) return null;
+    const a = toScreen({ x: crop.x, y: crop.y }, view);
+    const screenRect = {
+      x: a.x,
+      y: a.y,
+      width: crop.width * view.scale,
+      height: crop.height * view.scale,
+    };
+    return grabAt(screenRect, p, GRAB_PX);
+  };
+
   const onPointerMove = (event: PointerEvent) => {
-    if (!view || !pointers.current.has(event.pointerId)) return;
+    if (!view) return;
+    const element = box.current;
+    if (!pointers.current.has(event.pointerId)) {
+      // Hover: show what a press would do on the crop.
+      if (element) element.style.cursor = cursorFor(cropGrab(local(event)));
+      return;
+    }
     const p = local(event);
     pointers.current.set(event.pointerId, p);
     const g = gesture.current;
-    if (g.mode === 'draw' && g.from) {
+    if (g.mode === 'crop' && g.grab && g.startCrop && g.from) {
+      const at = toImage(p, view);
+      setEditedCrop(
+        dragRect(g.startCrop, g.grab, at.x - g.from.x, at.y - g.from.y, image.width, image.height),
+      );
+    } else if (g.mode === 'draw' && g.from) {
       setDraft({ a: g.from, b: toImage(p, view) });
     } else if (g.mode === 'pan' && g.last) {
       setView(pan(view, p.x - g.last.x, p.y - g.last.y));
@@ -216,7 +269,11 @@ export function ImageViewer(props: ImageViewerProps) {
     const p = local(event);
     const g = gesture.current;
     pointers.current.delete(event.pointerId);
-    if (g.mode === 'draw' && g.from && g.fromScreen && view) {
+    if (g.mode === 'crop') {
+      if (editedCrop) onCropChange?.(editedCrop);
+      setEditedCrop(null);
+      gesture.current = { mode: 'none' };
+    } else if (g.mode === 'draw' && g.from && g.fromScreen && view) {
       if (distance(p, g.fromScreen) >= MIN_DRAG_PX && tool !== 'pan' && tool !== 'select') {
         onDraw?.(tool, g.from, toImage(p, view));
       }
@@ -278,7 +335,15 @@ export function ImageViewer(props: ImageViewerProps) {
         <canvas ref={canvas} class="image-canvas" style={{ width: '100%', height: '100%' }} />
         {view && size.width > 0 && (
           <svg class="image-overlay" width={size.width} height={size.height} aria-hidden="true">
-            {crop && <CropShade crop={crop} size={size} s={s} />}
+            {crop && (
+              <CropShade
+                crop={crop}
+                size={size}
+                s={s}
+                dark={focusCrop}
+                handles={tool === 'crop' && onCropChange !== undefined}
+              />
+            )}
             {scale && <Shape kind="scale" a={s(scale.p1)} b={s(scale.p2)} />}
             {measurements.map((m) => (
               <Shape key={m.id} kind={m.kind} a={s(m.a)} b={s(m.b)} id={m.id} />
@@ -325,7 +390,7 @@ export function ImageViewer(props: ImageViewerProps) {
           Zoom out
         </button>
         <button type="button" class="btn" onClick={reset}>
-          Fit image
+          {focus ? 'Fit the crop area' : 'Fit image'}
         </button>
         <span class="field-hint" role="status">
           {zoomPercent} % of the fitted size (up to {MAX_ZOOM_FACTOR} ×).
@@ -339,14 +404,42 @@ export function ImageViewer(props: ImageViewerProps) {
   );
 }
 
+const CURSORS: Record<string, string> = {
+  move: 'move',
+  lt: 'nwse-resize',
+  rb: 'nwse-resize',
+  rt: 'nesw-resize',
+  lb: 'nesw-resize',
+  l: 'ew-resize',
+  r: 'ew-resize',
+  t: 'ns-resize',
+  b: 'ns-resize',
+};
+
+/** The mouse cursor for a press on part of the crop ('' leaves the tool's cursor). */
+function cursorFor(grab: RectGrab | null): string {
+  if (!grab) return '';
+  if (grab === 'move') return 'move';
+  const key = `${grab.left ? 'l' : grab.right ? 'r' : ''}${grab.top ? 't' : grab.bottom ? 'b' : ''}`;
+  return CURSORS[key] ?? '';
+}
+
+/**
+ * The crop area: the rest of the image darkened (almost black when only the crop is shown),
+ * a dashed outline, and with `handles` small squares on the corners and edges to drag.
+ */
 function CropShade({
   crop,
   size,
   s,
+  dark,
+  handles,
 }: {
   crop: Rect;
   size: { width: number; height: number };
   s: (p: Point) => Point;
+  dark: boolean;
+  handles: boolean;
 }) {
   const a = s({ x: crop.x, y: crop.y });
   const b = s({ x: crop.x + crop.width, y: crop.y + crop.height });
@@ -358,11 +451,26 @@ function CropShade({
     <>
       <path
         d={`M0 0H${size.width}V${size.height}H0Z M${x0} ${y0}V${y1}H${x1}V${y0}Z`}
-        class="crop-shade"
+        class={`crop-shade${dark ? ' is-dark' : ''}`}
         fill-rule="evenodd"
       />
       <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} class="shape-halo" fill="none" />
       <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} class="shape shape-crop" fill="none" />
+      {handles &&
+        [x0, (x0 + x1) / 2, x1].flatMap((hx) =>
+          [y0, (y0 + y1) / 2, y1]
+            .filter((hy) => hx !== (x0 + x1) / 2 || hy !== (y0 + y1) / 2)
+            .map((hy) => (
+              <rect
+                key={`${hx}-${hy}`}
+                x={hx - 5}
+                y={hy - 5}
+                width={10}
+                height={10}
+                class="crop-handle"
+              />
+            )),
+        )}
     </>
   );
 }

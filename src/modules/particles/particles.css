@@ -42,7 +42,18 @@
 }
 
 .crop-shade {
-  fill: rgba(0, 0, 0, 0.5);
+  fill: rgba(0, 0, 0, 0.6);
+}
+
+/* Steps after cropping show only the crop area. */
+.crop-shade.is-dark {
+  fill: rgba(0, 0, 0, 0.88);
+}
+
+.crop-handle {
+  fill: #ffffff;
+  stroke: rgba(0, 0, 0, 0.8);
+  stroke-width: 1.5;
 }
 
 .shape-halo {

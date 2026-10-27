@@ -76,6 +76,9 @@ export default function About() {
           <Eq note="Monshi-Scherrer, a line through all peaks">
             ln β = ln(K λ / D) + ln(1 / cos θ)
           </Eq>
+          <Eq note="Linear straight-line Scherrer (free line) and Sahadat-Scherrer (line through the origin); D from the slope">
+            cos θ = (K λ / D)(1 / β)
+          </Eq>
           <Eq note="Williamson-Hall, uniform deformation model">β cos θ = K λ / D + 4 ε sin θ</Eq>
           <Eq note="Williamson-Hall with stress; E is Young's modulus along hkl">
             β cos θ = K λ / D + 4 σ sin θ / E

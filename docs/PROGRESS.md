@@ -1,5 +1,86 @@
 # Progress
 
+## Owner feedback round: peaks, fit plot, figure editor, crop, undo, more XRD methods (done)
+
+Branch `claude/zen-edison-acnmco`, from the owner's list of problems (with screenshots) and the
+"complete guide to information obtainable from powder XRD data".
+
+### What was built
+
+- XRD Fit peaks: the prominence slider redraws the found peaks live while dragging (saved on
+  release, one undo step). "Find peaks automatically" in Edit peaks. After a fit, peaks the fit
+  missed are found in the residual (`src/core/xrd/peaks/missed.ts`) and offered with "Add these
+  and fit again". New warnings: a peak that grew much wider than it started or than the other
+  peaks of its region, and a region whose straight background lies well below the data at its
+  ends (`backgroundTooLow`), both signs that a broad peak is standing in for the background.
+- Fit plot: the dashed lines were each region's straight local background, drawn under every
+  component and tilted by unfitted shoulder peaks. The background is now its own quiet
+  "Local background" series, and components are drawn only where they are above 1 % of their
+  height. Miller indices from the chosen phase label the fit plot automatically; they are edited
+  in the figure editor, whose "Peak labels (Miller indices)" group moved to the top.
+- Figure editor: "Add marker" (and the other annotation buttons) stays active, so you can click
+  several times, until Done, Escape or pressing the button again. Marker shapes: circle, square,
+  triangle, diamond, cross and short tick line, chosen before placing and per marker.
+- SEM/TEM crop: the crop box is now drawn and edited in step 2 (drag inside to move, drag an
+  edge or corner to resize, handles shown), the outside is shaded darker, and later steps open
+  zoomed to the crop.
+- Undo everywhere: every wizard has Undo and Redo buttons and Ctrl/Cmd+Z, Ctrl+Y and
+  Ctrl/Cmd+Shift+Z (`src/ui/wizard/history.ts`; 100 steps, changes within 600 ms are one step;
+  text boxes keep their own undo).
+- Flicker: the dock's scroll area and the page reserve the scrollbar space
+  (`scrollbar-gutter: stable`), which stops a loop where the scrollbar appearing narrowed the
+  plot, which changed its height, which hid the scrollbar again.
+- Two size methods on cos θ against 1/β (`src/core/xrd/size/methods.ts`): the linear
+  straight-line Scherrer method (free line, D = Kλ/slope; Rabiei et al., Nanomaterials 10 (2020)
+  1627, eq. 3) and the Sahadat–Scherrer method (line through the origin; Hossain et al., Chem.
+  Pap. 76 (2022) 7245). `originFit` added to `src/core/math/linearFit.ts`.
+- X-ray density ρ = ZM/(N_A V) (`src/core/xrd/analysis/density.ts`) from the phase's cell
+  contents and the refined cell volume, in the lattice table and the summary CSV, with a button
+  that puts it into the density used for the specific surface area. The lattice table explains
+  that the difference of a cell edge is the lattice strain (a − a₀)/a₀. The atomic weights
+  (CIAAW 2024, already in `data/thermal/`) are shared with the Rietveld step.
+
+### The guide, item by item
+
+- Already present before this round: Bragg d-spacings, (hkl) assignment, lattice parameters and
+  volume with uncertainties, phase matching against COD, Scherrer, Monshi–Scherrer, W–H UDM, USDM
+  and UDEDM, size–strain plot, Halder–Wagner, microstrain, dislocation density, specific surface
+  area, texture coefficient, crystallinity index, instrument correction (Gaussian, Lorentzian,
+  approximate Voigt), FWHM and integral breadth, basic Rietveld with weight fractions.
+- Added now: linear straight-line Scherrer, Sahadat–Scherrer, X-ray density, lattice strain
+  shown as such.
+- Not added, and why: Warren–Averbach (needs Fourier analysis of several orders of one
+  reflection with a deconvoluted instrument profile); sin²ψ residual stress (needs scans at
+  several tilt angles ψ); thermal expansion (needs patterns at several temperatures); pair
+  distribution function (needs high-Q total scattering data); ODF texture (needs pole figures);
+  stacking-fault probability (needs specific peak-shift analysis per structure); RIR
+  quantification (needs I/Ic values, which come from ICDD cards we may not bundle). The
+  "three-peak average" of Scherrer sizes is not an established, citable method, so it was not
+  added as one; the Scherrer table already gives the size per peak and their mean.
+
+### Checks
+
+- New tests: `missedPeaks.test.ts` (5), `particles-crop.test.ts` (4), `history.test.ts` (5),
+  `scherrer-lines.test.ts` (4: pure size broadening for D = 25 nm comes back as 25 nm from both
+  methods; negative slope gives no size; the origin line against its closed form),
+  `xray-density.test.ts` (2). `figure.test.tsx` updated for the new placement message.
+- In a headless browser with visible scrollbars: the slider changes the peak count while
+  dragging; BV-03 gets missed-peak suggestions; the crop box resizes; "(103)"-style labels appear
+  on the fit plot; three markers in a row; Ctrl+Z, Ctrl+Y and the Undo button work. BV-03 with
+  tetragonal BiVO4 (COD 9011741): X-ray density 6.279 ± 0.018 g/cm³ from the refined cell,
+  6.127 g/cm³ from the library cell (by hand: 4 × 323.92 g/mol / (N_A × 351.15 Å³) = 6.127).
+- Lint, typecheck, 746 tests (1 skipped), build and bundle budget pass.
+
+### Known issues
+
+- TODO(verify): the Sahadat–Scherrer equation is taken from its statement in Kawsar et al.,
+  Heliyon 10 (2024) e25347, eq. 30, not from the 2022 paper itself (paywalled).
+- FTIR step 3 flicker: not fully proven fixed. With the owner's FTIR file, visible scrollbars and
+  a 1 px width sweep (1000–1960 px at 621 and 736 px height), the old build kept changing while
+  idle (about 700 DOM changes per 0.2 s) at 1266–1297 × 621 and 1872–1904 × 736 in one of two
+  identical runs; the new build stayed still in every run. The loop is intermittent, so the owner
+  should confirm on the deployed site.
+
 ## Fix: endless re-processing and flicker in XRD steps (done)
 
 Reported with a screen recording of step 4 (Compare reference phases): the page kept switching

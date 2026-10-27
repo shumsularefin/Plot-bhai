@@ -75,6 +75,7 @@ export function ScaleStep({ data, update }: StepContext<ParticleData>) {
               image={image}
               tool={tool}
               crop={data.crop}
+              onCropChange={(crop) => update({ crop })}
               scale={data.scale}
               onDraw={draw}
               label="Image for the scale bar and the crop area"
@@ -192,11 +193,16 @@ export function ScaleStep({ data, update }: StepContext<ParticleData>) {
                   <p>
                     The black or white strip at the bottom of an electron micrograph (the data bar)
                     holds text and the scale bar, not particles. Marking it as outside the crop area
-                    keeps it out of the automatic detection. Nothing is cut off the image, and you
-                    can still draw the scale bar on it.
+                    keeps it out of the automatic detection. The original file is not changed, and
+                    you can still draw the scale bar on it here.
                   </p>
                 </HelpTip>
               </h3>
+              <p class="field-hint">
+                Choose "Draw the crop area" and drag over the part to analyse. Drag the white
+                squares to resize it, or drag inside it to move it. The next steps show only this
+                area, and particles are detected only inside it.
+              </p>
               <div class="radiation-fields">
                 <NumberInput
                   label="Remove a strip from the bottom (pixels)"

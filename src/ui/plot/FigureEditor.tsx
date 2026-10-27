@@ -1,9 +1,11 @@
-import { useId } from 'preact/hooks';
+import { useId, useState } from 'preact/hooks';
 import { Advanced } from '../Advanced';
 import {
   ANNOTATION_LABELS,
   DEFAULT_FIGURE,
   labelKey,
+  MARKER_SHAPE_LABELS,
+  type MarkerShape,
   type Annotation,
   type AnnotationKind,
   type AxisStyle,
@@ -18,7 +20,8 @@ import type { PlotSeries } from './types';
 
 /** What a click on the plot will do while the editor waits for one. */
 export type Placement =
-  { kind: AnnotationKind; first?: { x: number; y: number } } | { move: string };
+  | { kind: AnnotationKind; first?: { x: number; y: number }; shape?: MarkerShape }
+  | { move: string };
 
 interface FigureEditorProps {
   figure: FigureStyle;
@@ -110,6 +113,7 @@ function ColorBox(props: {
 export function FigureEditor(props: FigureEditorProps) {
   const { figure, onChange, series, peakLabels, xName, xUnit, placement, onPlacement } = props;
   const uid = useId();
+  const [markerShape, setMarkerShape] = useState<MarkerShape>('circle');
   const setSeries = (id: string, patch: Partial<SeriesStyle>) =>
     onChange({ ...figure, series: { ...figure.series, [id]: { ...figure.series[id], ...patch } } });
   const setAxes = (patch: Partial<AxisStyle>) =>
@@ -130,6 +134,55 @@ export function FigureEditor(props: FigureEditorProps) {
         These settings change how the figure looks, here and in every exported file. They never
         change your data or any calculated value.
       </p>
+
+      {peakLabels && peakLabels.labels.length > 0 && (
+        <fieldset class="figure-group">
+          <legend>Peak labels (Miller indices)</legend>
+          <p class="field-hint">
+            The labels are written automatically from the phase assignment. Edit any of them here,
+            for example to add spaces, a bar for a negative index or a phase symbol.
+          </p>
+          <label class="check">
+            <input
+              type="checkbox"
+              checked={figure.peakLabels.show}
+              onChange={(e) =>
+                onChange({
+                  ...figure,
+                  peakLabels: { ...figure.peakLabels, show: e.currentTarget.checked },
+                })
+              }
+            />
+            Show peak labels
+          </label>
+          {figure.peakLabels.show && (
+            <div class="figure-labels">
+              {peakLabels.labels.map((l) => {
+                const key = labelKey(l.x);
+                return (
+                  <label key={key} class="figure-field">
+                    At {Number(Math.abs(l.x).toFixed(2))}
+                    {xUnit.trim()}
+                    <input
+                      value={figure.peakLabels.text[key] ?? l.text}
+                      onInput={(e) =>
+                        onChange({
+                          ...figure,
+                          peakLabels: {
+                            ...figure.peakLabels,
+                            text: { ...figure.peakLabels.text, [key]: e.currentTarget.value },
+                          },
+                        })
+                      }
+                    />
+                  </label>
+                );
+              })}
+              <p class="field-hint">Empty a box to hide that one label.</p>
+            </div>
+          )}
+        </fieldset>
+      )}
 
       <fieldset class="figure-group">
         <legend>Lines and fills</legend>
@@ -233,17 +286,42 @@ export function FigureEditor(props: FigureEditorProps) {
       <fieldset class="figure-group">
         <legend>Annotations</legend>
         <div class="figure-buttons">
-          {(Object.keys(ANNOTATION_LABELS) as AnnotationKind[]).map((kind) => (
-            <button
-              key={kind}
-              type="button"
-              class="btn"
-              aria-pressed={placement !== null && 'kind' in placement && placement.kind === kind}
-              onClick={() => onPlacement({ kind })}
+          {(Object.keys(ANNOTATION_LABELS) as AnnotationKind[]).map((kind) => {
+            const active = placement !== null && 'kind' in placement && placement.kind === kind;
+            return (
+              <button
+                key={kind}
+                type="button"
+                class="btn"
+                aria-pressed={active}
+                onClick={() =>
+                  onPlacement(
+                    active ? null : { kind, ...(kind === 'marker' && { shape: markerShape }) },
+                  )
+                }
+              >
+                Add {ANNOTATION_LABELS[kind].toLowerCase()}
+              </button>
+            );
+          })}
+          <label class="figure-field">
+            Marker shape
+            <select
+              value={markerShape}
+              onChange={(e) => {
+                const shape = e.currentTarget.value as MarkerShape;
+                setMarkerShape(shape);
+                if (placement && 'kind' in placement && placement.kind === 'marker')
+                  onPlacement({ kind: 'marker', shape });
+              }}
             >
-              Add {ANNOTATION_LABELS[kind].toLowerCase()}
-            </button>
-          ))}
+              {(Object.keys(MARKER_SHAPE_LABELS) as MarkerShape[]).map((shape) => (
+                <option key={shape} value={shape}>
+                  {MARKER_SHAPE_LABELS[shape]}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
         {placement && (
           <p class="message is-info" role="status">
@@ -257,9 +335,9 @@ export function FigureEditor(props: FigureEditorProps) {
                   ? placement.first
                     ? 'Now click where the region should end.'
                     : 'Click where the region should start.'
-                  : `Click or tap the plot to place the ${ANNOTATION_LABELS[placement.kind].toLowerCase()}.`}{' '}
+                  : `Click or tap the plot to place a ${ANNOTATION_LABELS[placement.kind].toLowerCase()}; keep clicking to add more.`}{' '}
             <button type="button" class="btn btn-quiet" onClick={() => onPlacement(null)}>
-              Cancel
+              Done
             </button>
           </p>
         )}
@@ -304,6 +382,23 @@ export function FigureEditor(props: FigureEditorProps) {
                 onChange={(v) => v !== null && setAnnotation(a.id, { y2: v })}
               />
             )}
+            {a.kind === 'marker' && (
+              <label class="figure-field">
+                Shape
+                <select
+                  value={a.shape ?? 'circle'}
+                  onChange={(e) =>
+                    setAnnotation(a.id, { shape: e.currentTarget.value as MarkerShape })
+                  }
+                >
+                  {(Object.keys(MARKER_SHAPE_LABELS) as MarkerShape[]).map((shape) => (
+                    <option key={shape} value={shape}>
+                      {MARKER_SHAPE_LABELS[shape]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <ColorBox
               label="Colour"
               value={a.color || undefined}
@@ -311,7 +406,7 @@ export function FigureEditor(props: FigureEditorProps) {
               onChange={(color) => setAnnotation(a.id, { color: color ?? '' })}
             />
             <NumberBox
-              label="Text size (×)"
+              label={a.kind === 'marker' ? 'Size (×)' : 'Text size (×)'}
               value={a.size}
               step={0.1}
               min={0.5}
@@ -444,51 +539,6 @@ export function FigureEditor(props: FigureEditorProps) {
           </label>
         </div>
       </fieldset>
-
-      {peakLabels && peakLabels.labels.length > 0 && (
-        <fieldset class="figure-group">
-          <legend>Peak labels</legend>
-          <label class="check">
-            <input
-              type="checkbox"
-              checked={figure.peakLabels.show}
-              onChange={(e) =>
-                onChange({
-                  ...figure,
-                  peakLabels: { ...figure.peakLabels, show: e.currentTarget.checked },
-                })
-              }
-            />
-            Show peak labels
-          </label>
-          {figure.peakLabels.show && (
-            <div class="figure-labels">
-              {peakLabels.labels.map((l) => {
-                const key = labelKey(l.x);
-                return (
-                  <label key={key} class="figure-field">
-                    At {Number(Math.abs(l.x).toFixed(2))}
-                    {xUnit.trim()}
-                    <input
-                      value={figure.peakLabels.text[key] ?? l.text}
-                      onInput={(e) =>
-                        onChange({
-                          ...figure,
-                          peakLabels: {
-                            ...figure.peakLabels,
-                            text: { ...figure.peakLabels.text, [key]: e.currentTarget.value },
-                          },
-                        })
-                      }
-                    />
-                  </label>
-                );
-              })}
-              <p class="field-hint">Empty a box to hide that one label.</p>
-            </div>
-          )}
-        </fieldset>
-      )}
 
       <p>
         <button

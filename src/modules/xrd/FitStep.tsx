@@ -8,6 +8,7 @@ import {
 } from '../../core/xrd/peaks/fit';
 import { profile, type ProfileKind } from '../../core/xrd/peaks/profiles';
 import { lowerBoundIndex } from '../../core/xrd/peaks/search';
+import { missedPeaks } from '../../core/xrd/peaks/missed';
 import { peakTable } from '../../core/xrd/peaks/table';
 import { ANODES } from '../../core/xrd/radiation';
 import { stepStats } from '../../core/xrd/summary';
@@ -20,6 +21,9 @@ import type { StepContext } from '../../ui/wizard/types';
 import { fitInputKey, peaksFor, processingFor, type PeakState, type XrdData } from './data';
 import { xrdLabels } from './labels';
 import { PeaksClient } from './peaksClient';
+import { assignmentFor, peakLabelSet } from './assignment';
+import { useCandidatePhases } from './useReferencePhases';
+import type { PeakLabelSet } from '../../ui/plot/peakLabels';
 import { PeakTable } from './PeakTable';
 import { useProcessed } from './useProcessed';
 
@@ -56,11 +60,16 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
     data.radiation,
   );
 
+  const { phases } = useCandidatePhases(data.material);
   const [mode, setMode] = useState<Mode>('pan');
   const [dragged, setDragged] = useState<PeakGuess[] | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [addAt, setAddAt] = useState('');
+  // While the prominence slider is dragged: its value and the peaks found with it (not saved yet).
+  const [sliding, setSliding] = useState<number | null>(null);
+  const [preview, setPreview] = useState<PeakGuess[] | null>(null);
+  const slidingRef = useRef(false);
   const client = useRef<PeaksClient | null>(null);
   const history = useRef<PeakState[]>([]);
   const [canUndo, setCanUndo] = useState(false);
@@ -112,22 +121,18 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
 
   const radiation = data.radiation;
   const lambda = ANODES[radiation.anode].kAlpha1;
-  const guesses = dragged ?? state.guesses;
+  const guesses = dragged ?? preview ?? state.guesses;
   const inputKey = fitInputKey(state.guesses, state.fitOptions, processing, radiation);
   const stale = state.fit !== null && state.fit.inputKey !== inputKey;
   const fitting = progress !== null;
   const kAlpha2Present = !radiation.kAlpha1Only && !processing.kAlpha2.enabled;
 
-  const runFit = async () => {
-    if (!x || !y || !client.current || guesses.length === 0) return;
+  const runFit = async (toFit: PeakGuess[] = state.guesses) => {
+    if (!x || !y || !client.current || toFit.length === 0) return;
     setFailed(false);
     setProgress('Starting…');
-    const regions = await client.current.fitPeaks(
-      x,
-      y,
-      state.guesses,
-      state.fitOptions,
-      (done, total) => setProgress(`Fitting region ${done} of ${total}…`),
+    const regions = await client.current.fitPeaks(x, y, toFit, state.fitOptions, (done, total) =>
+      setProgress(`Fitting region ${done} of ${total}…`),
     );
     setProgress(null);
     if (!regions) {
@@ -138,7 +143,7 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
     const fitted = regions.flatMap((r) =>
       r.peaks.map((p) => ({ center: p.center, width: p.fwhm })),
     );
-    const nextGuesses = fitted.length > 0 ? fitted : state.guesses;
+    const nextGuesses = fitted.length > 0 ? fitted : toFit;
     const key = fitInputKey(nextGuesses, state.fitOptions, processing, radiation);
     setState({ ...state, guesses: nextGuesses, fit: { regions, inputKey: key } });
   };
@@ -161,6 +166,31 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
     setCanUndo(history.current.length > 0);
     update({ peaks: { ...data.peaks, [pattern.id]: last } });
   };
+
+  /** Slider moved: show the value and the peaks it finds at once, without saving. */
+  const slide = (prominencePercent: number) => {
+    if (!x || !y || !client.current) return;
+    slidingRef.current = true;
+    setSliding(prominencePercent);
+    void client.current.detect(x, y, { ...state.detection, prominencePercent }).then((found) => {
+      if (found && slidingRef.current)
+        setPreview(found.map((p) => ({ center: p.center, width: p.width })));
+    });
+  };
+  /** Slider released: save the peaks found with the final value (one undo step). */
+  const endSlide = async (prominencePercent: number) => {
+    slidingRef.current = false;
+    await detect({ ...state.detection, prominencePercent }, true);
+    setSliding(null);
+    setPreview(null);
+  };
+
+  const missed =
+    state.fit && !stale && x && y ? missedPeaks(x, y, state.fit.regions, state.detection) : [];
+  // Miller indices on the fitted peaks, from the phases chosen in step 4.
+  const assignment =
+    state.fit && !stale && phases ? assignmentFor(data, pattern.id, phases, false) : null;
+  const hklLabels = assignment ? peakLabelSet(assignment) : undefined;
 
   const markerY = (center: number) => {
     if (!x || !y) return 0;
@@ -234,7 +264,7 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
         <div class="process-step-body">
           <label class="inline-field slider-field">
             <span>
-              Minimum prominence: <output>{state.detection.prominencePercent} %</output>{' '}
+              Minimum prominence: <output>{sliding ?? state.detection.prominencePercent} %</output>{' '}
               <HelpTip term="prominence">
                 <p>
                   How far a peak stands above the lowest points separating it from taller
@@ -249,14 +279,10 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
               min={0.5}
               max={30}
               step={0.5}
-              value={state.detection.prominencePercent}
+              value={sliding ?? state.detection.prominencePercent}
               disabled={fitting}
-              onChange={(e) =>
-                void detect(
-                  { ...state.detection, prominencePercent: Number(e.currentTarget.value) },
-                  true,
-                )
-              }
+              onInput={(e) => slide(Number(e.currentTarget.value))}
+              onChange={(e) => void endSlide(Number(e.currentTarget.value))}
             />
           </label>
           <Advanced id="xrd-noise-filter" title="Separation and noise filter">
@@ -336,14 +362,29 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
               </label>
             ))}
           </fieldset>
-          <button
-            type="button"
-            class="btn btn-quiet"
-            onClick={() => setGuesses([])}
-            disabled={guesses.length === 0 || fitting}
-          >
-            Remove all peaks
-          </button>
+          <div class="edit-peak-actions">
+            <button
+              type="button"
+              class="btn"
+              onClick={() => void detect(state.detection, true)}
+              disabled={fitting || !x}
+            >
+              Find peaks automatically
+            </button>
+            <button
+              type="button"
+              class="btn btn-quiet"
+              onClick={() => setGuesses([])}
+              disabled={guesses.length === 0 || fitting}
+            >
+              Remove all peaks
+            </button>
+          </div>
+          <p class="field-hint">
+            "Find peaks automatically" replaces the peaks with those found by the settings above
+            (Undo brings your edits back). After a fit, peaks the fit seems to miss are suggested
+            under the plot.
+          </p>
           <Advanced id="xrd-add-peak" title="Add a peak by its position">
             <form
               class="add-peak"
@@ -472,7 +513,40 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
           unit={unit}
           name={pattern.name}
           interaction={interaction}
+          {...(hklLabels && { peakLabels: hklLabels })}
         />
+      )}
+      {state.fit && !stale && !assignment && (
+        <p class="field-hint">
+          Choose a phase in step 4 ("Use this phase") and the fitted peaks are labelled with their
+          Miller indices (hkl) here and in the exported figure. Edit the labels under "Edit figure".
+        </p>
+      )}
+
+      {missed.length > 0 && !fitting && (
+        <div class="message is-warning missed-peaks" role="status">
+          <p>
+            <strong>Check:</strong> the residual has {missed.length === 1 ? 'a hump' : 'humps'} at{' '}
+            {missed.map((p) => `${p.center.toFixed(2)}°`).join(', ')} that{' '}
+            {missed.length === 1 ? 'looks like a peak' : 'look like peaks'} the fit leaves out. An
+            unfitted peak tilts the straight background of its region and distorts the neighbouring
+            peaks.
+          </p>
+          <button
+            type="button"
+            class="btn"
+            onClick={() => {
+              const next = [
+                ...state.guesses,
+                ...missed.map((p) => ({ center: p.center, width: p.width })),
+              ].sort((a, b) => a.center - b.center);
+              setGuesses(next);
+              void runFit(next);
+            }}
+          >
+            Add {missed.length === 1 ? 'it' : `these ${missed.length}`} and fit again
+          </button>
+        </div>
       )}
 
       {state.fit && (
@@ -539,15 +613,19 @@ export interface FitPlotProps extends StepContext<XrdData> {
   unit: string;
   name: string;
   interaction: PlotInteraction;
+  /** Labels on the peaks, for example their Miller indices. */
+  peakLabels?: PeakLabelSet;
 }
 
 /** Data with the fitted total, components and residual. Also used for the instrument standard. */
-export function FitPlot({ data, update, x, y, regions, unit, name, interaction }: FitPlotProps) {
+export function FitPlot(props: FitPlotProps) {
+  const { data, update, x, y, regions, unit, name, interaction, peakLabels } = props;
   const { sources, residual } = useMemo(() => {
     const total = new Float64Array(x.length).fill(NaN);
     const resid = new Float64Array(x.length).fill(NaN);
     const list: SeriesSource[] = [{ id: 'data', name: 'Data', x, y, unit, colorIndex: 7 }];
     const components: SeriesSource[] = [];
+    const backgrounds: SeriesSource[] = [];
     regions.forEach((region, r) => {
       const i0 = lowerBoundIndex(x, region.start);
       const i1 = lowerBoundIndex(x, region.end + 1e-12);
@@ -558,12 +636,29 @@ export function FitPlot({ data, update, x, y, regions, unit, name, interaction }
       }
       const bg = (v: number) =>
         region.background.intercept + region.background.slope * (v - region.background.pivot);
+      backgrounds.push({
+        id: `background-${r}`,
+        name: 'Local background',
+        x: xs,
+        y: xs.map(bg),
+        unit,
+        colorIndex: 2,
+        dashed: true,
+        quiet: backgrounds.length > 0,
+      });
+      // Each component is drawn on the background only where it stands out (above 1 % of its
+      // height): drawn over the whole region, every component's tails would lie on the
+      // background line and look like extra straight lines.
       region.peaks.forEach((peak, p) => {
+        const cut = 0.01 * peak.height;
         components.push({
           id: `component-${r}-${p}`,
           name: 'Components',
           x: xs,
-          y: xs.map((v) => bg(v) + profile(v, peak)),
+          y: xs.map((v) => {
+            const value = profile(v, peak);
+            return value >= cut ? bg(v) + value : NaN;
+          }),
           unit,
           colorIndex: 1,
           dashed: true,
@@ -574,7 +669,7 @@ export function FitPlot({ data, update, x, y, regions, unit, name, interaction }
     if (regions.length > 0)
       list.push({ id: 'fit', name: 'Total fit', x, y: total, unit, colorIndex: 0 });
     return {
-      sources: [...list, ...components],
+      sources: [...list, ...components, ...backgrounds],
       residual:
         regions.length > 0
           ? { id: 'residual', name: 'Residual', x, y: resid, unit, colorIndex: 0 }
@@ -594,6 +689,7 @@ export function FitPlot({ data, update, x, y, regions, unit, name, interaction }
       showOverlayOptions={false}
       interaction={interaction}
       {...(residual && { residual })}
+      {...(peakLabels && { peakLabels })}
     />
   );
 }

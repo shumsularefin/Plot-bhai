@@ -35,6 +35,32 @@ const AXES: Record<LineMethod, { labels: AxisLabels; x: string; y: string }> = {
     x: 'ln(1/cos θ)',
     y: 'ln β',
   },
+  'linear-scherrer': {
+    labels: {
+      x: (
+        <>
+          1/{beta} (rad<tspan baseline-shift="super">−1</tspan>)
+        </>
+      ),
+      y: <>cos {theta}</>,
+      yValues: true,
+    },
+    x: '1/β (1/rad)',
+    y: 'cos θ',
+  },
+  sahadat: {
+    labels: {
+      x: (
+        <>
+          1/{beta} (rad<tspan baseline-shift="super">−1</tspan>)
+        </>
+      ),
+      y: <>cos {theta}</>,
+      yValues: true,
+    },
+    x: '1/β (1/rad)',
+    y: 'cos θ',
+  },
   'wh-udm': {
     labels: {
       x: <>4 sin {theta}</>,
@@ -126,6 +152,10 @@ const AXES: Record<LineMethod, { labels: AxisLabels; x: string; y: string }> = {
 /** What each line's slope and intercept mean, shown under the plot. */
 const EQUATIONS: Record<LineMethod, string> = {
   monshi: 'ln β = ln(Kλ/D) + ln(1/cos θ). Intercept ln(Kλ/D); the slope should be close to 1.',
+  'linear-scherrer':
+    'cos θ = (Kλ/D)(1/β), fitted with a free intercept. Slope Kλ/D; the intercept is not used. Rabiei et al., Nanomaterials 10 (2020) 1627.',
+  sahadat:
+    'cos θ = (Kλ/D)(1/β), with the line forced through the origin. Slope Kλ/D. Hossain et al., Chem. Pap. 76 (2022) 7245.',
   'wh-udm': 'β cos θ = Kλ/D + 4ε sin θ. Intercept Kλ/D, slope ε.',
   'wh-usdm': 'β cos θ = Kλ/D + 4σ sin θ / E. Intercept Kλ/D, slope σ (GPa).',
   'wh-udedm': 'β cos θ = Kλ/D + 4 sin θ (2u/E)^½. Intercept Kλ/D, slope √u (GPa^½).',

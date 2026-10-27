@@ -27,6 +27,17 @@ export interface SeriesStyle {
 
 export type AnnotationKind = 'text' | 'arrow' | 'marker' | 'vline' | 'hline' | 'region';
 
+export type MarkerShape = 'circle' | 'square' | 'triangle' | 'diamond' | 'cross' | 'tick';
+
+export const MARKER_SHAPE_LABELS: Record<MarkerShape, string> = {
+  circle: 'Circle ●',
+  square: 'Square ■',
+  triangle: 'Triangle ▲',
+  diamond: 'Diamond ◆',
+  cross: 'Cross ✕',
+  tick: 'Short line |',
+};
+
 /**
  * Something drawn on top of the data. Positions are in the units shown on the axes (for a
  * reversed wavenumber axis, the positive wavenumber). An arrow points from (x2, y2) to (x, y);
@@ -46,6 +57,8 @@ export interface Annotation {
   size: number;
   /** Opacity of a shaded region, 0 to 1. */
   opacity: number;
+  /** Shape of a marker; a circle when missing (markers saved by older versions). */
+  shape?: MarkerShape;
 }
 
 export interface AxisStyle {
@@ -127,6 +140,7 @@ export function newAnnotation(
   x: number,
   y: number,
   second?: { x: number; y: number },
+  shape?: MarkerShape,
 ): Annotation {
   const text: Record<AnnotationKind, string> = {
     text: 'Text',
@@ -146,6 +160,7 @@ export function newAnnotation(
     color: ANNOTATION_COLOR,
     size: 1,
     opacity: kind === 'region' ? 0.15 : 1,
+    ...(kind === 'marker' && { shape: shape ?? 'circle' }),
   };
 }
 

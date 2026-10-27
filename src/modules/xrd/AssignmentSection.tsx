@@ -1,5 +1,6 @@
 import { phaseReference } from '../../core/xrd/reference/source';
 import { useMemo } from 'preact/hooks';
+import { xrayDensity } from '../../core/xrd/analysis/density';
 import type { LatticeFit } from '../../core/xrd/reference/lattice';
 import { formatWithSigma } from '../../ui/format';
 import { HelpTip } from '../../ui/HelpTip';
@@ -257,6 +258,16 @@ function LatticeTable({ fit, summary }: { fit: LatticeFit; summary: LatticeSumma
     })),
     { name: 'Cell volume (Å³)', value: fit.volume, reference: summary.referenceVolume },
   ];
+  const mass = summary.cellMass;
+  if (mass !== null) {
+    // ρ ∝ 1/V, so σ(ρ) = ρ σ(V) / V.
+    const rho = xrayDensity(mass, fit.volume.value);
+    rows.push({
+      name: 'X-ray density (g/cm³)',
+      value: { value: rho, sigma: (rho * fit.volume.sigma) / fit.volume.value },
+      reference: xrayDensity(mass, summary.referenceVolume),
+    });
+  }
   return (
     <>
       <div class="table-scroll" tabIndex={0} role="region" aria-label="Lattice parameters">
@@ -296,6 +307,12 @@ function LatticeTable({ fit, summary }: { fit: LatticeFit; summary: LatticeSumma
           ` ${summary.skipped} assigned peak${summary.skipped === 1 ? ' was' : 's were'} left out because the index is not unique.`}
         {fit.dof === 0 &&
           ' With no spare peaks the uncertainties cannot be checked against the scatter.'}
+      </p>
+      <p class="field-hint">
+        For a cell edge the difference is the lattice strain ε = (a − a₀)/a₀ against the library
+        cell; a zero shift or sample-height error also moves it.
+        {mass !== null &&
+          ` The X-ray density is ρ = ZM/(N_A V), from the library cell contents (${mass.toFixed(2)} g/mol per cell) and the refined volume: the density of a perfect crystal, so a measured density is usually lower.`}
       </p>
     </>
   );

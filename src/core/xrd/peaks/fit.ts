@@ -67,6 +67,11 @@ export interface RegionFit {
 /** χ²ν above this (residual more than twice the noise) is reported as a misfit. */
 const CHI_SQUARED_HIGH = 4;
 
+/** A fitted width this many times the starting width, or the region's other peaks, is reported. */
+const WIDTH_GROWTH = 4;
+/** See backgroundTooLow. */
+const LOW_BACKGROUND = 0.1;
+
 /** Each peak's region extends this many widths either side of its centre. */
 const REGION_WIDTHS = 3;
 
@@ -161,6 +166,7 @@ export function fitRegion(
   const lower = new Float64Array(m).fill(-Infinity);
   const upper = new Float64Array(m).fill(Infinity);
   const free = new Array<boolean>(m).fill(true);
+  const startWidths: number[] = [];
   initial[0] = (yLeft + yRight) / 2;
   initial[1] = slope0;
   region.peaks.forEach((g, p) => {
@@ -168,6 +174,7 @@ export function fitRegion(
     const at = Math.min(n - 1, Math.max(0, lowerBoundIndex(xs, g.center)));
     const width = Math.min(Math.max(g.width, 2 * step), (xs[n - 1] as number) - (xs[0] as number));
     const reach = Math.max(width, 2 * step);
+    startWidths.push(width);
     initial[o] = Math.max((ys[at] as number) - background0(g.center), range * 0.01);
     initial[o + 1] = g.center;
     initial[o + 2] = width;
@@ -267,6 +274,23 @@ export function fitRegion(
         text: `η reached ${peak.eta < 0.5 ? '0 (pure Gaussian)' : '1 (pure Lorentzian)'}.`,
       });
     }
+    const start = startWidths[q] as number;
+    const others = region.peaks
+      .map((_, r) => p[2 + PARAMS_PER_PEAK * r + 2] as number)
+      .filter((_, r) => r !== q)
+      .sort((a, b) => a - b);
+    const typical = others[others.length >> 1];
+    if (peak.fwhm > WIDTH_GROWTH * start) {
+      notes.push({
+        level: 'warning',
+        text: `The width grew to ${peak.fwhm.toFixed(3)}° from a starting ${start.toFixed(3)}°. A peak this broad may be standing in for the background or for several unresolved peaks; check the components on the plot.`,
+      });
+    } else if (others.length >= 2 && typical !== undefined && peak.fwhm > WIDTH_GROWTH * typical) {
+      notes.push({
+        level: 'warning',
+        text: `This peak is ${peak.fwhm.toFixed(3)}° wide, more than ${WIDTH_GROWTH} times the other peaks of its region (typically ${typical.toFixed(3)}°). It may be standing in for the background or for several unresolved peaks; check the components on the plot.`,
+      });
+    }
     if (sigma.fwhm > 0.2 * peak.fwhm) {
       notes.push({ level: 'warning', text: 'The width is uncertain by more than 20 %.' });
     }
@@ -308,6 +332,13 @@ export function fitRegion(
       text: `χ²ν = ${reducedChiSquared.toFixed(1)}: the residual is more than twice the noise of the data, so the model misses real structure here (an unresolved peak, a shoulder or the wrong profile shape). Look at the residual plot.`,
     });
   }
+  const background = { intercept: p[0] as number, slope: p[1] as number, pivot };
+  if (backgroundTooLow(xs, ys, background, noiseSd)) {
+    messages.push({
+      level: 'warning',
+      text: 'The straight background of this region lies well below the data at its ends, so a broad peak is filling the gap. The components are then not meaningful: add the missing peaks or remove the broad one, and fit again.',
+    });
+  }
   if (!result.covarianceOk) {
     messages.push({
       level: 'warning',
@@ -317,7 +348,7 @@ export function fitRegion(
   return {
     start: xs[0] as number,
     end: xs[n - 1] as number,
-    background: { intercept: p[0] as number, slope: p[1] as number, pivot },
+    background,
     peaks,
     rSquared,
     reducedChiSquared,
@@ -327,6 +358,37 @@ export function fitRegion(
     iterations: result.iterations,
     messages,
   };
+}
+
+/**
+ * True when a region's straight background lies well below the data at either end. A region
+ * reaches three starting widths beyond its outer peaks, so its ends are mostly background and a
+ * fitted line should meet the data there. The mean of (y − background) over the first and over
+ * the last 5 % of the points (at least 3) is compared with 10 % of the region's intensity range
+ * (max − min of y) plus three times the noise σ; a larger gap at either end means a broad peak
+ * has taken the background's place. x in degrees 2θ, y and σ in intensity units.
+ */
+export function backgroundTooLow(
+  x: Float64Array,
+  y: Float64Array,
+  background: RegionFit['background'],
+  noiseSd: number,
+): boolean {
+  if (y.length === 0) return false;
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const v of y) {
+    lo = Math.min(lo, v);
+    hi = Math.max(hi, v);
+  }
+  const lift = Array.from(
+    y,
+    (v, i) => v - (background.intercept + background.slope * ((x[i] as number) - background.pivot)),
+  );
+  const edge = Math.max(3, Math.round(0.05 * lift.length));
+  const mean = (values: number[]) => values.reduce((a, b) => a + b, 0) / values.length;
+  const gap = Math.max(mean(lift.slice(0, edge)), mean(lift.slice(-edge)));
+  return gap > LOW_BACKGROUND * (hi - lo) + 3 * (Number.isFinite(noiseSd) ? noiseSd : 0);
 }
 
 /** Background plus all peaks of a region at x. */

@@ -107,6 +107,7 @@ export function MeasureStep({ data, update }: StepContext<ParticleData>) {
               image={image}
               tool={tool}
               crop={data.crop}
+              focusCrop
               measurements={data.measurements}
               onDraw={draw}
               label="Image for measuring particles"
