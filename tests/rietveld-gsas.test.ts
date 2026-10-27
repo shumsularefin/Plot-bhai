@@ -29,7 +29,9 @@ describe('Rietveld refinement of a GSAS-II simulated mixture', () => {
       .map((line) => line.trim().split(/\s+/).map(Number));
     const x = Float64Array.from(rows, (r) => r[0] as number);
     const y = Float64Array.from(rows, (r) => r[1] as number);
-    const family = JSON.parse(read('tests/fixtures/cod-reference/tio2.json')) as ReferenceFamilyFile;
+    const family = JSON.parse(
+      read('tests/fixtures/cod-reference/tio2.json'),
+    ) as ReferenceFamilyFile;
     const weights = JSON.parse(read('data/thermal/atomic-weights.json')) as {
       elements: { symbol: string; weight: number }[];
     };
