@@ -6,6 +6,7 @@ import { HelpTip } from '../../ui/HelpTip';
 import { BarChart } from '../../ui/plot/BarChart';
 import type { StepContext } from '../../ui/wizard/types';
 import { xrayDensity } from '../../core/xrd/analysis/density';
+import { PaperComparison } from './PaperComparison';
 import { assignmentFor } from './assignment';
 import { AssignmentSection } from './AssignmentSection';
 import { downloadTable } from './csv';
@@ -186,6 +187,8 @@ export function ResultsStep({ data, update }: StepContext<XrdData>) {
           )}
         </div>
       </section>
+
+      {pattern.digitized && <PaperComparison data={data} update={update} pattern={pattern} />}
 
       <Guidance />
 

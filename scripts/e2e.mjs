@@ -569,6 +569,35 @@ try {
   await page.setViewportSize({ width: 1280, height: 900 });
   step('Thermal: no horizontal page scroll at 360 and 1280 px');
 
+  // XRD from a screenshot: example figure through calibration and tracing, handed to XRD.
+  await page.goto(`http://localhost:${PORT}/#/xrd-screenshot`);
+  await heading().waitFor();
+  await page.getByRole('button', { name: 'Try with example data' }).click();
+  await page.locator('.shot-preview').waitFor({ timeout: 10_000 });
+  await next('Calibrate axes');
+  await next('Digitize the curve');
+  await page.locator('#trace-title').waitFor({ timeout: 10_000 });
+  const range = await page.locator('.summary-grid dd').first().textContent();
+  assert.match(range ?? '', /^10\.\d\d° to 79\.\d\d°$/);
+  for (const width of [360, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.waitForTimeout(500);
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    assert.ok(overflow <= 0, `screenshot tool scrolls sideways by ${overflow}px at ${width}px`);
+  }
+  step(`Screenshot: example traced over ${range}, no sideways scroll at 360 px`);
+  await next('Analyse in XRD');
+  page.once('dialog', (d) => d.accept());
+  await page.getByRole('button', { name: 'Start a new XRD analysis with it' }).click();
+  await page.waitForFunction(() => location.hash === '#/xrd');
+  await page.locator('.plot-panel svg').first().waitFor({ timeout: 15_000 });
+  assert.equal(await heading().textContent(), 'Clean data');
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await page.getByText('Digitized from a figure: approximate').first().waitFor();
+  step('Screenshot: pattern handed to the XRD Clean data step, marked approximate');
+
   assert.deepEqual(problems, [], `browser errors: ${problems.join('; ')}`);
   console.log('E2E passed.');
 } catch (error) {

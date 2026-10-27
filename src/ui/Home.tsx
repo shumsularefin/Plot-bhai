@@ -15,6 +15,12 @@ const TOOLS: readonly ToolCard[] = [
     href: '#/xrd',
   },
   {
+    name: 'XRD from a screenshot',
+    description:
+      'Only have a figure from a paper? Digitize its pattern, then check the reported crystallite sizes.',
+    href: '#/xrd-screenshot',
+  },
+  {
     name: 'UV-Vis',
     description: 'Absorbance, transmittance and reflectance spectra, with Tauc band gap estimates.',
     href: '#/uvvis',

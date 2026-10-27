@@ -36,7 +36,38 @@ export interface XrdData {
   analysis: AnalysisSettings;
   /** Basic Rietveld refinement (step 5). */
   rietveld: RietveldState;
+  /** Values reported in a paper, per pattern id, to compare with (results step). */
+  paper?: Record<string, PaperCheckState>;
 }
+
+/** What a paper reports for a pattern digitized from its figure, and how it calculated it. */
+export interface PaperCheckState {
+  /** The fit the peak choices belong to; choices of an earlier fit are dropped. */
+  fitKey: string;
+  k: number;
+  lambdaA: number;
+  /** Instrument FWHM the paper subtracted, degrees 2θ; 0 for none. */
+  instrumentDeg: number;
+  correction: 'gaussian' | 'lorentzian';
+  method: 'scherrer' | 'wh-udm';
+  /** Per fitted peak (by position in the sorted list): whether it is compared, and the paper's values. */
+  peaks: Record<number, { use: boolean; reportedNm: number | null; reportedFwhm: number | null }>;
+  /** The paper's overall size (mean Scherrer or Williamson–Hall), nm. */
+  reportedNm: number | null;
+  /** The paper's microstrain (Williamson–Hall), dimensionless. */
+  reportedStrain: number | null;
+}
+
+export const DEFAULT_PAPER_CHECK: Omit<PaperCheckState, 'fitKey'> = {
+  k: 0.9,
+  lambdaA: 1.5406,
+  instrumentDeg: 0,
+  correction: 'gaussian',
+  method: 'scherrer',
+  peaks: {},
+  reportedNm: null,
+  reportedStrain: null,
+};
 
 /** Settings and last result of the basic Rietveld refinement. */
 export interface RietveldState {
