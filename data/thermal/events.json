@@ -1,5 +1,5 @@
 {
-  "verification": "TODO, verify: NOT YET CHECKED AGAINST ANY SOURCE. No open textbook or review table of these ranges could be opened when this file was written, so every range below is a broad, general-knowledge placeholder (wide on purpose). Replace each range with a value from a source you can cite, fill in its 'source' field, and then remove the TODO. Real temperatures depend on heating rate, atmosphere, particle size and sample mass.",
+  "verification": "TODO, verify: the temperature ranges are NOT YET CHECKED AGAINST ANY SOURCE. They are broad, general-knowledge placeholders (wide on purpose). Gaisford S., Kett V. and Haines P. (eds), Principles of Thermal Analysis and Calorimetry, 2nd edn, Royal Society of Chemistry, 2016, ISBN 978-1-78262-051-8 was searched (October 2026) but gives no general table of typical TGA temperatures, only worked examples; the examples that support a row's notes are named in its 'source'. Replace each range with a value from a source you can cite, then remove the TODO. Real temperatures depend on heating rate, atmosphere, particle size and sample mass.",
   "rangesFor": "Dynamic TGA at about 10 K/min. Temperatures are the DTG peak of a step, in degrees C.",
   "events": [
     {
@@ -10,7 +10,7 @@
       "atmosphere": "any",
       "categories": [],
       "notes": "Usually the first, small step. Strongly bound water can come off higher (see bound water).",
-      "source": "TODO, verify"
+      "source": "Range: TODO, verify. Example: Gaisford, Kett & Haines (2016) §3.3.2 (proximate analysis of charcoal: moisture measured in a 10 min hold at 120 °C, volatiles to 900 °C in nitrogen, carbon burned in air)."
     },
     {
       "id": "bound-water",
@@ -20,7 +20,7 @@
       "atmosphere": "any",
       "categories": ["hydroxide-or-salt"],
       "notes": "Hydrates often lose water in several steps; this overlaps with moisture loss and early organic loss.",
-      "source": "TODO, verify"
+      "source": "Range: TODO, verify. Example: Gaisford, Kett & Haines (2016) §10.3.1 (calcium oxalate dihydrate: water lost first, then CO from oxalate to carbonate, then CO2 from carbonate to oxide)."
     },
     {
       "id": "capping-agents",
@@ -80,7 +80,7 @@
       "atmosphere": "any",
       "categories": ["hydroxide-or-salt"],
       "notes": "Alkaline-earth carbonates decompose at the high end of this range; transition-metal carbonates lower.",
-      "source": "TODO, verify"
+      "source": "Range: TODO, verify. Example: Gaisford, Kett & Haines (2016) §10.3.1 (calcium oxalate: the carbonate step, loss of CO2, is the last one) and §3.4 (CaCO3 under CO2)."
     },
     {
       "id": "carbon-oxidation",
@@ -90,7 +90,7 @@
       "atmosphere": "oxidising",
       "categories": ["biomass", "composite"],
       "notes": "Only possible when oxygen is present (air or oxygen). In nitrogen or argon the carbon stays as residue.",
-      "source": "TODO, verify"
+      "source": "Range: TODO, verify. Example: Gaisford, Kett & Haines (2016) §3.3.2 (carbonaceous residue burned off after switching the purge to air)."
     }
   ]
 }

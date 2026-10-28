@@ -59,7 +59,7 @@ describe('assign events step', () => {
   it('warns that TGA alone cannot identify the species and that the table is unverified', async () => {
     render(<Harness initial={base} Step={AssignStep} />);
     expect(await screen.findByText(/TGA alone cannot identify the evolved species/)).toBeTruthy();
-    expect(screen.getByText(/Table not verified yet/)).toBeTruthy();
+    expect(screen.getByText(/Ranges not verified yet/)).toBeTruthy();
   });
 
   it('lists up to three ranked suggestions per step and lets the user accept one', async () => {

@@ -541,7 +541,12 @@ describe('event type guidance', () => {
 
   it('flags the table as unverified', () => {
     expect(table.verification).toMatch(/TODO, verify/);
-    expect(table.events.every((r) => r.source.startsWith('TODO'))).toBe(true);
+    // Directions are cited to the textbook; every temperature range is still a placeholder.
+    expect(table.events.every((r) => /TODO, verify/.test(r.source))).toBe(true);
+    for (const id of ['melting', 'dehydration-evaporation', 'crystallisation', 'oxidation'])
+      expect(table.events.find((r) => r.id === id)?.source, id).toMatch(
+        /Gaisford, Kett & Haines \(2016\) §/,
+      );
   });
 });
 

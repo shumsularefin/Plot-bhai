@@ -1,5 +1,81 @@
 # Progress
 
+## Owner feedback round: thermal tables checked against Gaisford, Kett & Haines (2016)
+
+The owner supplied _Principles of Thermal Analysis and Calorimetry_, 2nd edn, ed. S. Gaisford,
+V. Kett and P. Haines (RSC 2016, ISBN 978-1-78262-051-8) in `docs/papers`. I read the TGA (ch. 3),
+DSC (ch. 5), simultaneous techniques (ch. 10) and SCTA (ch. 11) chapters against the three rule
+tables in `data/thermal`.
+
+- **What the book supports (now cited by section in each `source` field):**
+  - DSC directions and scans: melting endothermic, sharp for a single crystalline material and
+    broad for polymers, fats and waxes (§5.5.1); crystallisation exothermic, on cooling or as cold
+    crystallisation on heating (§5.5.3); loss of volatiles endothermic and easily confused with
+    melting (§5.5.5); moisture gives a small broad endotherm at about 50–80 °C in a vented pan
+    (§5.5.6); oxidation of carbons exothermic (§11.2.6); decomposition with mass loss can be
+    endothermic or exothermic (§3.5, Fig. 3.19); melting shows no mass change (§3.5).
+  - Usual direction of moisture, bound water and carbon oxidation in `combined-rules.json`
+    (new `directionSources` map).
+  - Worked examples named in the TGA notes: proximate analysis of charcoal (§3.3.2), calcium
+    oxalate dihydrate water → CO → CO₂ (§10.3.1), CuSO₄·5H₂O dehydration (§5.5.5).
+- **Changed because of the book:** the melting and dehydration rules no longer claim a usual
+  peak shape (`shape: "any"`), because the book gives broad melting for polymers and sharp
+  dehydration peaks with a pinhole lid. The in-app notes now say "partly verified".
+- **Still TODO, verify:** every temperature range (TGA and DSC). The book is about principles and
+  gives no general table of typical event temperatures, so no range could be checked. The
+  solid-solid row and the usual direction of capping agents, polymer degradation,
+  dehydroxylation, nitrate, acetate and carbonate are not covered either. A handbook table
+  (for example Brown, _Introduction to Thermal Analysis_, or the ICTAC kinetics and
+  nomenclature recommendations) would be needed for the ranges.
+- **Copyright note:** the PDF is a full commercial textbook and is committed to the repository.
+  I did not copy any text from it beyond short section references. Consider keeping it outside
+  the repository.
+
+## Owner feedback round, stage 3 of 6: particles (area fraction, intercepts, scale bar, XRD) (done)
+
+Branch `claude/zen-edison-acnmco`. No new dependencies. Pooling several images into one
+distribution already existed (sub-stage 10c), so this stage added the other particle items.
+
+### What was built
+
+- **Scale bar found automatically** (step 2, "Find the scale bar automatically"): the bottom 40 %
+  of the image is scanned for a thin, straight, uniformly white or black bar (2 px or more
+  thick, under 6 % of the height, 3–70 % of the width, standing out from the rows above and
+  below). With end ticks (|———|) the ends go to the tick centres. The user checks it and types
+  the printed length. `src/core/particles/scaleBar.ts`.
+- **Area fraction** of the detected regions in the analysis area (Delesse: A_A estimates V_V;
+  the areal porosity when the regions are pores). Particles cut by the edge are counted; the
+  size and shape filters of step 3 apply.
+- **Mean lineal intercept (ASTM E112-13, Heyn method):** evenly spaced horizontal and vertical
+  test lines, one intercept per region crossed and one half at a line end (§13.3). For grains
+  filling the image ℓ̄ = L_T/N (Table 6, A1.1.1.3); for one phase on a background
+  ℓ̄_α = V_V·L_T/N_α (eq. 25) with V_V taken as the line fraction, i.e. the mean chord length.
+  Horizontal, vertical and both together; a warning below 50 intercepts (§13.1) and when the two
+  directions differ by more than 25 %. ASTM G = −6.643856 log₁₀ ℓ̄(mm) − 3.288 (Table 6) when the
+  image has a scale. `src/core/particles/stereology.ts`; only the test-line pixels are read.
+- **Comparison with the XRD crystallite size:** the user types the XRD size and method; the table
+  shows particle mean and median, the crystallite size and their ratio, with a note labelled
+  "Estimate, not a proof" (ratio near 1 fits one crystallite per particle, clearly above 1
+  several crystallites or aggregates).
+- CSV of all these numbers; sentences added to the methods text. Saved state version 5 (older
+  sessions get the default settings).
+
+### Checked
+
+- ASTM E112-13 text read (Table 4, Table 6, §13, eq. 25). Tests: G = 0, 8 and 14 for
+  ℓ̄ = 0.3200, 0.0200 and 0.0025 mm (Table 4); +2 when ℓ̄ halves; square grains 10 px wide give
+  ℓ̄ = 10 px in both directions with the half-intercept rule; discs give the mean chord πr/2;
+  area fractions exact for rectangles and within 3 % for digital discs; bar finder on white,
+  black and ticked bars and on an image without a bar.
+- Type check, lint, 820 tests (1 skipped), build and bundle size pass. e2e has two new checks
+  (the example bar is found as 200 px from tick to tick; area fraction within 3 % of the true
+  9.60 %) but the e2e run was stopped this session, so it has not been run on these changes.
+
+### Known issues
+
+- The XRD size is typed by hand; it is not read from the XRD tool.
+- Test lines are not drawn on the image yet.
+
 ## Owner feedback round, stage 2 of 6: UV-Vis concentration and kinetics (done)
 
 Branch `claude/zen-edison-acnmco`. No new dependencies.

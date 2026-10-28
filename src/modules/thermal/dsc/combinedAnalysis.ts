@@ -34,12 +34,12 @@ import { DEFAULT_STEP_SETTINGS } from '../data';
 import { dscRules } from './analysis';
 import type { DscData } from './data';
 
-/** Usual heat flow direction of each TGA rule: my own placeholder, flagged "TODO, verify" in the file. */
+/** Usual heat flow direction of each TGA rule; the file says which are checked and which are placeholders. */
 const usualDirection = combinedFile.tgaUsualDirection as Record<string, 'endo' | 'exo' | 'either'>;
 
 /** Shown wherever the combined suggestions appear, because the two rule tables are not checked yet. */
 export const COMBINED_UNVERIFIED_NOTE =
-  'Not verified yet: the DSC ranges (data/thermal/dsc-events.json) and the usual heat flow direction of each mass loss event (data/thermal/combined-rules.json) are placeholders flagged "TODO, verify". Treat the ranking as a rough guide until you have checked them against your own sources.';
+  'Partly verified: the endo or exo direction of the DSC events and of moisture, bound water and carbon oxidation is checked against Gaisford, Kett and Haines (2016). The temperature ranges (data/thermal/dsc-events.json) and the usual direction of the other mass loss events (data/thermal/combined-rules.json) are placeholders flagged "TODO, verify". Treat the ranking as a rough guide until you have checked them against your own sources.';
 
 export interface CombinedView {
   tga: TgaCurve;

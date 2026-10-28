@@ -536,7 +536,7 @@ try {
     .waitFor();
   await page.getByText(/Heat flow: exo up/).waitFor();
   await page
-    .getByText(/Table not verified yet/)
+    .getByText(/Partly verified/)
     .first()
     .waitFor();
   await page.getByText(/Check by XRD of samples calcined below and above 520/).waitFor();

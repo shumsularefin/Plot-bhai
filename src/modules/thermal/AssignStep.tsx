@@ -58,9 +58,11 @@ export function AssignStep({ data, update }: StepContext<ThermalData>) {
         {NO_CERTAINTY_NOTE}
       </p>
       <p class="message is-warning" role="note">
-        <strong>Table not verified yet:</strong> the typical temperature ranges used below are broad
-        placeholders and are flagged "TODO, verify" in <code>data/thermal/events.json</code>. Treat
-        the ranking as a rough guide until you have checked the ranges against your own sources.
+        <strong>Ranges not verified yet:</strong> the typical temperature ranges used below are
+        broad placeholders flagged "TODO, verify" in <code>data/thermal/events.json</code>. The
+        textbook checked (Gaisford, Kett and Haines, 2016) gives worked examples but no general
+        ranges. Treat the ranking as a rough guide until you have checked the ranges against your
+        own sources.
       </p>
 
       <ThermalPlot
