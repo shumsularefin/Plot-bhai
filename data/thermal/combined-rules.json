@@ -1,5 +1,5 @@
 {
-  "verification": "TODO, verify: the correlation of a DSC event with a mass change (four rules) follows the stage specification. The 'usual' direction of each TGA rule below is my own general-knowledge placeholder, NOT checked against any source; 'either' means no preference. Replace with values from a source you can cite, fill in 'source', then remove this TODO.",
+  "verification": "Partly checked. The four correlations of a DSC event with a mass change follow the stage specification; that melting shows no mass change and that a decomposition with mass loss can be endothermic or exothermic is supported by Gaisford S., Kett V. and Haines P. (eds), Principles of Thermal Analysis and Calorimetry, 2nd edn, Royal Society of Chemistry, 2016, ISBN 978-1-78262-051-8, §3.5 (Figure 3.19). The usual direction of moisture, bound water and carbon oxidation is checked against the same book (see 'directionSources'). TODO, verify: the directions of the other mass loss events are my own general-knowledge placeholders, not checked against any source; 'either' means no preference.",
   "tgaUsualDirection": {
     "moisture": "endo",
     "bound-water": "endo",
@@ -11,5 +11,16 @@
     "carbonate": "endo",
     "carbon-oxidation": "exo"
   },
-  "source": "TODO, verify"
+  "source": "Gaisford S., Kett V. and Haines P. (eds), Principles of Thermal Analysis and Calorimetry, 2nd edn, Royal Society of Chemistry, 2016, ISBN 978-1-78262-051-8 (partly, see 'verification')",
+  "directionSources": {
+    "moisture": "Gaisford, Kett & Haines (2016) §5.5.5 and §5.5.6: loss of moisture and volatiles is endothermic.",
+    "bound-water": "Gaisford, Kett & Haines (2016) §5.5.5: water of hydration lost from CuSO4·5H2O gives endothermic peaks.",
+    "carbon-oxidation": "Gaisford, Kett & Haines (2016) §11.2.6: oxidation of carbons is exothermic.",
+    "capping-agents": "TODO, verify",
+    "polymer-degradation": "TODO, verify",
+    "dehydroxylation": "TODO, verify",
+    "nitrate": "TODO, verify",
+    "acetate": "TODO, verify",
+    "carbonate": "TODO, verify"
+  }
 }

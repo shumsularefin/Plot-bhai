@@ -12,9 +12,12 @@ import {
 import { HelpTip } from '../../ui/HelpTip';
 import type { StepContext } from '../../ui/wizard/types';
 import { NumberInput } from '../xrd/NumberInput';
+import { findScaleBar } from '../../core/particles/scaleBar';
 import { CoordinateFields } from './CoordinateFields';
 import { calibrationOf, type ParticleData } from './data';
 import { EXAMPLE_SCALE } from './example';
+import type { DecodedImage } from './decode';
+import { grayOf, workingSize } from './grayImage';
 import { ImageGate } from './ImageGate';
 import { ImageViewer, type DrawTool, type Tool } from './ImageViewer';
 
@@ -33,6 +36,7 @@ const fixed = (value: number, digits = 3) => Number(value.toPrecision(digits)).t
 export function ScaleStep({ data, update }: StepContext<ParticleData>) {
   const [tool, setTool] = useState<Tool>('scale');
   const [strip, setStrip] = useState<number | null>(null);
+  const [found, setFound] = useState<string | null>(null);
   const info = data.image;
   const calibration = calibrationOf(data.scale);
   const perUnit = calibration ? pixelsPerUnit(calibration, data.scale?.unit ?? 'nm') : null;
@@ -51,6 +55,24 @@ export function ScaleStep({ data, update }: StepContext<ParticleData>) {
       const rect = rectFromCorners(a, b, info.width, info.height);
       if (rect) update({ crop: rect });
     }
+  };
+  const autoFind = (image: DecodedImage) => {
+    const { gray, width, height } = grayOf(image);
+    const bar = findScaleBar(gray, width, height);
+    if (!bar) {
+      setFound(
+        'No scale bar was found. Draw it by hand: choose "Draw the scale bar" and drag along it.',
+      );
+      return;
+    }
+    const { scale } = workingSize(image);
+    setBar(
+      { x: bar.p1.x / scale, y: bar.p1.y / scale },
+      { x: bar.p2.x / scale, y: bar.p2.y / scale },
+    );
+    setFound(
+      `Found a ${bar.tone === 'bright' ? 'white' : 'black'} bar. Zoom in and check that it covers the scale bar from end to end, then type its length.`,
+    );
   };
 
   return (
@@ -93,6 +115,14 @@ export function ScaleStep({ data, update }: StepContext<ParticleData>) {
                   </p>
                 </HelpTip>
               </h3>
+              <div class="radiation-fields">
+                <button type="button" class="btn" onClick={() => autoFind(image)}>
+                  Find the scale bar automatically
+                </button>
+              </div>
+              <p class="field-hint" role="status">
+                {found}
+              </p>
               {!data.scale ? (
                 <p class="field-hint">
                   Choose "Draw the scale bar" above and drag along the scale bar of the image. If

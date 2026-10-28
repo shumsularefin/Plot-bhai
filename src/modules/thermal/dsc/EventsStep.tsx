@@ -244,9 +244,11 @@ export function DscEventsStep({ data, update }: StepContext<DscData>) {
           {DSC_NO_CERTAINTY_NOTE}
         </p>
         <p class="message is-warning" role="note">
-          <strong>Table not verified yet:</strong> the typical temperature ranges are broad
-          placeholders flagged "TODO, verify" in <code>data/thermal/dsc-events.json</code>. Treat
-          the ranking as a rough guide until you have checked the ranges against your own sources.
+          <strong>Ranges not verified yet:</strong> whether each kind of event is endothermic or
+          exothermic is checked against Gaisford, Kett and Haines (2016), but the typical
+          temperature ranges are broad placeholders flagged "TODO, verify" in{' '}
+          <code>data/thermal/dsc-events.json</code>. Treat the ranking as a rough guide until you
+          have checked the ranges against your own sources.
         </p>
         {events.map((event) => {
           const ranked = guidance(data, event, curve.cooling);

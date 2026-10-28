@@ -12,8 +12,12 @@ export interface ImageSizes {
   hand: number;
 }
 
-/** The detected particles that pass the filters of the detection step, with what is needed to measure them. */
-export function keptParticles(data: ParticleData) {
+/**
+ * The detected particles that pass the filters of the detection step, with what is needed to
+ * measure them. `keepEdge` keeps the particles cut by the edge of the analysis area even when the
+ * filters leave them out; area fractions and line intercepts must count them.
+ */
+export function keptParticles(data: ParticleData, keepEdge = false) {
   const info = data.image;
   const calibration = calibrationOf(data.scale);
   const perPixelNm = calibration ? nmPerPixel(calibration) : null;
@@ -27,7 +31,8 @@ export function keptParticles(data: ParticleData) {
         height: crop.height * scale,
       }
     : { x: 0, y: 0, width: (info?.width ?? 0) * scale, height: (info?.height ?? 0) * scale };
-  const { kept } = applyFilters(data.detect.particles, data.detect.filters, {
+  const filters = keepEdge ? { ...data.detect.filters, excludeEdge: false } : data.detect.filters;
+  const { kept } = applyFilters(data.detect.particles, filters, {
     scale,
     nmPerPixel: perPixelNm,
     edgeArea,

@@ -110,7 +110,7 @@ describe('DSC events step', () => {
     expect(screen.getByRole('heading', { name: /Event 1: exothermic/ })).toBeTruthy();
     expect(screen.getByRole('heading', { name: /Event 2: endothermic/ })).toBeTruthy();
     expect(screen.getByText(/DSC alone cannot tell what happened/)).toBeTruthy();
-    expect(screen.getByText(/Table not verified yet/)).toBeTruthy();
+    expect(screen.getByText(/Ranges not verified yet/)).toBeTruthy();
   });
 
   it('records an accepted suggestion', () => {
@@ -200,7 +200,7 @@ describe('combined TGA-DSC', () => {
     expect(text).toContain('Mass loss with an endotherm suggests dehydration');
     expect(text).toContain('No mass change with an exotherm suggests crystallisation');
     expect(text).toContain('Heat flow: exo up');
-    expect(text).toContain('Table not verified yet');
+    expect(text).toContain('Partly verified');
     expect(text).toMatch(/The mass does not change .* while heat is released/);
     expect(text).toMatch(/Mass is lost .* while heat is absorbed/);
     expect(text).toMatch(/Check by XRD of samples calcined below and above 520/);

@@ -220,7 +220,7 @@ export function DscCombinedStep({ data, update }: StepContext<DscData>) {
           {DSC_NO_CERTAINTY_NOTE} {NO_CERTAINTY_NOTE}
         </p>
         <p class="message is-warning" role="note">
-          <strong>Table not verified yet:</strong> {COMBINED_UNVERIFIED_NOTE}
+          <strong>Check:</strong> {COMBINED_UNVERIFIED_NOTE}
         </p>
       </section>
 

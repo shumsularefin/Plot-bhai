@@ -54,8 +54,10 @@ export default function About() {
             width the size is only a lower limit.
           </li>
           <li>
-            Thermal event tables are marked for verification. Check them against your own references
-            before publishing.
+            Thermal event tables: whether each DSC event is endothermic or exothermic is checked
+            against Gaisford, Kett and Haines, Principles of Thermal Analysis and Calorimetry (2nd
+            edn, 2016); the typical temperature ranges are still marked for verification. Check them
+            against your own references before publishing.
           </li>
           <li>
             JCPDS/ICDD data is not included. A JCPDS number you type is printed as typed and is

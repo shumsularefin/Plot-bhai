@@ -6,6 +6,7 @@ import { fitLognormal, fitNormal, cleanSizes } from '../src/core/particles/distr
 import { DEFAULT_DETECT_SETTINGS } from '../src/core/particles/detect/pipeline';
 import {
   DEFAULT_DISTRIBUTION,
+  DEFAULT_STEREOLOGY,
   initialParticleData,
   migrateParticleData,
   type ImageInfo,
@@ -15,6 +16,7 @@ import {
 } from '../src/modules/particles/data';
 import { DistributionStep } from '../src/modules/particles/DistributionStep';
 import { collectSizes, imageSizes } from '../src/modules/particles/sizes';
+import { stereologyOf } from '../src/modules/particles/stereology';
 
 const image: ImageInfo = {
   id: 'img',
@@ -341,5 +343,35 @@ describe('distribution step', () => {
   it('says what to do when there is nothing to show', () => {
     setup(withParticles([]));
     expect(screen.getByText(/Nothing to show yet/)).toBeTruthy();
+  });
+});
+
+describe('area fraction, intercepts and XRD comparison', () => {
+  it('gives the area fraction of the detected particles in the whole image', () => {
+    const result = stereologyOf(withParticles([40, 60, 80]));
+    const expected = (Math.PI * (20 ** 2 + 30 ** 2 + 40 ** 2)) / (1000 * 800);
+    expect(Math.abs((result?.areaFraction as number) - expected) / expected).toBeLessThan(0.03);
+    expect(result?.unit).toBe('nm');
+    expect(result?.regions).toBe(3);
+  });
+
+  it('shows the ratio of the particle size to the typed XRD size, marked as an estimate', () => {
+    const data = withParticles([60, 60, 60, 60], {
+      stereology: { ...DEFAULT_STEREOLOGY, xrdSizeNm: 10, xrdMethod: 'Scherrer' },
+    });
+    render(<DistributionStep data={data} update={() => {}} />);
+    expect(screen.getByText('Area fraction and grain size')).toBeTruthy();
+    expect(screen.getByText(/Estimate, not a proof/)).toBeTruthy();
+    // Discs of 60 px are 30 nm, three times the 10 nm crystallite size.
+    expect(screen.getByText(/Here it is 3(\.0\d*)?\./)).toBeTruthy();
+    expect(screen.getByText(/ASTM E112 asks for at least 50/)).toBeTruthy();
+  });
+
+  it('upgrades a version 4 session with default settings', () => {
+    const { stereology: _unused, ...v4 } = initialParticleData;
+    void _unused;
+    const upgraded = migrateParticleData({ step: 4, furthest: 4, data: v4 }, 4);
+    expect(upgraded?.data.stereology).toEqual(DEFAULT_STEREOLOGY);
+    expect(upgraded?.step).toBe(4);
   });
 });
