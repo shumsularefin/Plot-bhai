@@ -67,9 +67,9 @@ distribution already existed (sub-stage 10c), so this stage added the other part
   ℓ̄ = 10 px in both directions with the half-intercept rule; discs give the mean chord πr/2;
   area fractions exact for rectangles and within 3 % for digital discs; bar finder on white,
   black and ticked bars and on an image without a bar.
-- Type check, lint, 820 tests (1 skipped), build and bundle size pass. e2e has two new checks
-  (the example bar is found as 200 px from tick to tick; area fraction within 3 % of the true
-  9.60 %) but the e2e run was stopped this session, so it has not been run on these changes.
+- Type check, lint, 820 tests (1 skipped), build, bundle size and e2e pass. Two new e2e checks:
+  the example's scale bar is found as 200 px from tick to tick, and the area fraction is within
+  3 % of the true 9.60 %.
 
 ### Known issues
 
