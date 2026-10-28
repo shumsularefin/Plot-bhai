@@ -30,6 +30,8 @@ export interface ThermalMethodsInput {
   rangeSource: string;
   theory: { precursor: string; product: string; lossPct: number } | null;
   calcination: { marginC: number; minLossPct: number; minimumC: number } | null;
+  /** Evolved gas signals shown with the DTG: their number and whether time was mapped to temperature. */
+  evolved: { signals: number; fromTime: boolean; synthetic: boolean } | null;
 }
 
 const num = (value: number, digits = 4) => Number(value.toPrecision(digits)).toString();
@@ -83,6 +85,12 @@ export function thermalMethodsParagraph(input: ThermalMethodsInput): string {
   if (input.calcination) {
     s.push(
       `A minimum calcination temperature of ${num(input.calcination.minimumC, 3)} °C was suggested as the extrapolated endset of the last step losing at least ${num(input.calcination.minLossPct)} % plus a margin of ${num(input.calcination.marginC)} °C; this is a starting point to be confirmed experimentally.`,
+    );
+  }
+  if (input.evolved && input.evolved.signals > 0) {
+    const e = input.evolved;
+    s.push(
+      `${e.signals} evolved gas signal${e.signals === 1 ? ' was' : 's were'} compared with the DTG on a common temperature axis${e.fromTime ? ' (their time axis was converted to temperature with the time and temperature columns of the TGA run; transfer-line delay was not corrected)' : ''}, each scaled to its own maximum${e.synthetic ? '; the signals are synthetic example data' : ''}.`,
     );
   }
   s.push(`Analysis software: ${input.software}.`);

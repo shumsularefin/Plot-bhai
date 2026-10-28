@@ -13,6 +13,7 @@ import {
   useThermalView,
 } from './analysis';
 import { CompareRuns } from './CompareRuns';
+import { EvolvedGas } from './EvolvedGas';
 import type { ThermalData } from './data';
 import { methodsText } from './methodsText';
 import { thermalSession } from './session';
@@ -195,6 +196,8 @@ export function ResultsStep({ data, update }: StepContext<ThermalData>) {
       </section>
 
       <CompareRuns data={data} update={update} curve={curve} />
+
+      <EvolvedGas data={data} update={update} curve={curve} dtg={view.dtg} steps={steps} />
 
       <section aria-labelledby="methods-title">
         <h3 id="methods-title" class="export-title">

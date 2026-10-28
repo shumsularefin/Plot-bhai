@@ -56,6 +56,13 @@ export function methodsInput(
             minimumC: calcination.minimumC,
           }
         : null,
+    evolved: data.evolved
+      ? {
+          signals: data.evolved.signals.filter((i) => i !== data.evolved?.xColumn).length,
+          fromTime: data.evolved.axis === 'min' || data.evolved.axis === 's',
+          synthetic: data.evolved.synthetic,
+        }
+      : null,
   };
 }
 

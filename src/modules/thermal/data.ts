@@ -2,6 +2,7 @@ import { DEFAULT_CALCINATION, type CalcinationOptions } from '../../core/thermal
 import { REACTION_EXAMPLES, type Reaction } from '../../core/thermal/formula';
 import { DEFAULT_CLEAN, type CleanSettings } from '../../core/thermal/process';
 import { DEFAULT_DETECT, type DetectOptions, type StepLimit } from '../../core/thermal/steps';
+import type { EvolvedAxis } from '../../core/thermal/evolved';
 import type { ColumnMapping, RunInfo, ThermalTable } from '../../core/thermal/types';
 import { DEFAULT_EXPORT_SETTINGS } from '../../ui/plot/export';
 import type { PlotSettings } from '../../ui/plot/PlotPanel';
@@ -90,6 +91,18 @@ export interface ThermalData {
   plot: PlotSettings;
   /** Other samples' runs, compared with this one in the results (cleaned the same way, no blank). */
   compare: LoadedTable[];
+  /** Evolved gas signals (TGA–MS or TGA–FTIR) laid over the DTG in the results. */
+  evolved: EvolvedFile | null;
+}
+
+/** An evolved gas file: one x column (temperature or time) and the signal columns to show. */
+export interface EvolvedFile {
+  name: string;
+  table: ThermalTable;
+  xColumn: number;
+  axis: EvolvedAxis;
+  signals: number[];
+  synthetic: boolean;
 }
 
 export const initialThermalData: ThermalData = {
@@ -103,20 +116,21 @@ export const initialThermalData: ThermalData = {
   calcination: DEFAULT_CALCINATION,
   plot: { normalise: false, offsetPercent: 0, export: DEFAULT_EXPORT_SETTINGS },
   compare: [],
+  evolved: null,
 };
 
 /** Version of the saved shape. Bump it, and extend migrateThermalData, when the shape changes. */
-export const THERMAL_STATE_VERSION = 3;
+export const THERMAL_STATE_VERSION = 4;
 
 /**
- * Version 1 had no event assignments, theory check or calcination settings, and versions 1 and 2
- * no compared runs; missing settings start at their defaults.
+ * Version 1 had no event assignments, theory check or calcination settings, versions 1 and 2 no
+ * compared runs, and versions 1 to 3 no evolved gas file; missing settings start at their defaults.
  */
 export function migrateThermalData(
   saved: unknown,
   version: number,
 ): WizardState<ThermalData> | undefined {
-  if (version !== 1 && version !== 2) return undefined;
+  if (version !== 1 && version !== 2 && version !== 3) return undefined;
   const state = saved as WizardState<Partial<ThermalData>> | null;
   if (!state || typeof state !== 'object' || !state.data) return undefined;
   return { ...state, data: { ...initialThermalData, ...state.data } };
