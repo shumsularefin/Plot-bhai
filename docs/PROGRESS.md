@@ -1,5 +1,40 @@
 # Progress
 
+## Owner feedback round, stage 2 of 6: UV-Vis concentration and kinetics (done)
+
+Branch `claude/zen-edison-acnmco`. No new dependencies.
+
+### What was built
+
+- The UV-Vis tool has a second analysis, "Concentration and kinetics" (switch at the top,
+  remembered in the browser, loaded on demand), a three-step wizard:
+  1. Standards of known concentration and/or samples over time: loaded spectra (absorbance or
+     transmittance) or absorbances typed by hand; any concentration unit.
+  2. Wavelength: the absorption maximum of the reference spectrum (t = 0, else the earliest
+     sample, else the strongest standard) inside an optional search range, or typed / clicked;
+     optional averaging over ± a few nm.
+  3. Results: Beer–Lambert calibration line (free or through zero), absorptivity ε = slope / b
+     with its standard error, a warning when samples fall outside the standards' range;
+     pseudo-first-order kinetics ln(C₀/C) = k t through the origin with C/C₀ = A/A₀ (dark-period
+     points before t = 0 listed, not fitted), k ± σ, R², half-life, removal %; C/C₀ and
+     ln(C₀/C) plots; CSV files, methods text and session file.
+- `src/core/uvvis/concentration.ts` (`absorbanceAt`, `calibrate`, `concentrationFrom`,
+  `firstOrderKinetics`), `src/modules/uvvis/concentration/`.
+- Example: a made-up dye band (660 nm, 0.18 L mg⁻¹ cm⁻¹, k = 0.02 min⁻¹), five standards and a
+  degradation series with a dark period, all marked synthetic.
+
+### Checked
+
+- Known answers: exact ε, intercept and unknown concentration from noise-free standards; path
+  length division; k, half-life and removal from an exact exponential decay; the example's k and
+  ε are recovered within 0.1 % and 0.5 % with noise. UI test and an e2e check of the example.
+- Type check, lint, 803 tests (1 skipped), build, bundle size and e2e pass; no sideways scroll at
+  360 px.
+
+### Known issues
+
+- Only the pseudo-first-order model; no pseudo-second-order or Langmuir–Hinshelwood fit yet.
+
 ## Owner feedback round, stage 1 of 6: compare TGA runs of several samples (done)
 
 Branch `claude/zen-edison-acnmco`. No new dependencies. The owner set the order on 2026-10-28:
