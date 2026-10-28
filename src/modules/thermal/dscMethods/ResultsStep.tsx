@@ -42,7 +42,7 @@ export function DscMethodsResultsStep({ data, update }: StepContext<DscMethodsDa
         headline: `Specific heat capacity from ${points[0]?.cp.toFixed(3)} J/(g·K) at ${points[0]?.temperatureC.toFixed(0)} °C to ${points[points.length - 1]?.cp.toFixed(3)} J/(g·K) at ${points[points.length - 1]?.temperatureC.toFixed(0)} °C (mean ${mean.toFixed(3)})`,
         notes: [
           ...notes,
-          `The sapphire values come from a table typed in by hand from ${SAPPHIRE.source.citation}; ${SAPPHIRE.verification}`,
+          `The sapphire values come from ${SAPPHIRE.source.citation}; ${SAPPHIRE.verification}`,
         ],
         sources: [
           {

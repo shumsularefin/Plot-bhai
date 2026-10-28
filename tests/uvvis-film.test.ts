@@ -91,3 +91,40 @@ describe('Swanepoel envelope method', () => {
     ).toBe(false);
   });
 });
+
+describe('Swanepoel (1983) published values', () => {
+  // Table 1 of the paper (a-Si:H film on glass, s = 1.51): wavelength, T_M, T_m and n₁ from eq. (11).
+  const table1: [number, number, number, number][] = [
+    [859, 0.919, 0.478, 3.015],
+    [814, 0.919, 0.47, 3.052],
+    [775, 0.916, 0.46, 3.095],
+    [740, 0.913, 0.448, 3.149],
+    [710, 0.908, 0.437, 3.198],
+    [683, 0.896, 0.426, 3.24],
+    [659, 0.882, 0.413, 3.293],
+    [636, 0.847, 0.398, 3.335],
+    [617, 0.805, 0.378, 3.4],
+    [598, 0.715, 0.354, 3.42],
+    [582, 0.616, 0.319, 3.496],
+    [564, 0.433, 0.256, 3.57],
+    [555, 0.328, 0.21, 3.668],
+  ];
+
+  it('reproduces the refractive index of every row of Table 1', () => {
+    for (const [, tMax, tMin, n1] of table1) {
+      expect(filmIndex(tMax, tMin, 1.51)).toBeCloseTo(n1, 2);
+    }
+  });
+
+  it('gives the thickness of the first pairs of adjacent maxima or minima (eq. 23)', () => {
+    // The paper's d₁ column in nm (rows 3 to 11; the last two rows were rejected there), found from
+    // the rounded n₁ of the table.
+    const published = [1035, 988, 979, 1023, 1013, 1002, 975, 1049, 1006];
+    published.forEach((d1, k) => {
+      const [l1, , , n1] = table1[k] as (typeof table1)[number];
+      const [l2, , , n2] = table1[k + 2] as (typeof table1)[number];
+      const d = (l1 * l2) / (2 * (l1 * n2 - l2 * n1));
+      expect(Math.abs(d - d1)).toBeLessThan(3);
+    });
+  });
+});

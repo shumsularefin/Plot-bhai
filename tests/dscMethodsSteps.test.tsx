@@ -48,7 +48,7 @@ describe('DSC methods wizard', () => {
     const text = results(data);
     // The example sample has cp = 1.2 + 0.001 (T − 20) J/(g·K): 1.230 at 50 °C, 1.430 at 250 °C.
     expect(text).toContain('from 1.230 J/(g·K) at 50 °C to 1.430 J/(g·K) at 250 °C');
-    expect(screen.getByText(/typed in by hand/)).toBeTruthy();
+    expect(screen.getByText(/checked against the paper/)).toBeTruthy();
     expect(dscMethodsText(data, analyse(data))).toContain('three-run sapphire (ratio) method');
   });
 

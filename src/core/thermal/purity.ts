@@ -44,7 +44,9 @@ export interface PurityResult {
 export type PurityOutcome = { ok: true; result: PurityResult } | { ok: false; error: string };
 
 /**
- * Purity from the shape of a melting peak with the van 't Hoff equation (as in ASTM E928):
+ * Purity from the shape of a melting peak with the van 't Hoff equation (as in ASTM E928), which
+ * is x₂ = ΔH_f (T₀ − T_s) F / (R T₀²) in the form of eq. (3) of E. E. Marti, Thermochim. Acta 5
+ * (1972) 173–220 (checked against the paper):
  *
  *   T_s = T₀ − (R T₀² x₂ / ΔH_f) · (1/F)
  *
@@ -53,7 +55,8 @@ export type PurityOutcome = { ok: true; result: PurityResult } | { ok: false; er
  * fraction melted at T_s, taken as the partial area of the peak up to T_s over the whole area. The
  * area above a straight baseline is integrated over time (dt = dT/β), giving J/g; ΔH_f = that × M.
  * T_s is fitted against 1/F (least squares) over F from fMin to fMax: the intercept is T₀ and
- * x₂ = −slope · ΔH_f / (R T₀²).
+ * x₂ = −slope · ΔH_f / (R T₀²). Marti notes that only part of the melting curve is linear and that
+ * the usable range depends on the substance, so the range is the user's to adjust.
  *
  * The equation assumes an impurity that dissolves in the melt but not in the solid (a eutectic
  * system) and a nearly pure sample. Neither the curvature ("linearisation") correction nor a
