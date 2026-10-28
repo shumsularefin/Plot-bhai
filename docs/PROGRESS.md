@@ -1,5 +1,70 @@
 # Progress
 
+## Owner feedback round, stage 6 of 6: Validate button and counters (done)
+
+Branch `claude/zen-edison-acnmco`. No new dependencies (the Worker test uses Node's built-in
+`node:sqlite`). Setup steps for the owner: docs/feedback.md.
+
+### What was built
+
+- **Validate button** in the header of every analysis wizard, highlighted in the accent colour.
+  Its pop-up says the tool is an early testing version and asks "Did it work for your data?"
+  (It worked / Something is wrong) with an optional comment of up to 1000 characters, and says
+  exactly what is sent. Escape, the Close button and a click outside close it.
+- **No validation without an analysis:** reaching the last step of a wizard records a finished
+  analysis with the service and keeps its proof (an HMAC of the analysis ID, browser ID and
+  section) in local storage. Without a proof the pop-up asks the user to finish an analysis
+  first and offers no Send button; the service checks the proof again, accepts one validation
+  per analysis and only from the same browser and section, on the day of the analysis or the next.
+- **Limits** per day: 30 analyses and 5 validations per browser, 100 analyses and 20 validations
+  per IP address, 20 browsers counted as visits per IP; a browser's visit counts once a day.
+  IP addresses and browser IDs are stored only as HMAC hashes (the IP hash includes the day), and
+  the limit rows are deleted after two days.
+- **Comments are published only after approval:** validations with a comment are stored as
+  pending; the owner lists, approves or rejects them with the admin token (curl commands in
+  docs/feedback.md). Validations without a comment are counted straight away.
+- **Home page "Testing so far":** visit, analysis and validation counters and the approved
+  comments. Hidden while the service cannot be reached.
+- **Service:** `worker-feedback/` (Cloudflare Worker, D1 database `plot-bhai-feedback`,
+  `schema.sql`), deployed by `.github/workflows/feedback-worker.yml`, which finds or creates the
+  database, creates the tables, deploys and sets the two secrets. It skips itself until the
+  secrets exist. Writes are accepted only from the site's origins; without secrets it answers 503.
+- CLAUDE.md section 2, the About privacy note and the CSP `connect-src` updated for the second
+  backend.
+
+### Decisions
+
+- The limits and the two-day proof window are my choice; they are constants in
+  `worker-feedback/feedback.js`.
+- A finished analysis is "reached the last step of the wizard", the same for every tool.
+- The site works fully without the service: every request fails quietly, the counters are
+  hidden, and the pop-up says validation is unavailable when the service is switched off.
+
+### Checked
+
+- `tests/feedback-worker.test.ts` (7 tests): a visit once per browser a day, validation only
+  with the proof from the same browser, one per analysis, comments private until approved and
+  the admin token, daily limits per browser and IP, bad input and writes from other sites
+  refused, no IP or browser ID stored in clear, 503 without secrets.
+- `tests/feedback-ui.test.tsx` (5 tests): pop-up without an analysis, send with proof and
+  trimmed comment, refusal message, home counters and comments, hidden when switched off.
+- e2e with the service stubbed: XRD run → Validate → comment sent with the proof; home counters
+  shown.
+- Type check, lint, 892 tests (1 skipped), build, bundle size and e2e pass.
+
+### Known issues and owner actions
+
+- **The service is not deployed yet.** Add the D1 permission to the Cloudflare token and the
+  secrets `FEEDBACK_PROOF_SECRET` and `FEEDBACK_ADMIN_TOKEN`, then run the "Feedback worker"
+  workflow (docs/feedback.md). Until then the counters stay hidden and Send reports that the
+  service could not be reached.
+- Still open from stage 5: verify the Ditmars sapphire table, the Starink constants, the E928
+  fraction range and the Swanepoel equation numbers; confirm the FTIR step 3 flicker fix.
+
+### Next
+
+All six stages of the owner feedback round are done.
+
 ## Owner feedback round, stage 5 of 6: remaining science (done)
 
 Branch `claude/zen-edison-acnmco`. No new dependencies. Two new wizards (UV-Vis "Plasmon and

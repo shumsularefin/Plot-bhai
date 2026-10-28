@@ -23,10 +23,15 @@ export default function About() {
         <h2 id="about-privacy">Privacy</h2>
         <p>
           All processing happens in your browser. Your files are never uploaded, and the site has no
-          accounts, analytics or tracking. The only request that leaves your browser is the optional
-          online COD search, which sends the elements, formula or COD number you choose. Your work
-          is kept in this browser (IndexedDB) so a refresh does not lose it; clearing site data
-          removes it. Use the session file in each tool to keep a copy or move it to another device.
+          accounts, analytics or tracking. Two kinds of request leave your browser. The optional
+          online COD search sends the elements, formula or COD number you choose. The testing
+          counters and the Validate button send a random ID for this browser, the name of the
+          analysis section, and your verdict and comment when you validate; your data and results
+          are never sent. The service keeps your IP address and browser ID only as salted hashes, to
+          enforce daily limits, and comments are published on the home page only after the site
+          owner approves them. Your work is kept in this browser (IndexedDB) so a refresh does not
+          lose it; clearing site data removes it. Use the session file in each tool to keep a copy
+          or move it to another device.
         </p>
       </section>
 

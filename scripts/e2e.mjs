@@ -53,6 +53,40 @@ const problems = [];
 page.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
 page.on('console', (m) => m.type() === 'error' && problems.push(`console: ${m.text()}`));
 
+// The feedback service, stubbed: the run needs no network and sends nothing.
+const feedback = { visits: 0, analyses: 0, validations: [] };
+await page.route('https://plot-bhai-feedback.plot-bhai.workers.dev/**', async (route) => {
+  const path = new URL(route.request().url()).pathname;
+  const body = route.request().postDataJSON() ?? {};
+  const reply = (json) => route.fulfill({ json, headers: { 'Access-Control-Allow-Origin': '*' } });
+  if (route.request().method() === 'OPTIONS') {
+    return route.fulfill({
+      status: 204,
+      headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*' },
+    });
+  }
+  if (path === '/visit') {
+    feedback.visits += 1;
+    return reply({ counted: true });
+  }
+  if (path === '/analysis') {
+    feedback.analyses += 1;
+    return reply({ id: `analysis-${feedback.analyses}`, proof: 'stub-proof' });
+  }
+  if (path === '/validate') {
+    feedback.validations.push(body);
+    return reply({ ok: true, pending: body.comment !== '' });
+  }
+  if (path === '/stats') {
+    return reply({
+      visits: feedback.visits,
+      analyses: feedback.analyses,
+      validations: feedback.validations.length,
+    });
+  }
+  return reply({ comments: [] });
+});
+
 const heading = () => page.locator('#wizard-step-heading');
 const next = async (expected) => {
   await page.getByRole('button', { name: 'Next', exact: true }).click();
@@ -143,6 +177,19 @@ try {
   assert.match(text, /generated example data/);
   assert.doesNotMatch(text, /NaN|undefined/);
   step('9 Export: methods text from the real settings');
+
+  // Validate: the finished analysis was recorded, so the pop-up sends a validation.
+  assert.ok(feedback.analyses >= 1, 'reaching the last step records an analysis');
+  await page.getByRole('button', { name: 'Validate' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByText('early testing version').waitFor();
+  await dialog.getByLabel('Comment (optional)').fill('Sizes look right.');
+  await dialog.getByRole('button', { name: 'Send' }).click();
+  await dialog.getByText('Your comment will appear once it has been read.').waitFor();
+  assert.equal(feedback.validations[0]?.comment, 'Sizes look right.');
+  assert.equal(feedback.validations[0]?.proof, 'stub-proof');
+  await dialog.getByRole('button', { name: 'Close' }).click();
+  step('Validate: pop-up sent the verdict and comment with the analysis proof');
 
   await page.getByRole('button', { name: 'Download SVG' }).waitFor({ timeout: 20_000 });
   const [svgDownload] = await Promise.all([
@@ -671,6 +718,11 @@ try {
   step('Thermal: no horizontal page scroll at 360 and 1280 px');
 
   // Graph image inside XRD: example figure through calibration and tracing, added to XRD.
+  await page.goto(`http://localhost:${PORT}/#/`);
+  await page.getByRole('heading', { name: 'Testing so far' }).waitFor();
+  assert.ok(feedback.visits >= 1, 'the visit is counted');
+  step('Home: testing counters shown');
+
   await page.goto(`http://localhost:${PORT}/#/xrd/image`);
   await heading().waitFor();
   await page.getByRole('button', { name: 'Try with example data' }).click();
