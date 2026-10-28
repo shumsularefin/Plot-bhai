@@ -1,5 +1,26 @@
 # Progress
 
+## Source check, part 2: ASTM E928 and Starink (2003) (done)
+
+Branch `claude/zen-edison-acnmco`. No new dependencies. The owner supplied the two remaining
+sources (ASTM E928-03 and Starink's 2003 paper); the PDFs are not stored in the repository.
+
+- **Starink constants: checked.** Eq. (29) of Starink (2003), ln(β/T^1.92) = C − 1.0008 E/(RT),
+  is the form the site uses, and the paper recommends it for its accuracy. The older 1.8 / 1.0037
+  pair in the Mphahlele paper is the 1996 version. No change to the numbers; the TODO is removed.
+  (The paper writes the Doyle slope as 1.0518; the site uses 1.052 from Doyle's own 0.4567 · ln 10,
+  a difference of 0.02 %.)
+- **Purity range: checked.** E928-03 sections 4.2 and 11.5 take the first 10 to 50 % of the peak
+  area (at least ten points), which is the site's default; the TODO is removed. The equations used
+  (1, 4, 7, 8, 9) match the standard's Method A.
+- **New warnings from the standard:** purity below 98.5 mol % ("unreliable", section 5.3; the old
+  threshold was 97.5 %), a heating rate outside 0.3 to 0.7 K/min (7.1.1.2, 10.8) and fewer than
+  ten points in the fraction range (11.5).
+- **Not implemented from E928 (stated on the page as before):** the incremental-area linearisation
+  c (4.4, 11.8), the temperature correction for thermal lag (eq. 5) and Method B.
+- **Still open:** nothing from the stage 5 list. The only value I changed from a table is the
+  250 K sapphire row (see the previous entry).
+
 ## Source check of the stage 5 values, from the owner's PDFs (done)
 
 Branch `claude/zen-edison-acnmco`. No new dependencies. The owner supplied the four papers behind
