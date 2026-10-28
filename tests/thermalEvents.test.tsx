@@ -153,6 +153,24 @@ describe('results step', () => {
   });
 });
 
+describe('comparing samples', () => {
+  it('adds the example samples and ranks them by the temperature of the fastest mass loss', async () => {
+    let latest: ThermalData = base;
+    render(<Harness initial={base} Step={ResultsStep} onData={(d) => (latest = d)} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Try with example samples' }));
+    const table = await screen.findByRole('region', { name: /Comparison table/ });
+    const rows = within(table).getAllByRole('row');
+    expect(rows.length).toBe(4); // header, this sample, two examples
+    expect(latest.compare.length).toBe(2);
+    // The example samples' main steps are at 430 and 380 °C (synthetic, see CompareRuns).
+    const fastest = (row: HTMLElement) => Number(within(row).getAllByRole('cell')[3]?.textContent);
+    expect(fastest(rows[2] as HTMLElement)).toBeCloseTo(430, -1);
+    expect(fastest(rows[3] as HTMLElement)).toBeCloseTo(380, -1);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Example sample C (synthetic)' }));
+    await waitFor(() => expect(latest.compare.length).toBe(1));
+  });
+});
+
 describe('saved state', () => {
   it('upgrades a version 1 state with defaults for the new settings', () => {
     const v1: Partial<ThermalData> = { ...base };
@@ -164,6 +182,12 @@ describe('saved state', () => {
     expect(migrated?.data.assignments).toEqual({});
     expect(migrated?.data.calcination.marginC).toBe(50);
     expect(migrated?.data.theory.stepId).toBeNull();
+    expect(migrated?.data.compare).toEqual([]);
+    const withoutCompare: Partial<ThermalData> = { ...base };
+    delete withoutCompare.compare;
+    expect(
+      migrateThermalData({ step: 5, furthest: 5, data: withoutCompare }, 2)?.data.compare,
+    ).toEqual([]);
     expect(migrateThermalData(null, 1)).toBeUndefined();
     expect(migrateThermalData({}, 7)).toBeUndefined();
   });
@@ -178,7 +202,7 @@ describe('saved state', () => {
     if (!back.ok) throw new Error(back.reason);
     expect(back.state.data.assignments).toEqual(data.assignments);
     expect(back.state.data.file?.table.columns[0]).toEqual(table.columns[0]);
-    expect(THERMAL_STATE_VERSION).toBe(2);
+    expect(THERMAL_STATE_VERSION).toBe(3);
     expect(thermalSession.parse('{"app":"x"}')).toMatchObject({ ok: false });
   });
 });
