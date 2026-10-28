@@ -26,6 +26,18 @@ Branch `claude/zen-edison-acnmco`. No new dependencies.
 - **Mo and Ag wavelengths:** already from NIST (Deslattes et al. 2003); the "still unverified"
   notes in older sections below are out of date.
 
+### Closed with the papers the owner supplied on 2026-10-28 (not committed: publisher copyright)
+
+- **Sahadat–Scherrer:** Hossain et al., Chem. Pap. (2022), "Model 2": cos θ against 1/FWHM,
+  intercept set to zero, D = K λ / slope (eq. 7). Same as the code.
+- **SNIP LLS operator:** Morháč & Matoušek, Appl. Spectrosc. 62 (2008) 91–106, eq. (3) is the
+  operator used here (credited to Hampton, Lian & McHarris, NIM A 353 (1994) 280); eq. (4) the
+  clipping step; increasing and decreasing windows are both described.
+- **Doyle 1.052:** Doyle, J. Appl. Polym. Sci. 6 (1962) 639–642, eq. (12),
+  log p(x) ≈ −2.315 − 0.4567 x, and 0.4567 · ln 10 = 1.0516.
+
+The only TODO(verify) left in the code is Eilers (2003) for the arPLS width-to-λ relation.
+
 ### Still open (needs the owner)
 
 - **Thermal tables** (`data/thermal/events.json`, `dsc-events.json`, `combined-rules.json`): no
@@ -33,12 +45,7 @@ Branch `claude/zen-edison-acnmco`. No new dependencies.
   placeholders. They need a textbook or review the owner can supply (for example Brown, Handbook
   of Thermal Analysis and Calorimetry, or Haines, Principles of Thermal Analysis and
   Calorimetry), with the page for each range.
-- **Sahadat–Scherrer:** Hossain et al., Chem. Pap. 76 (2022) 7245 is paywalled; the equation is
-  still taken from Kawsar et al., Heliyon 10 (2024) e25347.
-- **LLS operator of SNIP:** attributed by pybaselines and Mantid to Morháč & Matoušek, Appl.
-  Spectrosc. 62 (2008) 91–106; not read.
-- **Also open, not in the owner's list:** Eilers (2003) λ–width relation for arPLS, and the Doyle
-  coefficient 1.052 in Flynn–Wall–Ozawa.
+- **Also open, not in the owner's list:** Eilers (2003) λ–width relation for arPLS.
 
 ### Checks
 

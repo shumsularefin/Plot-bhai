@@ -17,8 +17,7 @@ import type { DataMessage } from '../types';
  *   d   interplanar spacing from Bragg's law, d = λ / (2 sin θ), nm
  *   E   Young's modulus, GPa (per peak direction E_hkl when given)
  *
- * Every citation below was checked against the paper itself, except where marked
- * TODO(verify).
+ * Every citation below was checked against the paper itself.
  */
 
 /** One selected peak. */
@@ -264,9 +263,11 @@ export function linearScherrer(peaks: readonly SizePeak[], s: SizeSettings): Lin
  * Sahadat–Scherrer: the same axes as the linear straight-line method, cos θ against 1/β, with
  * the line forced through the origin (y = slope · x, see originFit), D = K λ / slope.
  * Hossain, Mahmud, Mobarak, Sultana, Shaikh & Ahmed, Chem. Pap. 76 (2022) 7245–7251
- * (doi:10.1007/s11696-022-02377-9). TODO(verify): the equation is taken from its statement in
- * Kawsar, Hossain, Bahadur & Ahmed, Heliyon 10 (2024) e25347, eq. (30), not from the 2022 paper
- * itself. Rabiei et al. (2020, section 3.1.2, eq. 4) used the same line through the origin.
+ * (doi:10.1007/s11696-022-02377-9), "Model 2", checked against the paper: cos θ is plotted
+ * against 1 / FWHM (eq. 7), the intercept is set to zero and D = K λ / slope. The name
+ * "Sahadat–Scherrer" is from later papers by the same group (Kawsar, Hossain, Bahadur & Ahmed,
+ * Heliyon 10 (2024) e25347, eq. 30). Rabiei et al. (2020, section 3.1.2, eq. 4) used the same
+ * line through the origin.
  * σ(D) = D σ(slope) / slope.
  */
 export function sahadatScherrer(peaks: readonly SizePeak[], s: SizeSettings): LineResult {
