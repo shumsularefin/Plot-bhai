@@ -1,5 +1,6 @@
 import type { WizardStep } from '../../ui/wizard/types';
 import { AssignStep } from './AssignStep';
+import { BandsStep } from './BandsStep';
 import { CleanStep } from './CleanStep';
 import type { FtirData } from './data';
 import { PeaksStep } from './PeaksStep';
@@ -42,6 +43,18 @@ export const ftirSteps: readonly WizardStep<FtirData>[] = [
       'Check the peak table, then press Next.',
     ],
     render: (context) => <PeaksStep {...context} />,
+  },
+  {
+    id: 'bands',
+    title: 'Bands',
+    guide: [
+      'Every section is optional; skip this step with Next if you only need the peak table.',
+      'Subtraction: pick a reference spectrum and a range where only it absorbs, then Find k.',
+      'Second derivative: overlapping bands and shoulders show as minima.',
+      'Band fitting: give a range and starting positions, then press Fit bands.',
+      'Band areas: add a range per band; ratios are to the band you mark as reference.',
+    ],
+    render: (context) => <BandsStep {...context} />,
   },
   {
     id: 'assign',

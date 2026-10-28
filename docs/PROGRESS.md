@@ -1,5 +1,54 @@
 # Progress
 
+## Owner feedback round, stage 4 of 6: FTIR bands (done)
+
+Branch `claude/zen-edison-acnmco`. No new dependencies. A new wizard step 4, **Bands**, sits
+between Pick peaks and Assign groups; every section in it is optional.
+
+### What was built
+
+- **Spectrum subtraction:** A_diff = A_sample − k·A_reference on the sample's wavenumbers, the
+  reference interpolated linearly, both after the processing of step 2. "Find k in this range"
+  gives the least-squares k = Σ A_s·A_r / Σ A_r² over a range where only the reference absorbs.
+  The difference can be added as a new spectrum (source "computed", processing off, a note
+  says how it was made), which then goes through peaks and assignment like any other.
+- **Second derivative:** Savitzky–Golay derivative (new `savitzkyGolayDerivative`, any
+  derivative order, ends from the first and last full window). Minima below zero and deeper
+  than a chosen percentage of the deepest are listed and can be taken as starting bands for the
+  fit. Refused, with a message, for unevenly spaced data.
+- **Band fitting** over a chosen region: Gaussian, Lorentzian or pseudo-Voigt (η fitted) bands
+  plus a straight background, by the same bounded Levenberg–Marquardt fitter as XRD
+  (`fitRegion`), in the peaks web worker. Starting positions typed, from the picked peaks or
+  from the second derivative; starting widths from the half-height width, capped at the
+  distance to the nearest other band (otherwise overlapping bands start as one broad band and
+  the fit fails). Table of centre, FWHM, height, η, area with standard errors and each band's
+  share of the fitted area; R², χ²ν and the fitter's warnings; plot with the components; CSV.
+  A fit made before the processing changed is marked out of date.
+- **Band areas and ratios:** trapezoid integral above a straight line joining the spectrum at
+  the two ends of each range (ends interpolated), highest point, ratio to a band marked as
+  reference; warnings for ranges outside the data and negative areas; CSV.
+- Methods text sentences for difference spectra, fits (profile, number of bands, R², and the
+  derivative settings when the starting positions came from it) and band areas.
+- Saved state version 2 (version 1 sessions get empty band settings and their step moves past
+  the new step). The fitter's messages now take a unit (`unit` option, default °).
+
+### Checked
+
+- Known-answer tests: exact first and second derivatives of a quadratic and a cubic, ends
+  included; two Lorentzians 16 cm⁻¹ apart (below Γ/√3, one maximum) resolved into two
+  derivative minima within 3 cm⁻¹; the area of a Gaussian on a sloped line equals
+  h·w·½√(π/ln 2); subtraction recovers k = 0.7 and the remaining band; two overlapping Gaussians
+  on a sloped baseline recovered exactly; a Lorentzian fitted with a pseudo-Voigt gives η > 0.95.
+- UI tests for subtraction (k found, difference added), areas and ratios, derivative minima as
+  starting bands, methods text and the version 1 migration.
+- Type check, lint, 840 tests (1 skipped), build, bundle size and e2e pass. New e2e check: the
+  example's 1720 cm⁻¹ band fitted in the worker within 1 cm⁻¹.
+
+### Known issues
+
+- Only one fit region per spectrum is kept.
+- The derivative's window and the 5 % depth default are my choices, adjustable on screen.
+
 ## Owner feedback round: thermal tables checked against Gaisford, Kett & Haines (2016)
 
 The owner supplied _Principles of Thermal Analysis and Calorimetry_, 2nd edn, ed. S. Gaisford,

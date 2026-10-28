@@ -27,6 +27,8 @@ export interface FitOptions {
   fixedEta: number | null;
   /** When the data still contain Kα2: fit each peak as a Kα1 + Kα2 pair (see kAlpha2Copy). */
   kAlpha2?: KAlpha2Pair | null;
+  /** Unit of x in the messages (default '°', degrees 2θ). */
+  unit?: string;
 }
 
 /** Wavelengths (Å, same unit for both) and intensity ratio I(Kα2)/I(Kα1) of a Kα doublet. */
@@ -239,6 +241,7 @@ export function fitRegion(
   const gradient = new Float64Array(PARAMS_PER_PEAK);
   const gradient2 = new Float64Array(PARAMS_PER_PEAK);
   const pair = options.kAlpha2 ?? null;
+  const unit = options.unit ?? '°';
   const peakAt = (p: Float64Array, o: number): PeakParameters => ({
     height: p[o] as number,
     center: p[o + 1] as number,
@@ -334,12 +337,12 @@ export function fitRegion(
     if (peak.fwhm > WIDTH_GROWTH * start) {
       notes.push({
         level: 'warning',
-        text: `The width grew to ${peak.fwhm.toFixed(3)}° from a starting ${start.toFixed(3)}°. A peak this broad may be standing in for the background or for several unresolved peaks; check the components on the plot.`,
+        text: `The width grew to ${peak.fwhm.toFixed(3)}${unit} from a starting ${start.toFixed(3)}${unit}. A peak this broad may be standing in for the background or for several unresolved peaks; check the components on the plot.`,
       });
     } else if (others.length >= 2 && typical !== undefined && peak.fwhm > WIDTH_GROWTH * typical) {
       notes.push({
         level: 'warning',
-        text: `This peak is ${peak.fwhm.toFixed(3)}° wide, more than ${WIDTH_GROWTH} times the other peaks of its region (typically ${typical.toFixed(3)}°). It may be standing in for the background or for several unresolved peaks; check the components on the plot.`,
+        text: `This peak is ${peak.fwhm.toFixed(3)}${unit} wide, more than ${WIDTH_GROWTH} times the other peaks of its region (typically ${typical.toFixed(3)}${unit}). It may be standing in for the background or for several unresolved peaks; check the components on the plot.`,
       });
     }
     if (sigma.fwhm > 0.2 * peak.fwhm) {

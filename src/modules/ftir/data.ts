@@ -1,4 +1,6 @@
 import { DEFAULT_TOLERANCE_CM } from '../../core/ftir/assign';
+import type { RegionFit } from '../../core/xrd/peaks/fit';
+import type { ProfileKind } from '../../core/xrd/peaks/profiles';
 import { DEFAULT_FTIR_PROCESSING, type FtirProcessing } from '../../core/ftir/process';
 import { EXAMPLE_BANDS, generateFtir, transmittanceOf } from '../../core/ftir/synthetic';
 import type { FtirSpectrum } from '../../core/ftir/types';
@@ -32,6 +34,62 @@ export interface Assignment {
   label: string;
 }
 
+/** A wavenumber range for an integrated band area, cm⁻¹. */
+export interface AreaRange {
+  fromCm: number | null;
+  toCm: number | null;
+  label: string;
+}
+
+/** Second derivative, band fitting, band areas and subtraction of one spectrum (step 4). */
+export interface BandSettings {
+  derivative: {
+    /** Savitzky–Golay window (odd number of points) and polynomial order. */
+    window: number;
+    order: number;
+    /** Smallest minimum kept, percent of the deepest one. */
+    depthPercent: number;
+    /** True when the fit's starting positions were taken from the minima. */
+    used: boolean;
+  };
+  fit: {
+    fromCm: number | null;
+    toCm: number | null;
+    profile: ProfileKind;
+    /** Starting band positions, cm⁻¹. */
+    centres: number[];
+    /**
+     * The last fit, cleared when its settings change; `key` records the processing it was made
+     * on, so a fit made before the spectrum was processed differently is shown as out of date.
+     */
+    result: { key: string; fit: RegionFit } | null;
+  };
+  areas: {
+    ranges: AreaRange[];
+    /** Index of the range the others are divided by. */
+    reference: number;
+  };
+  subtract: {
+    referenceId: string | null;
+    /** Scale factor k in A_sample − k · A_reference. */
+    factor: number;
+    /** Range where only the reference absorbs, for finding k. */
+    fromCm: number | null;
+    toCm: number | null;
+  };
+}
+
+/**
+ * Defaults of my own choosing, adjustable on screen. A 15-point window with a cubic smooths
+ * noise in the second derivative while keeping bands a few tens of points wide.
+ */
+export const DEFAULT_BAND_SETTINGS: BandSettings = {
+  derivative: { window: 15, order: 3, depthPercent: 5, used: false },
+  fit: { fromCm: null, toCm: null, profile: 'pseudo-voigt', centres: [], result: null },
+  areas: { ranges: [], reference: 0 },
+  subtract: { referenceId: null, factor: 1, fromCm: null, toCm: null },
+};
+
 /** Everything saved for an FTIR analysis. */
 export interface FtirData {
   spectra: FtirSpectrum[];
@@ -43,6 +101,8 @@ export interface FtirData {
   peaks: Record<string, PeakSettings>;
   /** Accepted or edited assignments per spectrum id. */
   assignments: Record<string, Assignment[]>;
+  /** Band analysis per spectrum id. Missing means the defaults. */
+  bands: Record<string, BandSettings>;
   /** How far a peak may lie from a typical range or band to be suggested, cm⁻¹. */
   toleranceCm: number;
 }
@@ -54,21 +114,39 @@ export const initialFtirData: FtirData = {
   processing: {},
   peaks: {},
   assignments: {},
+  bands: {},
   toleranceCm: DEFAULT_TOLERANCE_CM,
 };
 
 /** Version of the saved shape. Bump it, and add a migration, when the shape changes. */
-export const FTIR_STATE_VERSION = 1;
+export const FTIR_STATE_VERSION = 2;
 
-/** No older versions exist yet, so older or newer saved data are discarded. */
-export function migrateFtirData(): WizardState<FtirData> | undefined {
-  return undefined;
+/** Index of the Bands step, which version 1 did not have. */
+const BANDS_STEP = 3;
+
+/** Upgrades version 1 (no band analysis and no Bands step); newer or unknown versions are discarded. */
+export function migrateFtirData(
+  saved: unknown,
+  version: number,
+): WizardState<FtirData> | undefined {
+  if (version !== 1) return undefined;
+  const state = saved as WizardState<Partial<FtirData>>;
+  if (!state || typeof state !== 'object' || !state.data) return undefined;
+  const shift = (step: number) => (step >= BANDS_STEP ? step + 1 : step);
+  return {
+    step: shift(state.step),
+    furthest: shift(state.furthest),
+    data: { ...initialFtirData, ...state.data, bands: {} },
+  };
 }
 
 export const processingFor = (data: Pick<FtirData, 'processing'>, id: string): FtirProcessing =>
   data.processing[id] ?? DEFAULT_FTIR_PROCESSING;
 export const peaksFor = (data: Pick<FtirData, 'peaks'>, id: string): PeakSettings =>
   data.peaks[id] ?? DEFAULT_PEAK_SETTINGS;
+
+export const bandsFor = (data: Pick<FtirData, 'bands'>, id: string): BandSettings =>
+  data.bands[id] ?? DEFAULT_BAND_SETTINGS;
 
 export function newId(): string {
   return crypto.randomUUID();

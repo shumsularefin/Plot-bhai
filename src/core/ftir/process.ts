@@ -65,7 +65,8 @@ export function toPercentTransmittance(absorbance: Float64Array): Float64Array {
   return mapValues(absorbance, percentTFromAbsorbance);
 }
 
-function stepSpread(x: Float64Array): number {
+/** (largest step − smallest step) / median step; 0 for evenly spaced points. */
+export function stepSpread(x: Float64Array): number {
   const steps: number[] = [];
   for (let i = 1; i < x.length; i++) steps.push((x[i] as number) - (x[i - 1] as number));
   steps.sort((a, b) => a - b);

@@ -15,7 +15,7 @@ import { quantityHeading, shownQuantity, valueIn } from './quantity';
 import { ftirSession } from './session';
 
 /** Index of this step in the wizard, saved in the session file as the step on screen. */
-const RESULTS_STEP = 4;
+const RESULTS_STEP = 5;
 
 /** Wizard step 5: peak table with assignments, figure, processed data, methods text and session. */
 export function ResultsStep({ data, update }: StepContext<FtirData>) {

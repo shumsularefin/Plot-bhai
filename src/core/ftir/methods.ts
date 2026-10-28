@@ -20,7 +20,21 @@ export interface FtirMethodsInput {
     prominencePercent: number | null;
     /** Number of assignments the user accepted. */
     assignments: number;
+    /** The band fit of step 4, when one was made on the current processing. */
+    fit: {
+      fromCm: number;
+      toCm: number;
+      profile: 'gaussian' | 'lorentzian' | 'pseudo-voigt';
+      bands: number;
+      rSquared: number;
+      /** Savitzky–Golay settings when the starting positions came from the second derivative. */
+      fromDerivative: { window: number; order: number } | null;
+    } | null;
+    /** Number of band-area ranges with an area. */
+    areas: number;
   }[];
+  /** Number of difference spectra made in step 4. */
+  differences: number;
   toleranceCm: number;
   /** Citation of the table of typical ranges, when assignments were used. */
   rangeSource: string;
@@ -110,6 +124,31 @@ export function ftirMethodsParagraph(input: FtirMethodsInput): string {
   if (prominences.length > 0) {
     sentences.push(
       `Band positions were taken as the maxima of local peaks in the absorbance spectrum whose prominence was at least ${list(prominences)} of the absorbance range, refined with a parabola through the maximum and its two neighbouring points.`,
+    );
+  }
+  if (input.differences > 0) {
+    sentences.push(
+      `${input.differences === 1 ? 'One difference spectrum was' : `${input.differences} difference spectra were`} calculated after processing as A_sample − k·A_reference, with the reference interpolated linearly onto the sample wavenumbers (k is given in the spectrum name).`,
+    );
+  }
+  const PROFILES = {
+    gaussian: 'Gaussian',
+    lorentzian: 'Lorentzian',
+    'pseudo-voigt': 'pseudo-Voigt',
+  };
+  for (const s of spectra) {
+    const f = s.fit;
+    if (!f) continue;
+    const start = f.fromDerivative
+      ? ` Starting positions were the minima of the second derivative (Savitzky–Golay, ${f.fromDerivative.window} points, polynomial order ${f.fromDerivative.order}).`
+      : '';
+    sentences.push(
+      `The region ${number(Math.min(f.fromCm, f.toCm))}–${number(Math.max(f.fromCm, f.toCm))} cm⁻¹${spectra.length > 1 ? ` of spectrum ${spectra.indexOf(s) + 1}` : ''} was fitted with ${f.bands} ${PROFILES[f.profile]} band${f.bands === 1 ? '' : 's'} plus a linear background by Levenberg–Marquardt least squares (R² = ${number(f.rSquared, 5)}).${start}`,
+    );
+  }
+  if (spectra.some((s) => s.areas > 0)) {
+    sentences.push(
+      'Band areas were integrated by the trapezoid rule above a straight line joining the spectrum at the two ends of each range.',
     );
   }
   if (spectra.some((s) => s.assignments > 0)) {
