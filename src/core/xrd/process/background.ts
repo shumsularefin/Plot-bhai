@@ -83,9 +83,12 @@ export function polynomialBackground(
  * Here instead the width grows from 1 to `halfWidth` points, as in the increasing-window option
  * of M. Morháč's own implementation (ROOT TSpectrum::Background, kBackIncreasingWindow, which
  * cites M. Morháč, J. Kliman, V. Matoušek, M. Veselský and I. Turzo, Nucl. Instrum. Methods A 401
- * (1997) 113–132), and the compression adds a square root (the "LLS" operator), which
- * pybaselines and Mantid attribute to M. Morháč and V. Matoušek, Appl. Spectrosc. 62 (2008)
- * 91–106 (TODO(verify): neither Morháč paper has been read). The data are compressed so peaks
+ * (1997) 113–132), and the compression adds a square root (the "LLS" operator). Both are in
+ * M. Morháč and V. Matoušek, Appl. Spectrosc. 62 (2008) 91–106 (checked against the paper):
+ * eq. (3) is the LLS operator below, credited there to C. V. Hampton, B. Lian and
+ * W. C. McHarris, Nucl. Instrum. Methods A 353 (1994) 280, and eq. (4) the clipping step; the
+ * paper says SNIP was first proposed with an increasing window and that a decreasing one gives
+ * a smoother background at peak edges. The data are compressed so peaks
  * of very different heights clip alike:
  *   v = ln(ln(√(y + 1) + 1) + 1)  (negative y treated as 0).
  * Then for p = 1 … halfWidth:  v_i ← min(v_i, (v_{i−p} + v_{i+p}) / 2).

@@ -323,7 +323,8 @@ export default function About() {
         </ul>
         <p>
           A single Ea is misleading when the value changes strongly with α, which suggests
-          overlapping steps. The Doyle coefficient 1.052 is flagged for verification.
+          overlapping steps. The Doyle coefficient 1.052 is 0.4567 · ln 10, from C. D. Doyle, J.
+          Appl. Polym. Sci. 6 (1962) 639, eq. (12).
         </p>
       </section>
     </article>

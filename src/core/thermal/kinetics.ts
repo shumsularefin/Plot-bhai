@@ -18,8 +18,9 @@ export const GAS_CONSTANT = 8.314462618;
 
 /**
  * Coefficient of the Doyle approximation used by Flynn–Wall–Ozawa: ln β = const − 1.052 Ea / (R T)
- * at fixed conversion. The value 1.052 is the one given in the project brief; it was not checked
- * against the original paper. Flagged for your verification.
+ * at fixed conversion. C. D. Doyle, J. Appl. Polym. Sci. 6 (1962) 639–642, eq. (12): for
+ * x = E / (R T) > 20, log₁₀ p(x) ≈ −2.315 − 0.4567 x; in natural logarithms the slope is
+ * 0.4567 · ln 10 = 1.0516, rounded to 1.052. Checked against the paper.
  */
 export const DOYLE_COEFFICIENT = 1.052;
 
