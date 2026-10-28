@@ -5,7 +5,9 @@ export type { ValueScale };
 /** FTIR spectra are absorbance or transmittance. */
 export type FtirKind = Extract<UvvisKind, 'absorbance' | 'transmittance'>;
 
-export type FtirSource = 'text' | 'csv' | 'jcamp' | 'pasted' | 'synthetic' | 'digitized';
+/** 'computed': made in this site from other spectra (for example a difference spectrum). */
+export type FtirSource =
+  'text' | 'csv' | 'jcamp' | 'pasted' | 'synthetic' | 'digitized' | 'computed';
 
 /** A validated spectrum: wavenumber in cm⁻¹, strictly increasing. */
 export interface FtirSpectrum {

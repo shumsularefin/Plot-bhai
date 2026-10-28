@@ -105,13 +105,19 @@ interface FtirPlotProps {
   focusCm?: readonly [number, number] | null;
   /** View controls shown with the plot. */
   toolbar?: ComponentChildren;
+  /** Y axis title for curves that are not absorbance (for example a derivative); shown as is. */
+  yLabel?: string;
 }
 
 /** The shared plot panel set up for FTIR spectra, with the wavenumber axis reversed. */
 export function FtirPlot(props: FtirPlotProps) {
   const { curves, quantity, settings, onSettingsChange, exportName } = props;
   const sources = useMemo(() => ftirSources(curves, quantity), [curves, quantity]);
-  const labels = useMemo(() => ftirLabels(quantity), [quantity]);
+  const yLabel = props.yLabel;
+  const labels = useMemo(() => {
+    const base = ftirLabels(quantity);
+    return yLabel ? (normalised: boolean) => ({ ...base(normalised), y: yLabel }) : base;
+  }, [quantity, yLabel]);
   const focus: Domain | null = props.focusCm ? [-props.focusCm[0], -props.focusCm[1]] : null;
   return (
     <PlotPanel

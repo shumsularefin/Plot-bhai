@@ -11,6 +11,7 @@ const SOURCE_LABELS: Record<FtirSource, string> = {
   pasted: 'Pasted',
   synthetic: 'Example',
   digitized: 'From a graph image',
+  computed: 'Made here (difference)',
 };
 const KIND_LABELS: Record<FtirKind, string> = {
   absorbance: 'Absorbance',

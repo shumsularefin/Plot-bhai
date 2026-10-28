@@ -1,3 +1,4 @@
+import type { BandFitOptions } from '../../core/ftir/bands';
 import type { DetectedPeak, DetectionOptions } from '../../core/xrd/peaks/detect';
 import type { FitOptions, PeakGuess, RegionFit } from '../../core/xrd/peaks/fit';
 import type { PeaksRequest, PeaksResponse } from '../../workers/peaks.worker';
@@ -43,6 +44,16 @@ export class PeaksClient {
     return new Promise((resolve) => {
       this.fit = { id, resolve, progress };
       this.send({ id, kind: 'fit', x, y, guesses, options });
+    });
+  }
+
+  /** FTIR bands of one region (see fitBands); resolves with the fit, or null if cancelled or failed. */
+  fitBands(x: Float64Array, y: Float64Array, options: BandFitOptions): Promise<RegionFit | null> {
+    this.cancelFit();
+    const id = this.nextId++;
+    return new Promise((resolve) => {
+      this.fit = { id, resolve: (regions) => resolve(regions?.[0] ?? null), progress: () => {} };
+      this.send({ id, kind: 'bands', x, y, options });
     });
   }
 
