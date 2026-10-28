@@ -1,6 +1,7 @@
 import { linearFit } from '../math/linearFit';
 import type { DataMessage } from '../xrd/types';
 import { KELVIN_OFFSET } from './import';
+import { interpolate } from './process';
 import { temperatureAtMass } from './steps';
 
 /*
@@ -23,6 +24,15 @@ export const GAS_CONSTANT = 8.314462618;
  * 0.4567 · ln 10 = 1.0516, rounded to 1.052. Checked against the paper.
  */
 export const DOYLE_COEFFICIENT = 1.052;
+
+/**
+ * Starink isoconversional method: ln(β / T^1.92) = C − 1.0008 Ea / (R T) at fixed conversion,
+ * from M. J. Starink, Thermochim. Acta 404 (2003) 163–176. The two constants were read in a paper
+ * that quotes it (A. O. Balogun et al., Sci. Rep. 11 (2021) 13862, eq. (8)), not in the original.
+ * TODO, verify against Starink (2003). (An older 1996 version uses 1.8 and 1.0037.)
+ */
+export const STARINK_EXPONENT = 1.92;
+export const STARINK_COEFFICIENT = 1.0008;
 
 export type PeakDirection = 'max' | 'min';
 
@@ -162,7 +172,7 @@ export function temperaturesAtConversion(
   return alphas.map((a) => temperatureAtMass(T, m, m0 - a * (m0 - mf)));
 }
 
-export type IsoMethod = 'fwo' | 'kas';
+export type IsoMethod = 'fwo' | 'kas' | 'starink';
 
 export interface IsoPoint {
   alpha: number;
@@ -179,6 +189,8 @@ export interface IsoPoint {
  *     straight line of ln β against 1/T, Ea = −slope · R / 1.052.
  *   Kissinger–Akahira–Sunose:               ln(β / T²) = const − Ea / (R T)
  *     straight line of ln(β/T²) against 1/T, Ea = −slope · R.
+ *   Starink:                                ln(β / T^1.92) = const − 1.0008 Ea / (R T)
+ *     straight line of ln(β/T^1.92) against 1/T, Ea = −slope · R / 1.0008.
  * T in kelvin, β in K/min, Ea in kJ/mol. Levels reached by fewer than three runs are left out.
  */
 export function isoconversional(
@@ -197,7 +209,8 @@ export function isoconversional(
       if (t === null || t === undefined) return;
       const tK = t + KELVIN_OFFSET;
       const beta = (runs[r] as MassRun).betaKPerMin;
-      points.push({ x: 1 / tK, y: method === 'fwo' ? Math.log(beta) : Math.log(beta / (tK * tK)) });
+      const exponent = method === 'fwo' ? 0 : method === 'kas' ? 2 : STARINK_EXPONENT;
+      points.push({ x: 1 / tK, y: Math.log(beta / tK ** exponent) });
     });
     if (points.length < 3) return;
     const fit = linearFit(
@@ -205,7 +218,8 @@ export function isoconversional(
       points.map((p) => p.y),
     );
     if (!fit || !(fit.slope < 0)) return;
-    const factor = method === 'fwo' ? DOYLE_COEFFICIENT : 1;
+    const factor =
+      method === 'fwo' ? DOYLE_COEFFICIENT : method === 'starink' ? STARINK_COEFFICIENT : 1;
     out.push({
       alpha,
       eaKJ: (-fit.slope * GAS_CONSTANT) / factor / 1000,
@@ -215,6 +229,179 @@ export function isoconversional(
     });
   });
   return out;
+}
+
+/** A TGA run with its DTG, −dm/dT in %/°C on the same temperatures (see smooth.ts, dtg). */
+export interface MassRunWithDtg extends MassRun {
+  dtg: Float64Array;
+}
+
+/**
+ * Friedman differential isoconversional method (H. L. Friedman, J. Polym. Sci. C 6 (1964) 183–195):
+ *   ln[β · (dα/dT)_α] = ln[A f(α)] − Ea / (R T_α),
+ * as written in Table S1 of the supporting information of a 2022 J. Therm. Anal. Calorim. paper
+ * (CSIC repository, hdl.handle.net/10261/289812). β · dα/dT = dα/dt in 1/min for β in K/min.
+ * At each conversion α: T_α from temperaturesAtConversion, and dα/dT = DTG(T_α) / (m0 − mf) with
+ * the DTG interpolated at T_α (α = (m0 − m)/(m0 − mf), so dα/dT = −(dm/dT)/(m0 − mf)). A straight
+ * line of ln(β · dα/dT) against 1/T has slope −Ea/R. No approximation of the temperature integral
+ * is made, but noise in the DTG enters directly. Levels reached by fewer than three runs are left out.
+ */
+export function friedman(
+  runs: readonly MassRunWithDtg[],
+  fromC: number,
+  toC: number,
+  alphas: readonly number[],
+): IsoPoint[] {
+  const perRun = runs.map((r) => {
+    const temps = temperaturesAtConversion(r, fromC, toC, alphas);
+    const masses = massSpan(r, fromC, toC);
+    return { temps, span: masses };
+  });
+  const out: IsoPoint[] = [];
+  alphas.forEach((alpha, k) => {
+    const points: KineticPoint[] = [];
+    perRun.forEach(({ temps, span }, r) => {
+      const t = temps?.[k];
+      const run = runs[r] as MassRunWithDtg;
+      if (t === null || t === undefined || !(span > 0)) return;
+      const rate = interpolate(run.temperatureC, run.dtg, t) / span;
+      if (!(rate > 0)) return;
+      points.push({ x: 1 / (t + KELVIN_OFFSET), y: Math.log(run.betaKPerMin * rate) });
+    });
+    if (points.length < 3) return;
+    const fit = linearFit(
+      points.map((p) => p.x),
+      points.map((p) => p.y),
+    );
+    if (!fit || !(fit.slope < 0)) return;
+    out.push({
+      alpha,
+      eaKJ: (-fit.slope * GAS_CONSTANT) / 1000,
+      eaSigmaKJ: (fit.slopeSigma * GAS_CONSTANT) / 1000,
+      rSquared: fit.rSquared,
+      points,
+    });
+  });
+  return out;
+}
+
+/** m0 − mf over the window, as used by temperaturesAtConversion (running minimum), or 0. */
+function massSpan(run: MassRun, fromC: number, toC: number): number {
+  let m0: number | null = null;
+  let low = Infinity;
+  for (let i = 0; i < run.temperatureC.length; i++) {
+    const t = run.temperatureC[i] as number;
+    if (t < fromC || t > toC) continue;
+    const m = run.massPct[i] as number;
+    if (m0 === null) m0 = m;
+    low = Math.min(low, m);
+  }
+  return m0 === null ? 0 : m0 - low;
+}
+
+/**
+ * Reaction models g(α), the integral form, for Coats–Redfern. Names and expressions as in
+ * Table 3 of Y. Qin et al., Materials 15 (2022) 987 (with the same expressions in Table 1 of
+ * H. Tang et al., ACS Omega 10 (2025) 62906): first order F1 (Avrami–Erofeev m = 1),
+ * second order F2 (chemical reaction n = 2), Avrami–Erofeev A2–A4, contracting area R2 and
+ * volume R3 (shrinking core m = 2 and 3), diffusion D1 (one-dimensional), D2 (two-dimensional),
+ * D3 (Jander) and D4 (Ginstling–Brounshtein).
+ */
+export const REACTION_MODELS = {
+  F1: { name: 'First order (F1)', g: (a: number) => -Math.log(1 - a) },
+  F2: { name: 'Second order (F2)', g: (a: number) => 1 / (1 - a) - 1 },
+  A2: { name: 'Avrami–Erofeev, m = 2 (A2)', g: (a: number) => (-Math.log(1 - a)) ** (1 / 2) },
+  A3: { name: 'Avrami–Erofeev, m = 3 (A3)', g: (a: number) => (-Math.log(1 - a)) ** (1 / 3) },
+  A4: { name: 'Avrami–Erofeev, m = 4 (A4)', g: (a: number) => (-Math.log(1 - a)) ** (1 / 4) },
+  R2: { name: 'Contracting area (R2)', g: (a: number) => 1 - (1 - a) ** (1 / 2) },
+  R3: { name: 'Contracting volume (R3)', g: (a: number) => 1 - (1 - a) ** (1 / 3) },
+  D1: { name: 'One-dimensional diffusion (D1)', g: (a: number) => a * a },
+  D2: {
+    name: 'Two-dimensional diffusion (D2)',
+    g: (a: number) => a + (1 - a) * Math.log(1 - a),
+  },
+  D3: {
+    name: 'Three-dimensional diffusion, Jander (D3)',
+    g: (a: number) => (1 - (1 - a) ** (1 / 3)) ** 2,
+  },
+  D4: {
+    name: 'Three-dimensional diffusion, Ginstling–Brounshtein (D4)',
+    g: (a: number) => 1 - (2 * a) / 3 - (1 - a) ** (2 / 3),
+  },
+} as const;
+export type ReactionModel = keyof typeof REACTION_MODELS;
+
+export interface CoatsRedfernResult {
+  model: ReactionModel;
+  eaKJ: number;
+  eaSigmaKJ: number;
+  /** Pre-exponential factor A in 1/min (β in K/min), from the intercept. */
+  aPerMin: number;
+  rSquared: number;
+  points: KineticPoint[];
+}
+
+/**
+ * Coats–Redfern model-fitting method for one run (A. W. Coats, J. P. Redfern, Nature 201 (1964)
+ * 68), as in eq. (2) of Y. Qin et al., Materials 15 (2022) 987:
+ *   ln[g(α) / T²] = ln[(A R / (β Ea)) (1 − 2 R T / Ea)] − Ea / (R T).
+ * With 2RT/Ea ≪ 1 the first term is taken as the constant ln(A R / (β Ea)), so a straight line of
+ * ln(g(α)/T²) against 1/T has slope −Ea/R and intercept ln(A R / (β Ea)), giving
+ * A = (β Ea / R) · exp(intercept). Every data point with alphaFrom ≤ α ≤ alphaTo is used; α as in
+ * temperaturesAtConversion (masses at the window ends, running minimum). T in K, β in K/min.
+ * The model with the highest R² is not proof of the mechanism: different models can fit
+ * equally well with very different Ea.
+ */
+export function coatsRedfern(
+  run: MassRun,
+  fromC: number,
+  toC: number,
+  alphaFrom: number,
+  alphaTo: number,
+): CoatsRedfernResult[] {
+  const T: number[] = [];
+  const m: number[] = [];
+  for (let i = 0; i < run.temperatureC.length; i++) {
+    const t = run.temperatureC[i] as number;
+    if (t >= fromC && t <= toC) {
+      T.push(t);
+      m.push(Math.min(run.massPct[i] as number, m[m.length - 1] ?? Infinity));
+    }
+  }
+  if (T.length < 5) return [];
+  const m0 = m[0] as number;
+  const mf = m[m.length - 1] as number;
+  if (!(m0 - mf > 0)) return [];
+  const used: { tK: number; alpha: number }[] = [];
+  T.forEach((t, i) => {
+    const alpha = (m0 - (m[i] as number)) / (m0 - mf);
+    if (alpha >= alphaFrom && alpha <= alphaTo && alpha > 0 && alpha < 1)
+      used.push({ tK: t + KELVIN_OFFSET, alpha });
+  });
+  if (used.length < 5) return [];
+  const out: CoatsRedfernResult[] = [];
+  for (const model of Object.keys(REACTION_MODELS) as ReactionModel[]) {
+    const g = REACTION_MODELS[model].g;
+    const points = used
+      .map(({ tK, alpha }) => ({ x: 1 / tK, y: Math.log(g(alpha) / (tK * tK)) }))
+      .filter((p) => Number.isFinite(p.y));
+    if (points.length < 5) continue;
+    const fit = linearFit(
+      points.map((p) => p.x),
+      points.map((p) => p.y),
+    );
+    if (!fit || !(fit.slope < 0)) continue;
+    const ea = -fit.slope * GAS_CONSTANT;
+    out.push({
+      model,
+      eaKJ: ea / 1000,
+      eaSigmaKJ: (fit.slopeSigma * GAS_CONSTANT) / 1000,
+      aPerMin: ((run.betaKPerMin * ea) / GAS_CONSTANT) * Math.exp(fit.intercept),
+      rSquared: fit.rSquared,
+      points,
+    });
+  }
+  return out.sort((a, b) => b.rSquared - a.rSquared);
 }
 
 /** Fewer than this many heating rates is not enough for a trustworthy slope. */

@@ -1,4 +1,5 @@
 import type { BandFitOptions } from '../../core/ftir/bands';
+import type { PlasmonOptions } from '../../core/uvvis/plasmon';
 import type { DetectedPeak, DetectionOptions } from '../../core/xrd/peaks/detect';
 import type { FitOptions, PeakGuess, RegionFit } from '../../core/xrd/peaks/fit';
 import type { PeaksRequest, PeaksResponse } from '../../workers/peaks.worker';
@@ -54,6 +55,19 @@ export class PeaksClient {
     return new Promise((resolve) => {
       this.fit = { id, resolve: (regions) => resolve(regions?.[0] ?? null), progress: () => {} };
       this.send({ id, kind: 'bands', x, y, options });
+    });
+  }
+
+  /**
+   * UV-Vis bands on the energy axis (see fitPlasmon): x is the wavelength in nm, y the absorbance.
+   * Resolves with the fit in eV, or null if cancelled, failed or the range holds too few points.
+   */
+  fitPlasmon(x: Float64Array, y: Float64Array, options: PlasmonOptions): Promise<RegionFit | null> {
+    this.cancelFit();
+    const id = this.nextId++;
+    return new Promise((resolve) => {
+      this.fit = { id, resolve: (regions) => resolve(regions?.[0] ?? null), progress: () => {} };
+      this.send({ id, kind: 'plasmon', x, y, options });
     });
   }
 

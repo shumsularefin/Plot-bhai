@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { dtg } from '../src/core/thermal/smooth';
 import {
+  coatsRedfern,
+  friedman,
   GAS_CONSTANT,
   isoconversional,
+  REACTION_MODELS,
   kissinger,
   peakTemperature,
   rateWarnings,
@@ -110,6 +113,46 @@ describe('isoconversional methods', () => {
   });
   it('gives nothing with only two runs', () => {
     expect(isoconversional(runs.slice(0, 2), 100, 600, alphas, 'kas')).toEqual([]);
+  });
+  it('Starink recovers Ea within 1 % at every conversion', () => {
+    const result = isoconversional(runs, 100, 600, alphas, 'starink');
+    expect(result).toHaveLength(alphas.length);
+    for (const p of result) expect(Math.abs(p.eaKJ - 150) / 150).toBeLessThan(0.01);
+  });
+  it('Friedman recovers Ea within 1 % from the DTG, with no temperature-integral approximation', () => {
+    const withDtg = runs.map((r) => ({ ...r, dtg: dtg(r.temperatureC, r.massPct, 2) }));
+    const result = friedman(withDtg, 100, 600, alphas);
+    expect(result).toHaveLength(alphas.length);
+    for (const p of result) {
+      expect(Math.abs(p.eaKJ - 150) / 150).toBeLessThan(0.01);
+      expect(p.rSquared).toBeGreaterThan(0.9999);
+    }
+  });
+});
+
+describe('Coats–Redfern', () => {
+  it('ranks the true first-order model first and recovers Ea and A', () => {
+    const result = coatsRedfern(runs[2] as MassRun, 100, 600, 0.1, 0.9);
+    expect(result).toHaveLength(Object.keys(REACTION_MODELS).length);
+    const best = result[0];
+    expect(best?.model).toBe('F1');
+    expect(best?.rSquared).toBeGreaterThan(0.9999);
+    expect(Math.abs((best?.eaKJ as number) - 150) / 150).toBeLessThan(0.02);
+    // The 1 − 2RT/E factor is dropped, so A is only approximate: within a factor of 3 of 1e14.
+    expect(Math.abs(Math.log10(best?.aPerMin as number) - 14)).toBeLessThan(0.5);
+  });
+  it('has the g(α) expressions of the cited table', () => {
+    expect(REACTION_MODELS.D1.g(0.5)).toBeCloseTo(0.25, 12);
+    expect(REACTION_MODELS.R2.g(0.75)).toBeCloseTo(0.5, 12);
+    expect(REACTION_MODELS.F2.g(0.5)).toBeCloseTo(1, 12);
+    expect(REACTION_MODELS.A2.g(1 - Math.exp(-4))).toBeCloseTo(2, 12);
+    expect(REACTION_MODELS.D3.g(1 - 0.125)).toBeCloseTo(0.25, 12);
+    expect(REACTION_MODELS.D4.g(1 - 0.125)).toBeCloseTo(1 - 0.875 * (2 / 3) - 0.25, 12);
+  });
+  it('needs a mass loss in the window', () => {
+    const t = Float64Array.from({ length: 50 }, (_, i) => 100 + i);
+    const flat = { betaKPerMin: 10, temperatureC: t, massPct: t.map(() => 100) };
+    expect(coatsRedfern(flat, 100, 150, 0.1, 0.9)).toEqual([]);
   });
 });
 

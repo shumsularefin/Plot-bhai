@@ -1,9 +1,12 @@
 import {
+  coatsRedfern,
+  friedman,
   isoconversional,
   kissinger,
   peakTemperature,
   rateWarnings,
   resultWarnings,
+  type CoatsRedfernResult,
   type IsoPoint,
   type KissingerResult,
   type MassRun,
@@ -13,7 +16,7 @@ import { cleanRun, DEFAULT_CLEAN, rampIndices } from '../../../core/thermal/proc
 import { dtg } from '../../../core/thermal/smooth';
 import type { DataMessage } from '../../../core/xrd/types';
 import { mappingProblem, runOf } from '../analysis';
-import type { KineticRun, KineticsData } from './data';
+import type { IsoconversionalMethod, KineticRun, KineticsData } from './data';
 
 /** A run prepared for the analysis: the curve on the heating ramp and the signal the peak is read from. */
 export interface PreparedRun {
@@ -121,9 +124,17 @@ export type KineticOutcome =
     }
   | {
       ok: true;
-      method: 'fwo' | 'kas';
+      method: IsoconversionalMethod;
       window: [number, number];
       levels: IsoPoint[];
+      notes: DataMessage[];
+    }
+  | {
+      ok: true;
+      method: 'coats-redfern';
+      window: [number, number];
+      /** Every run's model fits, best R² first. */
+      runs: { name: string; rate: number; fits: CoatsRedfernResult[] }[];
       notes: DataMessage[];
     };
 
@@ -186,7 +197,53 @@ export function analyse(data: KineticsData, prepared: Prepared): KineticOutcome 
     temperatureC: r.temperatureC,
     massPct: r.value,
   }));
-  const levels = isoconversional(massRuns, window[0], window[1], alphas, data.method);
+  if (data.method === 'coats-redfern') {
+    const fitted = runs.map((r, i) => ({
+      name: r.name,
+      rate: r.rate,
+      fits: coatsRedfern(
+        massRuns[i] as MassRun,
+        window[0],
+        window[1],
+        data.alphaFrom,
+        data.alphaTo,
+      ),
+    }));
+    if (fitted.some((f) => f.fits.length === 0)) {
+      return {
+        ok: false,
+        error:
+          'Coats–Redfern needs a mass loss step inside the window, with enough points between the conversion limits, in every run.',
+      };
+    }
+    notes.push(
+      {
+        level: 'info',
+        text: 'Coats–Redfern fits each run with each reaction model. The best straight line (highest R²) is not proof of the mechanism: several models often fit almost equally well with very different Ea. Compare with an isoconversional method.',
+      },
+      {
+        level: 'info',
+        text: 'A is approximate: the factor (1 − 2RT/Ea) is taken as 1.',
+      },
+    );
+    const best = new Set(fitted.map((f) => f.fits[0]?.model));
+    if (best.size > 1) {
+      notes.push({
+        level: 'warning',
+        text: 'The best model is not the same for every heating rate, so no single model describes the process.',
+      });
+    }
+    return { ok: true, method: 'coats-redfern', window, runs: fitted, notes };
+  }
+  const levels =
+    data.method === 'friedman'
+      ? friedman(
+          runs.map((r, i) => ({ ...(massRuns[i] as MassRun), dtg: r.signal })),
+          window[0],
+          window[1],
+          alphas,
+        )
+      : isoconversional(massRuns, window[0], window[1], alphas, data.method);
   if (levels.length === 0) {
     return {
       ok: false,

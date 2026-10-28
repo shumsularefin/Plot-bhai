@@ -10,8 +10,9 @@ import './thermal.css';
 // Defined once at module level so LazyTool does not reload it on every render.
 const loadDsc = () => import('./dsc/DscTool');
 const loadKinetics = () => import('./kinetics/KineticsTool');
+const loadDscMethods = () => import('./dscMethods/DscMethodsTool');
 
-/** TGA and DSC are two wizards; the choice is remembered. Each keeps its own saved session. */
+/** TGA, DSC, the DSC special methods and kinetics are separate wizards; the choice is remembered. Each keeps its own saved session. */
 export default function ThermalTool() {
   const [technique, setTechnique] = useState<Technique>(savedTechnique);
   const choose = (next: Technique) => {
@@ -40,6 +41,15 @@ export default function ThermalTool() {
           />
           DSC (heat flow)
         </label>
+        <label class={technique === 'dsc-methods' ? 'is-selected' : ''}>
+          <input
+            type="radio"
+            name="technique"
+            checked={technique === 'dsc-methods'}
+            onChange={() => choose('dsc-methods')}
+          />
+          DSC: Cp, purity, OIT
+        </label>
         <label class={technique === 'kinetics' ? 'is-selected' : ''}>
           <input
             type="radio"
@@ -52,6 +62,8 @@ export default function ThermalTool() {
       </fieldset>
       {technique === 'dsc' ? (
         <LazyTool load={loadDsc} />
+      ) : technique === 'dsc-methods' ? (
+        <LazyTool load={loadDscMethods} />
       ) : technique === 'kinetics' ? (
         <LazyTool load={loadKinetics} />
       ) : (

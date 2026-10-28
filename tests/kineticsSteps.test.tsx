@@ -34,13 +34,14 @@ describe('kinetics wizard', () => {
     expect(kineticsSteps[0]?.validate?.(loaded)).toBeNull();
   });
 
-  it.each(['kissinger', 'fwo', 'kas'] as const)(
+  it.each(['kissinger', 'fwo', 'kas', 'starink', 'friedman'] as const)(
     '%s recovers Ea of the example within 3 %%',
     (method) => {
       const data = { ...loaded, method };
       const outcome = analyse(data, prepareRuns(data));
       expect(outcome.ok).toBe(true);
       if (!outcome.ok) return;
+      if (outcome.method === 'coats-redfern') throw new Error('not an isoconversional method');
       const values =
         outcome.method === 'kissinger' ? [outcome.result.eaKJ] : outcome.levels.map((l) => l.eaKJ);
       for (const ea of values) {
@@ -48,6 +49,26 @@ describe('kinetics wizard', () => {
       }
     },
   );
+
+  it('Coats–Redfern ranks first order best for every example run and writes the table and text', () => {
+    const data = { ...loaded, method: 'coats-redfern' as const };
+    const prepared = prepareRuns(data);
+    const outcome = analyse(data, prepared);
+    expect(outcome.ok && outcome.method === 'coats-redfern').toBe(true);
+    if (!outcome.ok || outcome.method !== 'coats-redfern') return;
+    for (const r of outcome.runs) {
+      expect(r.fits[0]?.model).toBe('F1');
+      expect(
+        Math.abs((r.fits[0]?.eaKJ as number) - EXAMPLE_MODEL.eaKJ) / EXAMPLE_MODEL.eaKJ,
+      ).toBeLessThan(0.03);
+    }
+    const text = kineticsMethodsText(data, prepared, outcome);
+    expect(text).toContain('Coats–Redfern');
+    expect(text).toContain('not proof of the reaction mechanism');
+    render(<KineticsResultsStep data={data} update={() => {}} />);
+    expect(screen.getByRole('heading', { name: /Reaction models/ })).toBeTruthy();
+    expect(screen.getAllByText(/\(best\)/).length).toBe(EXAMPLE_RATES.length);
+  });
 
   it('refuses a window with no peak or a mixed set', () => {
     const data = { ...loaded, fromC: 500, toC: 590 };

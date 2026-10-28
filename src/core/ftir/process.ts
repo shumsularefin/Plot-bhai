@@ -4,6 +4,7 @@ import { cutIntoData } from '../xrd/process/background';
 import { savitzkyGolay } from '../xrd/process/savitzkyGolay';
 import type { DataMessage } from '../xrd/types';
 import { alsBaseline, arplsBaseline } from '../math/whittaker';
+import { atrCorrect, penetrationDepthUm } from './atr';
 import { polynomialBaseline, rubberBandBaseline } from './baseline';
 import type { FtirKind, FtirSpectrum, ValueScale } from './types';
 
@@ -11,6 +12,18 @@ export type BaselineMethod = 'arpls' | 'rubber-band' | 'polynomial' | 'als';
 export type NormaliseMethod = 'max' | 'minmax';
 
 export interface FtirProcessing {
+  /** ATR correction A·ν̃/ν̃_ref; the indices and angle only set the penetration depth shown. */
+  atr: {
+    enabled: boolean;
+    /** Reference wavenumber, cm⁻¹. */
+    referenceCm: number;
+    /** Refractive index of the crystal (n₁). */
+    crystalIndex: number;
+    /** Refractive index of the sample (n₂). */
+    sampleIndex: number;
+    /** Angle of incidence, degrees. */
+    angleDeg: number;
+  };
   baseline: {
     enabled: boolean;
     method: BaselineMethod;
@@ -26,11 +39,14 @@ export interface FtirProcessing {
 }
 
 /**
- * Defaults of my own choosing, adjustable on screen; not published constants. arPLS with
+ * Defaults of my own choosing, adjustable on screen; not published constants. The ATR crystal
+ * index 2.4 is the value usually quoted for diamond and ZnSe in the mid-infrared, and n₂ = 1.5 a
+ * typical organic sample (TODO, verify against the accessory's manual). arPLS with
  * λ = 10⁶ is the default baseline because it gave the smallest error on the synthetic spectra
  * with known baselines in tests/baseline-validation.test.ts.
  */
 export const DEFAULT_FTIR_PROCESSING: FtirProcessing = {
+  atr: { enabled: false, referenceCm: 1000, crystalIndex: 2.4, sampleIndex: 1.5, angleDeg: 45 },
   baseline: { enabled: false, method: 'arpls', degree: 3, logLambda: 6, p: 0.01 },
   smoothing: { enabled: false, window: 11, order: 3 },
   normalise: { enabled: false, method: 'max' },
@@ -77,9 +93,9 @@ export function stepSpread(x: Float64Array): number {
 }
 
 /**
- * Runs the enabled steps in the order baseline, smoothing, normalisation, always on absorbance
+ * Runs the enabled steps in the order ATR correction, baseline, smoothing, normalisation, always on absorbance
  * (transmittance is converted first, so peaks point up). Points where the absorbance cannot be
- * calculated are removed first and counted in a message. Baseline: the chosen curve is subtracted.
+ * calculated are removed first and counted in a message. ATR: see atrCorrect. Baseline: the chosen curve is subtracted.
  * Smoothing: Savitzky–Golay, needs evenly spaced wavenumbers. Normalisation: 'max' divides by the
  * highest absorbance; 'minmax' maps the lowest to 0 and the highest to 1. The input is never changed.
  */
@@ -100,6 +116,19 @@ export function processSpectrum(
     a = Float64Array.from(keep, (i) => a[i] as number);
   }
   let baseline: Float64Array | null = null;
+
+  if (settings.atr.enabled) {
+    const { referenceCm, crystalIndex, sampleIndex, angleDeg } = settings.atr;
+    a = atrCorrect(x, a, referenceCm);
+    const dp = penetrationDepthUm(referenceCm, crystalIndex, sampleIndex, angleDeg);
+    note(
+      'atr',
+      dp === null ? 'warning' : 'info',
+      dp === null
+        ? `With n₁ = ${crystalIndex}, n₂ = ${sampleIndex} and ${angleDeg}° there is no total internal reflection (sin θ must exceed n₂/n₁), so check the indices and angle. The absorbance was still scaled by ν̃/${referenceCm}.`
+        : `Absorbance scaled by ν̃/${referenceCm} cm⁻¹. The penetration depth at ${referenceCm} cm⁻¹ is about ${formatNumber(dp, 2)} µm (n₁ = ${crystalIndex}, n₂ = ${sampleIndex}, ${angleDeg}°); it is about ${formatNumber(dp * (referenceCm / 3000), 2)} µm at 3000 cm⁻¹.`,
+    );
+  }
 
   if (settings.baseline.enabled) {
     const b = settings.baseline;

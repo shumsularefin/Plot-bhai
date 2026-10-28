@@ -26,6 +26,7 @@ export function methodsInput(data: FtirData): FtirMethodsInput {
       const own = rows.filter((r) => r.spectrum.id === s.id);
       return {
         kind: s.kind,
+        atrReferenceCm: p.atr.enabled ? p.atr.referenceCm : null,
         baseline: p.baseline.enabled
           ? {
               method: p.baseline.method,

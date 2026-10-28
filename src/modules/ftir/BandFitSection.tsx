@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { regionValue, type RegionFit } from '../../core/xrd/peaks/fit';
 import { profile, type ProfileKind } from '../../core/xrd/peaks/profiles';
 import { lowerBoundIndex } from '../../core/xrd/peaks/search';
-import { formatNumber } from '../../core/xrd/parsers/numbers';
+import { formatNumber, parseTypedNumbers } from '../../core/xrd/parsers/numbers';
 import { HelpTip } from '../../ui/HelpTip';
 import { downloadCsv } from '../xrd/csv';
 import { NumberInput } from '../xrd/NumberInput';
@@ -19,13 +19,6 @@ const PROFILES: [ProfileKind, string][] = [
 ];
 
 const LEVEL_LABELS = { error: 'Problem', warning: 'Check', info: 'Note' } as const;
-
-/** Parses "1650, 1685.5 1720" into numbers; null when any entry is not a number. */
-export function parseCentres(text: string): number[] | null {
-  const parts = text.split(/[\s,;]+/).filter((p) => p !== '');
-  const values = parts.map(Number);
-  return values.every(Number.isFinite) ? values : null;
-}
 
 /** Share of each band's area in the total fitted area, percent. */
 export const areaShares = (fit: RegionFit): number[] => {
@@ -197,12 +190,12 @@ export function BandFitSection({ data, update, spectrum, processed, settings, se
           value={text}
           onInput={(e) => setText(e.currentTarget.value)}
           onChange={(e) => {
-            const values = parseCentres(e.currentTarget.value);
+            const values = parseTypedNumbers(e.currentTarget.value);
             if (values) change({ centres: values });
           }}
         />
       </label>
-      {parseCentres(text) === null && (
+      {parseTypedNumbers(text) === null && (
         <p class="message is-warning">
           <strong>Check:</strong> every position must be a number.
         </p>

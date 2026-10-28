@@ -40,10 +40,11 @@ export function KineticsSetupStep({ data, update }: StepContext<KineticsData>) {
           Method{' '}
           <HelpTip term="kinetic method">
             <p>
-              Kissinger uses the peak temperature of one event in each run. The two isoconversional
-              methods use the temperature at which the same fraction of the mass has been lost, for
-              many fractions, so they show whether the activation energy changes during the step.
-              Use TGA runs for those.
+              Kissinger uses the peak temperature of one event in each run. The isoconversional
+              methods (Flynn–Wall–Ozawa, KAS, Starink and the differential Friedman method) use the
+              temperature at which the same fraction of the mass has been lost, for many fractions,
+              so they show whether the activation energy changes during the step. Coats–Redfern fits
+              each run separately with a set of reaction models. Use TGA runs for all but Kissinger.
             </p>
           </HelpTip>
         </legend>
@@ -71,7 +72,7 @@ export function KineticsSetupStep({ data, update }: StepContext<KineticsData>) {
           value={data.toC ?? window?.[1] ?? null}
           onChange={(v) => update({ toC: v })}
         />
-        {data.method === 'kissinger' && kind === 'tga' && (
+        {(data.method === 'kissinger' || data.method === 'friedman') && kind === 'tga' && (
           <NumberInput
             label="DTG smoothing window (°C)"
             value={data.dtgWindowC}
