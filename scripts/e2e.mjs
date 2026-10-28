@@ -233,6 +233,22 @@ try {
   assert.match(readFileSync(await uvCsv.path(), 'utf8'), /Eg \(eV\)/);
   step('UV-Vis: results CSV and methods text');
 
+  // UV-Vis concentration and kinetics: made-up dye with k = 0.02 1/min and 0.18 L/(mg cm).
+  await page.getByText('Concentration and kinetics').first().click();
+  await page.getByRole('button', { name: 'Try with example data' }).click();
+  await next('Wavelength');
+  await next('Results and export');
+  const kText = (await page.getByText(/^k = /).first().textContent()) ?? '';
+  const k = Number(/k = ([\d.]+)/.exec(kText)?.[1]);
+  assert.ok(Math.abs(k - 0.02) < 0.001, `rate constant ${k} should be near the made-up 0.02`);
+  const [kinCsvUv] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Download kinetics (CSV)' }).click(),
+  ]);
+  assert.match(readFileSync(await kinCsvUv.path(), 'utf8'), /C\/C0/);
+  await page.getByText('Band gap and spectra').first().click();
+  step('UV-Vis concentration: example, k near 0.02 1/min, kinetics CSV');
+
   // FTIR: example data, baseline, peaks, accepted assignments, results, methods text, session.
   await page.goto(`http://localhost:${PORT}/#/ftir`);
   await heading().waitFor();
