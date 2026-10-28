@@ -13,6 +13,8 @@ export interface FtirMethodsInput {
   digitized: number;
   spectra: {
     kind: 'absorbance' | 'transmittance';
+    /** Reference wavenumber of the ATR correction, cm⁻¹; null when it was off. */
+    atrReferenceCm: number | null;
     baseline: { method: BaselineMethod; degree: number; logLambda: number; p: number } | null;
     smoothing: { window: number; order: number } | null;
     normalise: NormaliseMethod | null;
@@ -91,6 +93,15 @@ export function ftirMethodsParagraph(input: FtirMethodsInput): string {
     });
   const steps: string[] = [
     ...counted(
+      spectra.flatMap((s) =>
+        s.atrReferenceCm !== null
+          ? [
+              `an ATR correction for the wavelength dependence of the penetration depth (A × ν̃/${number(s.atrReferenceCm)} cm⁻¹)`,
+            ]
+          : [],
+      ),
+    ),
+    ...counted(
       spectra.flatMap((s) => (s.baseline ? [BASELINES[s.baseline.method](s.baseline)] : [])),
     ),
     ...counted(
@@ -106,8 +117,8 @@ export function ftirMethodsParagraph(input: FtirMethodsInput): string {
   ];
   sentences.push(
     steps.length > 0
-      ? `The data were treated with ${list(steps)}, in the order baseline, smoothing, normalisation.`
-      : 'The data were not baseline-corrected, smoothed or normalised.',
+      ? `The data were treated with ${list(steps)}, in the order ATR correction, baseline, smoothing, normalisation.`
+      : 'The data were not ATR-corrected, baseline-corrected, smoothed or normalised.',
   );
 
   if (input.shown === 'transmittance') {

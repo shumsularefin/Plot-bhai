@@ -8,6 +8,7 @@ import { ResultsStep } from '../src/modules/ftir/ResultsStep';
 import { UploadStep } from '../src/modules/ftir/UploadStep';
 import { methodsText } from '../src/modules/ftir/methodsText';
 import { ftirSession } from '../src/modules/ftir/session';
+import { DEFAULT_FTIR_PROCESSING } from '../src/core/ftir/process';
 import { EXAMPLE_BANDS } from '../src/core/ftir/synthetic';
 
 // jsdom has no layout engine; the plot only needs the observer to exist.
@@ -147,11 +148,12 @@ describe('FTIR results step', () => {
     expect(text).toContain('generated example data, not measurements');
     expect(text).toContain('A = 2 − log10(%T)');
     expect(text).not.toContain('assigned');
-    expect(text).toContain('not baseline-corrected');
+    expect(text).toContain('not ATR-corrected, baseline-corrected');
     const oneOfTwo = methodsText({
       ...data,
       processing: {
         [sample.id]: {
+          ...DEFAULT_FTIR_PROCESSING,
           baseline: { enabled: true, method: 'polynomial', degree: 4, logLambda: 5, p: 0.01 },
           smoothing: { enabled: false, window: 11, order: 3 },
           normalise: { enabled: false, method: 'max' },

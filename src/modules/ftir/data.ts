@@ -119,24 +119,36 @@ export const initialFtirData: FtirData = {
 };
 
 /** Version of the saved shape. Bump it, and add a migration, when the shape changes. */
-export const FTIR_STATE_VERSION = 2;
+export const FTIR_STATE_VERSION = 3;
 
 /** Index of the Bands step, which version 1 did not have. */
 const BANDS_STEP = 3;
 
-/** Upgrades version 1 (no band analysis and no Bands step); newer or unknown versions are discarded. */
+/**
+ * Upgrades version 1 (no band analysis and no Bands step) and version 2 (no ATR correction);
+ * newer or unknown versions are discarded.
+ */
 export function migrateFtirData(
   saved: unknown,
   version: number,
 ): WizardState<FtirData> | undefined {
-  if (version !== 1) return undefined;
+  if (version !== 1 && version !== 2) return undefined;
   const state = saved as WizardState<Partial<FtirData>>;
   if (!state || typeof state !== 'object' || !state.data) return undefined;
-  const shift = (step: number) => (step >= BANDS_STEP ? step + 1 : step);
+  const shift = (step: number) => (version === 1 && step >= BANDS_STEP ? step + 1 : step);
+  const processing: Record<string, FtirProcessing> = {};
+  for (const [id, p] of Object.entries(state.data.processing ?? {})) {
+    processing[id] = { ...p, atr: DEFAULT_FTIR_PROCESSING.atr };
+  }
   return {
     step: shift(state.step),
     furthest: shift(state.furthest),
-    data: { ...initialFtirData, ...state.data, bands: {} },
+    data: {
+      ...initialFtirData,
+      ...state.data,
+      processing,
+      bands: version === 1 ? {} : (state.data.bands ?? {}),
+    },
   };
 }
 

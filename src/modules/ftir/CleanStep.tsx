@@ -162,6 +162,51 @@ export function CleanStep({ data, update }: StepContext<FtirData>) {
       </p>
 
       <StepSection
+        id="atr"
+        title="ATR correction"
+        description="In ATR the infrared wave reaches only a short distance into the sample, and that depth grows with wavelength, so bands at low wavenumber look stronger than in a transmission spectrum. This multiplies the absorbance by ν̃/ν̃ref to remove that trend. Use it only for spectra measured by ATR."
+        enabled={settings.atr.enabled}
+        onToggle={(enabled) => patch('atr', { enabled })}
+        onReset={() => resetStep('atr')}
+        messages={messages('atr')}
+      >
+        <p class="field-hint">
+          The penetration depth is dp = λ / (2π n₁ √(sin²θ − (n₂/n₁)²)) (Harrick). The indices and
+          angle only set the depth reported below; the correction itself needs just the reference.
+          It does not undo the small band shifts ATR causes near very strong bands. Usually quoted
+          mid-infrared crystal indices: diamond and ZnSe about 2.4, germanium about 4.0 (check your
+          accessory&apos;s manual).
+        </p>
+        <NumberInput
+          label="Reference wavenumber (cm⁻¹)"
+          value={settings.atr.referenceCm}
+          min={0}
+          onChange={(v) => v !== null && patch('atr', { referenceCm: v })}
+        />
+        <NumberInput
+          label="Crystal index n₁"
+          value={settings.atr.crystalIndex}
+          min={1}
+          step={0.1}
+          onChange={(v) => v !== null && patch('atr', { crystalIndex: v })}
+        />
+        <NumberInput
+          label="Sample index n₂"
+          value={settings.atr.sampleIndex}
+          min={1}
+          step={0.05}
+          onChange={(v) => v !== null && patch('atr', { sampleIndex: v })}
+        />
+        <NumberInput
+          label="Angle of incidence (°)"
+          value={settings.atr.angleDeg}
+          min={0}
+          max={90}
+          onChange={(v) => v !== null && patch('atr', { angleDeg: v })}
+        />
+      </StepSection>
+
+      <StepSection
         id="baseline"
         title="Baseline correction"
         description="Estimates a smooth curve under the bands (from scattering, drift or a sloped background) and subtracts it, so bands start from zero. The estimated baseline is drawn dashed over the 'before' data."
