@@ -16,6 +16,15 @@ export function parseNumberList(text: string): number[] | null {
   return values.some(Number.isNaN) ? null : values;
 }
 
+/** Parses typed numbers such as "1650, 1685.5 1720;1730" (commas, semicolons or spaces); null when any entry is not a number. */
+export function parseTypedNumbers(text: string): number[] | null {
+  const values = text
+    .split(/[\s,;]+/)
+    .filter((p) => p !== '')
+    .map(Number);
+  return values.every(Number.isFinite) ? values : null;
+}
+
 export function formatNumber(value: number, maxDecimals = 4): string {
   return Number(value.toFixed(maxDecimals)).toString();
 }

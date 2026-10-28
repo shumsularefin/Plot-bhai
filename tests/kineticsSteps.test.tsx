@@ -41,6 +41,7 @@ describe('kinetics wizard', () => {
       const outcome = analyse(data, prepareRuns(data));
       expect(outcome.ok).toBe(true);
       if (!outcome.ok) return;
+      if (outcome.method === 'coats-redfern') throw new Error('not an isoconversional method');
       const values =
         outcome.method === 'kissinger' ? [outcome.result.eaKJ] : outcome.levels.map((l) => l.eaKJ);
       for (const ea of values) {

@@ -229,22 +229,41 @@ export interface BandFitOptions {
  * Areas are in absorbance × cm⁻¹.
  */
 export function fitBands(x: Float64Array, a: Float64Array, options: BandFitOptions): RegionFit {
-  const fromCm = Math.min(options.fromCm, options.toCm);
-  const toCm = Math.max(options.fromCm, options.toCm);
-  const centres = options.centres.filter((c) => c >= fromCm && c <= toCm);
-  // Overlapping bands merge into one broad half-height width, so a band starts no wider than
-  // the distance to its nearest neighbour.
+  return fitBandRegion(
+    x,
+    a,
+    options.fromCm,
+    options.toCm,
+    options.centres,
+    options.profile,
+    ' cm⁻¹',
+  );
+}
+
+/**
+ * The region fit behind fitBands for any increasing x axis (unit is used in the messages):
+ * bands at the given starting centres between from and to, each starting no wider than the
+ * distance to its nearest neighbour, because overlapping bands merge into one broad half-height
+ * width.
+ */
+export function fitBandRegion(
+  x: Float64Array,
+  y: Float64Array,
+  from: number,
+  to: number,
+  starts: readonly number[],
+  profile: ProfileKind,
+  unit: string,
+): RegionFit {
+  const lo = Math.min(from, to);
+  const hi = Math.max(from, to);
+  const centres = starts.filter((c) => c >= lo && c <= hi);
   const peaks = centres.map((center) => {
     const gap = Math.min(
       ...centres.filter((c) => c !== center).map((c) => Math.abs(c - center)),
       Infinity,
     );
-    return { center, width: Math.min(estimateFwhm(x, a, center, fromCm, toCm), gap) };
+    return { center, width: Math.min(estimateFwhm(x, y, center, lo, hi), gap) };
   });
-  return fitRegion(
-    x,
-    a,
-    { start: fromCm, end: toCm, peaks },
-    { profile: options.profile, fixedEta: null, unit: ' cm⁻¹' },
-  );
+  return fitRegion(x, y, { start: lo, end: hi, peaks }, { profile, fixedEta: null, unit });
 }

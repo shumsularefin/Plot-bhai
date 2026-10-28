@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/preact';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { BandsStep } from '../src/modules/ftir/BandsStep';
-import { parseCentres } from '../src/modules/ftir/BandFitSection';
+import { parseTypedNumbers } from '../src/core/xrd/parsers/numbers';
 import {
   DEFAULT_BAND_SETTINGS,
   exampleSpectra,
@@ -139,9 +139,9 @@ describe('FTIR bands step', () => {
   });
 
   it('parses typed starting positions', () => {
-    expect(parseCentres('1650, 1685.5 1720;1730')).toEqual([1650, 1685.5, 1720, 1730]);
-    expect(parseCentres('1650, abc')).toBeNull();
-    expect(parseCentres('')).toEqual([]);
+    expect(parseTypedNumbers('1650, 1685.5 1720;1730')).toEqual([1650, 1685.5, 1720, 1730]);
+    expect(parseTypedNumbers('1650, abc')).toBeNull();
+    expect(parseTypedNumbers('')).toEqual([]);
   });
 });
 

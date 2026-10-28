@@ -222,6 +222,7 @@ describe('methods text', () => {
       rangeSource: 'table flagged for verification',
       theory: { precursor: 'Zn(OH)2', product: 'ZnO', lossPct: 18.1818 },
       calcination: { marginC: 50, minLossPct: 1, minimumC: 412.3 },
+      evolved: null,
     });
     expect(text).toContain('atmosphere: air');
     expect(text).toContain('10 K/min');
