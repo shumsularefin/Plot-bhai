@@ -1,6 +1,7 @@
 import { linearFit } from '../math/linearFit';
 import type { DataMessage } from '../xrd/types';
 import { KELVIN_OFFSET } from './import';
+import { interpolate } from './process';
 import { temperatureAtMass } from './steps';
 
 /*
@@ -263,7 +264,7 @@ export function friedman(
       const t = temps?.[k];
       const run = runs[r] as MassRunWithDtg;
       if (t === null || t === undefined || !(span > 0)) return;
-      const rate = interpolateAt(run.temperatureC, run.dtg, t) / span;
+      const rate = interpolate(run.temperatureC, run.dtg, t) / span;
       if (!(rate > 0)) return;
       points.push({ x: 1 / (t + KELVIN_OFFSET), y: Math.log(run.betaKPerMin * rate) });
     });
@@ -298,21 +299,6 @@ function massSpan(run: MassRun, fromC: number, toC: number): number {
   return m0 === null ? 0 : m0 - low;
 }
 
-/** Linear interpolation of y at x0 on increasing x (clamped to the ends). */
-function interpolateAt(x: Float64Array, y: Float64Array, x0: number): number {
-  const n = x.length;
-  if (x0 <= (x[0] as number)) return y[0] as number;
-  if (x0 >= (x[n - 1] as number)) return y[n - 1] as number;
-  let lo = 0;
-  let hi = n - 1;
-  while (hi - lo > 1) {
-    const mid = (lo + hi) >> 1;
-    if ((x[mid] as number) <= x0) lo = mid;
-    else hi = mid;
-  }
-  const f = (x0 - (x[lo] as number)) / ((x[hi] as number) - (x[lo] as number));
-  return (y[lo] as number) + f * ((y[hi] as number) - (y[lo] as number));
-}
 
 /**
  * Reaction models g(α), the integral form, for Coats–Redfern. Names and expressions as in
