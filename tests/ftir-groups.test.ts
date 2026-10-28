@@ -35,10 +35,10 @@ describe('data/ftir/groups.json', () => {
     expect(groups.length).toBeGreaterThan(50);
   });
 
-  it('has a source, a licence and a verification flag, and sane numbers', () => {
+  it('has a source, a licence and a verification note, and sane numbers', () => {
     expect(table.source.doi).toBe('10.3390/molecules30030684');
     expect(table.source.licence).toContain('CC BY 4.0');
-    expect(table.verification).toContain('TODO, verify');
+    expect(table.verification).toContain('confirm a range against your own literature');
     for (const g of table.functionalGroups) {
       expect(g.ranges.length).toBeGreaterThan(0);
       for (const r of g.ranges) {

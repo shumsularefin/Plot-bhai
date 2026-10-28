@@ -176,3 +176,32 @@ describe('XRD backgrounds on patterns with a known background', () => {
     expect(cutWrong).toBeGreaterThan(0.1);
   });
 });
+
+describe('arPLS against an independent implementation', () => {
+  it('agrees with pybaselines arpls to 0.001', () => {
+    // A straight baseline with two Gaussian peaks and uniform noise of ±1 from a Park–Miller
+    // generator; expected values from pybaselines 1.2.1 (whittaker.arpls, lam = 1e5,
+    // diff_order = 2, max_iter = 100, tol = 1e-6) on this same array.
+    let seed = 7;
+    const noise = () => (seed = (seed * 16807) % 2147483647) / 2147483647 - 0.5;
+    const y = Float64Array.from(
+      { length: 600 },
+      (_, i) =>
+        50 +
+        0.05 * i +
+        30 * Math.exp(-(((i - 200) / 6) ** 2)) +
+        60 * Math.exp(-(((i - 420) / 10) ** 2)) +
+        2 * noise(),
+    );
+    const z = arplsBaseline(y, 1e5, 1e-6, 100);
+    const pybaselines: [number, number][] = [
+      [0, 50.0759],
+      [100, 54.9473],
+      [200, 59.9832],
+      [300, 65.0983],
+      [420, 71.1777],
+      [599, 79.9464],
+    ];
+    for (const [i, v] of pybaselines) expect(Math.abs((z[i] as number) - v)).toBeLessThan(1e-3);
+  });
+});

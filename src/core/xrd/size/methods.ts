@@ -73,9 +73,12 @@ export interface ScherrerResult {
 
 /**
  * Scherrer equation, one size per peak: D = K λ / (β cos θ).
- * P. Scherrer, Nachr. Ges. Wiss. Göttingen, session of 26 July 1918 (date from Scherrer's own
- * citation in Zsigmondy, Kolloidchemie). TODO(verify): pages 98–100 and the equation itself are
- * not in the two pages supplied. σ(D) = D σ(β) / β.
+ * P. Scherrer, Nachr. Ges. Wiss. Göttingen, Math.-Phys. Kl. (1918) 98–100, session of 26 July
+ * 1918; checked against the paper. On p. 99 he gives the half-width h = 2 √(ln 2 / π) · (λ / Λ) ·
+ * 1 / cos(θ / 2) for cubic crystallites of edge Λ, with θ the scattering angle (2θ today) and h
+ * in radians: D = K λ / (β cos θ) with K = 2 √(ln 2 / π) ≈ 0.94 for that case. K is a setting
+ * here because its value depends on the crystallite shape and on the breadth used (FWHM or
+ * integral breadth). σ(D) = D σ(β) / β.
  * It attributes all broadening to size, so with strain present D is an underestimate.
  */
 export function scherrer(peaks: readonly SizePeak[], settings: SizeSettings): ScherrerResult {
@@ -474,7 +477,7 @@ export function sizeStrainPlot(peaks: readonly SizePeak[], s: SizeSettings): Lin
  * Halder & Wagner, Acta Cryst. 20 (1966) 312–313, eq. (5): b^P / b = 1 − (b^D / b)², with b,
  * b^P and b^D the integral breadths (total, size, strain) in reciprocal units; that is,
  * β² = β β_D + β_ε² as used here. The angle form above is a rearrangement of it, as written in
- * arXiv:2103.03521 (TODO(verify): that paper was found by search, not read). Its axes are the
+ * T. C. Paul, J. Podder and L. Paik, arXiv:2103.03521, eq. (7) (checked against the preprint). Its axes are the
  * SSP axes multiplied by 4 / λ², so an unweighted fit gives exactly the same D and ε as the
  * size–strain plot; Pal (2025, section 6) shows the same equivalence.
  */
