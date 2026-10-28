@@ -299,7 +299,6 @@ function massSpan(run: MassRun, fromC: number, toC: number): number {
   return m0 === null ? 0 : m0 - low;
 }
 
-
 /**
  * Reaction models g(α), the integral form, for Coats–Redfern. Names and expressions as in
  * Table 3 of Y. Qin et al., Materials 15 (2022) 987 (with the same expressions in Table 1 of
