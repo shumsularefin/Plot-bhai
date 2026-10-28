@@ -1,0 +1,11 @@
+# Cloudflare Worker for validations, comments and counters (see docs/feedback.md).
+name = "plot-bhai-feedback"
+main = "index.js"
+compatibility_date = "2025-01-01"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "plot-bhai-feedback"
+# Filled in by the owner after `wrangler d1 create plot-bhai-feedback` (docs/feedback.md).
+database_id = "REPLACE_WITH_DATABASE_ID"

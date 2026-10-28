@@ -26,6 +26,8 @@ export default defineConfig({
     environment: 'jsdom',
     include: ['tests/**/*.test.{ts,tsx}'],
     setupFiles: ['tests/setup.ts'],
+    // No calls to the feedback service from unit tests (src/ui/feedback/client.ts).
+    env: { VITE_FEEDBACK_API: '' },
     // Lets tests read design tokens with `?raw` (Vitest blanks CSS by default).
     css: { include: [/tokens\.css/] },
   },

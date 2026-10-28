@@ -1,4 +1,5 @@
 import type { ComponentChildren } from 'preact';
+import { Community } from './feedback/Community';
 import './home.css';
 
 interface ToolCard {
@@ -131,6 +132,8 @@ export function Home() {
           ))}
         </ol>
       </section>
+
+      <Community />
     </div>
   );
 }

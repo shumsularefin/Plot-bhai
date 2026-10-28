@@ -1,5 +1,7 @@
 import About from './About';
+import { useEffect } from 'preact/hooks';
 import { ErrorBoundary } from './ErrorBoundary';
+import { recordVisit } from './feedback/client';
 import { Home } from './Home';
 import { LazyTool } from './LazyTool';
 import { useHashPath } from './router';
@@ -18,6 +20,7 @@ const loadThermalImage = () => import('../modules/digitize/targets/thermal');
 
 export function App() {
   const path = useHashPath();
+  useEffect(recordVisit, []);
 
   return (
     <div class="shell">

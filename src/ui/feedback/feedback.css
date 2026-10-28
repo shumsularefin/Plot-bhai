@@ -1,0 +1,77 @@
+/* Validate button, its pop-up, and the counters and comments on the home page. */
+.validate-button {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-weight: var(--weight-bold);
+}
+
+.validate-button:hover:not(:disabled) {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.validate-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: rgb(0 0 0 / 0.45);
+}
+
+.validate-dialog {
+  width: min(32rem, 100%);
+  max-height: calc(100vh - 2 * var(--space-4));
+  overflow: auto;
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-popover);
+}
+
+.validate-title {
+  margin-top: 0;
+  font-size: var(--text-lg);
+}
+
+.validate-comment textarea {
+  width: 100%;
+  font: inherit;
+}
+
+.home-counters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  padding: 0;
+  list-style: none;
+}
+
+.home-counters li {
+  display: flex;
+  flex-direction: column;
+  min-width: 7rem;
+}
+
+.home-counter-value {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+}
+
+.home-comments {
+  display: grid;
+  gap: var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.home-comments li {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}

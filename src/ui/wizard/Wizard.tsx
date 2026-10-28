@@ -4,6 +4,8 @@ import { editsText, emptyHistory, historyKey, record, redo, undo, type History }
 import { Stepper } from './Stepper';
 import type { WizardState, WizardStep } from './types';
 import { StepGuide } from './StepGuide';
+import { recordAnalysis } from '../feedback/client';
+import { ValidateButton } from '../feedback/ValidateButton';
 import './wizard.css';
 
 interface WizardProps<D> {
@@ -52,6 +54,11 @@ export function Wizard<D>({ title, steps, store }: WizardProps<D>) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
+
+  // Reaching the last step finishes an analysis: it is counted, and the section can be validated.
+  useEffect(() => {
+    if (status === 'ready' && index === last) void recordAnalysis(title);
+  }, [status, index, last, title]);
 
   useEffect(() => {
     // Move focus to the new step's heading so keyboard and screen reader users follow along.
@@ -104,6 +111,7 @@ export function Wizard<D>({ title, steps, store }: WizardProps<D>) {
       <div class="wizard-header">
         <p class="wizard-tool">{title}</p>
         <div class="wizard-history">
+          <ValidateButton tool={title} />
           <button
             type="button"
             class="btn btn-quiet"
