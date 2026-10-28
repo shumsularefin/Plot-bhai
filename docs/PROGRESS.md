@@ -1,5 +1,46 @@
 # Progress
 
+## Source check of the stage 5 values, from the owner's PDFs (done)
+
+Branch `claude/zen-edison-acnmco`. No new dependencies. The owner supplied the four papers behind
+the open "TODO, verify" items; the PDFs are not stored in the repository. The owner also reports
+that the FTIR step 3 flicker is gone.
+
+### Results
+
+- **Sapphire heat capacity (Ditmars et al. 1982, Table 2): checked.** All 68 rows (200 to
+  1000 K) were compared with the paper's own smoothing polynomials (eq. 1c for 200 to 273.15 K,
+  the derivative of eq. 2 above), using the coefficients printed in the paper. 67 rows agree to
+  the rounding of the printed last digit (largest difference 0.012 J/(mol·K), at 273.15 K).
+  **One correction:** Table 2 prints 67.0 at 250 K, but its polynomial gives 67.08, and the
+  neighbouring rows and the enthalpy column agree with 67.08, so the data file now has 67.08 (a
+  probable misprint in the table; please look at the printed row yourself). New test
+  `tests/dsc-methods.test.ts` keeps the table and the polynomials in agreement.
+- **Swanepoel (1983): equation numbers checked, and the method reproduces the paper's table.**
+  Eqs. (1) and (2) (substrate), (3) (2nd = mλ), (11) (film index) and (23) (thickness from
+  adjacent extrema) are the ones in the code, now cited by number. The film index reproduces all
+  13 rows of the paper's Table 1 (a-Si:H on glass, s = 1.51) to 0.001, and eq. (23) reproduces
+  the paper's d₁ column (rows 3 to 11) within 3 nm; `tests/uvvis-film.test.ts`. The paper
+  pairs extrema of the same kind for eq. (23), as the code does.
+- **Starink constants: not settled.** The supplied paper (Mphahlele et al., Bioresour. Technol.
+  Rep. 28 (2024) 101985, eq. 2) uses ln(β/T^1.8) = C − 1.0037 Ea/RT, the older (1996) pair, not
+  the 1.92 and 1.0008 of Starink (2003) that the site uses. Nothing supplied confirms the 2003
+  pair, so the code keeps it and the TODO stays. Decision for the owner: keep 1.92 / 1.0008, or
+  offer both.
+- **Purity (Marti 1972): the equation is checked, the default range is not.** The van 't Hoff
+  relation of eq. (3), x₂ = ΔH_f (T₁ − T) r / (R T₁²), is what `vantHoffPurity` implements. Marti
+  says only part of the melting curve is linear and the range depends on the substance (he cites
+  a 2 % lower limit and an upper limit near half the peak heat flow from Driscoll et al.), so the
+  10 to 50 % default stays a starting point of my own and the E928 check stays open: ASTM E928 was
+  not among the PDFs. Marti's worked nitric oxide example (Table I) could not be used as a test:
+  its x₀,₂ values (7.9e-6 and 6.4e-6) come out of eq. (6) only if the amount n₀ is left out of the
+  division, which the printed equation includes.
+
+### Still open
+
+- ASTM E928 fraction range for the purity fit; the Starink 2003 constants (or the choice between
+  the two pairs).
+
 ## Owner feedback round, stage 6 of 6: Validate button and counters (done)
 
 Branch `claude/zen-edison-acnmco`. No new dependencies (the Worker test uses Node's built-in
@@ -58,8 +99,8 @@ Branch `claude/zen-edison-acnmco`. No new dependencies (the Worker test uses Nod
   secrets `FEEDBACK_PROOF_SECRET` and `FEEDBACK_ADMIN_TOKEN`, then run the "Feedback worker"
   workflow (docs/feedback.md). Until then the counters stay hidden and Send reports that the
   service could not be reached.
-- Still open from stage 5: verify the Ditmars sapphire table, the Starink constants, the E928
-  fraction range and the Swanepoel equation numbers; confirm the FTIR step 3 flicker fix.
+- Still open from stage 5: the Starink constants and the E928 fraction range (the sapphire table
+  and the Swanepoel equation numbers were checked later; see the first entry above).
 
 ### Next
 

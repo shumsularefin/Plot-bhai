@@ -2,7 +2,7 @@
   "source": {
     "citation": "Ditmars D.A., Ishihara S., Chang S.S., Bernstein G., West E.D., Enthalpy and heat-capacity standard reference material: synthetic sapphire (α-Al2O3) from 10 to 2250 K, J. Res. Natl. Bur. Stand. 87(2) (1982) 159–163, Table 2 (NBS SRM 720)"
   },
-  "verification": "TODO, verify: the values were transcribed by hand from a scan of Table 2; check each row against the printed table before relying on it. Values between rows are linearly interpolated by the site.",
+  "verification": "rows from 200 to 1000 K were checked against the paper's own smoothing polynomials; values between rows are linearly interpolated.",
   "molarMassGPerMol": 101.9613,
   "columns": [
     "T (K)",
@@ -31,7 +31,7 @@
     ],
     [
       250.0,
-      67.0
+      67.08
     ],
     [
       260.0,
@@ -281,5 +281,6 @@
       1000.0,
       124.77
     ]
-  ]
+  ],
+  "verificationDetail": "Checked against the paper in October 2026: every row from 200 to 1000 K was compared with the paper's own smoothing polynomials (eqs. 1c and 2) and agrees to within the rounding of the printed last digit, except 250 K. Table 2 prints 67.0 at 250 K, but its polynomial gives 67.08, and the neighbouring rows and the enthalpy column agree with 67.08, so 67.08 is used (a probable misprint in the table; 273.15 K keeps the printed 73.21). Values between rows are linearly interpolated by the site."
 }

@@ -4,14 +4,15 @@ import { interpolate } from '../thermal/process';
 /*
  * Refractive index and thickness of a thin film on a thick transparent substrate from the
  * interference fringes of its transmittance, after Swanepoel R., Determination of the thickness
- * and optical constants of amorphous silicon, J. Phys. E: Sci. Instrum. 16 (1983) 1214–1222
- * (TODO, verify the equation numbers against the paper). Transmittance T is a fraction (0 to 1),
- * wavelength λ and thickness d in nm, refractive indices dimensionless.
+ * and optical constants of amorphous silicon, J. Phys. E: Sci. Instrum. 16 (1983) 1214–1222.
+ * Equation numbers below are the paper's (checked against it): (1) and (2) substrate, (3)
+ * 2 n d = m λ, (11) film index, (23) thickness from adjacent extrema. Transmittance T is a
+ * fraction (0 to 1), wavelength λ and thickness d in nm, refractive indices dimensionless.
  */
 
 /**
  * Refractive index of a non-absorbing substrate from its own transmittance Ts (fraction), from
- * Ts = 2s / (s² + 1): s = 1/Ts + √(1/Ts² − 1). Null unless 0 < Ts ≤ 1.
+ * Ts = 2s / (s² + 1) (eq. 1): s = 1/Ts + √(1/Ts² − 1) (eq. 2). Null unless 0 < Ts ≤ 1.
  */
 export function substrateIndex(ts: number): number | null {
   if (!(ts > 0 && ts <= 1)) return null;
@@ -20,7 +21,7 @@ export function substrateIndex(ts: number): number | null {
 
 /**
  * Film index from the two envelopes at one wavelength (transparent and weak absorption region):
- *   N = 2s (T_M − T_m) / (T_M T_m) + (s² + 1) / 2,   n = √(N + √(N² − s²)).
+ *   N = 2s (T_M − T_m) / (T_M T_m) + (s² + 1) / 2,   n = √(N + √(N² − s²))   (eq. 11).
  * Null when N² < s².
  */
 export function filmIndex(tMax: number, tMin: number, s: number): number | null {
@@ -97,7 +98,7 @@ const sd = (v: readonly number[]) => {
  * envelopes here are a little less accurate where the fringes are far apart), and n₁ follows from
  * filmIndex. A first thickness comes from each pair of adjacent extrema of the same kind (two
  * neighbouring maxima, or two neighbouring minima, whose orders differ by 1),
- *   d = λ₁ λ₂ / [2 (λ₁ n₂ − λ₂ n₁)]   (λ₁ > λ₂),
+ *   d = λ₁ λ₂ / [2 (λ₁ n₂ − λ₂ n₁)]   (λ₁ > λ₂; eq. 23),
  * and d̄₁ is their mean. Order numbers follow from 2 n d = m λ: adjacent extrema differ by ½, so
  * one series m_k = m₀ + k/2 (k counted from the longest wavelength) is chosen, with m₀ an integer
  * at a maximum and a half-integer at a minimum, closest in least squares to 2 n₁ d̄₁ / λ. Then

@@ -50,7 +50,8 @@ export interface DscMethodsData {
 
 /**
  * Defaults of my own choosing, adjustable on screen. The 10 to 50 % melted range for the purity fit
- * follows common practice for the van 't Hoff plot (TODO, verify against ASTM E928).
+ * is a starting point, not a value from a standard: Marti (1972) says the usable range depends on the
+ * substance (TODO, verify the range against ASTM E928).
  */
 export const initialDscMethodsData: DscMethodsData = {
   method: 'cp',

@@ -24,6 +24,32 @@ describe('sapphire table', () => {
     expect(sapphireCp(SAPPHIRE, 1200)).toBeNull();
   });
 
+  it("agrees with the paper's own smoothing polynomials (Ditmars et al. 1982, eqs. 1c and 2)", () => {
+    // Coefficients as printed in the paper; Cp in J/(mol·K), T in K.
+    const A = [0.21993e2, 0.38853, 0.13955e-2, -0.83967e-4, 0.19133e-5, -0.31778e-7, 0.29562e-9];
+    const factorial = [1, 1, 2, 6, 24, 120, 720];
+    const low = (t: number) =>
+      A.reduce((s, a, i) => s + (a / (factorial[i] as number)) * (t - 125) ** i, 0);
+    const [a, b, c, d, e, f, g, h] = [
+      6.6253e7, -4.54238e6, -5.475599e4, 2.574076e2, -8.57516e-2, 4.299063e-5, -1.15192e-8,
+      1.26351e-12,
+    ] as const;
+    // Cp = dH/dT of H(T) = a/T² + b/T + c ln T + k + d T + e T² + f T³ + g T⁴ + h T⁵.
+    const high = (t: number) =>
+      -2 * a * t ** -3 -
+      b * t ** -2 +
+      c / t +
+      d +
+      2 * e * t +
+      3 * f * t ** 2 +
+      4 * g * t ** 3 +
+      5 * h * t ** 4;
+    for (const [t, cp] of SAPPHIRE.rows) {
+      // Table values are rounded to 0.01; 273.15 K is the join of the two fits.
+      expect(Math.abs(cp - (t < 273.15 ? low(t) : high(t)))).toBeLessThan(0.015);
+    }
+  });
+
   it('increases with temperature over the whole table', () => {
     const cp = SAPPHIRE.rows.map((r) => r[1]);
     for (let i = 1; i < cp.length; i++) expect(cp[i]).toBeGreaterThan(cp[i - 1] as number);
