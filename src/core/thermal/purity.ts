@@ -44,9 +44,9 @@ export interface PurityResult {
 export type PurityOutcome = { ok: true; result: PurityResult } | { ok: false; error: string };
 
 /**
- * Purity from the shape of a melting peak with the van 't Hoff equation (as in ASTM E928), which
- * is x₂ = ΔH_f (T₀ − T_s) F / (R T₀²) in the form of eq. (3) of E. E. Marti, Thermochim. Acta 5
- * (1972) 173–220 (checked against the paper):
+ * Purity from the shape of a melting peak with the van 't Hoff equation, Method A of ASTM E928-03
+ * (eqs. 1, 4, 7, 8 and 9, checked against the standard), which is x₂ = ΔH_f (T₀ − T_s) F / (R T₀²)
+ * as in eq. (3) of E. E. Marti, Thermochim. Acta 5 (1972) 173–220:
  *
  *   T_s = T₀ − (R T₀² x₂ / ΔH_f) · (1/F)
  *
@@ -55,8 +55,10 @@ export type PurityOutcome = { ok: true; result: PurityResult } | { ok: false; er
  * fraction melted at T_s, taken as the partial area of the peak up to T_s over the whole area. The
  * area above a straight baseline is integrated over time (dt = dT/β), giving J/g; ΔH_f = that × M.
  * T_s is fitted against 1/F (least squares) over F from fMin to fMax: the intercept is T₀ and
- * x₂ = −slope · ΔH_f / (R T₀²). Marti notes that only part of the melting curve is linear and that
- * the usable range depends on the substance, so the range is the user's to adjust.
+ * x₂ = −slope · ΔH_f / (R T₀²). E928 uses the first 10 to 50 % of the peak area (sections 4.2 and
+ * 11.5, at least ten points); Marti notes that the usable range depends on the substance, so the
+ * range stays adjustable. R here is the exact SI value, 8.314462618 J/(mol·K); the standard prints
+ * 8.314 and 8.314510.
  *
  * The equation assumes an impurity that dissolves in the melt but not in the solid (a eutectic
  * system) and a nearly pure sample. Neither the curvature ("linearisation") correction nor a
@@ -137,9 +139,19 @@ export function vantHoffPurity(input: PurityInput): PurityOutcome {
       'The temperature falls as more of the sample melts, which the van ’t Hoff equation does not allow. Check the peak limits and the sign convention.',
     );
   }
-  if (x2 > 0.025) {
+  if (x2 > 0.015) {
     notes.push(
-      `The impurity of ${(100 * x2).toFixed(1)} mol % is high for this method, which is only meant for nearly pure substances (see ASTM E928 for its limits). Treat the value as a rough indication.`,
+      `The purity of ${(100 * (1 - x2)).toFixed(1)} mol % is below 98.5 mol %, where ASTM E928 calls the method unreliable. Treat the value as a rough indication.`,
+    );
+  }
+  if (rateKPerMin < 0.3 || rateKPerMin > 0.7) {
+    notes.push(
+      `ASTM E928 asks for a heating rate of 0.3 to 0.7 K/min; this run used ${rateKPerMin} K/min, so thermal lag may distort the result.`,
+    );
+  }
+  if (points.length < 10) {
+    notes.push(
+      `ASTM E928 asks for at least ten points between 10 and 50 % melted; this fit has ${points.length}.`,
     );
   }
   if (fit.rSquared < 0.98) {

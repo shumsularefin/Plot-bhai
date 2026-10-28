@@ -49,9 +49,8 @@ export interface DscMethodsData {
 }
 
 /**
- * Defaults of my own choosing, adjustable on screen. The 10 to 50 % melted range for the purity fit
- * is a starting point, not a value from a standard: Marti (1972) says the usable range depends on the
- * substance (TODO, verify the range against ASTM E928).
+ * Defaults, adjustable on screen. The 10 to 50 % melted range for the purity fit is the one in
+ * ASTM E928-03 (sections 4.2 and 11.5); the other defaults are my own choice.
  */
 export const initialDscMethodsData: DscMethodsData = {
   method: 'cp',

@@ -130,6 +130,23 @@ describe('van ’t Hoff purity', () => {
     expect(Math.abs(r.fusionKJPerMol / fusionKJ - 1)).toBeLessThan(0.02);
     expect(r.purityMolPct).toBeCloseTo(99.5, 1);
     expect(r.rSquared).toBeGreaterThan(0.999);
+    // Within the limits of ASTM E928: 0.3 to 0.7 K/min, ten or more points, purity above 98.5 mol %.
+    expect(r.notes.filter((n) => n.includes('E928'))).toEqual([]);
+  });
+
+  it('warns where the run leaves the limits of ASTM E928', () => {
+    const out = vantHoffPurity({
+      temperatureC: T,
+      endo,
+      fromC: T[0] as number,
+      toC: t0C + 2,
+      rateKPerMin: 5,
+      molarMass,
+      fMin: 0.1,
+      fMax: 0.5,
+    });
+    if (!out.ok) throw new Error(out.error);
+    expect(out.result.notes.join(' ')).toContain('0.3 to 0.7 K/min');
   });
 
   it('refuses a range without a peak and an impossible fraction range', () => {

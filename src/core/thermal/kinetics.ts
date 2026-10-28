@@ -27,11 +27,9 @@ export const DOYLE_COEFFICIENT = 1.052;
 
 /**
  * Starink isoconversional method: ln(β / T^1.92) = C − 1.0008 Ea / (R T) at fixed conversion,
- * from M. J. Starink, Thermochim. Acta 404 (2003) 163–176. The two constants were read in a paper
- * that quotes it (A. O. Balogun et al., Sci. Rep. 11 (2021) 13862, eq. (8)), not in the original.
- * TODO, verify against Starink (2003). The older 1996 version uses 1.8 and 1.0037, as in
- * K. Mphahlele et al., Bioresour. Technol. Rep. 28 (2024) 101985, eq. (2), which was checked for
- * that older pair only.
+ * from M. J. Starink, Thermochim. Acta 404 (2003) 163–176, eq. (29) (checked against the paper,
+ * which prefers it for its accuracy). An older version (1996) uses 1.8 and 1.0037, as in
+ * K. Mphahlele et al., Bioresour. Technol. Rep. 28 (2024) 101985, eq. (2).
  */
 export const STARINK_EXPONENT = 1.92;
 export const STARINK_COEFFICIENT = 1.0008;
