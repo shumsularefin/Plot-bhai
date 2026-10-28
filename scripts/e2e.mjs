@@ -266,7 +266,10 @@ try {
   await page.getByLabel('to (cm⁻¹)').last().fill('1820');
   await page.getByRole('button', { name: 'Use the picked peaks in this range' }).click();
   await page.getByRole('button', { name: 'Fit bands' }).click();
-  const centreCell = page.getByRole('region', { name: /Fitted bands/ }).locator('tbody th').first();
+  const centreCell = page
+    .getByRole('region', { name: /Fitted bands/ })
+    .locator('tbody th')
+    .first();
   await centreCell.waitFor();
   const centre = Number(/^[\d.]+/.exec((await centreCell.textContent()) ?? '')?.[0]);
   assert.ok(Math.abs(centre - 1720) < 1, `fitted centre ${centre} should be near 1720 cm⁻¹`);
