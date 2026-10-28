@@ -8,6 +8,7 @@ import {
 import { DEFAULT_DETECT_SETTINGS, type DetectSettings } from '../../core/particles/detect/pipeline';
 import type { Runs } from '../../core/particles/detect/regions';
 import type { BinMethod } from '../../core/particles/distribution';
+import type { InterceptStructure } from '../../core/particles/stereology';
 import type { WizardState } from '../../ui/wizard/types';
 
 /** Facts about the loaded image. The image itself is stored separately (see imageStore.ts). */
@@ -131,6 +132,25 @@ export const DEFAULT_DISTRIBUTION: DistributionSettings = {
   showCumulative: false,
 };
 
+/** Settings of the area fraction, line intercept and XRD comparison section. */
+export interface StereologySettings {
+  /** What the detected regions are, which decides the intercept formula. */
+  structure: InterceptStructure;
+  /** Test lines in each direction (horizontal and vertical). */
+  lines: number;
+  /** Crystallite size the user typed from an XRD analysis, in nm. */
+  xrdSizeNm: number | null;
+  /** Name of the XRD method that gave it, for the table and the methods text. */
+  xrdMethod: string;
+}
+
+export const DEFAULT_STEREOLOGY: StereologySettings = {
+  structure: 'phase',
+  lines: 10,
+  xrdSizeNm: null,
+  xrdMethod: '',
+};
+
 /** Everything saved for a particle size analysis. */
 export interface ParticleData {
   image: ImageInfo | null;
@@ -144,6 +164,7 @@ export interface ParticleData {
   distribution: DistributionSettings;
   /** Images saved for pooling. Kept when another image is loaded. */
   pool: PoolEntry[];
+  stereology: StereologySettings;
 }
 
 export const initialParticleData: ParticleData = {
@@ -155,10 +176,11 @@ export const initialParticleData: ParticleData = {
   detect: initialDetectState,
   distribution: DEFAULT_DISTRIBUTION,
   pool: [],
+  stereology: DEFAULT_STEREOLOGY,
 };
 
 /** Version of the saved shape. Bump it, and add a migration, when the shape changes. */
-export const PARTICLE_STATE_VERSION = 4;
+export const PARTICLE_STATE_VERSION = 5;
 
 /** Index of the "Measure by hand" step, which versions 1 to 3 had before the last step. */
 const OLD_MEASURE_STEP = 3;
@@ -166,15 +188,21 @@ const OLD_MEASURE_STEP = 3;
 /**
  * Upgrades saved sessions: version 1 (sub-stage 10a) had no automatic detection state, version 2
  * (10b) had no distribution settings or pool, and versions 1 to 3 had a separate step for hand
- * measurements (now part of Detect particles) and splitting by necks only.
+ * measurements (now part of Detect particles) and splitting by necks only, and versions 1 to 4
+ * had no area fraction and intercept settings.
  */
 export function migrateParticleData(
   saved: unknown,
   version: number,
 ): WizardState<ParticleData> | undefined {
-  if (version < 1 || version > 3) return undefined;
+  if (version < 1 || version > 4) return undefined;
   const state = saved as WizardState<Partial<ParticleData>>;
   if (!state || typeof state !== 'object' || !state.data) return undefined;
+  if (version === 4)
+    return {
+      ...state,
+      data: { ...initialParticleData, ...state.data, stereology: DEFAULT_STEREOLOGY },
+    };
   const detect: Partial<DetectState> =
     version === 1 ? initialDetectState : (state.data.detect ?? initialDetectState);
   const settings = { ...DEFAULT_DETECT_SETTINGS, ...detect.settings };

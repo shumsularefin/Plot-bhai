@@ -286,8 +286,13 @@ try {
   await page.getByRole('button', { name: 'Try with example data' }).click();
   await page.getByText('Shown at').waitFor({ timeout: 15_000 });
   await next('Crop and scale');
-  await page.getByRole('button', { name: /Use the example's scale bar/ }).click();
+  // The automatic finder must put the ends on the tick centres: 200 px, as drawn.
+  await page.getByRole('button', { name: 'Find the scale bar automatically' }).click();
+  await page.getByText(/Found a white bar/).waitFor();
+  await page.getByText(/The bar you drew is 200 pixels long/).waitFor();
+  await page.getByLabel('Length of the bar').fill('100');
   await page.getByText(/2 pixels per nm/).waitFor();
+  step('Particles: scale bar found automatically, 200 px from tick to tick');
   // Keep the data bar out of the analysis area, then detect the 12 example particles.
   await page.getByLabel(/Remove a strip from the bottom/).fill('96');
   await page.getByRole('button', { name: 'Apply', exact: true }).click();
@@ -370,6 +375,13 @@ try {
       .toString(),
     'PNG',
   );
+  // Area fraction of the 12 discs (Σπr² = 75,497 px²) in the 1024 × 768 analysis area: 9.600 %.
+  const stereo = page.locator('section[aria-labelledby="dist-stereology"] .peak-table tbody td');
+  const fraction = parseFloat(await stereo.first().innerText());
+  assert.ok(Math.abs(fraction - 9.6) / 9.6 < 0.03, `area fraction ${fraction} %`);
+  await page.getByLabel('Crystallite size from XRD (nm)').fill('20');
+  await page.getByText(/Estimate, not a proof/).waitFor();
+  step('Particles: area fraction within 3 % of the true 9.60 %, XRD size comparison');
   await page.getByRole('button', { name: 'Save this image for pooling' }).click();
   await page.getByText(/example-particles-synthetic.png: 12 particles \(nm\)/).waitFor();
   assert.match(await page.getByLabel('Methods paragraph').inputValue(), /generated example/);

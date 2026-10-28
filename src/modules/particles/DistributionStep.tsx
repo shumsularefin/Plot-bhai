@@ -33,6 +33,8 @@ import { downloadParticles } from './DetectStep';
 import { HistogramChart } from './HistogramChart';
 import { useImage } from './useImage';
 import { collectSizes, imageSizes, keptParticles, poolEntryOf } from './sizes';
+import { stereologyMethods, stereologyOf } from './stereology';
+import { StereologySection } from './StereologySection';
 
 const MEASURE_WORDS: Record<SizeMeasure, string> = {
   'equal-area': 'equal-area diameter',
@@ -109,11 +111,12 @@ export function DistributionStep({ data, update }: StepContext<ParticleData>) {
   }, [hist, s.showFit, s.showCumulative, lognormal, normal, sorted, xLabel]);
 
   const hasImage = data.image !== null;
+  const stereology = useMemo(() => stereologyOf(data), [data]);
   const methods = useMemo(() => {
     if (!summary) return '';
     const usesDetected =
       s.useCurrent && data.detect.particles.length > 0 && current.equalArea.length > current.hand;
-    return particleMethodsParagraph({
+    const paragraph = particleMethodsParagraph({
       software: SOFTWARE,
       allSynthetic: data.image?.synthetic === true && collected.sources.length <= 1,
       images: collected.sources.length,
@@ -138,7 +141,22 @@ export function DistributionStep({ data, update }: StepContext<ParticleData>) {
       bins: { method: s.binMethod, count: hist.counts.length },
       fits: { normal, lognormal },
     });
-  }, [summary, data, s, current, collected, scaled, unitLabel, hist, normal, lognormal]);
+    return stereology
+      ? `${paragraph} ${stereologyMethods(stereology, data.stereology)}`
+      : paragraph;
+  }, [
+    summary,
+    data,
+    s,
+    current,
+    collected,
+    scaled,
+    unitLabel,
+    hist,
+    normal,
+    lognormal,
+    stereology,
+  ]);
 
   const stem = fileStem(data.image?.name.replace(/\.[^.]+$/, '') ?? 'particles');
 
@@ -560,6 +578,21 @@ export function DistributionStep({ data, update }: StepContext<ParticleData>) {
               </p>
             )}
           </section>
+
+          <StereologySection
+            data={data}
+            update={update}
+            stem={stem}
+            particleNm={
+              scaled
+                ? {
+                    mean: summary.mean / factor,
+                    median: summary.median / factor,
+                    measure: MEASURE_WORDS[s.measure],
+                  }
+                : null
+            }
+          />
 
           <section aria-labelledby="dist-export">
             <h3 id="dist-export" class="export-title">

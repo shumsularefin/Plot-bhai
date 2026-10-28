@@ -88,6 +88,6 @@ describe('saved state', () => {
     expect(upgraded?.data.nextId).toBe(7);
     expect(upgraded?.step).toBe(2);
     expect(migrateParticleData({}, 1)).toBeUndefined();
-    expect(migrateParticleData({ step: 0, furthest: 0, data: v1 }, 5)).toBeUndefined();
+    expect(migrateParticleData({ step: 0, furthest: 0, data: v1 }, 6)).toBeUndefined();
   });
 });
