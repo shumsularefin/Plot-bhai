@@ -101,8 +101,10 @@ function penalty(n: number, lambda: number): [Float64Array, Float64Array, Float6
 
 /**
  * Asymmetrically reweighted penalised least squares baseline, arPLS (S.-J. Baek, A. Park,
- * Y.-J. Ahn and J. Choo, Analyst 140 (2015) 250–257; TODO(verify): implemented from the
- * algorithm as widely reproduced, the paper itself has not been read here). Start with all
+ * Y.-J. Ahn and J. Choo, Analyst 140 (2015) 250–257, implemented from the algorithm as widely
+ * reproduced; the paper itself has not been read, but the result agrees with the arpls function
+ * of pybaselines 1.2.1, which cites it, to 0.001 on a noisy synthetic pattern
+ * (tests/baseline-validation.test.ts). Start with all
  * weights 1; solve the Whittaker problem; with d = y − z, take the mean m and standard deviation
  * s of the negative residuals (the points below the curve, which are noise around the baseline)
  * and set

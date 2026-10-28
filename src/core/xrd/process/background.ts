@@ -80,9 +80,13 @@ export function polynomialBackground(
  * at a FIXED width w (about twice the peak FWHM) for about 24 passes, reducing w by √2 over
  * the final 8 or so passes.
  *
- * Here instead the width grows from 1 to `halfWidth` points, and the compression adds a square
- * root (the "LLS" operator). Both changes appear in later SNIP implementations; their origin is
- * not checked here. The data are compressed so peaks of very different heights clip alike:
+ * Here instead the width grows from 1 to `halfWidth` points, as in the increasing-window option
+ * of M. Morháč's own implementation (ROOT TSpectrum::Background, kBackIncreasingWindow, which
+ * cites M. Morháč, J. Kliman, V. Matoušek, M. Veselský and I. Turzo, Nucl. Instrum. Methods A 401
+ * (1997) 113–132), and the compression adds a square root (the "LLS" operator), which
+ * pybaselines and Mantid attribute to M. Morháč and V. Matoušek, Appl. Spectrosc. 62 (2008)
+ * 91–106 (TODO(verify): neither Morháč paper has been read). The data are compressed so peaks
+ * of very different heights clip alike:
  *   v = ln(ln(√(y + 1) + 1) + 1)  (negative y treated as 0).
  * Then for p = 1 … halfWidth:  v_i ← min(v_i, (v_{i−p} + v_{i+p}) / 2).
  * The inverse operator gives the background:  y = (exp(exp(v) − 1) − 1)² − 1.
@@ -109,9 +113,12 @@ export function snipBackground(y: Float64Array, halfWidth: number): Float64Array
  * Background through user-chosen anchor points by monotone piecewise cubic Hermite
  * interpolation (F. N. Fritsch and R. E. Carlson, SIAM J. Numer. Anal. 17 (1980) 238–246;
  * checked against the paper), which passes through every anchor without overshooting between
- * them. Slopes at the anchors use the weighted harmonic mean of Fritsch and Butland, a later
- * slope rule that meets the Fritsch–Carlson monotonicity conditions (TODO(verify): Fritsch and
- * Butland's own paper has not been read). Outside the first and last anchor the
+ * them. Slopes at the anchors use the weighted harmonic mean of F. N. Fritsch and J. Butland,
+ * SIAM J. Sci. Stat. Comput. 5 (1984) 300–304, a later slope rule that meets the
+ * Fritsch–Carlson monotonicity conditions, and the one-sided end slopes of C. Moler, Numerical
+ * Computing with MATLAB (2004), section 3.6. The result agrees with SciPy's PchipInterpolator,
+ * which implements both with these citations, to 10⁻⁹ (tests/xrd-process.test.ts); Fritsch and
+ * Butland's paper itself was not read. Outside the first and last anchor the
  * background is held constant. Anchors are [2θ in degrees, intensity] pairs; at least two are
  * needed.
  */

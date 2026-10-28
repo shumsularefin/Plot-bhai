@@ -165,6 +165,24 @@ describe('background removal recovers peak heights and positions (noise-free)', 
     expect(Math.min(...between)).toBeGreaterThanOrEqual(250 - 1e-9);
   });
 
+  it('manual anchors agree with SciPy PchipInterpolator (Fritsch–Butland slopes)', () => {
+    // Expected values from scipy.interpolate.PchipInterpolator (SciPy 1.18.1) on these anchors.
+    const anchors = [
+      [10, 100],
+      [13, 140],
+      [20, 135],
+      [24, 60],
+      [31, 70],
+      [40, 200],
+    ] as const;
+    const x = Float64Array.of(11.5, 15, 19, 22, 27.5, 33, 38);
+    const scipy = [
+      126.5803571429, 139.6221064538, 136.3810161067, 96.7486338798, 62.8001611604, 81.923782648,
+      158.1290172645,
+    ];
+    anchorBackground(x, anchors).forEach((v, i) => expect(v).toBeCloseTo(scipy[i] as number, 9));
+  });
+
   it('manual anchors with two points give a straight line', () => {
     const bg = anchorBackground(Float64Array.of(0, 1, 2, 3, 4), [
       [0, 10],

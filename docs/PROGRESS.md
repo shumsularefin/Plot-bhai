@@ -1,5 +1,49 @@
 # Progress
 
+## Reference and citation check (done as far as open sources allow)
+
+Branch `claude/zen-edison-acnmco`. No new dependencies.
+
+### Checked and closed
+
+- **Scherrer (1918):** the supplied 1918 Göttingen volume (`docs/papers/PPN252457811_1918_compressed.pdf`,
+  PDF pages 103–105) holds the paper, Nachr. Ges. Wiss. Göttingen, Math.-Phys. Kl. (1918) 98–100.
+  On p. 99: h = 2 √(ln 2 / π) · (λ / Λ) · 1 / cos(θ / 2), θ the scattering angle, Λ the cube edge,
+  so K = 0.94 for cubes with the full width at half maximum. The app's form and its K setting agree.
+- **Halder–Wagner angle form:** T. C. Paul, J. Podder and L. Paik, arXiv:2103.03521, eq. (7), read:
+  (β / tan θ)² = (K λ / D) · β / (tan θ sin θ) + 16 ε², the same as the code.
+- **Manual anchors (Fritsch–Butland slopes):** the background equals SciPy 1.18.1
+  `PchipInterpolator` (Fritsch & Butland 1984 plus Moler's end slopes) to 6 × 10⁻¹⁴; a test now
+  pins SciPy's values. The 1984 paper itself was not read.
+- **arPLS (Baek, Park, Ahn & Choo 2015):** agrees with pybaselines 1.2.1 `arpls` to 0.0005 on a
+  noisy synthetic pattern; a test pins its values. The paper itself (paywalled) was not read.
+- **SNIP variant, increasing window:** this is the `kBackIncreasingWindow` option of Morháč's own
+  ROOT `TSpectrum::Background`, which cites Morháč et al., NIM A 401 (1997) 113–132.
+- **FTIR group table:** all 65 functional-group rows and 13 metal-oxide rows match Tables 3 and 2
+  of Pasieczna-Patkowska et al. (2025), read again from the PubMed Central full text. The note now
+  says the transcription is checked and that the ranges are one review's typical values.
+- **Atmospheric bands:** CO₂ 2349 and 667 cm⁻¹, H₂O 1595, 3657 and 3756 cm⁻¹ match NIST CCCBDB.
+- **Mo and Ag wavelengths:** already from NIST (Deslattes et al. 2003); the "still unverified"
+  notes in older sections below are out of date.
+
+### Still open (needs the owner)
+
+- **Thermal tables** (`data/thermal/events.json`, `dsc-events.json`, `combined-rules.json`): no
+  open, citable table of typical TGA or DSC event temperatures was found, so the ranges stay
+  placeholders. They need a textbook or review the owner can supply (for example Brown, Handbook
+  of Thermal Analysis and Calorimetry, or Haines, Principles of Thermal Analysis and
+  Calorimetry), with the page for each range.
+- **Sahadat–Scherrer:** Hossain et al., Chem. Pap. 76 (2022) 7245 is paywalled; the equation is
+  still taken from Kawsar et al., Heliyon 10 (2024) e25347.
+- **LLS operator of SNIP:** attributed by pybaselines and Mantid to Morháč & Matoušek, Appl.
+  Spectrosc. 62 (2008) 91–106; not read.
+- **Also open, not in the owner's list:** Eilers (2003) λ–width relation for arPLS, and the Doyle
+  coefficient 1.052 in Flynn–Wall–Ozawa.
+
+### Checks
+
+Type check, lint and 787 tests (1 skipped) pass.
+
 ## Owner feedback round: hand measuring inside Detect particles, separating clumps (done)
 
 Branch `claude/zen-edison-acnmco`. No new dependencies.

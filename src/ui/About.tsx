@@ -54,8 +54,8 @@ export default function About() {
             width the size is only a lower limit.
           </li>
           <li>
-            Rule and group tables (thermal events, FTIR bands) and X-ray wavelengths are marked for
-            verification. Check them against your own references before publishing.
+            Thermal event tables are marked for verification. Check them against your own references
+            before publishing.
           </li>
           <li>
             JCPDS/ICDD data is not included. A JCPDS number you type is printed as typed and is
@@ -162,16 +162,16 @@ export default function About() {
         <h3>Background</h3>
         <p>
           The default background is arPLS (asymmetrically reweighted penalised least squares; S.-J.
-          Baek et al., Analyst 140 (2015) 250, flagged for verification), a smooth curve that
-          follows the points inside the noise band and ignores points well above it. Its stiffness
-          is set as a width in degrees 2θ and converted to the smoothing parameter λ = (w / (2π Δ))⁴
-          for step Δ, so the same width behaves the same on fine and coarse scans; that conversion
-          is an approximation. It was chosen because it gave the smallest error on synthetic
-          patterns with a known background (12 peaks, counting noise, gentle and strongly curved
-          backgrounds): about 7 counts for arPLS (width 4°) against 40 to 80 for SNIP (width 2°) and
-          24 to 105 for a degree-4 polynomial. These numbers hold for those shapes, not for every
-          pattern. SNIP and polynomial remain available. The site warns when the corrected data go
-          clearly below zero, which means the background cuts into peaks.
+          Baek et al., Analyst 140 (2015) 250; checked against the pybaselines implementation), a
+          smooth curve that follows the points inside the noise band and ignores points well above
+          it. Its stiffness is set as a width in degrees 2θ and converted to the smoothing parameter
+          λ = (w / (2π Δ))⁴ for step Δ, so the same width behaves the same on fine and coarse scans;
+          that conversion is an approximation. It was chosen because it gave the smallest error on
+          synthetic patterns with a known background (12 peaks, counting noise, gentle and strongly
+          curved backgrounds): about 7 counts for arPLS (width 4°) against 40 to 80 for SNIP (width
+          2°) and 24 to 105 for a degree-4 polynomial. These numbers hold for those shapes, not for
+          every pattern. SNIP and polynomial remain available. The site warns when the corrected
+          data go clearly below zero, which means the background cuts into peaks.
         </p>
         <h3>Peak finding and fit quality</h3>
         <ul class="about-eqs">
@@ -258,7 +258,8 @@ export default function About() {
           Functional group suggestions come from the tables of S. Pasieczna-Patkowska, M. Cichy and
           J. Flieger, Molecules 30 (2025) 684, doi:10.3390/molecules30030684, licensed CC BY 4.0
           (Tables 2 and 3). A suggestion is a candidate within a chosen distance of a band, not an
-          assignment. The table is flagged for verification.
+          assignment. The table was checked row by row against the article; its ranges are typical
+          values from one review, so confirm a band against your own literature.
         </p>
       </section>
 
