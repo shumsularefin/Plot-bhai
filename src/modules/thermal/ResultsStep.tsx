@@ -12,6 +12,7 @@ import {
   theoryView,
   useThermalView,
 } from './analysis';
+import { CompareRuns } from './CompareRuns';
 import type { ThermalData } from './data';
 import { methodsText } from './methodsText';
 import { thermalSession } from './session';
@@ -192,6 +193,8 @@ export function ResultsStep({ data, update }: StepContext<ThermalData>) {
           {...(numbers && { peakLabels: numbers })}
         />
       </section>
+
+      <CompareRuns data={data} update={update} curve={curve} />
 
       <section aria-labelledby="methods-title">
         <h3 id="methods-title" class="export-title">

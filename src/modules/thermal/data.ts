@@ -88,6 +88,8 @@ export interface ThermalData {
   theory: TheorySettings;
   calcination: CalcinationOptions;
   plot: PlotSettings;
+  /** Other samples' runs, compared with this one in the results (cleaned the same way, no blank). */
+  compare: LoadedTable[];
 }
 
 export const initialThermalData: ThermalData = {
@@ -100,17 +102,21 @@ export const initialThermalData: ThermalData = {
   theory: DEFAULT_THEORY,
   calcination: DEFAULT_CALCINATION,
   plot: { normalise: false, offsetPercent: 0, export: DEFAULT_EXPORT_SETTINGS },
+  compare: [],
 };
 
 /** Version of the saved shape. Bump it, and extend migrateThermalData, when the shape changes. */
-export const THERMAL_STATE_VERSION = 2;
+export const THERMAL_STATE_VERSION = 3;
 
-/** Version 1 had no event assignments, theory check or calcination settings; they start at their defaults. */
+/**
+ * Version 1 had no event assignments, theory check or calcination settings, and versions 1 and 2
+ * no compared runs; missing settings start at their defaults.
+ */
 export function migrateThermalData(
   saved: unknown,
   version: number,
 ): WizardState<ThermalData> | undefined {
-  if (version !== 1) return undefined;
+  if (version !== 1 && version !== 2) return undefined;
   const state = saved as WizardState<Partial<ThermalData>> | null;
   if (!state || typeof state !== 'object' || !state.data) return undefined;
   return { ...state, data: { ...initialThermalData, ...state.data } };

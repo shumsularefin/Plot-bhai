@@ -1,5 +1,32 @@
 # Progress
 
+## Owner feedback round, stage 1 of 6: compare TGA runs of several samples (done)
+
+Branch `claude/zen-edison-acnmco`. No new dependencies. The owner set the order on 2026-10-28:
+science features first (this stage; then UV-Vis photocatalysis kinetics and Beer–Lambert; several
+images per particle distribution; FTIR band fitting, second derivative, subtraction and band
+areas; the remaining items), and the Validate button with counters last (Cloudflare Worker with
+D1, analysis proof plus per-browser and hashed-IP limits, comments public only after the owner
+approves them).
+
+### What was built
+
+- UV-Vis and FTIR already overlay several spectra with normalise and offset, so only TGA needed
+  this. The TGA Results step has a new "Compare with other samples" section: load the runs of
+  other samples (or two synthetic example samples); each is cleaned with this analysis's
+  settings, without a blank, with its first mass value as 100 %. The section overlays the mass
+  curves and lists T5, T10, T50, the temperature of the fastest mass loss (DTG maximum), the
+  residue at the chosen temperature and the total loss, with a CSV download.
+- `src/core/thermal/compare.ts` (`summariseRun`). Saved state version 3 (adds `compare`).
+
+### Checked
+
+- Synthetic known answers: one 40 % step at 400 °C (σ 20 °C) gives the DTG maximum at 400 °C,
+  its height within 1 % of 40 / (σ √(2π)) (the local quadratic flattens it by about 0.7 %), a
+  residue of 60 % and T5 at 400 − 1.150 σ; a flat curve gives no DTG peak.
+- Type check, lint, 791 tests (1 skipped), build, bundle size and e2e pass. At 360 px the page
+  has no sideways scroll; the table scrolls inside its frame.
+
 ## Reference and citation check (done as far as open sources allow)
 
 Branch `claude/zen-edison-acnmco`. No new dependencies.
