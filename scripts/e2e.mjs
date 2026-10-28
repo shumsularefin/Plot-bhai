@@ -249,6 +249,36 @@ try {
   await page.getByText('Band gap and spectra').first().click();
   step('UV-Vis concentration: example, k near 0.02 1/min, kinetics CSV');
 
+  // UV-Vis plasmon fit (runs in the peaks worker) and Swanepoel thin film, synthetic examples.
+  await page.getByText('Plasmon and thin film').first().click();
+  await page.getByRole('button', { name: 'Try with example data' }).click();
+  await next('Range and settings');
+  await next('Results and export');
+  await page
+    .getByText(/eV\), FWHM/)
+    .first()
+    .waitFor({ timeout: 15_000 });
+  const plasmonText = (await page.getByRole('note').first().textContent()) ?? '';
+  const plasmonEv = Number(/\(([\d.]+) ± [\d.]+ eV\)/.exec(plasmonText)?.[1]);
+  assert.ok(
+    Math.abs(plasmonEv - 2.38) < 0.005,
+    `plasmon centre ${plasmonEv} eV near the made-up 2.38`,
+  );
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await page.getByLabel('Thin film thickness and refractive index (Swanepoel)').check();
+  await page.getByRole('button', { name: 'Try with example data' }).click();
+  await next('Range and settings');
+  await next('Results and export');
+  const filmText = (await page.getByRole('note').first().textContent()) ?? '';
+  const thickness = Number(/d = (\d+)/.exec(filmText)?.[1]);
+  assert.ok(
+    Math.abs(thickness - 1000) < 10,
+    `film thickness ${thickness} nm near the made-up 1000`,
+  );
+  await page.getByText('Band gap and spectra').first().click();
+  step('UV-Vis film: plasmon centre near 2.38 eV (worker), Swanepoel thickness near 1000 nm');
+
   // FTIR: example data, baseline, peaks, accepted assignments, results, methods text, session.
   await page.goto(`http://localhost:${PORT}/#/ftir`);
   await heading().waitFor();
@@ -603,6 +633,29 @@ try {
   assert.match(readFileSync(await kinCsv.path(), 'utf8'), /Kissinger method/);
   assert.match(await page.getByLabel('Methods paragraph').inputValue(), /8\.314462618/);
   step('Kinetics: example, Kissinger Ea near 150 kJ/mol, CSV, methods text');
+
+  // DSC methods: sapphire Cp, van 't Hoff purity and OIT on synthetic runs with known answers.
+  await page.getByText('DSC: Cp, purity, OIT').click();
+  await page.getByRole('button', { name: 'Try with example data' }).click();
+  await next('Range and settings');
+  await next('Results and export');
+  assert.match(
+    (await page.getByRole('note').first().textContent()) ?? '',
+    /from 1\.230 J\/\(g·K\) at 50 °C to 1\.430 J\/\(g·K\) at 250 °C/,
+  );
+  for (const [label, expected] of [
+    ['Purity (van ’t Hoff)', /Estimated purity 99\.5\d mol %/],
+    ['Oxidation induction time (OIT)', /OIT = 27\.00 min/],
+  ]) {
+    await page.getByRole('button', { name: 'Back', exact: true }).click();
+    await page.getByRole('button', { name: 'Back', exact: true }).click();
+    await page.getByLabel(label).check();
+    await page.getByRole('button', { name: 'Try with example data' }).click();
+    await next('Range and settings');
+    await next('Results and export');
+    assert.match((await page.getByRole('note').first().textContent()) ?? '', expected);
+  }
+  step('DSC methods: sapphire Cp, purity 99.5 mol %, OIT 27 min on the synthetic examples');
 
   // No horizontal page scroll at phone width.
   for (const width of [360, 1280]) {

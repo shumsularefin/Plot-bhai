@@ -1,5 +1,76 @@
 # Progress
 
+## Owner feedback round, stage 5 of 6: remaining science (done)
+
+Branch `claude/zen-edison-acnmco`. No new dependencies. Two new wizards (UV-Vis "Plasmon and
+thin film", thermal "DSC: Cp, purity, OIT"), each lazy-loaded, plus additions to existing tools.
+
+### What was built
+
+- **Kinetics (thermal):** Starink isoconversional method, ln(β/T^1.92) = C − 1.0008·Ea/(RT)
+  (constants from Balogun et al., Sci. Rep. 11 (2021) 13862, eq. 8; TODO, verify against
+  Starink 2003); Friedman differential method, ln(β·dα/dT) against 1/T with dα/dT from the DTG;
+  Coats–Redfern for each run with eleven reaction models (F1, F2, A2–A4, R2, R3, D1–D4; g(α)
+  from Qin 2022 Table 3 and Tang 2025), ranked by R², with A from the intercept. Tables, plots,
+  CSV and methods sentences for each.
+- **FTIR ATR correction** (Clean step, first in the order): A·ν̃/ν̃_ref, with the Harrick
+  penetration depth dp = λ/(2π n₁ √(sin²θ − (n₂/n₁)²)) reported at the reference and at
+  3000 cm⁻¹, and a warning when sin θ ≤ n₂/n₁. Saved FTIR state version 3 (older sessions get the
+  correction switched off).
+- **DSC heat capacity (sapphire method, ASTM E1269 style):** blank, sapphire and sample runs,
+  cp = cp,sapphire·(D_s/D_st)·(m_st/m_s) every chosen step. Sapphire values from Ditmars et al.,
+  J. Res. NBS 87 (1982) 159, Table 2 (SRM 720), in `data/thermal/sapphire-cp.json` (200 to
+  1000 K, linear interpolation). **TODO, verify:** the table was typed in by hand from a scan;
+  please check each row. The page says so next to every result.
+- **DSC purity (van ’t Hoff, ASTM E928 style):** partial areas above a straight baseline give
+  the fraction melted F; T_s against 1/F is fitted over F = 0.1 to 0.5 (adjustable; the default
+  is TODO, verify against E928), giving T₀ and x₂ = −slope·ΔH_f/(R T₀²) with ΔH_f from the whole
+  peak and the molar mass. Labelled an estimate: no linearisation or thermal-lag correction.
+- **Oxidation induction time:** time from the gas switch to the intersection of the tangent at
+  the steepest rise with a baseline fitted after the switch. Time and heat flow are read
+  straight from the columns, so isothermal exports with a constant temperature work.
+- **TGA evolved gas (TGA–MS or TGA–FTIR):** a results section that loads a file with a
+  temperature or time column and signal columns, maps time onto the TGA run's own
+  time-temperature columns, lays every signal (scaled to its maximum) over the DTG, and lists the
+  temperature of each maximum and the step containing it. The page and the methods text say that
+  naming the gas behind a signal is the user's interpretation. Saved TGA state version 4.
+- **UV-Vis plasmon band fit:** absorbance fitted on the photon energy axis (E = hc/λ) with
+  Lorentzian, Gaussian or pseudo-Voigt bands plus a straight background, in the peaks worker
+  (`fitBandRegion`, now shared with the FTIR band fit). Centre and FWHM in eV and nm. The help
+  says that turning them into a particle size needs a model the site does not provide.
+- **UV-Vis Swanepoel thin-film method** (Swanepoel, J. Phys. E 16 (1983) 1214): fringe extrema,
+  linear envelopes, n from N = 2s(T_M − T_m)/(T_M T_m) + (s² + 1)/2, a first thickness from
+  neighbouring extrema of the same kind, one consistent series of order numbers, the final
+  thickness and refined index. Substrate index typed or from the bare substrate transmittance.
+  Absorption coefficients are not calculated. TODO, verify the equation numbers in the paper.
+
+### Checked
+
+- Known-answer tests: Starink and Friedman within 3 % of the synthetic 150 kJ/mol, Coats–Redfern
+  picks F1 for a first-order run; ATR depth equals the Harrick expression and scales with λ;
+  sapphire method recovers cp = 1.2 + 0.001(T − 20) J/(g·K) to 3 decimals with either sign
+  convention; van ’t Hoff recovers x₂ = 0.005 within 5 % (4 % here, because the ideal peak starts
+  at F = 0.002 and ends between two grid points), T₀ within 0.05 °C, ΔH_f within 2 %; OIT 27 min
+  exactly on a piecewise-linear exotherm; plasmon centre 2.38 eV and width 0.30 eV of a Lorentzian
+  on a sloped background; the envelope formula inverts the exact non-absorbing film transmittance
+  exactly (checked algebraically and numerically), and the synthetic 1000 nm film comes out
+  within 1 % in thickness and index.
+- Type check, lint, 880 tests (1 skipped), build, bundle size (shell 17.0 KB of 150 KB) and e2e
+  pass. New e2e checks: plasmon fit in the worker, Swanepoel thickness, and all three DSC
+  methods on their examples.
+
+### Known issues
+
+- Swanepoel uses linear envelopes; Swanepoel recommends a smoother interpolation, so expect
+  about 1 % error where fringes are far apart. The strongly absorbing region must be cut off by
+  hand.
+- The purity fit has no linearisation correction, so curved plots give a rough value.
+- Evolved gas signals are not corrected for the transfer-line delay.
+
+### Next stage
+
+Stage 6: Validate button, pop-up and counters (Cloudflare Worker + D1).
+
 ## Owner feedback round, stage 4 of 6: FTIR bands (done)
 
 Branch `claude/zen-edison-acnmco`. No new dependencies. A new wizard step 4, **Bands**, sits
