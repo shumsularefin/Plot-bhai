@@ -1,5 +1,10 @@
 import { useMemo, useState } from 'preact/hooks';
-import { EA_VARIATION_LIMIT } from '../../../core/thermal/kinetics';
+import {
+  EA_VARIATION_LIMIT,
+  REACTION_MODELS,
+  type CoatsRedfernResult,
+  type ReactionModel,
+} from '../../../core/thermal/kinetics';
 import { HelpTip } from '../../../ui/HelpTip';
 import { PlotPanel } from '../../../ui/plot/PlotPanel';
 import type { SeriesSource } from '../../../ui/plot/series';
@@ -66,6 +71,26 @@ export function KineticsResultsStep({ data, update }: StepContext<KineticsData>)
     labels = { x: '1000 / T_p (K⁻¹)', y: 'ln(β / T_p²)  (β in K/min, T_p in K)' };
     xName = '1000/T';
     xUnit = ' K⁻¹';
+  } else if (outcome.method === 'coats-redfern') {
+    const bests = outcome.runs.map((r) => ({ run: r, fit: r.fits[0] as CoatsRedfernResult }));
+    headline = bests
+      .map(
+        ({ run, fit }) =>
+          `${run.rate} K/min: ${fit.model}, Ea = ${pm(fit.eaKJ, fit.eaSigmaKJ)} kJ/mol (R² = ${fit.rSquared.toFixed(4)})`,
+      )
+      .join('; ');
+    sources = bests.map(({ run, fit }, i) => ({
+      id: `cr-${i}`,
+      name: `${run.rate} K/min, ${fit.model}`,
+      x: Float64Array.from(fit.points, (p) => p.x * 1000),
+      y: Float64Array.from(fit.points, (p) => p.y),
+      unit: '',
+      colorIndex: i,
+    }));
+    points = [];
+    labels = { x: '1000 / T (K⁻¹)', y: 'ln(g(α) / T²)  (best model of each run, T in K)' };
+    xName = '1000/T';
+    xUnit = ' K⁻¹';
   } else {
     const levels = outcome.levels;
     const mean = levels.reduce((s, l) => s + l.eaKJ, 0) / levels.length;
@@ -95,6 +120,21 @@ export function KineticsResultsStep({ data, update }: StepContext<KineticsData>)
           { header: 'Run', value: (p) => p.name },
           { header: 'Heating rate (K/min)', value: (p) => p.betaKPerMin },
           { header: 'Tp (°C)', value: (p) => p.tpC },
+        ],
+      );
+    } else if (outcome.method === 'coats-redfern') {
+      downloadCsv(
+        'kinetics-coats-redfern',
+        `Coats-Redfern, every reaction model for every run, conversion ${data.alphaFrom} to ${data.alphaTo}; Ea in kJ/mol with standard error of the fit, A in 1/min (approximate)`,
+        outcome.runs.flatMap((r) => r.fits.map((f) => ({ r, f }))),
+        [
+          { header: 'Run', value: (x) => x.r.name },
+          { header: 'Heating rate (K/min)', value: (x) => x.r.rate },
+          { header: 'Model', value: (x) => REACTION_MODELS[x.f.model].name },
+          { header: 'Ea (kJ/mol)', value: (x) => x.f.eaKJ },
+          { header: 'Ea standard error (kJ/mol)', value: (x) => x.f.eaSigmaKJ },
+          { header: 'A (1/min)', value: (x) => x.f.aPerMin },
+          { header: 'R²', value: (x) => x.f.rSquared },
         ],
       );
     } else {
@@ -128,7 +168,11 @@ export function KineticsResultsStep({ data, update }: StepContext<KineticsData>)
 
       <section aria-labelledby="kin-table-title">
         <h3 id="kin-table-title" class="export-title">
-          {outcome.method === 'kissinger' ? 'Peak temperatures' : 'Activation energy by conversion'}{' '}
+          {outcome.method === 'kissinger'
+            ? 'Peak temperatures'
+            : outcome.method === 'coats-redfern'
+              ? 'Reaction models'
+              : 'Activation energy by conversion'}{' '}
           <HelpTip term="apparent activation energy">
             <p>
               The energy that best describes how the rate changes with temperature for the whole
@@ -154,6 +198,35 @@ export function KineticsResultsStep({ data, update }: StepContext<KineticsData>)
                     <td>{p.name}</td>
                     <td>{p.betaKPerMin}</td>
                     <td>{p.tpC.toFixed(1)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </>
+          ) : outcome.method === 'coats-redfern' ? (
+            <>
+              <thead>
+                <tr>
+                  <th scope="col">Model</th>
+                  {outcome.runs.map((r) => (
+                    <th key={r.name} scope="col">
+                      {r.rate} K/min: Ea (kJ/mol), R²
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(Object.keys(REACTION_MODELS) as ReactionModel[]).map((model) => (
+                  <tr key={model}>
+                    <th scope="row">{REACTION_MODELS[model].name}</th>
+                    {outcome.runs.map((r) => {
+                      const f = r.fits.find((x) => x.model === model);
+                      return (
+                        <td key={r.name}>
+                          {f ? `${pm(f.eaKJ, f.eaSigmaKJ)}, ${f.rSquared.toFixed(4)}` : '–'}
+                          {f && r.fits[0] === f ? ' (best)' : ''}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>

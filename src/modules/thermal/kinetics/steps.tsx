@@ -22,7 +22,7 @@ export const kineticsSteps: readonly WizardStep<KineticsData>[] = [
     id: 'setup',
     title: 'Method and window',
     guide: [
-      'Choose the method: Kissinger, Flynn-Wall-Ozawa or KAS.',
+      'Choose the method: Kissinger, an isoconversional method, or Coats-Redfern.',
       'Set the temperature window of the step to analyse.',
       'Then press Next.',
     ],
