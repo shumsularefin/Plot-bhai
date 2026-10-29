@@ -65,6 +65,44 @@
    ]
   },
   {
+   "id": "chitosan",
+   "name": "Chitosan",
+   "aliases": [
+    "chitosan",
+    "deacetylated chitin",
+    "CS"
+   ],
+   "formula": "C6H11NO4",
+   "file": "polymers.json",
+   "phases": [
+    {
+     "id": "chitosan-anhydrous",
+     "name": "Chitosan (anhydrous)",
+     "codId": null,
+     "reference": "Naito et al., Biopolymers 105 (2016) 361",
+     "link": "https://doi.org/10.1002/bip.22818",
+     "spaceGroup": "P 21 21 21",
+     "crystalSystem": "orthorhombic",
+     "formula": "C6H11NO4",
+     "spaceGroupNumber": 19,
+     "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+     ],
+     "cell": {
+      "a": 8.129,
+      "b": 8.347,
+      "c": 10.311,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
    "id": "starch",
    "name": "Starch (amylose)",
    "aliases": [

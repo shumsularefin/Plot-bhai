@@ -163,11 +163,11 @@ describe('app library index', () => {
     readFileSync(new URL('../data/reference/polymers.json', import.meta.url), 'utf8'),
   ) as ReferenceFamilyFile;
 
-  it('is the polymer library: 13 phases transcribed from papers, each cited with its DOI', () => {
+  it('is the polymer library: 14 phases transcribed from papers, each cited with its DOI', () => {
     expect(app.intensityWavelength).toBe(ANODES.Cu.kAlpha1);
     expect(app.source).toMatch(/polymers/i);
     const listed = app.families.flatMap((f) => f.phases);
-    expect(listed).toHaveLength(13);
+    expect(listed).toHaveLength(14);
     expect(lines.phases.map((p) => p.id)).toEqual(listed.map((p) => p.id));
     for (const p of lines.phases) {
       expect(p.codId, p.id).toBeNull();
@@ -189,6 +189,8 @@ describe('app library index', () => {
       pcl: 21.43,
       'pvdf-beta': 20.83,
       'nylon6-alpha': 24.03,
+      // d(110) = 5.824 Å, the authors' calculated value in their supporting information.
+      'chitosan-anhydrous': 15.2,
     };
     for (const [id, expected] of Object.entries(strongest)) {
       const p = lines.phases.find((q) => q.id === id) as ReferencePhase;

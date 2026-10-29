@@ -2,14 +2,14 @@
 
 ## Polymer library and public-release files (done)
 
-- 13 crystalline polymer phases that COD does not hold, transcribed from papers, checked and
+- 14 crystalline polymer phases (chitosan added from the Naito 2016 SI CIF) that COD does not hold, transcribed from papers, checked and
   listed with their results in docs/polymer-library.md. Library phases have no COD number and
-  link to their DOI. Silk, chitosan and French 2014 cellulose are left out (reasons there).
+  link to their DOI. Silk and cellulose III_II are left out (reasons there).
 - Release files: LICENSE (MIT, code only), CITATION.cff (affiliation and ORCID TODO),
   DATA-SOURCES.md (data licences and privacy), THIRD-PARTY-NOTICES.md, CONTRIBUTING.md,
   SECURITY.md.
-- Uploaded PDFs moved to docs/papers/. Known issue: publisher PDFs (and one book) are in the
-  public repo; the owner should decide whether to untrack them.
+- The supplied PDFs are no longer in the repository (copyright); docs/papers/README.md lists
+  them by reference. They remain in older commits of the git history.
 
 ## Source check, part 2: ASTM E928 and Starink (2003) (done)
 

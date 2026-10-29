@@ -155,8 +155,8 @@ export function MaterialStep({ data, update }: StepContext<XrdData>) {
       </p>
       <p class="field-hint">
         Polymers that COD does not hold are in the built-in polymer library, each from its original
-        paper: cellulose II and III, A-type starch, alginate, PLA, PHB, PCL, PET, PEO (PEG), PVA,
-        PVDF and nylon 6. Type a name such as PLA or cellulose. Cellulose I, chitin and
+        paper: cellulose II and III, chitosan, A-type starch, alginate, PLA, PHB, PCL, PET, PEO
+        (PEG), PVA, PVDF and nylon 6. Type a name such as PLA or cellulose. Cellulose I, chitin and
         polypropylene are in COD itself.
       </p>
 

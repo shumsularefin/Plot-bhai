@@ -34,6 +34,19 @@ export const POLYMER_FAMILIES: PolymerFamily[] = [
     ],
   },
   {
+    id: 'chitosan',
+    name: 'Chitosan',
+    aliases: ['chitosan', 'deacetylated chitin', 'CS'],
+    phases: [
+      {
+        id: 'chitosan-anhydrous',
+        file: 'chitosan.cif',
+        name: 'Chitosan (anhydrous)',
+        authors: 'Naito et al.',
+      },
+    ],
+  },
+  {
     id: 'starch',
     name: 'Starch (amylose)',
     aliases: ['starch', 'amylose', 'A-type starch', 'cereal starch'],

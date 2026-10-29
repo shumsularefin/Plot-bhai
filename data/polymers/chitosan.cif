@@ -1,0 +1,53 @@
+# Copied from the authors' CIF in the supporting information (bip22818-sup-0001-suppinfo1) of the
+# paper below; atom rows, cell and symmetry unchanged, standard uncertainties dropped, refinement
+# and geometry loops left out. The amine hydrogens are not in the authors' file. Fibre data,
+# R(gt) 0.128 for 154 reflections. Not a COD entry.
+data_chitosan_anhydrous
+_publ_section_title 'X-ray crystal structure of anhydrous chitosan at atomic resolution'
+_publ_author_name 'Naito, P.-K.; Ogawa, Y.; Sawada, D.; Nishiyama, Y.; Iwata, T.; Wada, M.'
+_journal_name_full 'Biopolymers'
+_journal_volume 105
+_journal_page_first 361
+_journal_year 2016
+_journal_paper_doi 10.1002/bip.22818
+_chemical_name_common 'Chitosan, anhydrous'
+_chemical_formula_sum 'C6 H11 N O4'
+_cell_length_a 8.129
+_cell_length_b 8.347
+_cell_length_c 10.311
+_cell_angle_alpha 90
+_cell_angle_beta 90
+_cell_angle_gamma 90
+_symmetry_space_group_name_H-M 'P 21 21 21'
+_space_group_IT_number 19
+loop_
+_symmetry_equiv_pos_as_xyz
+x,y,z
+x+1/2,-y+1/2,-z
+-x+1/2,-y,z+1/2
+-x,y+1/2,-z+1/2
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_U_iso_or_equiv
+C1 C 0.191 0.009 0.504 0.098
+H1 H 0.1554 -0.1025 0.5105 0.118
+C2 C 0.088 0.100 0.404 0.088
+H2 H 0.1338 0.2086 0.4005 0.106
+C3 C 0.116 0.027 0.269 0.099
+H3 H 0.0682 -0.0803 0.2657 0.119
+C4 C 0.296 0.018 0.233 0.097
+H4 H 0.3390 0.1246 0.2134 0.116
+C5 C 0.394 -0.057 0.342 0.110
+H5 H 0.3646 -0.1701 0.3494 0.132
+C6 C 0.576 -0.043 0.318 0.131
+H6A H 0.6040 -0.0962 0.2372 0.157
+H6B H 0.6071 0.0689 0.3108 0.157
+O1 O 0.185 0.086 0.6244 0.112
+O3 O 0.031 0.128 0.182 0.114
+O5 O 0.360 0.020 0.4634 0.104
+O6 O 0.660 -0.116 0.423 0.113
+N2 N -0.085 0.118 0.441 0.108

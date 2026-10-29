@@ -1,7 +1,7 @@
 # Polymer library
 
 COD already holds cellulose Iα and Iβ, α- and β-chitin, V-amylose and isotactic polypropylene;
-users find those through the COD search, so they are not bundled. The library adds 13 crystalline
+users find those through the COD search, so they are not bundled. The library adds 14 crystalline
 polymer phases that COD does not hold. Coordinates were transcribed by hand from the papers in
 docs/papers/ and are cited in each CIF header in `data/polymers/`. `npm run build:polymers`
 turns them into `data/reference/polymers.json` and the app index. Each phase is labelled with its
@@ -11,7 +11,7 @@ paper and DOI, has no COD number, and is flagged for the owner's verification.
 
 1. Bond lengths and angles after applying the full symmetry (gemmi), compared with the paper.
 2. Where the paper prints calculated structure factors, our |F| against its Fcalc (R value).
-3. Line positions recomputed independently with pymatgen: all 13 phases agree (max Δ 0.000°).
+3. Line positions recomputed independently with pymatgen: all 14 phases agree (max Δ 0.000°).
 
 | Phase                              | Paper                      | Space group | Result                                                                                                                                          |
 | ---------------------------------- | -------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -33,9 +33,7 @@ paper and DOI, has no COD number, and is flagged for the owner's verification.
 
 - Silk fibroin (Takahashi 1999): our reconstruction could not reproduce the paper's Fcalc (best R
   0.32), so it is left out rather than shipped unverified.
-- Chitosan: Naito 2016 gives coordinates only in its supporting-information CIF, which was not
-  supplied; the Okuyama abstract has none. TODO: supply the SI CIF.
-- French 2014 idealised cellulose patterns: the CIFs are in its supporting information. TODO.
+- French 2014 supporting information: its cellulose Iα, Iβ, II and III_I blocks repeat structures already in COD or in this library. Its cellulose III_II block (adapted from Wada 2009) lists both chains and also the P2₁ operator, so atoms land 0.33 Å apart; it cannot be used as given. TODO: the original Wada 2009 coordinates (Biomacromolecules 10:302, 10.1021/bm8010227).
 - Polyethylene (Phillips & Hanna 2005): a simulation paper, not a structure determination.
 - A-starch (Imberty 1988): superseded by Popov 2009.
 - PolySac3DB: the database site could not be reached from the build environment.

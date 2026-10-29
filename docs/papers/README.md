@@ -1,12 +1,12 @@
 # Reference papers
 
-PDFs supplied by the project owner for checking equations, constants, citations and the polymer
+The PDFs are kept on the owner's computer, not in this repository. This page lists the papers
+supplied by the project owner for checking equations, constants, citations and the polymer
 coordinates. What was checked against each is recorded in docs/PROGRESS.md and
 docs/polymer-library.md.
 
 **Copyright.** These PDFs belong to their publishers and authors. They are not covered by the
-project's MIT licence. Most are not open access, so they should not be redistributed from a
-public repository; keep them locally (or in a private store) and cite them by DOI instead. The
+project's MIT licence. They are not redistributed here; cite them by DOI. The
 polymer coordinates the site uses are facts transcribed from these papers and are cited in each
 CIF header in `data/polymers/`.
 
