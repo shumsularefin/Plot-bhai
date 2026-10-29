@@ -1,4 +1,4 @@
-import { phaseReference } from '../../core/xrd/reference/source';
+import { phaseLink, phaseReference } from '../../core/xrd/reference/source';
 import { useMemo, useState } from 'preact/hooks';
 import {
   DEFAULT_MATCH,
@@ -23,7 +23,6 @@ import {
 } from './data';
 import { xrdLabels } from './labels';
 import { formatHkl } from '../../core/xrd/reference/hkl';
-import { codUrl } from './referenceLibrary';
 import { useCandidatePhases } from './useReferencePhases';
 import { NumberInput } from './NumberInput';
 import { Advanced } from '../../ui/Advanced';
@@ -500,8 +499,8 @@ function PhaseCard({ phase, match, colorIndex, shown, used, onShown, onUsed }: P
       <div class="phase-card-header">
         <span class={`plot-swatch series-${colorIndex % 8}`} aria-hidden="true" />
         <h3 class="phase-card-title">{phase.name}</h3>
-        {phase.codId !== null ? (
-          <a href={codUrl(phase.codId)} target="_blank" rel="noopener noreferrer">
+        {phaseLink(phase) !== null ? (
+          <a href={phaseLink(phase) as string} target="_blank" rel="noopener noreferrer">
             {phaseReference(phase)}
           </a>
         ) : (

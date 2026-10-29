@@ -1,0 +1,39 @@
+# Transcribed from Table 1 of the paper below (checked on the page image). One chemical unit per
+# cell on a centre of symmetry (space group P-1). No hydrogen atoms or displacement parameters
+# are listed in the paper. Not a COD entry.
+data_PET
+_publ_section_title
+'The crystal structure of polyethylene terephthalate'
+_publ_author_name 'Daubeny, R. de P.; Bunn, C. W.; Brown, C. J.'
+_journal_name_full 'Proceedings of the Royal Society of London. Series A'
+_journal_volume 226
+_journal_page_first 531
+_journal_year 1954
+_journal_paper_doi 10.1098/rspa.1954.0273
+_chemical_name_common 'Poly(ethylene terephthalate), PET'
+_chemical_formula_sum 'C10 H8 O4'
+_cell_length_a 4.56
+_cell_length_b 5.94
+_cell_length_c 10.75
+_cell_angle_alpha 98.5
+_cell_angle_beta 118
+_cell_angle_gamma 112
+_symmetry_space_group_name_H-M 'P -1'
+_space_group_IT_number 2
+loop_
+_symmetry_equiv_pos_as_xyz
+x,y,z
+-x,-y,-z
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+C1 C 0.000 -0.078 0.371
+C2 C 0.000 -0.181 0.237
+C3 C 0.100 0.170 0.438
+C4 C -0.117 -0.257 0.433
+C5 C 0.045 -0.085 0.040
+O6 O -0.098 -0.415 0.170
+O7 O 0.052 0 0.175

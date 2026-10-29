@@ -1,0 +1,82 @@
+# Transcribed from Table II of the paper below (fractional coordinates, P21/a, b unique).
+# Checked against the page image. No displacement parameters are listed. Not a COD entry.
+data_PEO
+_publ_section_title
+'Structural Studies of Polyethers, (-(CH2)m-O-)n. X. Crystal Structure of Poly(ethylene oxide)'
+_publ_author_name 'Takahashi, Y.; Tadokoro, H.'
+_journal_name_full 'Macromolecules'
+_journal_volume 6
+_journal_page_first 672
+_journal_year 1973
+_journal_paper_doi 10.1021/ma60035a005
+_chemical_name_common 'Poly(ethylene oxide) / PEG, crystalline (7/2 helix)'
+_chemical_formula_sum 'C2 H4 O'
+_cell_length_a 8.05
+_cell_length_b 13.04
+_cell_length_c 19.48
+_cell_angle_alpha 90
+_cell_angle_beta 125.4
+_cell_angle_gamma 90
+_symmetry_space_group_name_H-M 'P 1 21/a 1'
+_space_group_IT_number 14
+loop_
+_symmetry_equiv_pos_as_xyz
+x,y,z
+-x+1/2,y+1/2,-z
+-x,-y,-z
+x+1/2,-y+1/2,z
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+O1 O 0.064 0.366 -0.042
+C1 C -0.070 0.313 -0.028
+C2 C 0.055 0.250 0.053
+O2 O 0.194 0.315 0.123
+C3 C 0.345 0.257 0.195
+C4 C 0.469 0.329 0.272
+O3 O 0.343 0.367 0.296
+C5 C 0.449 0.438 0.364
+C6 C 0.302 0.485 0.382
+O4 O 0.254 0.412 0.423
+C7 C 0.063 0.433 0.409
+C8 C 0.025 0.355 0.458
+O5 O 0.201 0.347 0.543
+C9 C 0.172 0.275 0.591
+C10 C 0.340 0.289 0.685
+O6 O 0.274 0.359 0.722
+C11 C 0.433 0.382 0.807
+C12 C 0.355 0.457 0.843
+O7 O 0.188 0.413 0.840
+C13 C 0.105 0.481 0.870
+C14 C -0.045 0.423 0.881
+H1 H -0.162 0.369 -0.023
+H2 H -0.169 0.263 -0.081
+H3 H -0.048 0.214 0.065
+H4 H 0.140 0.191 0.046
+H5 H 0.270 0.199 0.209
+H6 H 0.446 0.220 0.183
+H7 H 0.596 0.287 0.324
+H8 H 0.526 0.393 0.256
+H9 H 0.571 0.398 0.420
+H10 H 0.514 0.499 0.348
+H11 H 0.373 0.552 0.422
+H12 H 0.162 0.508 0.322
+H13 H 0.066 0.510 0.431
+H14 H -0.058 0.427 0.342
+H15 H -0.105 0.380 0.457
+H16 H -0.008 0.280 0.428
+H17 H 0.024 0.288 0.579
+H18 H 0.179 0.198 0.572
+H19 H 0.374 0.215 0.717
+H20 H 0.477 0.319 0.694
+H21 H 0.484 0.312 0.844
+H22 H 0.561 0.417 0.810
+H23 H 0.477 0.475 0.909
+H24 H 0.304 0.528 0.806
+H25 H 0.228 0.512 0.931
+H26 H 0.026 0.543 0.825
+H27 H -0.138 0.371 0.828
+H28 H -0.144 0.478 0.883

@@ -112,3 +112,12 @@ files from this site. To remove it, clear the site data in your browser.
 
 `npm run audit` (after `npm run build`) opens every tool at 360, 768, 1280 and 1920 px and reports
 sideways scrolling, touch targets under 44 px and controls without a name.
+
+## Licence and citation
+
+The code is released under the [MIT licence](LICENSE). Data files keep their own terms, listed in
+[DATA-SOURCES.md](DATA-SOURCES.md) together with the privacy statement; bundled libraries are in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). If you use the site in published work, please
+cite it using [CITATION.cff](CITATION.cff) and cite the original paper or COD entry of every
+reference pattern you used. Contributions: [CONTRIBUTING.md](CONTRIBUTING.md); security reports:
+[SECURITY.md](SECURITY.md).

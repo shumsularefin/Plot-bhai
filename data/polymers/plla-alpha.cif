@@ -1,0 +1,125 @@
+# Transcribed from Table 3 of the paper below (C and O as in its Table 1(b), +25 C; H refined
+# from neutron WAND data). Minus signs recovered from the PDF text layer. Not a COD entry.
+# The paper names the space group P1211 but prints no symmetry operators. The 2-fold screw axis
+# is placed at x = 1/4, z = 1/4: of the settings that keep the chains apart, only this one gives
+# the near-P212121 pseudo-symmetry (h00, 0k0 absences) the paper reports for the same structure.
+data_PLLA_alpha
+_publ_section_title
+'Crystal Structure Analysis of Poly(L-lactic Acid) alpha Form On the basis of the 2-Dimensional Wide-Angle Synchrotron X-ray and Neutron Diffraction Measurements'
+_publ_author_name 'Wasanasuk, K.; Tashiro, K.; Hanesaka, M.; Ohhara, T.; Kurihara, K.; Kuroki, R.; Tamada, T.; Ozeki, T.; Kanamoto, T.'
+_journal_name_full 'Macromolecules'
+_journal_volume 44
+_journal_page_first 6441
+_journal_year 2011
+_journal_paper_doi 10.1021/ma2006624
+_chemical_name_common 'Poly(L-lactic acid), alpha form (25 C)'
+_chemical_formula_sum 'C3 H4 O2'
+_cell_length_a 10.683
+_cell_length_b 6.170
+_cell_length_c 28.860
+_cell_angle_alpha 90
+_cell_angle_beta 90
+_cell_angle_gamma 90
+_symmetry_space_group_name_H-M 'P 1 21 1'
+_space_group_IT_number 4
+loop_
+_symmetry_equiv_pos_as_xyz
+x,y,z
+-x+1/2,y+1/2,-z+1/2
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_U_iso_or_equiv
+C1_1 C 0.0495 -0.2477 -0.1119 0.12
+C1_10 C -0.1305 0.0461 0.7955 0.12
+C2_1 C 0.0316 -0.4837 -0.0968 0.15
+C2_10 C -0.2272 0.1569 0.8267 0.081
+C3_1 C 0.0317 -0.0977 -0.0703 0.13
+C3_10 C -0.0267 -0.0030 0.8309 0.068
+O4_1 O -0.0592 0.0134 -0.0655 0.12
+O4_10 O 0.0758 0.0762 0.8352 0.10
+O5_1 O 0.1377 -0.0799 -0.0476 0.15
+O5_10 O -0.0348 -0.2006 0.8483 0.18
+C1_2 C 0.1351 0.0345 -0.0034 0.096
+H1_1 H 0.14 -0.23 -0.093 0.14
+C2_2 C 0.2682 0.0298 0.0162 0.30
+H2_1 H 0.068 -0.593 -0.124 0.05
+C3_2 C 0.0309 -0.0513 0.0280 0.27
+H3_1 H -0.067 -0.513 -0.089 0.17
+O4_2 O -0.0008 -0.2357 0.0326 0.09
+H4_1 H 0.085 -0.512 -0.065 0.09
+O5_2 O 0.0060 0.1178 0.0541 0.13
+H1_2 H 0.17 0.17 -0.026 0.25
+C1_3 C -0.0810 0.0549 0.0910 0.100
+H2_2 H 0.336 0.05 -0.012 0.18
+C2_3 C -0.1305 0.2646 0.1128 0.060
+H3_2 H 0.283 -0.13 0.034 0.20
+C3_3 C -0.0262 -0.0645 0.1330 0.21
+H4_2 H 0.280 0.16 0.041 0.22
+O4_3 O 0.0849 -0.0801 0.1356 0.21
+H1_3 H -0.10 -0.06 0.061 0.28
+O5_3 O -0.1035 -0.1714 0.1599 0.18
+H2_3 H -0.16 0.373 0.0856 0.14
+C1_4 C -0.0472 -0.2648 0.2016 0.074
+H3_3 H -0.054 0.34 0.132 0.02
+C2_4 C -0.1548 -0.3908 0.2242 0.20
+H4_3 H -0.207 0.228 0.136 0.23
+C3_4 C 0.0228 -0.0812 0.2256 0.25
+H1_4 H -0.02 -0.39 0.175 0.16
+O4_4 O -0.0138 0.1021 0.2262 0.18
+H2_4 H -0.176 -0.535 0.204 0.20
+O5_4 O 0.0803 -0.1847 0.2596 0.19
+H3_4 H -0.237 -0.288 0.227 0.01
+C1_5 C 0.1281 -0.0461 0.2968 0.06
+H4_4 H -0.126 -0.44 0.259 0.26
+C2_5 C 0.2319 -0.1724 0.3220 0.064
+H1_5 H 0.17 0.06 0.270 0.28
+C3_5 C 0.0152 0.0273 0.3256 0.139
+H2_5 H 0.31 -0.21 0.305 0.24
+O4_5 O -0.0728 -0.0941 0.3257 0.30
+H3_5 H 0.19 -0.32 0.341 0.18
+O5_5 O 0.0499 0.1836 0.3535 0.093
+H4_5 H 0.27 -0.07 0.356 0.17
+C1_6 C -0.0450 0.2530 0.3863 0.13
+H1_6 H -0.10 0.26 0.354 0.01
+C2_6 C -0.0256 0.4852 0.4031 0.20
+H2_6 H -0.030 0.598 0.3739 0.16
+C3_6 C -0.0288 0.1012 0.4278 0.23
+H3_6 H 0.067 0.50 0.419 0.12
+O4_6 O 0.0537 -0.0306 0.4292 0.12
+H4_6 H -0.096 0.53 0.429 0.02
+O5_6 O -0.1316 0.0904 0.4522 0.28
+H1_7 H -0.12 -0.18 0.475 0.18
+C1_7 C -0.1346 -0.0348 0.4952 0.17
+H2_7 H -0.335 -0.09 0.490 0.32
+C2_7 C -0.2662 -0.0397 0.5163 0.23
+H3_7 H -0.288 0.12 0.530 0.10
+C3_7 C -0.0375 0.0424 0.5307 0.15
+H4_7 H -0.267 -0.16 0.545 0.08
+O4_7 O 0.0079 0.2193 0.5282 0.21
+H1_8 H 0.178 0.01 0.588 0.06
+O5_7 O 0.0003 -0.1202 0.5569 0.12
+H2_8 H 0.231 -0.33 0.606 0.03
+C1_8 C 0.0810 -0.0446 0.5942 0.058
+H3_8 H 0.07 -0.39 0.612 0.30
+C2_8 C 0.1380 -0.2566 0.6125 0.19
+H4_8 H 0.14 -0.18 0.647 0.18
+C3_8 C 0.0178 0.1074 0.6286 0.14
+H1_9 H -0.044 0.31 0.69 0.12
+O4_8 O -0.0931 0.0815 0.6300 0.17
+H2_9 H 0.19 0.52 0.704 0.15
+O5_8 O 0.0985 0.1721 0.6597 0.11
+H3_9 H 0.236 0.274 0.73 0.03
+C1_9 C 0.0498 0.2734 0.7017 0.12
+H4_9 H -0.21 -0.06 0.80 0.12
+C2_9 C 0.1590 0.3898 0.7258 0.028
+H1_10 H 0.130 0.45 0.760 0.32
+C3_9 C 0.0025 0.0985 0.7352 0.17
+H2_10 H -0.316 0.17 0.808 0.22
+O4_9 O 0.0112 -0.0938 0.7285 0.09
+H3_10 H -0.195 0.320 0.836 0.08
+O5_9 O -0.0952 0.1825 0.7562 0.08
+H4_10 H -0.242 0.063 0.858 0.08

@@ -45,7 +45,7 @@ describe('MaterialStep', () => {
     expect(screen.getByLabelText('Formula, elements or COD ID')).toBeTruthy();
     expect(screen.getByRole('group', { name: 'Periodic table' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Choose CIF files' })).toBeTruthy();
-    expect(screen.getByText(/natural polymers that COD does not hold/)).toBeTruthy();
+    expect(screen.getByText(/Polymers that COD does not hold/)).toBeTruthy();
     expect(screen.getByText(/None yet/)).toBeTruthy();
   });
 

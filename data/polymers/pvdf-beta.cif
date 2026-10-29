@@ -1,0 +1,46 @@
+# Transcribed from Table I(b) of the paper below (form I = beta phase, statistically disordered
+# model with chain deflection sigma = 7 deg, checked on the page image). Atoms off the mirror plane
+# x = 0 have occupancy 1/2: the mirror image of each deflected chain occupies the same site.
+# No displacement parameters are listed. Not a COD entry.
+data_PVDF_beta
+_publ_section_title
+'Crystal Structures of Three Crystalline Forms of Poly(vinylidene fluoride)'
+_publ_author_name 'Hasegawa, R.; Takahashi, Y.; Chatani, Y.; Tadokoro, H.'
+_journal_name_full 'Polymer Journal'
+_journal_volume 3
+_journal_page_first 600
+_journal_year 1972
+_journal_paper_doi 10.1295/polymj.3.600
+_chemical_formula_sum 'C2 H2 F2'
+_chemical_name_common 'Poly(vinylidene fluoride), beta phase (form I)'
+_cell_length_a 8.58
+_cell_length_b 4.91
+_cell_length_c 2.56
+_cell_angle_alpha 90
+_cell_angle_beta 90
+_cell_angle_gamma 90
+_symmetry_space_group_name_H-M 'C m 2 m'
+_space_group_IT_number 38
+loop_
+_symmetry_equiv_pos_as_xyz
+x,y,z
+-x,y,z
+x,y,-z
+-x,y,-z
+x+1/2,y+1/2,z
+-x+1/2,y+1/2,z
+x+1/2,y+1/2,-z
+-x+1/2,y+1/2,-z
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+C1 C 0.0 0.0 0.0 1
+C2 C 0.012 0.173 0.500 0.5
+F2a F 0.148 0.305 0.500 0.5
+F2b F -0.102 0.359 0.500 0.5
+H1a H 0.094 -0.149 0.0 0.5
+H1b H -0.112 -0.111 0.0 0.5

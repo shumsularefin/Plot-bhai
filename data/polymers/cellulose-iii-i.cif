@@ -1,0 +1,53 @@
+# Transcribed by hand from Tables 1 and 2 of the paper below. Not a COD entry.
+# The paper gives no displacement parameters, so none are listed (U = 0 in the calculation).
+# oH2, oH3 and oH6 are the hydroxyl hydrogen positions (deuterons D2, D3, D6 in the paper).
+data_cellulose_IIII
+_publ_section_title
+'Cellulose IIII Crystal Structure and Hydrogen Bonding by Synchrotron X-ray and Neutron Fiber Diffraction'
+_publ_author_name 'Wada, M.; Chanzy, H.; Nishiyama, Y.; Langan, P.'
+_journal_name_full 'Macromolecules'
+_journal_volume 37
+_journal_page_first 8548
+_journal_year 2004
+_journal_paper_doi 10.1021/ma0485585
+_chemical_name_common 'Cellulose IIII (ammonia-treated cellulose I)'
+_chemical_formula_sum 'C6 H10 O5'
+_cell_length_a 4.450
+_cell_length_b 7.850
+_cell_length_c 10.310
+_cell_angle_alpha 90
+_cell_angle_beta 90
+_cell_angle_gamma 105.10
+_symmetry_space_group_name_H-M 'P 1 1 21'
+_space_group_IT_number 4
+loop_
+_symmetry_equiv_pos_as_xyz
+x,y,z
+-x,-y,z+1/2
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+C1 C 0.050961 0.057262 0.380527
+C2 C 0.191389 0.196135 0.287129
+C3 C 0.047193 0.160362 0.153425
+C4 C 0.009263 -0.031267 0.112801
+C5 C -0.148745 -0.157932 0.218384
+C6 C -0.176129 -0.348168 0.188882
+O2 O 0.181636 0.366971 0.331722
+O3 O 0.242720 0.281823 0.066537
+O4 O -0.191038 -0.076143 0.000711
+O5 O 0.038639 -0.114787 0.333349
+O6 O -0.238242 -0.451795 0.303957
+H1 H -0.164524 0.062564 0.393673
+H2 H 0.411219 0.197152 0.278760
+H3 H -0.158495 0.183912 0.154995
+H4 H 0.213656 -0.050262 0.093348
+H5 H -0.356184 -0.141547 0.235149
+H6A H -0.342927 -0.390800 0.126975
+H6B H 0.016046 -0.359921 0.150091
+oH2 H 0.40 0.442 0.33
+oH3 H 0.15 0.27 -0.020
+oH6 H -0.12 -0.54 0.30

@@ -90,7 +90,7 @@ interface PhaseSearchProps {
  * One search for phases, as in the Materials Project: a search box with a periodic table under
  * it, both editing the same query, and the results under the table. Formulas, element sets and
  * COD numbers are looked up in the Crystallography Open Database through the lookup service (only
- * those are sent); every query is also matched in the built-in natural-polymer library. An entry
+ * those are sent); every query is also matched in the built-in polymer library. An entry
  * added from COD has its CIF downloaded and its pattern calculated in the browser, exactly as for
  * a CIF file the user loads.
  */
@@ -291,7 +291,7 @@ export function PhaseSearch({
       <div class="phase-search-results" aria-label="Search results" role="region">
         {libraryHits.length > 0 && (
           <>
-            <h4 class="phase-search-source">Natural polymer library ({libraryHits.length})</h4>
+            <h4 class="phase-search-source">Polymer library ({libraryHits.length})</h4>
             <ul class="phase-results">{libraryHits.map(renderLibraryPhase)}</ul>
           </>
         )}

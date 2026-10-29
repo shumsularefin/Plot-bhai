@@ -1,0 +1,50 @@
+# Transcribed from Table I of the paper below (checked on the page image). Not a COD entry.
+# C(6) y is printed with a damaged digit ("0.?05"); 0.105 is the only value that gives a normal
+# C5-C6 bond (1.5 A) and it reproduces the paper's own Fcalc (see docs/polymer-library.md).
+# O6S and O6D are the carboxyl oxygens (single- and double-bonded); OW is one water per residue.
+# No hydrogen atoms or displacement parameters are given. Space group P212121 is the paper's
+# stated "initial choice" for this fibre structure.
+data_poly_alpha_L_guluronic_acid
+_publ_section_title
+'Structural Components of Alginic Acid. II. The Crystalline Structure of Poly-alpha-L-Guluronic Acid. Results of X-Ray Diffraction and Polarized Infrared Studies'
+_publ_author_name 'Atkins, E. D. T.; Nieduszynski, I. A.; Mackie, W.; Parker, K. D.; Smolko, E. E.'
+_journal_name_full 'Biopolymers'
+_journal_volume 12
+_journal_page_first 1879
+_journal_year 1973
+_journal_paper_doi 10.1002/bip.1973.360120814
+_chemical_name_common 'Poly-alpha-L-guluronic acid (alginate G-block), hydrated'
+_chemical_formula_sum 'C6 H8 O6 + H2O'
+_cell_length_a 8.6
+_cell_length_b 8.7
+_cell_length_c 10.7
+_cell_angle_alpha 90
+_cell_angle_beta 90
+_cell_angle_gamma 90
+_symmetry_space_group_name_H-M 'P 21 21 21'
+_space_group_IT_number 19
+loop_
+_symmetry_equiv_pos_as_xyz
+x,y,z
+-x+1/2,-y,z+1/2
+-x,y+1/2,-z+1/2
+x+1/2,-y+1/2,-z
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+C1 C 0.103 0.282 0.314
+C2 C 0.004 0.176 0.393
+C3 C -0.138 0.128 0.319
+C4 C -0.094 0.061 0.194
+C5 C 0.016 0.170 0.125
+C6 C 0.077 0.105 0.002
+O2 O -0.038 0.247 0.505
+O3 O -0.234 0.258 0.300
+O4 O -0.018 -0.082 0.213
+O5 O 0.144 0.208 0.201
+O6S O 0.003 0.156 -0.097
+O6D O 0.185 0.014 -0.006
+OW O -0.037 0.378 0.745

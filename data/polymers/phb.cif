@@ -1,0 +1,46 @@
+# Transcribed from Table 1 of the paper below (checked against the page image). Not a COD entry.
+# The hydrogen positions are the paper's assumed (calculated) values.
+data_PHB
+_publ_section_title
+'Structural studies of polyesters: 5. Molecular and crystal structures of optically active and racemic poly(beta-hydroxybutyrate)'
+_publ_author_name 'Yokouchi, M.; Chatani, Y.; Tadokoro, H.; Teranishi, K.; Tani, H.'
+_journal_name_full 'Polymer'
+_journal_volume 14
+_journal_page_first 267
+_journal_year 1973
+_journal_paper_doi 10.1016/0032-3861(73)90087-6
+_chemical_name_common 'Poly(3-hydroxybutyrate), PHB, alpha form'
+_chemical_formula_sum 'C4 H6 O2'
+_cell_length_a 5.76
+_cell_length_b 13.20
+_cell_length_c 5.96
+_cell_angle_alpha 90
+_cell_angle_beta 90
+_cell_angle_gamma 90
+_symmetry_space_group_name_H-M 'P 21 21 21'
+_space_group_IT_number 19
+loop_
+_symmetry_equiv_pos_as_xyz
+x,y,z
+-x+1/2,-y,z+1/2
+-x,y+1/2,-z+1/2
+x+1/2,-y+1/2,-z
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_B_iso_or_equiv
+CI C 0.437 -0.068 0.217 4.7
+CII C 0.318 -0.139 0.389 3.3
+CIII C 0.143 -0.077 0.513 5.1
+CIV C 0.587 -0.140 0.052 7.1
+OI O 0.232 0.017 0.585 5.1
+OII O -0.057 -0.105 0.558 5.7
+HI H 0.557 -0.020 0.294 10.0
+HII1 H 0.447 -0.171 0.499 10.0
+HII2 H 0.226 -0.200 0.301 10.0
+HIV1 H 0.667 -0.092 -0.076 12.0
+HIV2 H 0.464 -0.192 -0.036 12.0
+HIV3 H 0.710 -0.182 0.143 12.0

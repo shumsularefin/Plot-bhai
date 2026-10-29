@@ -1,5 +1,470 @@
 {
- "source": "Natural polymers not in the Crystallography Open Database, calculated from published structure files (CIF) with the kinematic model, Cu Ka1. Each phase cites its paper. TODO: empty until the owner supplies the CIF files (cellulose, chitin and chitosan, starch and amylose, silk fibroin, collagen and others).",
+ "source": "Polymers not in the Crystallography Open Database: structures transcribed by hand from the cited papers (data/polymers/), patterns calculated with the kinematic model, Cu Ka1. Polymers that COD holds are found through the COD search.",
  "intensityWavelength": 1.5405929,
- "families": []
+ "families": [
+  {
+   "id": "cellulose",
+   "name": "Cellulose",
+   "aliases": [
+    "cellulose",
+    "mercerized cellulose",
+    "regenerated cellulose",
+    "nanocellulose"
+   ],
+   "formula": "C6H10O5",
+   "file": "polymers.json",
+   "phases": [
+    {
+     "id": "cellulose-ii",
+     "name": "Cellulose II",
+     "codId": null,
+     "reference": "Langan et al., Biomacromolecules 2 (2001) 410",
+     "link": "https://doi.org/10.1021/bm005612q",
+     "spaceGroup": "P 1 1 21",
+     "crystalSystem": "monoclinic",
+     "formula": "C6H10O5",
+     "spaceGroupNumber": 4,
+     "elements": [
+      "C",
+      "H",
+      "O"
+     ],
+     "cell": {
+      "a": 8.1,
+      "b": 9.03,
+      "c": 10.31,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 117.1
+     }
+    },
+    {
+     "id": "cellulose-iii-i",
+     "name": "Cellulose III(I)",
+     "codId": null,
+     "reference": "Wada et al., Macromolecules 37 (2004) 8548",
+     "link": "https://doi.org/10.1021/ma0485585",
+     "spaceGroup": "P 1 1 21",
+     "crystalSystem": "monoclinic",
+     "formula": "C6H10O5",
+     "spaceGroupNumber": 4,
+     "elements": [
+      "C",
+      "H",
+      "O"
+     ],
+     "cell": {
+      "a": 4.45,
+      "b": 7.85,
+      "c": 10.31,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 105.1
+     }
+    }
+   ]
+  },
+  {
+   "id": "chitosan",
+   "name": "Chitosan",
+   "aliases": [
+    "chitosan",
+    "deacetylated chitin",
+    "CS"
+   ],
+   "formula": "C6H11NO4",
+   "file": "polymers.json",
+   "phases": [
+    {
+     "id": "chitosan-anhydrous",
+     "name": "Chitosan (anhydrous)",
+     "codId": null,
+     "reference": "Naito et al., Biopolymers 105 (2016) 361",
+     "link": "https://doi.org/10.1002/bip.22818",
+     "spaceGroup": "P 21 21 21",
+     "crystalSystem": "orthorhombic",
+     "formula": "C6H11NO4",
+     "spaceGroupNumber": 19,
+     "elements": [
+      "C",
+      "H",
+      "N",
+      "O"
+     ],
+     "cell": {
+      "a": 8.129,
+      "b": 8.347,
+      "c": 10.311,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "starch",
+   "name": "Starch (amylose)",
+   "aliases": [
+    "starch",
+    "amylose",
+    "A-type starch",
+    "cereal starch"
+   ],
+   "formula": "C6H10O5+0.67H2O",
+   "file": "polymers.json",
+   "phases": [
+    {
+     "id": "a-amylose",
+     "name": "A-amylose",
+     "codId": null,
+     "reference": "Popov et al., Macromolecules 42 (2009) 1167",
+     "link": "https://doi.org/10.1021/ma801789j",
+     "spaceGroup": "B 1 1 2",
+     "crystalSystem": "monoclinic",
+     "formula": "C6H10O5+0.67H2O",
+     "spaceGroupNumber": 5,
+     "elements": [
+      "C",
+      "O"
+     ],
+     "cell": {
+      "a": 20.83,
+      "b": 11.45,
+      "c": 10.58,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 122
+     }
+    }
+   ]
+  },
+  {
+   "id": "alginate",
+   "name": "Alginate",
+   "aliases": [
+    "alginate",
+    "alginic acid",
+    "guluronic acid",
+    "G-block",
+    "sodium alginate"
+   ],
+   "formula": "C6H8O6+H2O",
+   "file": "polymers.json",
+   "phases": [
+    {
+     "id": "polyguluronic-acid",
+     "name": "Poly-α-L-guluronic acid",
+     "codId": null,
+     "reference": "Atkins et al., Biopolymers 12 (1973) 1879",
+     "link": "https://doi.org/10.1002/bip.1973.360120814",
+     "spaceGroup": "P 21 21 21",
+     "crystalSystem": "orthorhombic",
+     "formula": "C6H8O6+H2O",
+     "spaceGroupNumber": 19,
+     "elements": [
+      "C",
+      "O"
+     ],
+     "cell": {
+      "a": 8.6,
+      "b": 8.7,
+      "c": 10.7,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "polyesters",
+   "name": "Polyesters (PLA, PHB, PCL, PET)",
+   "aliases": [
+    "PLA",
+    "PLLA",
+    "polylactide",
+    "poly(lactic acid)",
+    "PHB",
+    "polyhydroxybutyrate",
+    "PCL",
+    "polycaprolactone",
+    "PET",
+    "polyethylene terephthalate",
+    "polyester"
+   ],
+   "formula": "C3H4O2",
+   "file": "polymers.json",
+   "phases": [
+    {
+     "id": "plla-alpha",
+     "name": "Poly(L-lactic acid), α form",
+     "codId": null,
+     "reference": "Wasanasuk et al., Macromolecules 44 (2011) 6441",
+     "link": "https://doi.org/10.1021/ma2006624",
+     "spaceGroup": "P 1 21 1",
+     "crystalSystem": "monoclinic",
+     "formula": "C3H4O2",
+     "spaceGroupNumber": 4,
+     "elements": [
+      "C",
+      "H",
+      "O"
+     ],
+     "cell": {
+      "a": 10.683,
+      "b": 6.17,
+      "c": 28.86,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    },
+    {
+     "id": "phb",
+     "name": "Poly(3-hydroxybutyrate)",
+     "codId": null,
+     "reference": "Yokouchi et al., Polymer 14 (1973) 267",
+     "link": "https://doi.org/10.1016/0032-3861(73)90087-6",
+     "spaceGroup": "P 21 21 21",
+     "crystalSystem": "orthorhombic",
+     "formula": "C4H6O2",
+     "spaceGroupNumber": 19,
+     "elements": [
+      "C",
+      "H",
+      "O"
+     ],
+     "cell": {
+      "a": 5.76,
+      "b": 13.2,
+      "c": 5.96,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    },
+    {
+     "id": "pcl",
+     "name": "Poly(ε-caprolactone)",
+     "codId": null,
+     "reference": "Chatani et al., Polymer Journal 1 (1970) 555",
+     "link": "https://doi.org/10.1295/polymj.1.555",
+     "spaceGroup": "P 21 21 21",
+     "crystalSystem": "orthorhombic",
+     "formula": "C6H10O2",
+     "spaceGroupNumber": 19,
+     "elements": [
+      "C",
+      "O"
+     ],
+     "cell": {
+      "a": 7.47,
+      "b": 4.98,
+      "c": 17.05,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    },
+    {
+     "id": "pet",
+     "name": "Poly(ethylene terephthalate)",
+     "codId": null,
+     "reference": "Daubeny et al., Proceedings of the Royal Society of London. Series A 226 (1954) 531",
+     "link": "https://doi.org/10.1098/rspa.1954.0273",
+     "spaceGroup": "P -1",
+     "crystalSystem": "triclinic",
+     "formula": "C10H8O4",
+     "spaceGroupNumber": 2,
+     "elements": [
+      "C",
+      "O"
+     ],
+     "cell": {
+      "a": 4.56,
+      "b": 5.94,
+      "c": 10.75,
+      "alpha": 98.5,
+      "beta": 118,
+      "gamma": 112
+     }
+    }
+   ]
+  },
+  {
+   "id": "peo",
+   "name": "Poly(ethylene oxide)",
+   "aliases": [
+    "PEO",
+    "PEG",
+    "polyethylene glycol",
+    "polyethylene oxide"
+   ],
+   "formula": "C2H4O",
+   "file": "polymers.json",
+   "phases": [
+    {
+     "id": "peo",
+     "name": "Poly(ethylene oxide)",
+     "codId": null,
+     "reference": "Takahashi & Tadokoro, Macromolecules 6 (1973) 672",
+     "link": "https://doi.org/10.1021/ma60035a005",
+     "spaceGroup": "P 1 21/a 1",
+     "crystalSystem": "monoclinic",
+     "formula": "C2H4O",
+     "spaceGroupNumber": 14,
+     "elements": [
+      "C",
+      "H",
+      "O"
+     ],
+     "cell": {
+      "a": 8.05,
+      "b": 13.04,
+      "c": 19.48,
+      "alpha": 90,
+      "beta": 125.4,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "pva",
+   "name": "Poly(vinyl alcohol)",
+   "aliases": [
+    "PVA",
+    "PVOH",
+    "polyvinyl alcohol"
+   ],
+   "formula": "C2H4O",
+   "file": "polymers.json",
+   "phases": [
+    {
+     "id": "pva",
+     "name": "Poly(vinyl alcohol)",
+     "codId": null,
+     "reference": "Bunn, Nature 161 (1948) 929",
+     "link": "https://doi.org/10.1038/161929a0",
+     "spaceGroup": "P 1 21/m 1",
+     "crystalSystem": "monoclinic",
+     "formula": "C2H4O",
+     "spaceGroupNumber": 11,
+     "elements": [
+      "C",
+      "O"
+     ],
+     "cell": {
+      "a": 7.81,
+      "b": 2.52,
+      "c": 5.51,
+      "alpha": 90,
+      "beta": 91.7,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "pvdf",
+   "name": "Poly(vinylidene fluoride)",
+   "aliases": [
+    "PVDF",
+    "polyvinylidene fluoride",
+    "PVF2"
+   ],
+   "formula": "C2H2F2",
+   "file": "polymers.json",
+   "phases": [
+    {
+     "id": "pvdf-alpha",
+     "name": "PVDF, α phase (form II)",
+     "codId": null,
+     "reference": "Hasegawa et al., Polymer Journal 3 (1972) 600",
+     "link": "https://doi.org/10.1295/polymj.3.600",
+     "spaceGroup": "P 1 21/c 1",
+     "crystalSystem": "monoclinic",
+     "formula": "C2H2F2",
+     "spaceGroupNumber": 14,
+     "elements": [
+      "C",
+      "F",
+      "H"
+     ],
+     "cell": {
+      "a": 4.96,
+      "b": 9.64,
+      "c": 4.62,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    },
+    {
+     "id": "pvdf-beta",
+     "name": "PVDF, β phase (form I)",
+     "codId": null,
+     "reference": "Hasegawa et al., Polymer Journal 3 (1972) 600",
+     "link": "https://doi.org/10.1295/polymj.3.600",
+     "spaceGroup": "C m 2 m",
+     "crystalSystem": "orthorhombic",
+     "formula": "C2H2F2",
+     "spaceGroupNumber": 38,
+     "elements": [
+      "C",
+      "F",
+      "H"
+     ],
+     "cell": {
+      "a": 8.58,
+      "b": 4.91,
+      "c": 2.56,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90
+     }
+    }
+   ]
+  },
+  {
+   "id": "nylon",
+   "name": "Polyamides (nylon)",
+   "aliases": [
+    "nylon",
+    "nylon 6",
+    "polyamide",
+    "PA6",
+    "polycaproamide"
+   ],
+   "formula": "C6H11NO",
+   "file": "polymers.json",
+   "phases": [
+    {
+     "id": "nylon6-alpha",
+     "name": "Nylon 6, α form",
+     "codId": null,
+     "reference": "Holmes et al., Journal of Polymer Science 17 (1955) 159",
+     "link": "https://doi.org/10.1002/pol.1955.120178401",
+     "spaceGroup": "P 1 21 1",
+     "crystalSystem": "monoclinic",
+     "formula": "C6H11NO",
+     "spaceGroupNumber": 4,
+     "elements": [
+      "C",
+      "N",
+      "O"
+     ],
+     "cell": {
+      "a": 9.56,
+      "b": 17.24,
+      "c": 8.01,
+      "alpha": 90,
+      "beta": 67.5,
+      "gamma": 90
+     }
+    }
+   ]
+  }
+ ]
 }

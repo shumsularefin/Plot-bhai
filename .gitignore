@@ -8,3 +8,6 @@ __pycache__
 scripts/source-cache
 e2e-failure.png
 .wrangler/
+
+# Copyrighted reference PDFs: keep locally, never commit
+docs/papers/*.pdf

@@ -128,8 +128,9 @@ export default function About() {
           websites, so a small lookup service run for this site on Cloudflare passes the search on
           and returns the chosen CIF. Only the formula, element symbols and COD numbers are sent;
           your data files never leave your browser. Searches with more than 300 results must be
-          narrowed. A library of natural polymers that COD does not hold is being prepared from
-          published structure files.
+          narrowed. Polymers that COD does not hold (cellulose II and III, chitosan, A-type starch,
+          alginate, PLA, PHB, PCL, PET, PEO, PVA, PVDF and nylon 6) are in a built-in library, each
+          structure transcribed from its original paper, which is cited and linked with the phase.
         </p>
         <p>
           Any other structure can be added as a CIF file, for example one downloaded from COD or the
