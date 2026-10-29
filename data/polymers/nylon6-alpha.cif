@@ -1,0 +1,69 @@
+# Transcribed from Table II of the paper below (one monomer of each of the four chains A-D; the
+# second monomer of each chain comes from the 2-fold screw axis along b, space group P21 as stated
+# in the paper). Bars over numbers in the scan (negative values) checked on the page image.
+# This is the paper's simplified 1955 model (all chain angles 112 deg, idealised amide), so some
+# bond lengths are rough (C=O 1.15 A in chain A, amide C-C 1.19 A in chains B and D): peak
+# positions are reliable, relative intensities only approximate.
+# Hydrogen atoms and displacement parameters are not listed in the paper. Not a COD entry.
+# Molecule B, carbonyl O: z printed as -0.027 (molecules A, C, D use -0.007, 0.473, 0.473); kept as printed.
+data_nylon6_alpha
+_publ_section_title
+'The Crystal Structure of Polycaproamide: Nylon 6'
+_publ_author_name 'Holmes, D. R.; Bunn, C. W.; Smith, D. J.'
+_journal_name_full 'Journal of Polymer Science'
+_journal_volume 17
+_journal_page_first 159
+_journal_year 1955
+_journal_paper_doi 10.1002/pol.1955.120178401
+_chemical_name_common 'Nylon 6 (polycaproamide), alpha form'
+_chemical_formula_sum 'C6 H11 N O'
+_cell_length_a 9.56
+_cell_length_b 17.24
+_cell_length_c 8.01
+_cell_angle_alpha 90
+_cell_angle_beta 67.5
+_cell_angle_gamma 90
+_symmetry_space_group_name_H-M 'P 1 21 1'
+_space_group_IT_number 4
+loop_
+_symmetry_equiv_pos_as_xyz
+x,y,z
+-x,y+1/2,-z
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+NA N 0.037 0.285 0.006
+C0A C -0.04 0.219 -0.007
+OA O -0.16 0.219 -0.007
+C1A C 0.044 0.146 0.007
+C2A C -0.04 0.073 -0.007
+C3A C 0.044 0 0.007
+C4A C -0.04 -0.073 -0.007
+C5A C 0.044 -0.146 0.007
+NB N 0.537 0.219 0.006
+C0B C 0.46 0.285 -0.007
+OB O 0.34 0.285 -0.027
+C1B C 0.544 0.146 0.007
+C2B C 0.46 0.073 -0.007
+C3B C 0.544 0 0.007
+C4B C 0.46 -0.073 -0.007
+C5B C 0.544 -0.146 0.007
+NC N 0.037 0.499 0.506
+C0C C -0.04 0.433 0.493
+OC O -0.16 0.433 0.473
+C1C C 0.044 0.36 0.507
+C2C C -0.04 0.287 0.493
+C3C C 0.044 0.214 0.507
+C4C C -0.04 0.141 0.493
+C5C C 0.044 0.068 0.507
+ND N 0.537 0.433 0.506
+C0D C 0.46 0.499 0.493
+OD O 0.34 0.499 0.473
+C1D C 0.544 0.36 0.507
+C2D C 0.46 0.287 0.493
+C3D C 0.544 0.214 0.507
+C4D C 0.46 0.141 0.493
+C5D C 0.544 0.068 0.507

@@ -27,6 +27,7 @@ import type {
 } from '../src/core/xrd/reference/types.ts';
 import { ANODES } from '../src/core/xrd/radiation.ts';
 import { roundedContents } from '../src/core/xrd/reference/fromCif.ts';
+import { phaseLink, phaseReference } from '../src/core/xrd/reference/source.ts';
 import { FAMILIES, PHASES, type PhaseRequest } from './reference-phases.ts';
 
 const COD = 'https://www.crystallography.net/cod';
@@ -500,7 +501,9 @@ async function main() {
       phases: phases.map((p) => ({
         id: p.id,
         name: p.name,
-        codId: p.codId as number,
+        codId: p.codId,
+        reference: phaseReference(p),
+        link: phaseLink(p),
         spaceGroup: p.spaceGroup.hm,
         crystalSystem: p.crystalSystem,
         formula: p.formula,

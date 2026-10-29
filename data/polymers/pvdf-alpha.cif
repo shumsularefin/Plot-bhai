@@ -1,0 +1,40 @@
+# Transcribed from Table III of the paper below (form II = alpha phase, TGTG chains; checked on the
+# page image). Space group P21/c, b unique, as stated in the paper. Not a COD entry.
+data_PVDF_alpha
+_publ_section_title
+'Crystal Structures of Three Crystalline Forms of Poly(vinylidene fluoride)'
+_publ_author_name 'Hasegawa, R.; Takahashi, Y.; Chatani, Y.; Tadokoro, H.'
+_journal_name_full 'Polymer Journal'
+_journal_volume 3
+_journal_page_first 600
+_journal_year 1972
+_journal_paper_doi 10.1295/polymj.3.600
+_chemical_formula_sum 'C2 H2 F2'
+_chemical_name_common 'Poly(vinylidene fluoride), alpha phase (form II)'
+_cell_length_a 4.96
+_cell_length_b 9.64
+_cell_length_c 4.62
+_cell_angle_alpha 90
+_cell_angle_beta 90
+_cell_angle_gamma 90
+_symmetry_space_group_name_H-M 'P 1 21/c 1'
+_space_group_IT_number 14
+loop_
+_symmetry_equiv_pos_as_xyz
+x,y,z
+-x,y+1/2,-z+1/2
+-x,-y,-z
+x,-y+1/2,z+1/2
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_B_iso_or_equiv
+C1 C 0.238 0.183 0.825 4.0
+C2 C 0.308 0.186 0.150 5.0
+F1 F 0.218 0.070 0.276 3.5
+F2 F 0.576 0.178 0.185 7.0
+H1 H 0.366 0.096 0.760 3.5
+H2 H 0.021 0.166 0.806 7.0

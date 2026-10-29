@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { formatNumber } from '../../core/xrd/parsers/numbers';
 import { DEFAULT_MATCH, matchPhase, referenceLines } from '../../core/xrd/reference/match';
 import type { PhaseHit } from '../../core/xrd/reference/search';
-import { phaseReference } from '../../core/xrd/reference/source';
+import { phaseLink, phaseReference } from '../../core/xrd/reference/source';
 import type {
   ReferenceIndexEntry,
   ReferenceIndexPhase,
@@ -15,7 +15,7 @@ import type { StepContext } from '../../ui/wizard/types';
 import { readCifFile } from './cifClient';
 import { PhaseSearch } from './PhaseSearch';
 import { DEFAULT_MATERIAL, type MaterialState, type XrdData } from './data';
-import { codUrl, familyOf, libraryIndex, loadReferenceFamily } from './referenceLibrary';
+import { familyOf, libraryIndex, loadReferenceFamily } from './referenceLibrary';
 import { useMeasured } from './useMeasured';
 
 const GUIDE_NOTE =
@@ -31,13 +31,14 @@ interface ListedPhase {
   spaceGroupNumber: number;
   cell: ReferenceIndexPhase['cell'];
   source: string;
+  link: string | null;
   codId: number | null;
   notes: readonly { level: string; text: string }[];
 }
 
 const fromIndex = (phase: ReferenceIndexPhase): ListedPhase => ({
   ...phase,
-  source: `COD ${phase.codId}`,
+  source: phase.reference,
   notes: [],
 });
 
@@ -50,6 +51,7 @@ const fromCif = (phase: ReferencePhase): ListedPhase => ({
   spaceGroupNumber: phase.spaceGroup.number,
   cell: phase.cell,
   source: phaseReference(phase),
+  link: phaseLink(phase),
   codId: phase.codId,
   notes: phase.origin?.kind === 'cif' ? (phase.origin.notes ?? []) : [],
 });
@@ -151,12 +153,12 @@ export function MaterialStep({ data, update }: StepContext<XrdData>) {
           </p>
         </HelpTip>
       </p>
-      {libraryPhases === 0 && (
-        <p class="field-hint">
-          A library of natural polymers that COD does not hold (cellulose, chitin and chitosan,
-          starch, silk fibroin, collagen) is being prepared. Until then, load their CIF files below.
-        </p>
-      )}
+      <p class="field-hint">
+        Polymers that COD does not hold are in the built-in polymer library, each from its original
+        paper: cellulose II and III, A-type starch, alginate, PLA, PHB, PCL, PET, PEO (PEG), PVA,
+        PVDF and nylon 6. Type a name such as PLA or cellulose. Cellulose I, chitin and
+        polypropylene are in COD itself.
+      </p>
 
       <PhaseSearch
         onLoaded={addCifPhases}
@@ -172,7 +174,7 @@ export function MaterialStep({ data, update }: StepContext<XrdData>) {
             aria-pressed={unknown}
             onClick={() => setUnknown(!unknown)}
           >
-            Not sure? Compare your peaks with the library
+            Not sure? Compare your peaks with the polymer library
           </button>
           {unknown && <UnknownGuide data={data} onAdd={add} isCandidate={isCandidate} />}
         </section>
@@ -285,8 +287,8 @@ function PhaseRow({ phase, family, action, children }: PhaseRowProps) {
           {phase.crystalSystem}, {phase.spaceGroup}
           {phase.spaceGroupNumber > 0 && ` (No. ${phase.spaceGroupNumber})`} ·{' '}
           {cellText(phase.cell, phase.crystalSystem)} ·{' '}
-          {phase.codId !== null ? (
-            <a href={codUrl(phase.codId)} target="_blank" rel="noopener noreferrer">
+          {phase.link !== null ? (
+            <a href={phase.link} target="_blank" rel="noopener noreferrer">
               {phase.source}
             </a>
           ) : (

@@ -1,0 +1,39 @@
+# Transcribed from the text of the paper below (no table; positions are given in the prose).
+# Statistical model: the hydroxyl oxygen is half at each of two sites (left- and right-hand
+# positions on the chain). No hydrogen atoms or displacement parameters. Not a COD entry.
+data_PVA
+_publ_section_title
+'Crystal Structure of Polyvinyl Alcohol'
+_publ_author_name 'Bunn, C. W.'
+_journal_name_full 'Nature'
+_journal_volume 161
+_journal_page_first 929
+_journal_year 1948
+_journal_paper_doi 10.1038/161929a0
+_chemical_name_common 'Poly(vinyl alcohol), PVA (atactic, statistical model)'
+_chemical_formula_sum 'C2 H4 O'
+_cell_length_a 7.81
+_cell_length_b 2.52
+_cell_length_c 5.51
+_cell_angle_alpha 90
+_cell_angle_beta 91.7
+_cell_angle_gamma 90
+_symmetry_space_group_name_H-M 'P 1 21/m 1'
+_space_group_IT_number 11
+loop_
+_symmetry_equiv_pos_as_xyz
+x,y,z
+-x,y+1/2,-z
+-x,-y,-z
+x,-y+1/2,z
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_occupancy
+C1 C 0.190 0.250 0.806 1
+C2 C 0.277 0.750 0.708 1
+O1 O 0.451 0.750 0.782 0.5
+O2 O 0.267 0.750 0.450 0.5

@@ -42,6 +42,3 @@ function load<T>(name: string): Promise<T> {
 export async function loadReferenceFamily(file: string): Promise<ReferencePhase[]> {
   return (await load<ReferenceFamilyFile>(file)).phases;
 }
-
-/** Link to the COD entry page of a structure. */
-export const codUrl = (codId: number) => `https://www.crystallography.net/cod/${codId}.html`;

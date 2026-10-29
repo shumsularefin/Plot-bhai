@@ -1,4 +1,4 @@
-import { phaseReference } from '../../core/xrd/reference/source';
+import { phaseLink, phaseReference } from '../../core/xrd/reference/source';
 import { useMemo } from 'preact/hooks';
 import { xrayDensity } from '../../core/xrd/analysis/density';
 import type { LatticeFit } from '../../core/xrd/reference/lattice';
@@ -17,7 +17,6 @@ import {
 } from './assignment';
 import { xrdLabels } from './labels';
 import { TableBox } from './MethodDetails';
-import { codUrl } from './referenceLibrary';
 import { useProcessed } from './useProcessed';
 import { processingFor } from './data';
 
@@ -218,8 +217,8 @@ function LatticeCard({ phase }: { phase: PhaseAssignment }) {
     <div class="lattice-card">
       <h5 class="lattice-title">
         {ref.name} (
-        {ref.codId !== null ? (
-          <a href={codUrl(ref.codId)} target="_blank" rel="noopener noreferrer">
+        {phaseLink(ref) !== null ? (
+          <a href={phaseLink(ref) as string} target="_blank" rel="noopener noreferrer">
             {phaseReference(ref)}
           </a>
         ) : (

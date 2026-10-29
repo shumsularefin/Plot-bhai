@@ -40,8 +40,15 @@ export interface ReferencePhase {
   crystalSystem: string;
   /** Cell edges in Å and angles in degrees, from the CIF. */
   cell: { a: number; b: number; c: number; alpha: number; beta: number; gamma: number };
-  /** Literature reference given in the CIF. */
-  citation: { journal: string; volume: string; page: string; year: string; doi: string | null };
+  /** Literature reference given in the CIF; `authors` is a short form such as "Langan et al.". */
+  citation: {
+    journal: string;
+    volume: string;
+    page: string;
+    year: string;
+    doi: string | null;
+    authors?: string;
+  };
   /**
    * Atoms of each element in one unit cell (occupancies summed), from the CIF's atom sites and
    * symmetry. Used for the cell mass in Rietveld weight fractions. Missing in old sessions.
@@ -69,7 +76,12 @@ export interface ReferenceIndexEntry {
 export interface ReferenceIndexPhase {
   id: string;
   name: string;
-  codId: number;
+  /** COD entry, or null for a phase transcribed from a paper (see `reference`). */
+  codId: number | null;
+  /** Source shown in search results, for example "COD 1011185" or "Langan et al., Biomacromolecules 2 (2001) 410". */
+  reference: string;
+  /** Web page of the source (COD entry or the paper's DOI). */
+  link: string | null;
   spaceGroup: string;
   crystalSystem: string;
   formula: string;

@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: 'If you use this software in your research, please cite it as below.'
+title: 'Plot Bhai: a client-side wizard for XRD, UV-Vis, FTIR, particle size and thermal analysis'
+type: software
+authors:
+  - family-names: Arefin
+    given-names: Shumsul
+    # TODO: add affiliation and ORCID
+repository-code: 'https://github.com/shumsularefin/Plot-bhai'
+url: 'https://plot-bhai.web.app'
+license: MIT
+version: '0.1.0'
+date-released: '2026-10-29'
+keywords:
+  - X-ray diffraction
+  - crystallite size
+  - UV-Vis
+  - FTIR
+  - thermal analysis
+  - particle size
+  - materials characterisation

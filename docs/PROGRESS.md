@@ -1,5 +1,16 @@
 # Progress
 
+## Polymer library and public-release files (done)
+
+- 13 crystalline polymer phases that COD does not hold, transcribed from papers, checked and
+  listed with their results in docs/polymer-library.md. Library phases have no COD number and
+  link to their DOI. Silk, chitosan and French 2014 cellulose are left out (reasons there).
+- Release files: LICENSE (MIT, code only), CITATION.cff (affiliation and ORCID TODO),
+  DATA-SOURCES.md (data licences and privacy), THIRD-PARTY-NOTICES.md, CONTRIBUTING.md,
+  SECURITY.md.
+- Uploaded PDFs moved to docs/papers/. Known issue: publisher PDFs (and one book) are in the
+  public repo; the owner should decide whether to untrack them.
+
 ## Source check, part 2: ASTM E928 and Starink (2003) (done)
 
 Branch `claude/zen-edison-acnmco`. No new dependencies. The owner supplied the two remaining

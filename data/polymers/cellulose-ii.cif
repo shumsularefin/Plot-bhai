@@ -1,0 +1,69 @@
+# Transcribed by hand from Table 2 of the paper below (fractional coordinates and Uiso).
+# Not a COD entry. Hydrogen positions are the riding positions printed in the table.
+data_cellulose_II_mercerized_ramie
+_publ_section_title
+'X-ray Structure of Mercerized Cellulose II at 1 Angstrom Resolution'
+_publ_author_name 'Langan, P.; Nishiyama, Y.; Chanzy, H.'
+_journal_name_full 'Biomacromolecules'
+_journal_volume 2
+_journal_page_first 410
+_journal_year 2001
+_journal_coden_ASTM ?
+_journal_paper_doi 10.1021/bm005612q
+_chemical_name_common 'Cellulose II (mercerized ramie)'
+_chemical_formula_sum 'C6 H10 O5'
+_cell_length_a 8.10
+_cell_length_b 9.03
+_cell_length_c 10.31
+_cell_angle_alpha 90
+_cell_angle_beta 90
+_cell_angle_gamma 117.10
+_symmetry_space_group_name_H-M 'P 1 1 21'
+_space_group_IT_number 4
+loop_
+_symmetry_equiv_pos_as_xyz
+x,y,z
+-x,-y,z+1/2
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_U_iso_or_equiv
+C1o C -0.043 0.007 0.381 0.06
+H1o H -0.1257 -0.1115 0.3924 0.072
+C2o C -0.125 0.086 0.286 0.05
+H2o H -0.0411 0.2049 0.2764 0.056
+C3o C -0.151 -0.003 0.156 0.05
+H3o H -0.2396 -0.1205 0.1677 0.066
+O2o O -0.299 0.062 0.334 0.029
+C4o C 0.034 0.008 0.112 0.05
+H4o H 0.1198 0.1243 0.0929 0.055
+O3o O -0.224 0.069 0.066 0.06
+C5o C 0.118 -0.057 0.216 0.04
+H5o H 0.0297 -0.1731 0.2320 0.046
+O1o O 0.011 -0.091 -0.001 0.038
+O5o O 0.133 0.034 0.333 0.047
+C6o C 0.298 -0.053 0.183 0.07
+H6oA H 0.2935 -0.0928 0.0947 0.083
+H6oB H 0.3960 0.0603 0.1874 0.083
+O6o O 0.337 -0.155 0.270 0.08
+C1c C 0.468 0.522 -0.150 0.04
+H1c H 0.5652 0.6374 -0.1577 0.049
+C2c C 0.318 0.506 -0.054 0.028
+H2c H 0.2243 0.3886 -0.0506 0.034
+C3c C 0.398 0.559 0.082 0.04
+H3c H 0.4800 0.6792 0.0821 0.052
+O2c O 0.230 0.603 -0.092 0.038
+C4c C 0.509 0.468 0.119 0.030
+H4c H 0.4232 0.3516 0.1370 0.036
+O3c O 0.250 0.523 0.170 0.05
+C5c C 0.640 0.474 0.011 0.034
+H5c H 0.7246 0.5920 -0.0036 0.040
+O1c O 0.621 0.539 0.232 0.034
+O5c O 0.541 0.413 -0.108 0.050
+C6c C 0.757 0.392 0.037 0.06
+H6cA H 0.8256 0.4356 0.1166 0.075
+H6cB H 0.6794 0.2739 0.0479 0.075
+O6c O 0.886 0.418 -0.067 0.10
