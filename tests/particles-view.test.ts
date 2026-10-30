@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_ADJUST } from '../src/core/particles/detect/adjust';
 import { ellipseRuns } from '../src/core/particles/detect/manual';
 import {
   DEFAULT_FILTERS,
@@ -86,8 +87,61 @@ describe('saved state', () => {
     const upgraded = migrateParticleData({ step: 2, furthest: 2, data: { ...v1, nextId: 7 } }, 1);
     expect(upgraded?.data.detect.particles).toEqual([]);
     expect(upgraded?.data.nextId).toBe(7);
-    expect(upgraded?.step).toBe(2);
+    // Step 2 (detect) is step 3 since the adjust step came before it.
+    expect(upgraded?.step).toBe(3);
     expect(migrateParticleData({}, 1)).toBeUndefined();
-    expect(migrateParticleData({ step: 0, furthest: 0, data: v1 }, 6)).toBeUndefined();
+    expect(migrateParticleData({ step: 0, furthest: 0, data: v1 }, 7)).toBeUndefined();
+  });
+
+  it('upgrades version 5: adds the adjust step and settings, renames Otsu to an automatic method', () => {
+    const v5Settings = {
+      ...initialParticleData.detect.settings,
+      threshold: { method: 'otsu', manual: 90, adaptiveRadius: 30, adaptiveOffset: 2 },
+    };
+    const { adjust: _adjust, ...withoutAdjust } = v5Settings;
+    void _adjust;
+    const { fellBack: _fellBack, columns: _columns, ...v5Detect } = initialParticleData.detect;
+    void _fellBack;
+    void _columns;
+    const upgraded = migrateParticleData(
+      {
+        step: 2,
+        furthest: 3,
+        data: { ...initialParticleData, detect: { ...v5Detect, settings: withoutAdjust } },
+      },
+      5,
+    );
+    expect(upgraded?.step).toBe(3);
+    expect(upgraded?.furthest).toBe(4);
+    const settings = upgraded?.data.detect.settings;
+    expect(settings?.threshold).toEqual({
+      method: 'auto',
+      auto: 'otsu',
+      manual: 90,
+      adaptiveRadius: 30,
+      adaptiveOffset: 2,
+    });
+    expect(settings?.adjust).toEqual(DEFAULT_ADJUST);
+    expect(upgraded?.data.detect.fellBack).toBe(false);
+    expect(upgraded?.data.detect.columns).toEqual([]);
+    const kept = migrateParticleData(
+      {
+        step: 1,
+        furthest: 1,
+        data: {
+          ...initialParticleData,
+          detect: {
+            ...v5Detect,
+            settings: {
+              ...withoutAdjust,
+              threshold: { ...v5Settings.threshold, method: 'manual' },
+            },
+          },
+        },
+      },
+      5,
+    );
+    expect(kept?.step).toBe(1);
+    expect(kept?.data.detect.settings.threshold.method).toBe('manual');
   });
 });

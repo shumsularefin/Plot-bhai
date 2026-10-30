@@ -387,11 +387,26 @@ try {
   // Keep the data bar out of the analysis area, then detect the 12 example particles.
   await page.getByLabel(/Remove a strip from the bottom/).fill('96');
   await page.getByRole('button', { name: 'Apply', exact: true }).click();
+  // The adjust step: Auto contrast works and can be undone; the detection below uses no adjustment.
+  await next('Adjust the image');
+  const autoContrast = page.getByRole('button', { name: 'Auto', exact: true });
+  await page.waitForFunction(
+    () =>
+      [...document.querySelectorAll('button')].some((b) => b.textContent === 'Auto' && !b.disabled),
+    null,
+    { timeout: 15_000 },
+  );
+  await autoContrast.click();
+  await page.getByText(/Minimum \(becomes black\): [1-9]/).waitFor();
+  await page.getByRole('button', { name: 'Undo the last change' }).click();
+  await page.getByText('Minimum (becomes black): 0').waitFor();
+  step('Particles: adjust step, Auto brightness and contrast, undo');
   await next('Detect particles');
   await page.locator('button.btn-primary', { hasText: 'Detect particles' }).click();
   await page.getByText(/12 of 12 particles shown/).waitFor({ timeout: 30_000 });
   const detected = await page
-    .locator('.peak-table tbody tr')
+    .getByRole('region', { name: /Detected particles/ })
+    .locator('tbody tr')
     .evaluateAll((rows) =>
       rows.map((row) => parseFloat(row.querySelectorAll('td, th')[3].textContent)),
     );

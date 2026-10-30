@@ -1,5 +1,6 @@
 import type { WizardStep } from '../../ui/wizard/types';
 import type { ParticleData } from './data';
+import { AdjustStep } from './AdjustStep';
 import { DetectStep } from './DetectStep';
 import { DistributionStep } from './DistributionStep';
 import { ScaleStep } from './ScaleStep';
@@ -32,10 +33,22 @@ export const particleSteps: readonly WizardStep<ParticleData>[] = [
     render: (context) => <ScaleStep {...context} />,
   },
   {
+    id: 'adjust',
+    title: 'Adjust the image',
+    guide: [
+      'Say whether the particles are darker or lighter than the background.',
+      'Press Auto under Brightness and contrast if the image looks flat.',
+      'Tick Uneven background if one side is darker than the other, and pick a noise filter if the image is grainy.',
+      'Nothing to fix? Just press Next: the defaults suit most images.',
+    ],
+    render: (context) => <AdjustStep {...context} />,
+  },
+  {
     id: 'detect',
     title: 'Detect particles',
     guide: [
-      'Tick "darker than the background" for TEM images, then press Detect particles.',
+      'Press Detect particles. The pink overlay previews what counts as particle.',
+      'If too much or too little is marked, try another method under part 2, or Manual and move the slider.',
       'If the particles sit in clumps, choose "In clumps or overlapping" under part 3 and detect again.',
       'Check every outline against the image: merge, cut, delete or add particles where it went wrong.',
       'Measure particles the detection cannot outline with Add a line, then press Next.',

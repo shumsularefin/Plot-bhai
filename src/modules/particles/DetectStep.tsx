@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { Dock } from '../../ui/Dock';
 import { cutAlongSegment, ellipseRuns } from '../../core/particles/detect/manual';
+import {
+  AUTO_THRESHOLD_CITATIONS,
+  AUTO_THRESHOLD_HINTS,
+  AUTO_THRESHOLD_METHODS,
+  AUTO_THRESHOLD_NAMES,
+  autoThreshold,
+  type AutoThresholdMethod,
+} from '../../core/particles/detect/autoThreshold';
 import { DEFAULT_DETECT_SETTINGS, type DetectSettings } from '../../core/particles/detect/pipeline';
 import { mergeRuns, runsContain, touchesEdge } from '../../core/particles/detect/regions';
 import {
@@ -21,16 +29,20 @@ import {
   calibrationOf,
   DEFAULT_FILTERS,
   type DetectState,
+  type MeasureGroup,
   type Particle,
   type ParticleData,
   type ParticleFilters,
 } from './data';
 import { DetectClient } from './detectClient';
 import type { DecodedImage } from './decode';
-import { grayOf, maskCanvas, workingSize } from './grayImage';
+import { GrayHistogram } from './GrayHistogram';
+import { grayOf, maskCanvas, workingArea, workingSize } from './grayImage';
 import { HandMeasurements } from './HandMeasurements';
 import { ImageGate } from './ImageGate';
 import { ImageViewer, type DrawTool, type ParticleOverlay, type Tool } from './ImageViewer';
+import { LineProfile } from './LineProfile';
+import { GREY_GROUPS, MEASURE_GROUPS, measureColumns, type MeasureColumn } from './measureColumns';
 import { applyFilters, outlinePath, sizesOf } from './particleView';
 
 const TOOLS: { tool: Tool; label: string; hint: string }[] = [
@@ -78,8 +90,30 @@ interface Snapshot {
   nextId: number;
 }
 
+/** Plain-language list of what step 3 (Adjust the image) changed, for the summary here. */
+function adjustSummary(settings: DetectSettings): string {
+  const { adjust, denoise } = settings;
+  const parts = [
+    adjust.background.enabled &&
+      `uneven background removed (radius ${adjust.background.radius} px)`,
+    adjust.range && `contrast stretched (${adjust.range.min} to ${adjust.range.max})`,
+    adjust.equalize && 'histogram equalised',
+    adjust.sharpen.enabled && 'sharpened',
+    denoise.method === 'gaussian' && `Gaussian blur ${denoise.size} px`,
+    denoise.method === 'median' && `median filter radius ${denoise.size} px`,
+  ].filter(Boolean);
+  return parts.length > 0 ? `Adjustments: ${parts.join(', ')}.` : 'No adjustments.';
+}
+
+/** The settings step 3 owns, kept when the detection settings are reset. */
+const preparedOf = (settings: DetectSettings) => ({
+  invert: settings.invert,
+  adjust: settings.adjust,
+  denoise: settings.denoise,
+});
+
 /**
- * Wizard step 3: find particles automatically, then review, filter and correct them, and measure
+ * Wizard step 4: find particles automatically, then review, filter and correct them, and measure
  * by hand the ones the detection cannot outline.
  */
 export function DetectStep({ data, update }: StepContext<ParticleData>) {
@@ -112,7 +146,14 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
   const [sensitivity, setSensitivity] = useState<
     { threshold: number; count: number; mean: number }[] | null
   >(null);
-  const [mask, setMask] = useState<HTMLCanvasElement | null>(null);
+  const [preview, setPreview] = useState<{
+    mask: Uint8Array;
+    width: number;
+    height: number;
+    threshold: number;
+    fellBack: boolean;
+    histogram: Int32Array;
+  } | null>(null);
   const [showUnit, setShowUnit] = useState<'px' | LengthUnit>(data.scale?.unit ?? 'px');
   const detectClient = useRef(new DetectClient());
   const maskClient = useRef(new DetectClient());
@@ -133,28 +174,12 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
     if (grayRef.current?.id !== id) grayRef.current = { id, value: grayOf(image) };
     return grayRef.current.value;
   };
-  const area = useMemo(
-    () =>
-      data.crop
-        ? {
-            x: data.crop.x * work.scale,
-            y: data.crop.y * work.scale,
-            width: data.crop.width * work.scale,
-            height: data.crop.height * work.scale,
-          }
-        : null,
-    [data.crop, work.scale],
-  );
+  const area = useMemo(() => workingArea(data.crop, work.scale), [data.crop, work.scale]);
   const key = JSON.stringify({ settings, area });
   const stale = detect.detectedWith !== null && detect.detectedWith !== key;
 
-  // Live preview of the threshold mask while it is switched on.
+  // Live threshold: the mask, the level and the histogram it was taken from, for the preview.
   useEffect(() => {
-    if (!showMask) {
-      maskClient.current.cancel();
-      setMask(null);
-      return;
-    }
     const timer = setTimeout(() => {
       void (async () => {
         try {
@@ -166,14 +191,26 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
             settings,
             area,
           });
-          if (result && result !== 'error') setMask(maskCanvas(result.mask, g.width, g.height));
+          if (result && result !== 'error')
+            setPreview({
+              mask: result.mask,
+              width: g.width,
+              height: g.height,
+              threshold: result.threshold,
+              fellBack: result.fellBack,
+              histogram: result.histogram,
+            });
         } catch {
           setProblem('The preview could not be made in this browser.');
         }
       })();
     }, MASK_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [showMask, key]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const mask = useMemo(
+    () => (showMask && preview ? maskCanvas(preview.mask, preview.width, preview.height) : null),
+    [showMask, preview],
+  );
 
   const setDetect = (patch: Partial<DetectState>) => update({ detect: { ...detect, ...patch } });
   const setSettings = (next: DetectSettings) => setDetect({ settings: next });
@@ -283,6 +320,7 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
         detectedWith: key,
         edited: false,
         thresholdUsed: Number.isFinite(result.threshold) ? result.threshold : null,
+        fellBack: result.fellBack,
         diameterUsed: result.diameter,
       });
     } catch {
@@ -425,8 +463,6 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
     setSelected(new Set());
   };
 
-  const patchDenoise = (patch: Partial<DetectSettings['denoise']>) =>
-    setSettings({ ...settings, denoise: { ...settings.denoise, ...patch } });
   const patchThreshold = (patch: Partial<DetectSettings['threshold']>) =>
     setSettings({ ...settings, threshold: { ...settings.threshold, ...patch } });
   const patchSplit = (patch: Partial<DetectSettings['split']>) =>
@@ -445,6 +481,32 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
       ? `${formatNumber(px, 4)} px`
       : `${formatNumber((px * perPixelNm) / NM_PER_UNIT[showUnit], 4)} ${UNIT_LABELS[showUnit]}`;
   const rows = kept.slice().sort((a, b) => a.id - b.id);
+  const columns = useMemo(
+    () =>
+      measureColumns(detect.columns, {
+        scale: work.scale,
+        gray: detect.columns.some((g) => GREY_GROUPS.has(g)) ? gray() : null,
+        nmPerPixel: perPixelNm,
+      }),
+    [detect.columns, work.scale, perPixelNm, data.image?.id], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const cell = (column: MeasureColumn, p: Particle) => {
+    const v = column.value(p);
+    if (!Number.isFinite(v)) return '–';
+    if (column.kind === 'length') return length(v);
+    if (column.kind === 'area')
+      return showUnit === 'px' || perPixelNm === null
+        ? `${formatNumber(v, 4)} px²`
+        : `${formatNumber((v * perPixelNm ** 2) / NM_PER_UNIT[showUnit] ** 2, 4)} ${UNIT_LABELS[showUnit]}²`;
+    if (column.kind === 'angle') return `${formatNumber(v, 3)}°`;
+    return formatNumber(v, 4);
+  };
+  const toggleGroup = (group: MeasureGroup, on: boolean) =>
+    setDetect({
+      columns: MEASURE_GROUPS.map((g) => g.group).filter((g) =>
+        g === group ? on : detect.columns.includes(g),
+      ),
+    });
   const areas = detect.particles.map((p) => sizesOf(p.runs, work.scale).area);
   const totalArea = areas.reduce((sum, a) => sum + a, 0);
   const foregroundShare = totalArea / (image.width * image.height);
@@ -454,8 +516,9 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
     <>
       <section class="process-step is-on" aria-labelledby="prep-title">
         <h3 id="prep-title" class="process-step-title">
-          1. Prepare the image
+          1. The image
         </h3>
+        <p class="field-hint">{adjustSummary(settings)} Change them in step 3, Adjust the image.</p>
         <label class="check">
           <input
             type="checkbox"
@@ -464,44 +527,6 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
           />
           The particles are darker than the background
         </label>
-        <Advanced id="particle-denoise" title="Noise smoothing">
-          <div class="radiation-fields">
-            <label class="inline-field">
-              Smoothing of noise
-              <select
-                value={settings.denoise.method}
-                onChange={(e) =>
-                  patchDenoise({
-                    method: e.currentTarget.value as DetectSettings['denoise']['method'],
-                  })
-                }
-              >
-                <option value="none">None</option>
-                <option value="gaussian">Gaussian blur</option>
-                <option value="median">Median filter (slower)</option>
-              </select>
-            </label>
-            {settings.denoise.method !== 'none' && (
-              <NumberInput
-                label={
-                  settings.denoise.method === 'gaussian' ? 'Blur width (px)' : 'Median radius (px)'
-                }
-                value={settings.denoise.size}
-                min={0}
-                max={settings.denoise.method === 'median' ? 3 : 10}
-                step={settings.denoise.method === 'median' ? 1 : 0.5}
-                onChange={(v) => v !== null && patchDenoise({ size: v })}
-              />
-            )}
-            <HelpTip term="noise smoothing">
-              <p>
-                Electron micrographs are grainy. A light blur (about 1 pixel) or a median filter
-                evens out the grain so the threshold does not pick it up. Too much smoothing rounds
-                the outlines and joins close particles.
-              </p>
-            </HelpTip>
-          </div>
-        </Advanced>
       </section>
 
       <section class="process-step is-on" aria-labelledby="thr-title">
@@ -510,10 +535,11 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
           <HelpTip term="threshold">
             <p>
               A threshold turns the image into black and white: pixels brighter than the threshold
-              are particles. Otsu finds the level that best separates the two groups of grey values
-              (inside the crop area only). Adaptive compares each pixel with its neighbourhood,
-              which copes with a background that gets brighter across the image. Manual lets you
-              choose the level; use the preview.
+              are particles (after inverting when the particles are dark). Automatic picks the level
+              from the histogram of grey values inside the crop area; Otsu suits most images, and
+              the other methods of ImageJ's Auto Threshold are under Advanced. Adaptive compares
+              each pixel with its neighbourhood, which copes with a background that gets brighter
+              across the image. Manual lets you choose the level; use the preview.
             </p>
           </HelpTip>
         </h3>
@@ -521,7 +547,7 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
           <legend>Method</legend>
           {(
             [
-              ['otsu', 'Otsu (automatic)'],
+              ['auto', 'Automatic'],
               ['adaptive', 'Adaptive (uneven background)'],
               ['manual', 'Manual level'],
             ] as const
@@ -570,10 +596,45 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
             />
           </div>
         )}
-        {detect.thresholdUsed !== null && settings.threshold.method === 'otsu' && (
-          <p class="field-hint">
-            Otsu chose grey level {detect.thresholdUsed} in the last detection.
+        {settings.threshold.method === 'auto' && (
+          <AutoMethodChoice
+            method={settings.threshold.auto}
+            histogram={preview?.histogram ?? null}
+            onChoose={(auto) => patchThreshold({ method: 'auto', auto })}
+          />
+        )}
+        {preview &&
+          Number.isFinite(preview.threshold) &&
+          settings.threshold.method !== 'adaptive' && (
+            <p class="field-hint" role="status">
+              {settings.threshold.method === 'auto'
+                ? `${AUTO_THRESHOLD_NAMES[preview.fellBack ? 'otsu' : settings.threshold.auto]} chooses grey level ${preview.threshold}`
+                : `Grey level ${preview.threshold}`}
+              : brighter pixels{settings.invert ? ' (of the inverted image)' : ''} are particles.
+            </p>
+          )}
+        {settings.threshold.method === 'auto' && preview?.fellBack && (
+          <p class="message is-warning" role="status">
+            <strong>Check:</strong> the histogram does not have two clear peaks, so{' '}
+            {AUTO_THRESHOLD_NAMES[settings.threshold.auto]} cannot work here and Otsu was used
+            instead. Try another method or a manual level.
           </p>
+        )}
+        {preview && (
+          <GrayHistogram
+            hist={preview.histogram}
+            markers={
+              Number.isFinite(preview.threshold) && settings.threshold.method !== 'adaptive'
+                ? [{ level: preview.threshold, label: 'Threshold' }]
+                : []
+            }
+            shadeFrom={
+              Number.isFinite(preview.threshold) && settings.threshold.method !== 'adaptive'
+                ? preview.threshold
+                : null
+            }
+            label={`Histogram of the prepared image${settings.invert ? ', inverted' : ''}, inside the crop area`}
+          />
         )}
         {settings.threshold.method !== 'adaptive' && detect.particles.length > 0 && (
           <Advanced id="particle-threshold-sensitivity" title="Threshold sensitivity">
@@ -812,8 +873,11 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
         <button
           type="button"
           class="btn"
-          onClick={() => setSettings(DEFAULT_DETECT_SETTINGS)}
-          disabled={JSON.stringify(settings) === JSON.stringify(DEFAULT_DETECT_SETTINGS)}
+          onClick={() => setSettings({ ...DEFAULT_DETECT_SETTINGS, ...preparedOf(settings) })}
+          disabled={
+            JSON.stringify(settings) ===
+            JSON.stringify({ ...DEFAULT_DETECT_SETTINGS, ...preparedOf(settings) })
+          }
         >
           Reset the settings
         </button>
@@ -841,7 +905,8 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
       {foregroundShare > 0.5 && (
         <p class="message is-warning" role="status">
           <strong>Check:</strong> more than half of the image is marked as particles. The particles
-          may be darker than the background (tick the box in part 1), or the threshold is too low.
+          may be darker than the background (tick the box in part 1), or the threshold is too low:
+          try another method in part 2.
         </p>
       )}
       {foregroundShare <= 0.5 && largestShare > 0.3 && settings.split.method !== 'clumps' && (
@@ -1008,6 +1073,7 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
                   perPixelNm,
                   edgeArea,
                   data.image?.name ?? 'image',
+                  columns,
                 )
               }
             >
@@ -1021,6 +1087,39 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
             2.
           </p>
         )}
+        <Advanced id="particle-measurements" title="Set measurements (more columns)">
+          <p class="field-hint">
+            Add ImageJ's measurements to the table and the CSV file. Grey values are read from the
+            original image{work.scale < 1 ? ' (its working copy)' : ''}, before the adjustments of
+            step 3.
+          </p>
+          <div class="measure-groups">
+            {MEASURE_GROUPS.map((g) => (
+              <label key={g.group} class="check">
+                <input
+                  type="checkbox"
+                  checked={detect.columns.includes(g.group)}
+                  onChange={(e) => toggleGroup(g.group, e.currentTarget.checked)}
+                />
+                <span>
+                  {g.label} <span class="field-hint">{g.hint}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          <HelpTip term="the extra measurements">
+            <p>
+              Fit ellipse: the ellipse with the same area and the same second moments as the
+              particle; Angle is the direction of its major axis, counter-clockwise from the x axis.
+              AR (ellipse) is major / minor axis; Round is 4 · area / (π · major²); Solidity is area
+              / area of the convex hull, lower for dented shapes. Feret angle is the direction of
+              the longest caliper. IntDen is area × mean grey value (calibrated area when a scale is
+              set); RawIntDen is the sum of the grey values. Skewness and kurtosis (excess, 0 for a
+              normal distribution) describe the shape of the grey-value distribution inside the
+              particle.
+            </p>
+          </HelpTip>
+        </Advanced>
         {rows.length === 0 ? (
           <p class="field-hint">No particles to show.</p>
         ) : (
@@ -1055,6 +1154,11 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
                     <th scope="col">Shortest caliper</th>
                     <th scope="col">Aspect ratio</th>
                     <th scope="col">Circularity</th>
+                    {columns.map((c) => (
+                      <th key={c.header} scope="col">
+                        {c.header}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -1077,6 +1181,9 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
                         <td>{length(s.feretMin)}</td>
                         <td>{formatNumber(s.aspect, 3)}</td>
                         <td>{formatNumber(s.circularity, 3)}</td>
+                        {columns.map((c) => (
+                          <td key={c.header}>{cell(c, p)}</td>
+                        ))}
                       </tr>
                     );
                   })}
@@ -1102,7 +1209,111 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
         onAddLine={addLine}
         onChange={(measurements) => editHand(measurements)}
       />
+      <Advanced id="particle-profile" title="Plot profile along a line">
+        <LineProfile
+          lines={lines}
+          gray={gray}
+          workScale={work.scale}
+          perPixelNm={perPixelNm}
+          unit={showUnit}
+          name={data.image?.name ?? 'image'}
+        />
+      </Advanced>
     </>
+  );
+}
+
+/**
+ * The automatic threshold methods of ImageJ's Auto Threshold, under Advanced: a choice with a
+ * hint, and a table of the level each method picks on the current histogram and the share of
+ * the crop area it marks as particles, so the user can compare them before detecting.
+ */
+function AutoMethodChoice({
+  method,
+  histogram,
+  onChoose,
+}: {
+  method: AutoThresholdMethod;
+  histogram: Int32Array | null;
+  onChoose: (method: AutoThresholdMethod) => void;
+}) {
+  const compared = useMemo(() => {
+    if (!histogram) return null;
+    let total = 0;
+    for (let v = 0; v < 256; v++) total += histogram[v] as number;
+    return AUTO_THRESHOLD_METHODS.map((m) => {
+      const { level, fellBack } = autoThreshold(m, histogram);
+      let above = 0;
+      for (let v = level + 1; v < 256; v++) above += histogram[v] as number;
+      return { method: m, level, fellBack, share: total > 0 ? above / total : 0 };
+    });
+  }, [histogram]);
+  return (
+    <Advanced id="particle-auto-method" title={`Automatic method: ${AUTO_THRESHOLD_NAMES[method]}`}>
+      <label class="inline-field">
+        Method
+        <select
+          value={method}
+          onChange={(e) => onChoose(e.currentTarget.value as AutoThresholdMethod)}
+        >
+          {AUTO_THRESHOLD_METHODS.map((m) => (
+            <option key={m} value={m}>
+              {AUTO_THRESHOLD_NAMES[m]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p class="field-hint">
+        {AUTO_THRESHOLD_HINTS[method]} Source: {AUTO_THRESHOLD_CITATIONS[method]}.
+      </p>
+      {compared && (
+        <div
+          class="table-scroll"
+          tabIndex={0}
+          role="region"
+          aria-label="Automatic methods compared"
+        >
+          <table class="peak-table">
+            <caption class="field-hint">
+              Every method on the current image, as ImageJ's "Try all" does. The share is of the
+              crop area before clean-up.
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Method</th>
+                <th scope="col">Grey level</th>
+                <th scope="col">Marked as particles</th>
+                <th scope="col">
+                  <span class="visually-hidden">Choose</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {compared.map((r) => (
+                <tr key={r.method} class={r.method === method ? 'is-selected-row' : undefined}>
+                  <th scope="row">{AUTO_THRESHOLD_NAMES[r.method]}</th>
+                  <td>
+                    {r.level}
+                    {r.fellBack && ' (no two peaks: Otsu)'}
+                  </td>
+                  <td>{formatNumber(r.share * 100, 3)} %</td>
+                  <td>
+                    <button
+                      type="button"
+                      class="btn"
+                      disabled={r.method === method}
+                      onClick={() => onChoose(r.method)}
+                    >
+                      Use
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Advanced>
   );
 }
 
@@ -1112,12 +1323,41 @@ export function downloadParticles(
   perPixelNm: number | null,
   edgeArea: { x: number; y: number; width: number; height: number },
   name: string,
+  extra: readonly MeasureColumn[] = [],
 ) {
   const items = rows.map((p) => ({ p, s: sizesOf(p.runs, scale) }));
+  const extraColumns = extra.flatMap((c) => {
+    const value = (r: (typeof items)[number]) => c.value(r.p);
+    if (c.kind === 'length')
+      return [
+        { header: `${c.header} (px)`, value },
+        ...(perPixelNm === null
+          ? []
+          : [
+              {
+                header: `${c.header} (nm)`,
+                value: (r: (typeof items)[number]) => value(r) * perPixelNm,
+              },
+            ]),
+      ];
+    if (c.kind === 'area')
+      return [
+        { header: `${c.header} (px2)`, value },
+        ...(perPixelNm === null
+          ? []
+          : [
+              {
+                header: `${c.header} (nm2)`,
+                value: (r: (typeof items)[number]) => value(r) * perPixelNm ** 2,
+              },
+            ]),
+      ];
+    return [{ header: c.kind === 'angle' ? `${c.header} (deg)` : c.header, value }];
+  });
   const nm = (px: number) => (perPixelNm === null ? '' : px * perPixelNm);
   downloadCsv(
     `${name}-particles`,
-    `Particles of ${name}. Pixels are of the original image. Sizes in nm use the scale drawn by the user${perPixelNm === null ? ' (none was set, so those columns are empty)' : ''}. Diameter is that of the circle with the same area; calipers are the longest and shortest Feret diameters; aspect ratio is longest over shortest caliper; circularity is 4 pi area / perimeter^2 (a circle drawn in pixels reads about 0.9).`,
+    `Particles of ${name}. Pixels are of the original image. Sizes in nm use the scale drawn by the user${perPixelNm === null ? ' (none was set, so those columns are empty)' : ''}. Diameter is that of the circle with the same area; calipers are the longest and shortest Feret diameters; aspect ratio is longest over shortest caliper; circularity is 4 pi area / perimeter^2 (a circle drawn in pixels reads about 0.9).${extra.length > 0 ? ' Further columns follow ImageJ Set Measurements; grey values (0 to 255) are of the original image, before adjustments.' : ''}`,
     items,
     [
       { header: 'ID', value: (r) => r.p.id },
@@ -1141,6 +1381,7 @@ export function downloadParticles(
         header: 'Touches the edge',
         value: (r) => (touchesEdge(r.p.runs, edgeArea) ? 'yes' : 'no'),
       },
+      ...extraColumns,
     ],
   );
 }

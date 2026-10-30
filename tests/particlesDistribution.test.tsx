@@ -155,9 +155,10 @@ describe('saved state', () => {
     expect(upgraded?.data.distribution).toEqual(DEFAULT_DISTRIBUTION);
     expect(upgraded?.data.nextId).toBe(5);
     expect(upgraded?.data.detect.particles).toEqual([]);
-    // The old step 5 (Distribution and export) is step 4 now that hand measuring is in step 3.
-    expect(upgraded?.step).toBe(3);
-    expect(upgraded?.furthest).toBe(3);
+    // The old step 5 (Distribution and export) is step 5 again: hand measuring moved into the
+    // detect step, and the adjust step came before it.
+    expect(upgraded?.step).toBe(4);
+    expect(upgraded?.furthest).toBe(4);
   });
 
   it('upgrades version 3: keeps the detection and its splitting, adds the clump settings', () => {
@@ -175,8 +176,8 @@ describe('saved state', () => {
       },
     };
     const upgraded = migrateParticleData({ step: 3, furthest: 4, data: v3 }, 3);
-    expect(upgraded?.step).toBe(3);
-    expect(upgraded?.furthest).toBe(3);
+    expect(upgraded?.step).toBe(4);
+    expect(upgraded?.furthest).toBe(4);
     expect(upgraded?.data.measurements).toHaveLength(1);
     expect(upgraded?.data.detect.diameterUsed).toBeNull();
     expect(upgraded?.data.detect.settings.split).toEqual({
@@ -198,6 +199,8 @@ describe('methods text', () => {
       settings: DEFAULT_DETECT_SETTINGS,
       edited: true,
       diameterUsed: null,
+      thresholdUsed: null,
+      fellBack: false,
       filters: {
         unit: 'nm',
         minDiameter: 5,
@@ -372,6 +375,6 @@ describe('area fraction, intercepts and XRD comparison', () => {
     void _unused;
     const upgraded = migrateParticleData({ step: 4, furthest: 4, data: v4 }, 4);
     expect(upgraded?.data.stereology).toEqual(DEFAULT_STEREOLOGY);
-    expect(upgraded?.step).toBe(4);
+    expect(upgraded?.step).toBe(5);
   });
 });

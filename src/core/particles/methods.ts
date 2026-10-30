@@ -1,3 +1,4 @@
+import { AUTO_THRESHOLD_CITATIONS } from './detect/autoThreshold';
 import type { DetectSettings } from './detect/pipeline';
 import {
   BIN_METHOD_NAMES,
@@ -26,6 +27,9 @@ export interface ParticleMethodsInput {
     edited: boolean;
     /** Typical diameter used to separate clumps, in pixels of the working copy; null otherwise. */
     diameterUsed: number | null;
+    /** Grey level the automatic threshold chose, and whether its method fell back to Otsu's. */
+    thresholdUsed: number | null;
+    fellBack: boolean;
     filters: {
       unit: string;
       minDiameter: number | null;
@@ -55,15 +59,33 @@ const number = (value: number, digits = 4) => Number(value.toPrecision(digits)).
 function detectionSentence(d: NonNullable<ParticleMethodsInput['detection']>): string {
   const { settings: s, filters: f } = d;
   const parts: string[] = [];
-  if (s.invert) parts.push('the image was inverted so that dark particles became bright');
+  const a = s.adjust;
+  if (a.background.enabled)
+    parts.push(
+      `corrected for uneven background by subtracting its grey-level opening with a ${number(2 * a.background.radius + 1)} px square (top-hat)`,
+    );
+  if (a.range)
+    parts.push(
+      `contrast-stretched linearly from grey levels ${number(a.range.min)}–${number(a.range.max)} to 0–255`,
+    );
+  if (a.equalize) parts.push('histogram-equalised');
+  if (a.sharpen.enabled)
+    parts.push(
+      `sharpened with an unsharp mask (σ = ${number(a.sharpen.sigma)} px, weight ${number(a.sharpen.weight)})`,
+    );
+  if (s.invert) parts.push('inverted so that dark particles became bright');
+  if (s.denoise.method !== 'none')
+    parts.push(
+      s.denoise.method === 'gaussian'
+        ? `smoothed with a Gaussian filter (σ = ${number(s.denoise.size)} px)`
+        : `smoothed with a median filter (radius ${number(s.denoise.size)} px)`,
+    );
+  const level = d.thresholdUsed !== null ? ` (grey level ${number(d.thresholdUsed)})` : '';
   parts.push(
-    s.denoise.method === 'gaussian'
-      ? `smoothed with a Gaussian filter (σ = ${number(s.denoise.size)} px)`
-      : `smoothed with a median filter (radius ${number(s.denoise.size)} px)`,
-  );
-  parts.push(
-    s.threshold.method === 'otsu'
-      ? 'thresholded with Otsu’s method'
+    s.threshold.method === 'auto'
+      ? d.fellBack
+        ? `thresholded with Otsu’s method${level}, because the histogram had no two peaks for the method chosen`
+        : `thresholded with ${AUTO_THRESHOLD_CITATIONS[s.threshold.auto]}${level}`
       : s.threshold.method === 'adaptive'
         ? `thresholded adaptively (neighbourhood radius ${number(s.threshold.adaptiveRadius)} px, offset ${number(s.threshold.adaptiveOffset)} grey levels)`
         : `thresholded at grey level ${number(s.threshold.manual)}`,

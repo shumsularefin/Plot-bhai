@@ -1,5 +1,46 @@
 # Progress
 
+## Particle size: ImageJ tools in the wizard, Shift-snapping of drawn lines (done)
+
+Branch `claude/loving-noether-y55l76`. No new dependencies. The owner asked for the most useful
+parts of ImageJ (Set Measurements, Analyze, Process, Image › Adjust) in a step-by-step form, with
+the must-haves for beginners and the rest under Advanced, and for Shift to straighten drawn lines.
+
+- **Shift-snapping (every image viewer, so particles and graph digitising):** hold Shift, or
+  switch on "Snap angles" on touch screens, and a line snaps to 15° steps (0°, 45°, 90° …) with
+  its length kept; boxes (crop, ellipse) become squares. A readout shows the angle and length
+  while drawing. `snapLine`, `snapSquare`, `lineAngle` in src/core/particles/geometry.ts.
+- **New step 3, Adjust the image** (wizard now 5 steps; saved sessions move on by one step,
+  state version 6): particle tone; Brightness and contrast with ImageJ's Auto (0.35 % saturated)
+  and min/max sliders over a histogram; Uneven background (top-hat with a flat square window,
+  a stand-in for the rolling ball, not identical to it); noise smoothing (moved here from the
+  detect step); Advanced: unsharp mask and histogram equalisation (classic form, not ImageJ's
+  square-root variant). Undo and reset; Adjusted/Original view. Adjustments only change the image
+  the particles are found on; sizes come from outlines and grey values from the original.
+  src/core/particles/detect/adjust.ts.
+- **Auto Threshold methods** (detect step, part 2, Advanced): Default (IsoData), Intermodes,
+  Li, MaxEntropy, Mean, Minimum, Moments, Otsu, Triangle, each cited in code and in the methods
+  text; a "try all" table with each level and the share marked, with a Use button. Intermodes and
+  Minimum fall back to Otsu without two peaks, with a warning. The detect step now always shows
+  the histogram with the threshold line; the pink preview overlay is drawn (it was never drawn
+  before, a bug). src/core/particles/detect/autoThreshold.ts.
+- **Set measurements** (Advanced, under the particle table): area, perimeter, centroid,
+  bounding rectangle, fit ellipse, shape descriptors (ellipse AR, round, solidity), Feret angle,
+  mean/SD/mode, min/max, median, integrated density, skewness and kurtosis. Added to the table and
+  both CSV downloads. Grey values from the unadjusted working copy. src/core/particles/detect/measure.ts.
+- **Plot profile** (Advanced, after hand measurements): grey levels along a hand-drawn line,
+  bilinear, in px or the calibrated unit, with the usual figure export.
+- **Methods text** now lists the adjustments in order and the threshold method with its source
+  and grey level. Fixed: it used to say "median" when smoothing was off.
+- **Left out on purpose** (little use for particle sizing): FFT, Math, Shadows, Find Edges,
+  Find Maxima, LUTs, stacks, rotate, Auto Local Threshold (the existing adaptive method covers
+  uneven backgrounds).
+- **Checks:** lint, type check, 915 unit tests (new tests/particles-imagej.test.ts with synthetic
+  data of known answer), production build, bundle-size check and e2e all pass.
+- **Known differences from ImageJ, for the owner to note:** the background is a flat-window
+  top-hat, not a rolling ball; Triangle may differ from ImageJ by one grey level on a bright tail;
+  equalisation is the classic form.
+
 ## Polymer library and public-release files (done)
 
 - 14 crystalline polymer phases (chitosan added from the Naito 2016 SI CIF) that COD does not hold, transcribed from papers, checked and

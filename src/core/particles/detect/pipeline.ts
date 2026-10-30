@@ -3,12 +3,14 @@ import { gaussianBlur, invertGray, medianFilter } from './image';
 import { connectedComponents } from './label';
 import { close, fillHoles, open } from './morphology';
 import { labelsToRuns, type Runs } from './regions';
-import { adaptiveThreshold, applyThreshold, histogram, otsuThreshold } from './threshold';
+import { adaptiveThreshold, applyThreshold, histogram } from './threshold';
+import { adjustImage, DEFAULT_ADJUST, type AdjustSettings } from './adjust';
+import { autoThreshold, type AutoThresholdMethod } from './autoThreshold';
 import { estimateDiameter, splitClusters } from './clusters';
 import { splitTouching } from './watershed';
 
 export type DenoiseMethod = 'none' | 'gaussian' | 'median';
-export type ThresholdMethod = 'otsu' | 'adaptive' | 'manual';
+export type ThresholdMethod = 'auto' | 'adaptive' | 'manual';
 /** How touching particles are separated: by narrow necks only, or as clumps of a typical size. */
 export type SplitMethod = 'necks' | 'clumps';
 
@@ -16,9 +18,13 @@ export type SplitMethod = 'necks' | 'clumps';
 export interface DetectSettings {
   /** True when particles are darker than the background. */
   invert: boolean;
+  /** Background, brightness and contrast, equalisation and sharpening, applied first. */
+  adjust: AdjustSettings;
   denoise: { method: DenoiseMethod; /** Gaussian σ, or median radius, in pixels. */ size: number };
   threshold: {
     method: ThresholdMethod;
+    /** Which automatic (global) method, when `method` is 'auto'. */
+    auto: AutoThresholdMethod;
     /** Manual threshold, grey level 0 to 255: brighter pixels are particles. */
     manual: number;
     /** Adaptive: radius of the neighbourhood and the offset above its mean, in grey levels. */
@@ -41,11 +47,18 @@ export interface DetectSettings {
   };
 }
 
-/** Starting values of my own choosing: gentle denoising, Otsu, light clean-up, splitting on. */
+/** Starting values of my own choosing: no adjustments, gentle denoising, Otsu, light clean-up, splitting on. */
 export const DEFAULT_DETECT_SETTINGS: DetectSettings = {
   invert: false,
+  adjust: DEFAULT_ADJUST,
   denoise: { method: 'gaussian', size: 1 },
-  threshold: { method: 'otsu', manual: 128, adaptiveRadius: 40, adaptiveOffset: 0 },
+  threshold: {
+    method: 'auto',
+    auto: 'otsu',
+    manual: 128,
+    adaptiveRadius: 40,
+    adaptiveOffset: 0,
+  },
   open: 1,
   close: 1,
   fillHoles: true,
@@ -61,16 +74,48 @@ export const DEFAULT_DETECT_SETTINGS: DetectSettings = {
 export interface Segmentation {
   /** 1 for particle pixels. */
   mask: Uint8Array;
-  /** The grey level used (for Otsu the computed one, for adaptive the offset is not a level: NaN). */
+  /** The grey level used (for an automatic method the computed one; adaptive has no single level: NaN). */
   threshold: number;
-  /** The image after inverting and denoising, the one the threshold was applied to. */
+  /** True when the chosen automatic method found no two histogram peaks and Otsu was used instead. */
+  fellBack: boolean;
+  /** The image after adjusting, inverting and denoising, the one the threshold was applied to. */
   image: Uint8Array;
+  /** Histogram of `image` inside the analysis area. */
+  histogram: Int32Array;
+}
+
+/** Adjustments, then denoising: the image as shown while preparing it (not inverted). */
+export function prepareForDisplay(
+  gray: Uint8Array,
+  width: number,
+  height: number,
+  settings: DetectSettings,
+  area?: Rect | null,
+): { image: Uint8Array; rangeHistogram: Int32Array } {
+  const adjusted = adjustImage(gray, width, height, settings.adjust, settings.invert, area);
+  return {
+    image: denoise(adjusted.image, width, height, settings.denoise),
+    rangeHistogram: adjusted.rangeHistogram,
+  };
+}
+
+function denoise(
+  image: Uint8Array,
+  width: number,
+  height: number,
+  settings: DetectSettings['denoise'],
+): Uint8Array {
+  if (settings.method === 'gaussian') return gaussianBlur(image, width, height, settings.size);
+  if (settings.method === 'median')
+    return medianFilter(image, width, height, Math.round(settings.size));
+  return image;
 }
 
 /**
- * Steps up to the binary mask, in order: invert (if particles are dark), denoise, threshold,
- * keep only the analysis area, opening, closing, fill holes. For Otsu the histogram is taken
- * from the analysis area only, so a black data bar does not pull the threshold down.
+ * Steps up to the binary mask, in order: adjust (see adjustImage), invert (if particles are
+ * dark), denoise, threshold, keep only the analysis area, opening, closing, fill holes. For the
+ * automatic methods the histogram is taken from the analysis area only, so a black data bar does
+ * not pull the threshold down.
  */
 export function segment(
   gray: Uint8Array,
@@ -79,14 +124,15 @@ export function segment(
   settings: DetectSettings,
   area?: Rect | null,
 ): Segmentation {
-  let image = settings.invert ? invertGray(gray) : gray;
-  const { denoise, threshold } = settings;
-  if (denoise.method === 'gaussian') image = gaussianBlur(image, width, height, denoise.size);
-  else if (denoise.method === 'median')
-    image = medianFilter(image, width, height, Math.round(denoise.size));
+  const { threshold } = settings;
+  let image = adjustImage(gray, width, height, settings.adjust, settings.invert, area).image;
+  if (settings.invert) image = invertGray(image);
+  image = denoise(image, width, height, settings.denoise);
+  const hist = histogram(image, width, area);
 
   let mask: Uint8Array;
   let used = Number.NaN;
+  let fellBack = false;
   if (threshold.method === 'adaptive') {
     mask = adaptiveThreshold(
       image,
@@ -96,8 +142,11 @@ export function segment(
       threshold.adaptiveOffset,
     );
   } else {
-    used =
-      threshold.method === 'otsu' ? otsuThreshold(histogram(image, width, area)) : threshold.manual;
+    if (threshold.method === 'auto') {
+      const chosen = autoThreshold(threshold.auto, hist);
+      used = chosen.level;
+      fellBack = chosen.fellBack;
+    } else used = threshold.manual;
     mask = applyThreshold(image, used);
   }
   if (area) {
@@ -114,7 +163,7 @@ export function segment(
   mask = open(mask, width, height, settings.open);
   mask = close(mask, width, height, settings.close);
   if (settings.fillHoles) mask = fillHoles(mask, width, height);
-  return { mask, threshold: used, image };
+  return { mask, threshold: used, fellBack, image, histogram: hist };
 }
 
 /**
@@ -131,8 +180,8 @@ export function detectParticles(
   height: number,
   settings: DetectSettings,
   area?: Rect | null,
-): { particles: Runs[]; threshold: number; diameter: number | null } {
-  const { mask, threshold, image } = segment(gray, width, height, settings, area);
+): { particles: Runs[]; threshold: number; fellBack: boolean; diameter: number | null } {
+  const { mask, threshold, fellBack, image } = segment(gray, width, height, settings, area);
   const { split } = settings;
   let diameter: number | null = null;
   let result;
@@ -149,6 +198,7 @@ export function detectParticles(
   return {
     particles: labelsToRuns(result.labels, width, height, result.count),
     threshold,
+    fellBack,
     diameter,
   };
 }

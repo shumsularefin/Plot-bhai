@@ -216,3 +216,36 @@ export function cropBottom(strip: number, width: number, height: number): Rect |
   const keep = height - Math.max(0, Math.round(strip));
   return keep >= 1 ? { x: 0, y: 0, width, height: keep } : null;
 }
+
+/** Angle step, in degrees, that lines snap to while Shift is held: 0°, 15°, 30°, 45°, 90° and so on. */
+export const SNAP_DEGREES = 15;
+
+/**
+ * Direction of the line from a to b in degrees, counter-clockwise from the +x axis with y
+ * pointing up on screen (the image y axis points down, so its sign is flipped), from 0 up to
+ * 360. Horizontal to the right is 0°, straight up 90°.
+ */
+export function lineAngle(a: Point, b: Point): number {
+  const degrees = (Math.atan2(-(b.y - a.y), b.x - a.x) * 180) / Math.PI;
+  return degrees < 0 ? degrees + 360 : degrees;
+}
+
+/**
+ * End point of a line from a towards b, turned to the nearest multiple of `step` degrees and
+ * keeping its length (used for lines, scale bars, cuts and circles drawn along a diameter).
+ */
+export function snapLine(a: Point, b: Point, step = SNAP_DEGREES): Point {
+  const length = distance(a, b);
+  if (length === 0) return b;
+  const radians = ((Math.round(lineAngle(a, b) / step) * step) % 360) * (Math.PI / 180);
+  // Exact zeros for the axis directions, so straight lines stay exactly straight.
+  const cos = Math.round(Math.cos(radians) * 1e12) / 1e12;
+  const sin = Math.round(Math.sin(radians) * 1e12) / 1e12;
+  return { x: a.x + length * cos, y: a.y - length * sin };
+}
+
+/** Opposite corner of a box from a towards b made square, the side being the longer of the two. */
+export function snapSquare(a: Point, b: Point): Point {
+  const side = Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y));
+  return { x: a.x + (b.x < a.x ? -side : side), y: a.y + (b.y < a.y ? -side : side) };
+}

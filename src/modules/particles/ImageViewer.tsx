@@ -4,6 +4,10 @@ import {
   distance,
   dragRect,
   grabAt,
+  lineAngle,
+  SNAP_DEGREES,
+  snapLine,
+  snapSquare,
   type Measurement,
   type Point,
   type Rect,
@@ -45,6 +49,15 @@ export interface ParticleOverlay {
   /** Label position in original pixels. */
   cx: number;
   cy: number;
+}
+
+/** Tools that draw a box: Shift makes it a square (a circle for an ellipse). Others draw a line. */
+const BOX_TOOLS: ReadonlySet<Tool> = new Set<Tool>(['crop', 'ellipse', 'add-ellipse']);
+
+/** The end of a drawing from a towards b, with angles or boxes snapped when `snap` is on. */
+function constrain(tool: Tool, a: Point, b: Point, snap: boolean): Point {
+  if (!snap) return b;
+  return BOX_TOOLS.has(tool) ? snapSquare(a, b) : snapLine(a, b);
 }
 
 /** A drag shorter than this many screen pixels is a click, not a drawing. */
@@ -90,14 +103,17 @@ interface Gesture {
   /** Where a drawing began, in original pixels, and the screen position of it. */
   from?: Point;
   fromScreen?: Point;
+  /** Where the pointer is while drawing, in original pixels, before snapping. */
+  to?: Point;
 }
 
 /**
  * Image on a canvas with a vector overlay for crop, scale bar and measurements. Mouse and touch:
  * drag with the pan tool to move, drag with a drawing tool to draw, pinch with two fingers to
  * zoom (a second finger cancels a drawing), the wheel zooms with Ctrl/Cmd or when the viewer
- * has focus. Keyboard: arrows pan, + and − zoom, 0 fits the image. All coordinates handed out
- * are in pixels of the original image.
+ * has focus. Keyboard: arrows pan, + and − zoom, 0 fits the image. Holding Shift while drawing
+ * (or the "Snap angles" button, for touch screens) turns lines to multiples of 15° and makes boxes
+ * square. All coordinates handed out are in pixels of the original image.
  */
 export function ImageViewer(props: ImageViewerProps) {
   const { image, tool, scale, measurements = [], onDraw, onPick, label } = props;
@@ -113,6 +129,8 @@ export function ImageViewer(props: ImageViewerProps) {
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [view, setView] = useState<ViewTransform | null>(null);
   const [draft, setDraft] = useState<{ a: Point; b: Point } | null>(null);
+  const [snapOn, setSnapOn] = useState(false);
+  const drawing = tool !== 'pan' && tool !== 'select';
   const pointers = useRef(new Map<number, Point>());
   const gesture = useRef<Gesture>({ mode: 'none' });
 
@@ -170,7 +188,35 @@ export function ImageViewer(props: ImageViewerProps) {
       image.width * view.scale,
       image.height * view.scale,
     );
-  }, [view, size, image]);
+    if (props.mask) {
+      // The threshold preview covers the whole image at the working copy's resolution.
+      ctx.globalAlpha = 0.5;
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(
+        props.mask,
+        view.tx,
+        view.ty,
+        image.width * view.scale,
+        image.height * view.scale,
+      );
+      ctx.globalAlpha = 1;
+    }
+  }, [view, size, image, props.mask]);
+
+  // Pressing or letting go of Shift while drawing snaps or frees the line without moving the pointer.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const g = gesture.current;
+      if (event.key !== 'Shift' || g.mode !== 'draw' || !g.from || !g.to) return;
+      setDraft({ a: g.from, b: constrain(tool, g.from, g.to, event.shiftKey || snapOn) });
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('keyup', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keyup', onKey);
+    };
+  }, [tool, snapOn]);
 
   useEffect(() => {
     const element = box.current;
@@ -215,7 +261,7 @@ export function ImageViewer(props: ImageViewerProps) {
       gesture.current = { mode: 'pan', last: p, fromScreen: p };
     } else {
       const from = toImage(p, view);
-      gesture.current = { mode: 'draw', from, fromScreen: p };
+      gesture.current = { mode: 'draw', from, fromScreen: p, to: from };
       setDraft({ a: from, b: from });
     }
   };
@@ -250,7 +296,8 @@ export function ImageViewer(props: ImageViewerProps) {
         dragRect(g.startCrop, g.grab, at.x - g.from.x, at.y - g.from.y, image.width, image.height),
       );
     } else if (g.mode === 'draw' && g.from) {
-      setDraft({ a: g.from, b: toImage(p, view) });
+      g.to = toImage(p, view);
+      setDraft({ a: g.from, b: constrain(tool, g.from, g.to, event.shiftKey || snapOn) });
     } else if (g.mode === 'pan' && g.last) {
       setView(pan(view, p.x - g.last.x, p.y - g.last.y));
       g.last = p;
@@ -280,8 +327,8 @@ export function ImageViewer(props: ImageViewerProps) {
       setEditedCrop(null);
       gesture.current = { mode: 'none' };
     } else if (g.mode === 'draw' && g.from && g.fromScreen && view) {
-      if (distance(p, g.fromScreen) >= MIN_DRAG_PX && tool !== 'pan' && tool !== 'select') {
-        onDraw?.(tool, g.from, toImage(p, view));
+      if (distance(p, g.fromScreen) >= MIN_DRAG_PX && drawing) {
+        onDraw?.(tool, g.from, constrain(tool, g.from, toImage(p, view), event.shiftKey || snapOn));
       }
       setDraft(null);
       gesture.current = { mode: 'none' };
@@ -383,8 +430,11 @@ export function ImageViewer(props: ImageViewerProps) {
               </>
             )}
             {props.overlay?.(s, view.scale)}
-            {draft && tool !== 'pan' && tool !== 'select' && (
-              <Shape kind={draftKind(tool)} a={s(draft.a)} b={s(draft.b)} draft />
+            {draft && drawing && (
+              <>
+                <Shape kind={draftKind(tool)} a={s(draft.a)} b={s(draft.b)} draft />
+                <DraftReadout tool={tool} a={draft.a} b={draft.b} at={s(draft.b)} />
+              </>
             )}
           </svg>
         )}
@@ -399,15 +449,42 @@ export function ImageViewer(props: ImageViewerProps) {
         <button type="button" class="btn" onClick={reset}>
           {focus ? 'Fit the crop area' : 'Fit image'}
         </button>
+        {drawing && (
+          <button
+            type="button"
+            class="btn"
+            aria-pressed={snapOn}
+            onClick={() => setSnapOn((on) => !on)}
+            title={`Lines snap to steps of ${SNAP_DEGREES}°; boxes become squares. Same as holding Shift.`}
+          >
+            Snap angles
+          </button>
+        )}
         <span class="field-hint" role="status">
           {zoomPercent} % of the fitted size (up to {MAX_ZOOM_FACTOR} ×).
         </span>
       </div>
       <p class="field-hint">
-        Drag to {tool === 'pan' || tool === 'select' ? 'move the image' : 'draw'}; pinch with two
-        fingers to zoom, or hold Ctrl or Cmd and scroll. Click the image first to use the keyboard.
+        Drag to {drawing ? 'draw' : 'move the image'}; pinch with two fingers to zoom, or hold Ctrl
+        or Cmd and scroll. Click the image first to use the keyboard.
+        {drawing &&
+          (BOX_TOOLS.has(tool)
+            ? ' Hold Shift (or press Snap angles) to draw a square box.'
+            : ` Hold Shift (or press Snap angles) for straight lines: 0°, 45°, 90° and every ${SNAP_DEGREES}° in between.`)}
       </p>
     </div>
+  );
+}
+
+/** Angle and length of the line being drawn (width and height for a box), next to the pointer. */
+function DraftReadout({ tool, a, b, at }: { tool: Tool; a: Point; b: Point; at: Point }) {
+  const text = BOX_TOOLS.has(tool)
+    ? `${Math.round(Math.abs(b.x - a.x))} × ${Math.round(Math.abs(b.y - a.y))} px`
+    : `${lineAngle(a, b).toFixed(1)}° · ${distance(a, b).toFixed(1)} px`;
+  return (
+    <text x={at.x + 12} y={at.y - 12} class="shape-label draft-readout">
+      {text}
+    </text>
   );
 }
 
