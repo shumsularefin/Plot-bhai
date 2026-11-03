@@ -82,8 +82,21 @@ export interface FigureStyle {
   annotations: Annotation[];
   axes: AxisStyle;
   legend: { show: boolean; position: LegendPosition };
-  /** Peak labels: shown or not, and edited text keyed by the label's x position (see labelKey). */
-  peakLabels: { show: boolean; text: Record<string, string> };
+  /**
+   * Peak labels: shown or not, edited text and moved positions, keyed by the label's x position
+   * (see labelKey). An offset is a fraction of the plot's inner width (dx, rightwards) and height
+   * (dy, downwards), so a moved label sits in the same place at every export size.
+   */
+  peakLabels: {
+    show: boolean;
+    text: Record<string, string>;
+    offset?: Record<string, LabelOffset>;
+  };
+}
+
+export interface LabelOffset {
+  dx: number;
+  dy: number;
 }
 
 export const DEFAULT_FIGURE: FigureStyle = {
@@ -203,6 +216,23 @@ export function styledLabels<L extends { x: unknown; y: unknown; yValues?: boole
     ...(xTitle !== null && xTitle.trim() !== '' && { x: xTitle }),
     ...(yTitle !== null && yTitle.trim() !== '' && { y: yTitle }),
     ...(yValues !== 'auto' && { yValues: yValues === 'show' }),
+  };
+}
+
+/**
+ * A figure object that can be picked on the plot: a peak label (by labelKey) or an annotation
+ * (by id). Written into the SVG as data-edit so a click finds it.
+ */
+export type EditRef = `label:${string}` | `annotation:${string}`;
+
+/** The annotation moved by a drag of (dx, dy) in shown x units and y units. */
+export function movedAnnotation(a: Annotation, dx: number, dy: number): Annotation {
+  return {
+    ...a,
+    x: a.x + dx,
+    y: a.y + dy,
+    ...(a.x2 !== undefined && { x2: a.x2 + dx }),
+    ...(a.y2 !== undefined && { y2: a.y2 + dy }),
   };
 }
 

@@ -13,6 +13,7 @@ import {
   styledYDomain,
   type FigureStyle,
 } from '../src/ui/plot/figure';
+import { moveObject } from '../src/ui/plot/ObjectEditor';
 import { pdfFromRgb } from '../src/ui/plot/pdf';
 import { PlotPanel, type PlotSettings } from '../src/ui/plot/PlotPanel';
 import type { PlotSeries } from '../src/ui/plot/types';
@@ -158,6 +159,32 @@ describe('exported figure with styling', () => {
     );
     expect(svg).toContain('>A(101)<');
     expect(svg).not.toContain('>(101)<');
+  });
+
+  it('draws a dragged peak label where it was moved, with a leader to its peak', () => {
+    const peakLabels = { labels: [{ x: 25, y: 110, text: '(101)' }], key: [] };
+    const textX = (svg: string) => Number(/<text x="([\d.]+)"[^>]*>\(101\)</.exec(svg)?.[1]);
+    const before = svgOf(figure({}), peakLabels);
+    const moved = moveObject(
+      figure({}),
+      `label:${labelKey(25)}`,
+      { dxFraction: 0.1, dyFraction: 0, dx: 1, dy: 0 },
+      false,
+    );
+    const after = svgOf(moved, peakLabels);
+    expect(textX(after)).toBeGreaterThan(textX(before) + 10);
+    expect(after).not.toContain('data-edit');
+  });
+
+  it('moves an annotation by the drag, in shown units on a reversed axis', () => {
+    const a = newAnnotation('text', 1600, 50);
+    const moved = moveObject(
+      figure({ annotations: [a] }),
+      `annotation:${a.id}`,
+      { dxFraction: 0, dyFraction: 0, dx: 10, dy: -5 },
+      true,
+    );
+    expect(moved.annotations[0]).toMatchObject({ x: 1590, y: 45 });
   });
 });
 

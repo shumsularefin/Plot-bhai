@@ -471,3 +471,53 @@
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-3);
 }
+
+/* Peak labels and annotations that can be picked on the plot and dragged. */
+.plot-editable {
+  cursor: move;
+}
+
+.plot-editable text {
+  paint-order: stroke;
+  stroke: transparent;
+  stroke-width: 8px;
+}
+
+.plot-editable:hover text,
+.plot-editable.is-selected text {
+  fill: var(--color-accent);
+}
+
+.plot-editable.is-selected path,
+.plot-editable.is-selected rect {
+  stroke: var(--color-accent);
+}
+
+.object-editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.object-editor-text {
+  display: grid;
+  gap: var(--space-1);
+  flex: 1 1 12rem;
+  font-size: var(--text-sm);
+}
+
+.object-editor-color input {
+  width: 44px;
+  height: 44px;
+  padding: 2px;
+}
+
+.plot-edit-hint {
+  margin-top: var(--space-1);
+}
