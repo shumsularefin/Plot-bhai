@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { Dock } from '../../ui/Dock';
-import { cutAlongSegment, ellipseRuns } from '../../core/particles/detect/manual';
+import { cutAlongSegment, ellipseRuns, polygonRuns } from '../../core/particles/detect/manual';
 import { DEFAULT_DETECT_SETTINGS, type DetectSettings } from '../../core/particles/detect/pipeline';
 import { mergeRuns, runsContain, touchesEdge } from '../../core/particles/detect/regions';
 import {
@@ -35,6 +35,11 @@ import { applyFilters, outlinePath, sizesOf } from './particleView';
 
 const TOOLS: { tool: Tool; label: string; hint: string }[] = [
   {
+    tool: 'trace',
+    label: 'Trace an outline',
+    hint: 'Hold and draw around a particle along its edge, then let go: the outline closes by itself and the particle is added. Zoom in for small particles.',
+  },
+  {
     tool: 'select',
     label: 'Select',
     hint: 'Click a particle to select it; click again to deselect. Hold Shift or Ctrl to select several. Drag to move the image.',
@@ -61,6 +66,11 @@ const TOOLS: { tool: Tool; label: string; hint: string }[] = [
   },
   { tool: 'pan', label: 'Move the image', hint: 'Drag to move the image.' },
 ];
+/** The tools of each way of working, most used first. */
+const MODE_TOOLS: Record<'auto' | 'manual', Tool[]> = {
+  auto: ['select', 'cut', 'trace', 'add-circle', 'add-ellipse', 'line', 'pan'],
+  manual: ['trace', 'add-circle', 'add-ellipse', 'line', 'select', 'cut', 'pan'],
+};
 const SOURCE_NAMES: Record<Particle['source'], string> = {
   auto: 'detected',
   added: 'added by hand',
@@ -85,12 +95,6 @@ interface Snapshot {
 export function DetectStep({ data, update }: StepContext<ParticleData>) {
   return (
     <div class="particle-step">
-      <p class="message">
-        <strong>Review the outlines.</strong> Automatic detection works best on well separated
-        particles with good contrast; for clumps, choose "In clumps or overlapping" in part 3. Check
-        every outline against the image: merge, cut, delete or add particles where it went wrong, or
-        measure a particle by hand with a line. The result is an estimate.
-      </p>
       <ImageGate data={data}>
         {(image) => <Detector data={data} update={update} image={image} />}
       </ImageGate>
@@ -176,6 +180,11 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
   }, [showMask, key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setDetect = (patch: Partial<DetectState>) => update({ detect: { ...detect, ...patch } });
+  const mode = detect.mode ?? 'auto';
+  const chooseMode = (next: 'auto' | 'manual') => {
+    setDetect({ mode: next });
+    setTool(next === 'manual' ? 'trace' : 'select');
+  };
   const setSettings = (next: DetectSettings) => setDetect({ settings: next });
   const setFilters = (patch: Partial<ParticleFilters>) =>
     setDetect({ filters: { ...filters, ...patch } });
@@ -247,7 +256,7 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
     });
   };
 
-  const run = async () => {
+  const run = async (use: DetectSettings = settings) => {
     if (
       detect.edited &&
       detect.particles.length > 0 &&
@@ -262,7 +271,7 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
         gray: g.gray,
         width: g.width,
         height: g.height,
-        settings,
+        settings: use,
         area,
       });
       if (result === null) return;
@@ -280,7 +289,8 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
           source: 'auto' as const,
         })),
         nextParticleId: result.particles.length + 1,
-        detectedWith: key,
+        settings: use,
+        detectedWith: JSON.stringify({ settings: use, area }),
         edited: false,
         thresholdUsed: Number.isFinite(result.threshold) ? result.threshold : null,
         diameterUsed: result.diameter,
@@ -407,6 +417,14 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
       setSelected(new Set());
     }
   };
+  const trace = (points: Point[]) => {
+    const runs = polygonRuns(points.map(toWork), work.width, work.height);
+    if (runs.length > 0)
+      edit(
+        [...detect.particles, { id: detect.nextParticleId, runs, source: 'added' }],
+        detect.nextParticleId + 1,
+      );
+  };
   const deleteSelected = () => {
     edit(detect.particles.filter((p) => !selected.has(p.id)));
     setSelected(new Set());
@@ -452,418 +470,479 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
 
   return (
     <>
-      <section class="process-step is-on" aria-labelledby="prep-title">
-        <h3 id="prep-title" class="process-step-title">
-          1. Prepare the image
-        </h3>
-        <label class="check">
-          <input
-            type="checkbox"
-            checked={settings.invert}
-            onChange={(e) => setSettings({ ...settings, invert: e.currentTarget.checked })}
-          />
-          The particles are darker than the background
-        </label>
-        <Advanced id="particle-denoise" title="Noise smoothing">
-          <div class="radiation-fields">
-            <label class="inline-field">
-              Smoothing of noise
-              <select
-                value={settings.denoise.method}
-                onChange={(e) =>
-                  patchDenoise({
-                    method: e.currentTarget.value as DetectSettings['denoise']['method'],
-                  })
-                }
-              >
-                <option value="none">None</option>
-                <option value="gaussian">Gaussian blur</option>
-                <option value="median">Median filter (slower)</option>
-              </select>
-            </label>
-            {settings.denoise.method !== 'none' && (
-              <NumberInput
-                label={
-                  settings.denoise.method === 'gaussian' ? 'Blur width (px)' : 'Median radius (px)'
-                }
-                value={settings.denoise.size}
-                min={0}
-                max={settings.denoise.method === 'median' ? 3 : 10}
-                step={settings.denoise.method === 'median' ? 1 : 0.5}
-                onChange={(v) => v !== null && patchDenoise({ size: v })}
-              />
-            )}
-            <HelpTip term="noise smoothing">
-              <p>
-                Electron micrographs are grainy. A light blur (about 1 pixel) or a median filter
-                evens out the grain so the threshold does not pick it up. Too much smoothing rounds
-                the outlines and joins close particles.
-              </p>
-            </HelpTip>
-          </div>
-        </Advanced>
-      </section>
-
-      <section class="process-step is-on" aria-labelledby="thr-title">
-        <h3 id="thr-title" class="process-step-title">
-          2. Separate particles from the background{' '}
-          <HelpTip term="threshold">
-            <p>
-              A threshold turns the image into black and white: pixels brighter than the threshold
-              are particles. Otsu finds the level that best separates the two groups of grey values
-              (inside the crop area only). Adaptive compares each pixel with its neighbourhood,
-              which copes with a background that gets brighter across the image. Manual lets you
-              choose the level; use the preview.
-            </p>
-          </HelpTip>
-        </h3>
-        <fieldset class="method-choice">
-          <legend>Method</legend>
-          {(
-            [
-              ['otsu', 'Otsu (automatic)'],
-              ['adaptive', 'Adaptive (uneven background)'],
-              ['manual', 'Manual level'],
-            ] as const
-          ).map(([method, name]) => (
-            <label key={method} class="check">
+      <div class="mode-switch" role="radiogroup" aria-label="How to find the particles">
+        {(
+          [
+            ['auto', 'Detect automatically', 'The app outlines every particle; you correct it.'],
+            ['manual', 'Draw by hand', 'You trace or click each particle yourself.'],
+          ] as const
+        ).map(([value, name, note]) => (
+          <button
+            key={value}
+            type="button"
+            role="radio"
+            aria-checked={mode === value}
+            class="mode-option"
+            onClick={() => chooseMode(value)}
+          >
+            <span class="mode-option-name">{name}</span>
+            <span class="mode-option-note">{note}</span>
+          </button>
+        ))}
+      </div>
+      {mode === 'manual' ? (
+        <p class="message">
+          <strong>Draw each particle.</strong> Trace around a particle's edge, or drag a circle or
+          an ellipse over it. Every particle you add goes into the table and the size distribution.
+          Zoom in for small particles; use Undo if an outline goes wrong.
+        </p>
+      ) : (
+        <p class="message">
+          <strong>Review the outlines.</strong> Automatic detection works best on well separated
+          particles with good contrast; for clumps, choose "In clumps or overlapping" in part 3.
+          Check every outline against the image and correct it with the tools under the image. The
+          result is an estimate.
+        </p>
+      )}
+      {mode === 'auto' && (
+        <>
+          <section class="process-step is-on" aria-labelledby="prep-title">
+            <h3 id="prep-title" class="process-step-title">
+              1. Prepare the image
+            </h3>
+            <label class="check">
               <input
-                type="radio"
-                name="particle-threshold"
-                checked={settings.threshold.method === method}
-                onChange={() => patchThreshold({ method })}
+                type="checkbox"
+                checked={settings.invert}
+                onChange={(e) => setSettings({ ...settings, invert: e.currentTarget.checked })}
               />
-              {name}
+              The particles are darker than the background
             </label>
-          ))}
-        </fieldset>
-        {settings.threshold.method === 'manual' && (
-          <label class="slider-field">
-            Level: <strong>{settings.threshold.manual}</strong> (0 black to 255 white)
-            <input
-              type="range"
-              min={0}
-              max={255}
-              step={1}
-              value={settings.threshold.manual}
-              onInput={(e) => patchThreshold({ manual: Number(e.currentTarget.value) })}
-            />
-          </label>
-        )}
-        {settings.threshold.method === 'adaptive' && (
-          <div class="radiation-fields">
-            <NumberInput
-              label="Neighbourhood radius (px)"
-              value={settings.threshold.adaptiveRadius}
-              min={1}
-              max={500}
-              step={1}
-              onChange={(v) => v !== null && patchThreshold({ adaptiveRadius: v })}
-            />
-            <NumberInput
-              label="Offset above local mean (grey levels)"
-              value={settings.threshold.adaptiveOffset}
-              min={-100}
-              max={100}
-              step={1}
-              onChange={(v) => v !== null && patchThreshold({ adaptiveOffset: v })}
-            />
-          </div>
-        )}
-        {detect.thresholdUsed !== null && settings.threshold.method === 'otsu' && (
-          <p class="field-hint">
-            Otsu chose grey level {detect.thresholdUsed} in the last detection.
-          </p>
-        )}
-        {settings.threshold.method !== 'adaptive' && detect.particles.length > 0 && (
-          <Advanced id="particle-threshold-sensitivity" title="Threshold sensitivity">
-            <p class="field-hint">
-              Particle edges in electron micrographs are blurred, so the measured size depends on
-              the threshold. This detects again 10 grey levels below and above the one used (other
-              settings and filters unchanged) and compares the mean equal-area diameter. Your
-              particles on screen are not changed. Report the spread as an uncertainty of the
-              method, in addition to the spread of sizes.
-            </p>
+            <Advanced id="particle-denoise" title="Noise smoothing">
+              <div class="radiation-fields">
+                <label class="inline-field">
+                  Smoothing of noise
+                  <select
+                    value={settings.denoise.method}
+                    onChange={(e) =>
+                      patchDenoise({
+                        method: e.currentTarget.value as DetectSettings['denoise']['method'],
+                      })
+                    }
+                  >
+                    <option value="none">None</option>
+                    <option value="gaussian">Gaussian blur</option>
+                    <option value="median">Median filter (slower)</option>
+                  </select>
+                </label>
+                {settings.denoise.method !== 'none' && (
+                  <NumberInput
+                    label={
+                      settings.denoise.method === 'gaussian'
+                        ? 'Blur width (px)'
+                        : 'Median radius (px)'
+                    }
+                    value={settings.denoise.size}
+                    min={0}
+                    max={settings.denoise.method === 'median' ? 3 : 10}
+                    step={settings.denoise.method === 'median' ? 1 : 0.5}
+                    onChange={(v) => v !== null && patchDenoise({ size: v })}
+                  />
+                )}
+                <HelpTip term="noise smoothing">
+                  <p>
+                    Electron micrographs are grainy. A light blur (about 1 pixel) or a median filter
+                    evens out the grain so the threshold does not pick it up. Too much smoothing
+                    rounds the outlines and joins close particles.
+                  </p>
+                </HelpTip>
+              </div>
+            </Advanced>
+          </section>
+
+          <section class="process-step is-on" aria-labelledby="thr-title">
+            <h3 id="thr-title" class="process-step-title">
+              2. Separate particles from the background{' '}
+              <HelpTip term="threshold">
+                <p>
+                  A threshold turns the image into black and white: pixels brighter than the
+                  threshold are particles. Otsu finds the level that best separates the two groups
+                  of grey values (inside the crop area only). Adaptive compares each pixel with its
+                  neighbourhood, which copes with a background that gets brighter across the image.
+                  Manual lets you choose the level; use the preview.
+                </p>
+              </HelpTip>
+            </h3>
+            <fieldset class="method-choice">
+              <legend>Method</legend>
+              {(
+                [
+                  ['otsu', 'Otsu (automatic)'],
+                  ['adaptive', 'Adaptive (uneven background)'],
+                  ['manual', 'Manual level'],
+                ] as const
+              ).map(([method, name]) => (
+                <label key={method} class="check">
+                  <input
+                    type="radio"
+                    name="particle-threshold"
+                    checked={settings.threshold.method === method}
+                    onChange={() => patchThreshold({ method })}
+                  />
+                  {name}
+                </label>
+              ))}
+            </fieldset>
+            {settings.threshold.method === 'manual' && (
+              <label class="slider-field">
+                Level: <strong>{settings.threshold.manual}</strong> (0 black to 255 white)
+                <input
+                  type="range"
+                  min={0}
+                  max={255}
+                  step={1}
+                  value={settings.threshold.manual}
+                  onInput={(e) => patchThreshold({ manual: Number(e.currentTarget.value) })}
+                />
+              </label>
+            )}
+            {settings.threshold.method === 'adaptive' && (
+              <div class="radiation-fields">
+                <NumberInput
+                  label="Neighbourhood radius (px)"
+                  value={settings.threshold.adaptiveRadius}
+                  min={1}
+                  max={500}
+                  step={1}
+                  onChange={(v) => v !== null && patchThreshold({ adaptiveRadius: v })}
+                />
+                <NumberInput
+                  label="Offset above local mean (grey levels)"
+                  value={settings.threshold.adaptiveOffset}
+                  min={-100}
+                  max={100}
+                  step={1}
+                  onChange={(v) => v !== null && patchThreshold({ adaptiveOffset: v })}
+                />
+              </div>
+            )}
+            {detect.thresholdUsed !== null && settings.threshold.method === 'otsu' && (
+              <p class="field-hint">
+                Otsu chose grey level {detect.thresholdUsed} in the last detection.
+              </p>
+            )}
+            {settings.threshold.method !== 'adaptive' && detect.particles.length > 0 && (
+              <Advanced id="particle-threshold-sensitivity" title="Threshold sensitivity">
+                <p class="field-hint">
+                  Particle edges in electron micrographs are blurred, so the measured size depends
+                  on the threshold. This detects again 10 grey levels below and above the one used
+                  (other settings and filters unchanged) and compares the mean equal-area diameter.
+                  Your particles on screen are not changed. Report the spread as an uncertainty of
+                  the method, in addition to the spread of sizes.
+                </p>
+                <button
+                  type="button"
+                  class="btn"
+                  onClick={() => void testSensitivity()}
+                  disabled={busy !== null}
+                >
+                  Test ±10 grey levels
+                </button>
+                {sensitivity && sensitivity.length > 0 && (
+                  <div
+                    class="table-scroll"
+                    tabIndex={0}
+                    role="region"
+                    aria-label="Threshold sensitivity"
+                  >
+                    <table class="peak-table">
+                      <thead>
+                        <tr>
+                          <th scope="col">Threshold (grey level)</th>
+                          <th scope="col">Particles kept</th>
+                          <th scope="col">Mean equal-area diameter</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sensitivity.map((r) => (
+                          <tr key={r.threshold}>
+                            <td>{r.threshold}</td>
+                            <td>{r.count}</td>
+                            <td>
+                              {Number.isFinite(r.mean)
+                                ? perPixelNm
+                                  ? `${formatNumber(r.mean * perPixelNm, 2)} nm`
+                                  : `${formatNumber(r.mean, 1)} px`
+                                : '–'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {sensitivity &&
+                  sensitivity.length === 3 &&
+                  (() => {
+                    const lo = sensitivity[0]?.mean ?? NaN;
+                    const mid = sensitivity[1]?.mean ?? NaN;
+                    const hi = sensitivity[2]?.mean ?? NaN;
+                    const change = (Math.abs(hi - lo) / 2 / mid) * 100;
+                    return Number.isFinite(change) ? (
+                      <p class={change > 5 ? 'message is-warning' : 'field-hint'}>
+                        The mean diameter changes by about ±{formatNumber(change, 1)} % over ±10
+                        grey levels.
+                        {change > 5 &&
+                          ' Choose the threshold with care, and state it in your methods.'}
+                      </p>
+                    ) : null;
+                  })()}
+              </Advanced>
+            )}
+            <label class="check">
+              <input
+                type="checkbox"
+                checked={showMask}
+                onChange={(e) => setShowMask(e.currentTarget.checked)}
+              />
+              Preview: show what the settings above and below mark as particles (pink)
+            </label>
+          </section>
+
+          <section class="process-step is-on" aria-labelledby="clean-title">
+            <h3 id="clean-title" class="process-step-title">
+              3. Clean up and split{' '}
+              <HelpTip term="clean-up and splitting">
+                <p>
+                  Opening removes specks and thin bridges smaller than the radius; closing fills
+                  small gaps and dents. Filling holes closes bright rings. Splitting uses a
+                  watershed on the distance from the edge: each blob's centre starts a basin, and
+                  two basins are joined again unless the neck between them is narrower than the
+                  percentage below of the smaller particle's radius. A higher percentage splits
+                  more.
+                </p>
+              </HelpTip>
+            </h3>
+            <div class="radiation-fields">
+              <NumberInput
+                label="Remove specks up to radius (px)"
+                value={settings.open}
+                min={-1}
+                max={20}
+                step={1}
+                onChange={(v) => v !== null && setSettings({ ...settings, open: v })}
+              />
+              <NumberInput
+                label="Close gaps up to radius (px)"
+                value={settings.close}
+                min={-1}
+                max={20}
+                step={1}
+                onChange={(v) => v !== null && setSettings({ ...settings, close: v })}
+              />
+              <label class="check">
+                <input
+                  type="checkbox"
+                  checked={settings.fillHoles}
+                  onChange={(e) => setSettings({ ...settings, fillHoles: e.currentTarget.checked })}
+                />
+                Fill holes
+              </label>
+            </div>
+            <label class="check">
+              <input
+                type="checkbox"
+                checked={settings.split.enabled}
+                onChange={(e) => patchSplit({ enabled: e.currentTarget.checked })}
+              />
+              Split touching particles
+            </label>
+            {settings.split.enabled && (
+              <fieldset class="method-choice">
+                <legend>The particles are</legend>
+                {(
+                  [
+                    ['necks', 'Separate or touching at narrow necks'],
+                    ['clumps', 'In clumps or overlapping (agglomerates)'],
+                  ] as const
+                ).map(([method, name]) => (
+                  <label key={method} class="check">
+                    <input
+                      type="radio"
+                      name="particle-split"
+                      checked={settings.split.method === method}
+                      onChange={() => patchSplit({ method })}
+                    />
+                    {name}
+                  </label>
+                ))}
+              </fieldset>
+            )}
+            {settings.split.enabled && settings.split.method === 'necks' && (
+              <label class="slider-field">
+                Split where the neck is narrower than{' '}
+                <strong>{settings.split.neckPercent} %</strong> of the smaller radius
+                <input
+                  type="range"
+                  min={30}
+                  max={95}
+                  step={5}
+                  value={settings.split.neckPercent}
+                  onInput={(e) => patchSplit({ neckPercent: Number(e.currentTarget.value) })}
+                />
+              </label>
+            )}
+            {settings.split.enabled && settings.split.method === 'clumps' && (
+              <>
+                <div class="radiation-fields">
+                  <NumberInput
+                    label="Typical particle diameter (px)"
+                    value={settings.split.diameter}
+                    min={4}
+                    max={2000}
+                    step={1}
+                    onChange={(diameter) => patchSplit({ diameter })}
+                  />
+                  <button
+                    type="button"
+                    class="btn"
+                    disabled={lastLine === null}
+                    onClick={() =>
+                      lastLine !== null &&
+                      patchSplit({ diameter: Math.round(lastLine * work.scale) })
+                    }
+                  >
+                    Use the last line drawn
+                  </button>
+                  <HelpTip term="separating clumps">
+                    <p>
+                      Particles in a clump hide only part of each other's outlines. Every edge in
+                      the image votes for the centre of a circle 0.7 to 1.3 times the typical size
+                      lying behind it (a circular Hough transform), so the visible arcs of one
+                      particle all point to its centre. The strongest centres, at least 0.6
+                      diameters apart, become particles, and each part of the clump goes to the
+                      nearest centre.
+                    </p>
+                    <p>
+                      Leave the diameter empty to estimate it from the image, or draw a line across
+                      a typical particle with "Add a line" and press "Use the last line drawn" (best
+                      for dense clumps). Too small a diameter splits particles in pieces; too large
+                      joins neighbours.
+                    </p>
+                  </HelpTip>
+                </div>
+                <p class="field-hint">
+                  {settings.split.diameter === null
+                    ? detect.diameterUsed !== null && !stale
+                      ? `Empty: estimated from the image. The last detection used ${formatNumber(detect.diameterUsed, 3)} px.`
+                      : 'Empty: estimated from the image when you detect.'
+                    : 'Set by you.'}
+                </p>
+                <label class="slider-field">
+                  A centre needs at least <strong>{settings.split.outlinePercent} %</strong> of a
+                  whole, clear outline (lower finds more particles, higher fewer)
+                  <input
+                    type="range"
+                    min={1}
+                    max={40}
+                    step={1}
+                    value={settings.split.outlinePercent}
+                    onInput={(e) => patchSplit({ outlinePercent: Number(e.currentTarget.value) })}
+                  />
+                </label>
+              </>
+            )}
+            <p class="field-hint">Radii are in pixels.{pixelsNote}</p>
+          </section>
+
+          <div class="clean-actions">
+            <button
+              type="button"
+              class="btn btn-primary"
+              onClick={() => void run()}
+              disabled={busy !== null}
+            >
+              Detect particles
+            </button>
+            {busy && (
+              <button type="button" class="btn" onClick={cancel}>
+                Cancel
+              </button>
+            )}
             <button
               type="button"
               class="btn"
-              onClick={() => void testSensitivity()}
-              disabled={busy !== null}
+              onClick={() => setSettings(DEFAULT_DETECT_SETTINGS)}
+              disabled={JSON.stringify(settings) === JSON.stringify(DEFAULT_DETECT_SETTINGS)}
             >
-              Test ±10 grey levels
+              Reset the settings
             </button>
-            {sensitivity && sensitivity.length > 0 && (
-              <div
-                class="table-scroll"
-                tabIndex={0}
-                role="region"
-                aria-label="Threshold sensitivity"
-              >
-                <table class="peak-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Threshold (grey level)</th>
-                      <th scope="col">Particles kept</th>
-                      <th scope="col">Mean equal-area diameter</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sensitivity.map((r) => (
-                      <tr key={r.threshold}>
-                        <td>{r.threshold}</td>
-                        <td>{r.count}</td>
-                        <td>
-                          {Number.isFinite(r.mean)
-                            ? perPixelNm
-                              ? `${formatNumber(r.mean * perPixelNm, 2)} nm`
-                              : `${formatNumber(r.mean, 1)} px`
-                            : '–'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            {sensitivity &&
-              sensitivity.length === 3 &&
-              (() => {
-                const lo = sensitivity[0]?.mean ?? NaN;
-                const mid = sensitivity[1]?.mean ?? NaN;
-                const hi = sensitivity[2]?.mean ?? NaN;
-                const change = (Math.abs(hi - lo) / 2 / mid) * 100;
-                return Number.isFinite(change) ? (
-                  <p class={change > 5 ? 'message is-warning' : 'field-hint'}>
-                    The mean diameter changes by about ±{formatNumber(change, 1)} % over ±10 grey
-                    levels.
-                    {change > 5 && ' Choose the threshold with care, and state it in your methods.'}
-                  </p>
-                ) : null;
-              })()}
-          </Advanced>
-        )}
-        <label class="check">
-          <input
-            type="checkbox"
-            checked={showMask}
-            onChange={(e) => setShowMask(e.currentTarget.checked)}
-          />
-          Preview: show what the settings above and below mark as particles (pink)
-        </label>
-      </section>
-
-      <section class="process-step is-on" aria-labelledby="clean-title">
-        <h3 id="clean-title" class="process-step-title">
-          3. Clean up and split{' '}
-          <HelpTip term="clean-up and splitting">
-            <p>
-              Opening removes specks and thin bridges smaller than the radius; closing fills small
-              gaps and dents. Filling holes closes bright rings. Splitting uses a watershed on the
-              distance from the edge: each blob's centre starts a basin, and two basins are joined
-              again unless the neck between them is narrower than the percentage below of the
-              smaller particle's radius. A higher percentage splits more.
+          </div>
+          <p class="upload-status" role="status">
+            {busy}
+          </p>
+          {problem && (
+            <p class="message is-error" role="alert">
+              <strong>Problem:</strong> {problem}
             </p>
-          </HelpTip>
-        </h3>
-        <div class="radiation-fields">
-          <NumberInput
-            label="Remove specks up to radius (px)"
-            value={settings.open}
-            min={-1}
-            max={20}
-            step={1}
-            onChange={(v) => v !== null && setSettings({ ...settings, open: v })}
-          />
-          <NumberInput
-            label="Close gaps up to radius (px)"
-            value={settings.close}
-            min={-1}
-            max={20}
-            step={1}
-            onChange={(v) => v !== null && setSettings({ ...settings, close: v })}
-          />
-          <label class="check">
-            <input
-              type="checkbox"
-              checked={settings.fillHoles}
-              onChange={(e) => setSettings({ ...settings, fillHoles: e.currentTarget.checked })}
-            />
-            Fill holes
-          </label>
-        </div>
-        <label class="check">
-          <input
-            type="checkbox"
-            checked={settings.split.enabled}
-            onChange={(e) => patchSplit({ enabled: e.currentTarget.checked })}
-          />
-          Split touching particles
-        </label>
-        {settings.split.enabled && (
-          <fieldset class="method-choice">
-            <legend>The particles are</legend>
-            {(
-              [
-                ['necks', 'Separate or touching at narrow necks'],
-                ['clumps', 'In clumps or overlapping (agglomerates)'],
-              ] as const
-            ).map(([method, name]) => (
-              <label key={method} class="check">
-                <input
-                  type="radio"
-                  name="particle-split"
-                  checked={settings.split.method === method}
-                  onChange={() => patchSplit({ method })}
-                />
-                {name}
-              </label>
-            ))}
-          </fieldset>
-        )}
-        {settings.split.enabled && settings.split.method === 'necks' && (
-          <label class="slider-field">
-            Split where the neck is narrower than <strong>{settings.split.neckPercent} %</strong> of
-            the smaller radius
-            <input
-              type="range"
-              min={30}
-              max={95}
-              step={5}
-              value={settings.split.neckPercent}
-              onInput={(e) => patchSplit({ neckPercent: Number(e.currentTarget.value) })}
-            />
-          </label>
-        )}
-        {settings.split.enabled && settings.split.method === 'clumps' && (
-          <>
-            <div class="radiation-fields">
-              <NumberInput
-                label="Typical particle diameter (px)"
-                value={settings.split.diameter}
-                min={4}
-                max={2000}
-                step={1}
-                onChange={(diameter) => patchSplit({ diameter })}
-              />
+          )}
+          {stale && (
+            <p class="message is-warning" role="status">
+              <strong>Check:</strong> the settings or the crop changed since the last detection.
+              Press "Detect particles" to update the result.
+            </p>
+          )}
+          {detect.detectedWith !== null && detect.particles.length === 0 && (
+            <p class="message is-warning" role="status">
+              <strong>Check:</strong> no particles were found. Switch on the preview and adjust the
+              threshold, or tick "darker than the background" if the particles are dark.
+            </p>
+          )}
+          {foregroundShare > 0.5 && (
+            <p class="message is-warning" role="status">
+              <strong>Check:</strong> more than half of the image is marked as particles. The
+              particles may be darker than the background (tick the box in part 1), or the threshold
+              is too low.
+            </p>
+          )}
+          {foregroundShare <= 0.5 && largestShare > 0.3 && settings.split.method !== 'clumps' && (
+            <p class="message is-warning" role="status">
+              <strong>Check:</strong> one outline holds {Math.round(largestShare * 100)} % of all
+              particle area, so particles are probably stuck together in clumps.{' '}
               <button
                 type="button"
                 class="btn"
-                disabled={lastLine === null}
-                onClick={() =>
-                  lastLine !== null && patchSplit({ diameter: Math.round(lastLine * work.scale) })
-                }
+                disabled={busy !== null}
+                onClick={() => {
+                  const next = {
+                    ...settings,
+                    split: { ...settings.split, enabled: true, method: 'clumps' as const },
+                  };
+                  setSettings(next);
+                  void run(next);
+                }}
               >
-                Use the last line drawn
+                Separate the clumps and detect again
               </button>
-              <HelpTip term="separating clumps">
-                <p>
-                  Particles in a clump hide only part of each other's outlines. Every edge in the
-                  image votes for the centre of a circle 0.7 to 1.3 times the typical size lying
-                  behind it (a circular Hough transform), so the visible arcs of one particle all
-                  point to its centre. The strongest centres, at least 0.6 diameters apart, become
-                  particles, and each part of the clump goes to the nearest centre.
-                </p>
-                <p>
-                  Leave the diameter empty to estimate it from the image, or draw a line across a
-                  typical particle with "Add a line" and press "Use the last line drawn" (best for
-                  dense clumps). Too small a diameter splits particles in pieces; too large joins
-                  neighbours.
-                </p>
-              </HelpTip>
-            </div>
-            <p class="field-hint">
-              {settings.split.diameter === null
-                ? detect.diameterUsed !== null && !stale
-                  ? `Empty: estimated from the image. The last detection used ${formatNumber(detect.diameterUsed, 3)} px.`
-                  : 'Empty: estimated from the image when you detect.'
-                : 'Set by you.'}
             </p>
-            <label class="slider-field">
-              A centre needs at least <strong>{settings.split.outlinePercent} %</strong> of a whole,
-              clear outline (lower finds more particles, higher fewer)
-              <input
-                type="range"
-                min={1}
-                max={40}
-                step={1}
-                value={settings.split.outlinePercent}
-                onInput={(e) => patchSplit({ outlinePercent: Number(e.currentTarget.value) })}
-              />
-            </label>
-          </>
-        )}
-        <p class="field-hint">Radii are in pixels.{pixelsNote}</p>
-      </section>
-
-      <div class="clean-actions">
-        <button
-          type="button"
-          class="btn btn-primary"
-          onClick={() => void run()}
-          disabled={busy !== null}
-        >
-          Detect particles
-        </button>
-        {busy && (
-          <button type="button" class="btn" onClick={cancel}>
-            Cancel
-          </button>
-        )}
-        <button
-          type="button"
-          class="btn"
-          onClick={() => setSettings(DEFAULT_DETECT_SETTINGS)}
-          disabled={JSON.stringify(settings) === JSON.stringify(DEFAULT_DETECT_SETTINGS)}
-        >
-          Reset the settings
-        </button>
-      </div>
-      <p class="upload-status" role="status">
-        {busy}
-      </p>
-      {problem && (
-        <p class="message is-error" role="alert">
-          <strong>Problem:</strong> {problem}
-        </p>
-      )}
-      {stale && (
-        <p class="message is-warning" role="status">
-          <strong>Check:</strong> the settings or the crop changed since the last detection. Press
-          "Detect particles" to update the result.
-        </p>
-      )}
-      {detect.detectedWith !== null && detect.particles.length === 0 && (
-        <p class="message is-warning" role="status">
-          <strong>Check:</strong> no particles were found. Switch on the preview and adjust the
-          threshold, or tick "darker than the background" if the particles are dark.
-        </p>
-      )}
-      {foregroundShare > 0.5 && (
-        <p class="message is-warning" role="status">
-          <strong>Check:</strong> more than half of the image is marked as particles. The particles
-          may be darker than the background (tick the box in part 1), or the threshold is too low.
-        </p>
-      )}
-      {foregroundShare <= 0.5 && largestShare > 0.3 && settings.split.method !== 'clumps' && (
-        <p class="message is-warning" role="status">
-          <strong>Check:</strong> one outline holds {Math.round(largestShare * 100)} % of all
-          particle area. If the particles sit in clumps, choose "In clumps or overlapping" in part 3
-          and detect again.
-        </p>
+          )}
+        </>
       )}
 
       <div class="tool-buttons" role="group" aria-label="Tool">
-        {TOOLS.map((t) => (
-          <button
-            key={t.tool}
-            type="button"
-            class="btn"
-            aria-pressed={tool === t.tool}
-            onClick={() => setTool(t.tool)}
-          >
-            {t.label}
-          </button>
-        ))}
+        {MODE_TOOLS[mode]
+          .map((name) => TOOLS.find((t) => t.tool === name) as (typeof TOOLS)[number])
+          .map((t) => (
+            <button
+              key={t.tool}
+              type="button"
+              class="btn"
+              aria-pressed={tool === t.tool}
+              onClick={() => setTool(t.tool)}
+            >
+              {t.label}
+            </button>
+          ))}
       </div>
       <p class="field-hint">{current?.hint}</p>
       <Dock label="Image with the detected particles">
@@ -878,6 +957,7 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
           measurements={data.measurements}
           onPick={pick}
           onDraw={draw}
+          onTrace={trace}
           label="Image with the detected particles"
         />
       </Dock>

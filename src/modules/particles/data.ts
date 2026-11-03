@@ -73,6 +73,11 @@ export interface DetectState {
   thresholdUsed: number | null;
   /** The typical diameter (working copy pixels) the last detection used to separate clumps. */
   diameterUsed: number | null;
+  /**
+   * How particles are found: detected automatically (then corrected by hand), or all drawn by
+   * hand. Missing in sessions saved before the choice existed, which were automatic.
+   */
+  mode?: 'auto' | 'manual';
 }
 
 export const initialDetectState: DetectState = {
