@@ -1,5 +1,14 @@
 # Progress
 
+## Simple mode and higher contrast (done)
+
+- Advanced options are hidden by default. A switch, "Advanced options", in every wizard header shows them; the choice is remembered in the browser (`src/ui/advancedMode.ts`). Every `Advanced` section follows it.
+- Higher contrast: text is pure black (white in dark mode), secondary text is #3c3c43 (#d1d1d6 in dark mode), and the strong border is darker. All pairs still pass `tests/tokens.test.ts`. Body text is 17 px and the smallest text is 14 px. Font thinning (grayscale antialiasing) is removed.
+- Each step's tips are now a plain numbered list with an accent bar, not a grey box. The footer names the next step ("Next: Choose material").
+- In simple mode, the long description under each processing switch that is off is hidden. Warnings and results are always shown.
+- The on/off switch styles moved from xrd.css to base.css, because the wizard header uses them.
+- Checks: lint, typecheck, 909 tests, build, size and e2e all pass.
+
 ## Plot editing, particle drawing modes, XRD indexing and a cleaner look (done)
 
 Branch `claude/zen-edison-acnmco`. No new dependencies.

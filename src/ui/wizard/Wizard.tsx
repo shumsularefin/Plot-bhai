@@ -6,6 +6,7 @@ import type { WizardState, WizardStep } from './types';
 import { StepGuide } from './StepGuide';
 import { recordAnalysis } from '../feedback/client';
 import { ValidateButton } from '../feedback/ValidateButton';
+import { setAdvancedShown, useAdvancedShown } from '../advancedMode';
 import './wizard.css';
 
 interface WizardProps<D> {
@@ -27,6 +28,7 @@ export function Wizard<D>({ title, steps, store }: WizardProps<D>) {
   const movedByUser = useRef(false);
   // Undo and redo of the data (not of the step shown); kept for this visit, not saved.
   const history = useRef<History<D>>(emptyHistory());
+  const advanced = useAdvancedShown();
   const [, setHistoryTick] = useState(0);
 
   const last = steps.length - 1;
@@ -111,7 +113,15 @@ export function Wizard<D>({ title, steps, store }: WizardProps<D>) {
       <div class="wizard-header">
         <p class="wizard-tool">{title}</p>
         <div class="wizard-history">
-          <ValidateButton tool={title} />
+          <label class="switch">
+            <input
+              type="checkbox"
+              role="switch"
+              checked={advanced}
+              onChange={(e) => setAdvancedShown(e.currentTarget.checked)}
+            />
+            Advanced options
+          </label>
           <button
             type="button"
             class="btn btn-quiet"
@@ -135,6 +145,7 @@ export function Wizard<D>({ title, steps, store }: WizardProps<D>) {
           <button type="button" class="btn btn-quiet" onClick={startOver}>
             Start over
           </button>
+          <ValidateButton tool={title} />
         </div>
       </div>
 
@@ -171,7 +182,7 @@ export function Wizard<D>({ title, steps, store }: WizardProps<D>) {
             Back
           </button>
           <span class="wizard-position" aria-hidden="true">
-            {index + 1} of {steps.length}: {step.title}
+            {index < last ? `Next: ${steps[index + 1]?.title}` : `Last step: ${step.title}`}
           </span>
           <button
             type="button"

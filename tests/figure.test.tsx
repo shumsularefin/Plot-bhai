@@ -14,6 +14,7 @@ import {
   type FigureStyle,
 } from '../src/ui/plot/figure';
 import { moveObject } from '../src/ui/plot/ObjectEditor';
+import { setAdvancedShown } from '../src/ui/advancedMode';
 import { pdfFromRgb } from '../src/ui/plot/pdf';
 import { PlotPanel, type PlotSettings } from '../src/ui/plot/PlotPanel';
 import type { PlotSeries } from '../src/ui/plot/types';
@@ -207,6 +208,8 @@ describe('PDF file', () => {
 });
 
 describe('figure editor on screen', () => {
+  // The figure editor is an advanced option.
+  beforeAll(() => setAdvancedShown(true));
   it('stores styling per plot in the plot settings, leaving the data alone', () => {
     let settings: PlotSettings = {
       normalise: false,
@@ -264,5 +267,22 @@ describe('figure height check', () => {
     // A bare plot fits the 65 mm default; three lanes, a residual and a 4-row legend do not.
     expect(bare).toBeLessThan(DEFAULT_EXPORT_SETTINGS.heightMm);
     expect(crowded).toBeGreaterThan(DEFAULT_EXPORT_SETTINGS.heightMm);
+  });
+});
+
+describe('advanced options switch', () => {
+  it('leaves advanced sections out until they are switched on', async () => {
+    const { Advanced } = await import('../src/ui/Advanced');
+    setAdvancedShown(false);
+    const view = render(
+      <Advanced id="test-advanced" title="Hidden extras">
+        <p>extra</p>
+      </Advanced>,
+    );
+    expect(screen.queryByText('Hidden extras')).toBeNull();
+    expect(document.documentElement.classList.contains('is-simple')).toBe(true);
+    setAdvancedShown(true);
+    expect(await screen.findByText('Hidden extras')).toBeTruthy();
+    view.unmount();
   });
 });

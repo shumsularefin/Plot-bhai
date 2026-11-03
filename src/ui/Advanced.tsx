@@ -1,5 +1,6 @@
 import type { ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
+import { useAdvancedShown } from './advancedMode';
 
 interface AdvancedProps {
   /** Stable id: the open or closed state is remembered per id in this browser. */
@@ -21,12 +22,14 @@ function remembered(id: string): boolean {
 
 /**
  * A collapsed section for options most people never need. Every tool uses it the same way, so
- * the default screen shows only the essential controls. The settings inside belong to the
+ * the default screen shows only the essential controls; it is left out entirely until the user
+ * switches on "Advanced options" (see advancedMode.ts). The settings inside belong to the
  * analysis and are kept whether the section is open or closed; only the open state is
  * remembered in the browser.
  */
 export function Advanced({ id, title, children }: AdvancedProps) {
   const [open, setOpen] = useState(() => remembered(id));
+  if (!useAdvancedShown()) return null;
   return (
     <details
       class="advanced"
