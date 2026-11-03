@@ -112,7 +112,16 @@ export function PhaseSearch({
   const [pressed, setPressed] = useState(0);
   const immediate = useRef(false);
 
-  const parsed = useMemo(() => parseQuery(query), [query]);
+  const typed = useMemo(() => parseQuery(query), [query]);
+  // A lone element ("Fe") has no hyphen to say "only", so the radio buttons decide: the pure
+  // element, or every structure that contains it.
+  const parsed: PhaseQuery = useMemo(
+    () =>
+      typed.kind === 'elements' && typed.elements.length === 1 && exact
+        ? { kind: 'chemicalSystem', elements: typed.elements }
+        : typed,
+    [typed, exact],
+  );
   const selected = elementsOf(parsed);
   const search = base ? codSearchOf(parsed) : null;
   const searchKey = search && JSON.stringify(search);
@@ -258,7 +267,7 @@ export function PhaseSearch({
       <p class="field-hint" role="status">
         {describe(parsed)}
       </p>
-      {elementQuery && selected.length > 1 && (
+      {elementQuery && (
         <fieldset class="cod-mode">
           <legend class="visually-hidden">Which structures</legend>
           <label class="check">
@@ -271,7 +280,9 @@ export function PhaseSearch({
                 writeElements(selected, true);
               }}
             />
-            Only these elements
+            {selected.length === 1
+              ? `Only ${selected[0]} (the pure element)`
+              : 'Only these elements'}
           </label>
           <label class="check">
             <input
@@ -283,7 +294,9 @@ export function PhaseSearch({
                 writeElements(selected, false);
               }}
             />
-            These and any others
+            {selected.length === 1
+              ? `Anything that contains ${selected[0]}`
+              : 'These and any others'}
           </label>
         </fieldset>
       )}

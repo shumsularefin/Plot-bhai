@@ -104,6 +104,17 @@ describe('phase search', () => {
     expect(box().value).toBe('Bi-V-O');
   });
 
+  it('searches one element as the pure element, or everything that contains it', async () => {
+    const asked = stubFetch({ count: 0, results: [] });
+    show();
+    fireEvent.click(element('Fe'));
+    expect(box().value).toBe('Fe');
+    expect(screen.getByText(/made of exactly Fe/)).toBeTruthy();
+    await waitFor(() => expect(asked[0]).toBe(`${BASE}/search?elements=Fe&only=1`), slow);
+    fireEvent.click(screen.getByRole('radio', { name: 'Anything that contains Fe' }));
+    await waitFor(() => expect(asked[1]).toBe(`${BASE}/search?elements=Fe`), slow);
+  });
+
   it('searches a typed formula, and says when the service cannot be reached', async () => {
     const asked = stubFetch({ count: 0, results: [] });
     show();
