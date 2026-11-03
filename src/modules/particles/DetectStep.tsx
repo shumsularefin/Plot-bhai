@@ -470,7 +470,7 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
 
   return (
     <>
-      <div class="mode-switch" role="radiogroup" aria-label="How to find the particles">
+      <div class="mode-switch" role="group" aria-label="How to find the particles">
         {(
           [
             ['auto', 'Detect automatically', 'The app outlines every particle; you correct it.'],
@@ -480,8 +480,7 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
           <button
             key={value}
             type="button"
-            role="radio"
-            aria-checked={mode === value}
+            aria-pressed={mode === value}
             class="mode-option"
             onClick={() => chooseMode(value)}
           >
