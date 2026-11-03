@@ -83,7 +83,7 @@ describe('particle wizard', () => {
     expect(particleSteps.map((s) => s.title)).toEqual([
       'Upload',
       'Crop and scale',
-      'Detect particles',
+      'Find the particles',
       'Distribution and export',
     ]);
   });

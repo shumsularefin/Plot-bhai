@@ -27,8 +27,10 @@
 }
 
 .wizard-tool {
-  font-size: var(--text-xl);
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
   font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-tight);
 }
 
 /* Stepper: compact on small screens, full list from 1024 px. */
@@ -176,11 +178,12 @@ button.stepper-target:hover .stepper-title {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
+  box-shadow: var(--shadow-card);
 }
 
 @media (min-width: 768px) {
   .wizard-body {
-    padding: var(--space-6);
+    padding: var(--space-6) var(--space-7);
   }
 }
 
@@ -194,7 +197,7 @@ button.stepper-target:hover .stepper-title {
 
 .wizard-content {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-5);
 }
 
 /* Grid items default to their content width; a wide table must scroll inside its box instead. */
@@ -209,9 +212,17 @@ button.stepper-target:hover .stepper-title {
   z-index: 4;
   display: grid;
   gap: var(--space-2);
-  padding: var(--space-2) 0;
+  padding: var(--space-3) 0;
   border-top: 1px solid var(--color-border);
   background: var(--color-bg);
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .wizard-footer {
+    background: color-mix(in srgb, var(--color-bg) 82%, transparent);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+  }
 }
 
 @media (max-width: 1099px) {
@@ -273,10 +284,15 @@ html:has(.wizard-footer) {
 .step-guide {
   display: grid;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
-  background: var(--color-accent-soft);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
   font-size: var(--text-sm);
+}
+
+.step-guide-title {
+  color: var(--color-text);
 }
 
 .step-guide-header {
