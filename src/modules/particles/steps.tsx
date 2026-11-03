@@ -33,12 +33,12 @@ export const particleSteps: readonly WizardStep<ParticleData>[] = [
   },
   {
     id: 'detect',
-    title: 'Detect particles',
+    title: 'Find the particles',
     guide: [
-      'Tick "darker than the background" for TEM images, then press Detect particles.',
-      'If the particles sit in clumps, choose "In clumps or overlapping" under part 3 and detect again.',
-      'Check every outline against the image: merge, cut, delete or add particles where it went wrong.',
-      'Measure particles the detection cannot outline with Add a line, then press Next.',
+      'Choose Detect automatically, or Draw by hand to outline every particle yourself.',
+      'Automatic: tick "darker than the background" for TEM images, then press Detect particles. For clumps, press "Separate the clumps" when it is offered.',
+      'By hand: trace around each particle, or drag a circle or ellipse over it.',
+      'Check every outline against the image, correct it with the tools under the image, then press Next.',
     ],
     render: (context) => <DetectStep {...context} />,
   },

@@ -9,6 +9,7 @@ import { xrayDensity } from '../../core/xrd/analysis/density';
 import { PaperComparison } from './PaperComparison';
 import { assignmentFor } from './assignment';
 import { AssignmentSection } from './AssignmentSection';
+import { IndexingSection } from './IndexingSection';
 import { downloadTable } from './csv';
 import { ExtraAnalysisSection } from './ExtraAnalysisSection';
 import type { PatternChoices, ResultsSettings, XrdData } from './data';
@@ -311,6 +312,7 @@ export function ResultsStep({ data, update }: StepContext<XrdData>) {
           onRefineZeroShift={setRefineZeroShift}
         />
       )}
+      {tab === 'phases' && <IndexingSection data={data} patternId={pattern.id} />}
 
       {tab === 'more' && (
         <ExtraAnalysisSection

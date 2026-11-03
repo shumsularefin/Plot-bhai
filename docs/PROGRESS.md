@@ -1,5 +1,59 @@
 # Progress
 
+## Simple mode and higher contrast (done)
+
+- Advanced options are hidden by default. A switch, "Advanced options", in every wizard header shows them; the choice is remembered in the browser (`src/ui/advancedMode.ts`). Every `Advanced` section follows it.
+- Higher contrast: text is pure black (white in dark mode), secondary text is #3c3c43 (#d1d1d6 in dark mode), and the strong border is darker. All pairs still pass `tests/tokens.test.ts`. Body text is 17 px and the smallest text is 14 px. Font thinning (grayscale antialiasing) is removed.
+- Each step's tips are now a plain numbered list with an accent bar, not a grey box. The footer names the next step ("Next: Choose material").
+- In simple mode, the long description under each processing switch that is off is hidden. Warnings and results are always shown.
+- The on/off switch styles moved from xrd.css to base.css, because the wizard header uses them.
+- Checks: lint, typecheck, 909 tests, build, size and e2e all pass.
+
+## Plot editing, particle drawing modes, XRD indexing and a cleaner look (done)
+
+Branch `claude/zen-edison-acnmco`. No new dependencies.
+
+- **Plot objects:** click a (hkl) label or an annotation on any plot to select it, drag it to
+  move it (one undo step per drag), and edit its text, colour or size in a small bar under the
+  plot. Moved labels keep a leader line to their peak and stay in place at every export size
+  (offsets are fractions of the plot area). Export files carry no editing marks.
+- **XRD search of one element:** typing "Fe" now offers "Only Fe (the pure element)" or
+  "Anything that contains Fe"; before, there was no way to ask for the pure element.
+- **Particles: Detect automatically or Draw by hand.** A clear choice at the top of the step.
+  Manual mode hides the detection settings and starts on a new "Trace an outline" tool (freehand,
+  closed automatically, filled by an even-odd scanline in `polygonRuns`). When one outline holds
+  more than 30 % of the particle area, a button separates the clumps (Hough method) and detects
+  again. The Methods text says when every outline was drawn by hand. The step is renamed
+  "Find the particles".
+- **TEM check (owner's Au-TiO2 image, 2048 px, inverted):** the threshold outlines follow the
+  particle edges closely. "Necks" found 224 particles in 3.2 s and merged an agglomerate of about
+  four particles into one; "Clumps" found 248 in 5.0 s (diameter estimated at 41 px) and separated
+  that agglomerate. In overlapping particles the hidden part of each particle is cut off along a
+  chord, so their areas are underestimated; correct those by hand (trace or circle).
+- **XRD: unit cell without a reference** (Results > Phases, an estimate). Trial indexing for
+  cubic (P, I, F), tetragonal (P, I) and hexagonal (P) cells, with the system chosen or tried
+  automatically, least-squares refinement (`refineLattice`) and ranking by de Wolff's M(N)
+  (J. Appl. Cryst. 1 (1968) 108). Runs in a web worker. Tested on synthetic fcc, body-centred
+  tetragonal and hexagonal lines. Centring matters: with only primitive lattices, an fcc pattern
+  of 8 lines was beaten by a false tetragonal sub-cell.
+- **Look:** Apple-like system font stack (San Francisco, Segoe UI Variable, Roboto; nothing
+  downloaded), neutral greys with one blue accent (#0066cc light, #2997ff dark, all pairs AA in
+  `tests/tokens.test.ts`), larger and tighter headings, pill buttons, rounder cards, calmer tips
+  and message boxes, and a translucent Back/Next bar.
+
+### Verification (real results)
+
+- `npm run lint`, `npm run typecheck`: pass. `npx vitest run`: 908 pass, 1 skipped.
+- `npm run build`: pass. `npm run size`: within budget. `npm run e2e`: passed.
+
+### Known issues and to-dos
+
+- Indexing cannot find orthorhombic, monoclinic, triclinic or rhombohedral cells, and ignores
+  absences from glide planes and screw axes.
+- AI (Gemini) particle detection is not built: it would send the image off the device, which the
+  project rules forbid. Waiting for the owner's decision.
+- Occluded particles in clumps are not completed by fitting a circle to the visible arc.
+
 ## Polymer library and public-release files (done)
 
 - 14 crystalline polymer phases (chitosan added from the Naito 2016 SI CIF) that COD does not hold, transcribed from papers, checked and

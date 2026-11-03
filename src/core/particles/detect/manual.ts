@@ -90,3 +90,34 @@ export function cutAlongSegment(
   }
   return out;
 }
+
+/**
+ * Runs of the pixels whose centres lie inside a closed outline traced by hand (even-odd rule;
+ * the last point joins the first), limited to a width × height image. Points are in pixels of
+ * the same grid. Returns empty runs for fewer than three points.
+ */
+export function polygonRuns(points: readonly Point[], width: number, height: number): Runs {
+  if (points.length < 3) return new Int32Array(0);
+  const ys = points.map((p) => p.y);
+  const yStart = Math.max(0, Math.floor(Math.min(...ys)));
+  const yEnd = Math.min(height - 1, Math.ceil(Math.max(...ys)));
+  const out: number[] = [];
+  for (let y = yStart; y <= yEnd; y++) {
+    const yc = y + 0.5;
+    const crossings: number[] = [];
+    for (let i = 0; i < points.length; i++) {
+      const a = points[i] as Point;
+      const b = points[(i + 1) % points.length] as Point;
+      if (a.y <= yc === b.y <= yc) continue;
+      crossings.push(a.x + ((yc - a.y) / (b.y - a.y)) * (b.x - a.x));
+    }
+    crossings.sort((p, q) => p - q);
+    for (let k = 0; k + 1 < crossings.length; k += 2) {
+      // Pixel x is inside when its centre x + 0.5 lies between the two crossings.
+      const x0 = Math.max(0, Math.ceil((crossings[k] as number) - 0.5));
+      const x1 = Math.min(width, Math.floor((crossings[k + 1] as number) - 0.5) + 1);
+      if (x1 > x0) out.push(y, x0, x1);
+    }
+  }
+  return normaliseRuns(out);
+}

@@ -13,6 +13,8 @@ import {
   styledYDomain,
   type FigureStyle,
 } from '../src/ui/plot/figure';
+import { moveObject } from '../src/ui/plot/ObjectEditor';
+import { setAdvancedShown } from '../src/ui/advancedMode';
 import { pdfFromRgb } from '../src/ui/plot/pdf';
 import { PlotPanel, type PlotSettings } from '../src/ui/plot/PlotPanel';
 import type { PlotSeries } from '../src/ui/plot/types';
@@ -159,6 +161,32 @@ describe('exported figure with styling', () => {
     expect(svg).toContain('>A(101)<');
     expect(svg).not.toContain('>(101)<');
   });
+
+  it('draws a dragged peak label where it was moved, with a leader to its peak', () => {
+    const peakLabels = { labels: [{ x: 25, y: 110, text: '(101)' }], key: [] };
+    const textX = (svg: string) => Number(/<text x="([\d.]+)"[^>]*>\(101\)</.exec(svg)?.[1]);
+    const before = svgOf(figure({}), peakLabels);
+    const moved = moveObject(
+      figure({}),
+      `label:${labelKey(25)}`,
+      { dxFraction: 0.1, dyFraction: 0, dx: 1, dy: 0 },
+      false,
+    );
+    const after = svgOf(moved, peakLabels);
+    expect(textX(after)).toBeGreaterThan(textX(before) + 10);
+    expect(after).not.toContain('data-edit');
+  });
+
+  it('moves an annotation by the drag, in shown units on a reversed axis', () => {
+    const a = newAnnotation('text', 1600, 50);
+    const moved = moveObject(
+      figure({ annotations: [a] }),
+      `annotation:${a.id}`,
+      { dxFraction: 0, dyFraction: 0, dx: 10, dy: -5 },
+      true,
+    );
+    expect(moved.annotations[0]).toMatchObject({ x: 1590, y: 45 });
+  });
 });
 
 describe('PDF file', () => {
@@ -180,6 +208,8 @@ describe('PDF file', () => {
 });
 
 describe('figure editor on screen', () => {
+  // The figure editor is an advanced option.
+  beforeAll(() => setAdvancedShown(true));
   it('stores styling per plot in the plot settings, leaving the data alone', () => {
     let settings: PlotSettings = {
       normalise: false,
@@ -237,5 +267,22 @@ describe('figure height check', () => {
     // A bare plot fits the 65 mm default; three lanes, a residual and a 4-row legend do not.
     expect(bare).toBeLessThan(DEFAULT_EXPORT_SETTINGS.heightMm);
     expect(crowded).toBeGreaterThan(DEFAULT_EXPORT_SETTINGS.heightMm);
+  });
+});
+
+describe('advanced options switch', () => {
+  it('leaves advanced sections out until they are switched on', async () => {
+    const { Advanced } = await import('../src/ui/Advanced');
+    setAdvancedShown(false);
+    const view = render(
+      <Advanced id="test-advanced" title="Hidden extras">
+        <p>extra</p>
+      </Advanced>,
+    );
+    expect(screen.queryByText('Hidden extras')).toBeNull();
+    expect(document.documentElement.classList.contains('is-simple')).toBe(true);
+    setAdvancedShown(true);
+    expect(await screen.findByText('Hidden extras')).toBeTruthy();
+    view.unmount();
   });
 });

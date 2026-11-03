@@ -3,6 +3,8 @@ import { useId } from 'preact/hooks';
 import { niceTicks } from './axes';
 import { decimate, lowerBound, type Decimated } from './decimate';
 import {
+  labelKey,
+  type EditRef,
   dashArray,
   styledLabels,
   styledPeakLabels,
@@ -62,6 +64,11 @@ interface PlotSvgProps {
   peakLabels?: PeakLabelSet;
   /** Styling chosen in the figure editor (colours, fills, annotations, axes, legend). */
   figure?: FigureStyle;
+  /**
+   * On screen: mark labels and annotations as pickable (data-edit, see EditRef) and outline the
+   * selected one. Never set for exports.
+   */
+  editable?: { selected: EditRef | null };
   /** Extra attributes for the root element, for example physical width and height for export. */
   svgAttributes?: SVGAttributes<SVGSVGElement>;
   children?: ComponentChildren;
@@ -106,7 +113,8 @@ export function visibleYDomain(
  * and exported files, so what is exported matches what is shown.
  */
 export function PlotSvg(props: PlotSvgProps) {
-  const { xDomain, width, height, style, samples, legend, markers, bands, figure } = props;
+  const { xDomain, width, height, style, samples, legend, markers, bands, figure, editable } =
+    props;
   const { svgAttributes, children } = props;
   const series = styledSeries(props.series, figure);
   const labels = styledLabels(props.labels, figure);
@@ -302,6 +310,13 @@ export function PlotSvg(props: PlotSvgProps) {
             .map((a) => (
               <rect
                 key={a.id}
+                {...(editable && {
+                  'data-edit': `annotation:${a.id}`,
+                  class:
+                    editable.selected === `annotation:${a.id}`
+                      ? 'plot-editable is-selected'
+                      : 'plot-editable',
+                })}
                 x={Math.min(ax(a.x), ax(a.x2 ?? a.x))}
                 width={Math.abs(ax(a.x2 ?? a.x) - ax(a.x))}
                 y={0}
@@ -339,6 +354,8 @@ export function PlotSvg(props: PlotSvgProps) {
           {annotations.map((a) => (
             <AnnotationLines
               key={a.id}
+              {...(editable && { selected: editable.selected === `annotation:${a.id}` })}
+              editable={editable !== undefined}
               a={a}
               fontFamily={print?.fontFamily}
               ink={print ? '#000000' : 'currentColor'}
@@ -486,29 +503,48 @@ export function PlotSvg(props: PlotSvgProps) {
         )}
         {placedLabels.length > 0 && (
           <g class={print ? undefined : 'plot-text'} {...text} text-anchor="middle">
-            {placedLabels.map(({ label, placed }, i) => (
-              <g key={i}>
-                {placed.leader && (
-                  <path
-                    d={
-                      below
-                        ? `M${placed.x.toFixed(2)} ${(placed.baseline - style.fontSize * 0.95).toFixed(2)}V${(py(label.y) + style.fontSize * 0.3).toFixed(2)}`
-                        : `M${placed.x.toFixed(2)} ${(placed.baseline + style.fontSize * 0.25).toFixed(2)}V${(py(label.y) - style.fontSize * 0.3).toFixed(2)}`
-                    }
-                    fill="none"
-                    stroke={ink ?? 'currentColor'}
-                    stroke-width={style.lineWidth * 0.5}
-                  />
-                )}
-                <text
-                  x={placed.x}
-                  y={placed.baseline}
-                  font-weight={label.strong ? 'bold' : undefined}
+            {placedLabels.map(({ label, placed: auto }, i) => {
+              const key = labelKey(label.x);
+              const ref: EditRef = `label:${key}`;
+              const offset = figure?.peakLabels.offset?.[key];
+              const placed = offset
+                ? {
+                    x: auto.x + offset.dx * innerW,
+                    baseline: auto.baseline + offset.dy * innerH,
+                    leader: true,
+                  }
+                : auto;
+              return (
+                <g
+                  key={i}
+                  {...(editable && {
+                    'data-edit': ref,
+                    class:
+                      editable.selected === ref ? 'plot-editable is-selected' : 'plot-editable',
+                  })}
                 >
-                  {label.text}
-                </text>
-              </g>
-            ))}
+                  {placed.leader && (
+                    <path
+                      d={
+                        below
+                          ? `M${placed.x.toFixed(2)} ${(placed.baseline - style.fontSize * 0.95).toFixed(2)}L${px(label.x).toFixed(2)} ${(py(label.y) + style.fontSize * 0.3).toFixed(2)}`
+                          : `M${placed.x.toFixed(2)} ${(placed.baseline + style.fontSize * 0.25).toFixed(2)}L${px(label.x).toFixed(2)} ${(py(label.y) - style.fontSize * 0.3).toFixed(2)}`
+                      }
+                      fill="none"
+                      stroke={ink ?? 'currentColor'}
+                      stroke-width={style.lineWidth * 0.5}
+                    />
+                  )}
+                  <text
+                    x={placed.x}
+                    y={placed.baseline}
+                    font-weight={label.strong ? 'bold' : undefined}
+                  >
+                    {label.text}
+                  </text>
+                </g>
+              );
+            })}
           </g>
         )}
         {children}
@@ -581,10 +617,27 @@ interface AnnotationProps {
   fontFamily: string | undefined;
   /** Colour used when the annotation has none: black in exports, the text colour on screen. */
   ink: string;
+  /** On screen: pickable with a click (data-edit), outlined when selected. */
+  editable?: boolean;
+  selected?: boolean;
 }
 
-/** One annotation in plot coordinates; regions are drawn behind the curves, elsewhere. */
+/** One annotation in plot coordinates, pickable on screen. */
 function AnnotationLines(props: AnnotationProps) {
+  const drawn = AnnotationShape(props);
+  if (!props.editable || drawn === null) return drawn;
+  return (
+    <g
+      data-edit={`annotation:${props.a.id}`}
+      class={props.selected ? 'plot-editable is-selected' : 'plot-editable'}
+    >
+      {drawn}
+    </g>
+  );
+}
+
+/** One annotation's marks; regions are drawn behind the curves, elsewhere. */
+function AnnotationShape(props: AnnotationProps) {
   const { ax, py, innerW, innerH, lineWidth, fontSize, fontFamily, ink } = props;
   const a = { ...props.a, color: props.a.color || ink };
   const size = fontSize * a.size;

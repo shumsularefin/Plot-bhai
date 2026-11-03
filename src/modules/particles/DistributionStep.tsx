@@ -125,6 +125,7 @@ export function DistributionStep({ data, update }: StepContext<ParticleData>) {
         ? {
             settings: data.detect.settings,
             edited: data.detect.edited,
+            byHand: data.detect.particles.every((p) => p.source === 'added'),
             diameterUsed: data.detect.diameterUsed,
             filters: data.detect.filters,
           }

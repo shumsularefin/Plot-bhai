@@ -387,7 +387,7 @@ try {
   // Keep the data bar out of the analysis area, then detect the 12 example particles.
   await page.getByLabel(/Remove a strip from the bottom/).fill('96');
   await page.getByRole('button', { name: 'Apply', exact: true }).click();
-  await next('Detect particles');
+  await next('Find the particles');
   await page.locator('button.btn-primary', { hasText: 'Detect particles' }).click();
   await page.getByText(/12 of 12 particles shown/).waitFor({ timeout: 30_000 });
   const detected = await page
