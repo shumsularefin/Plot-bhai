@@ -77,9 +77,9 @@ textarea {
   min-height: var(--touch-target);
   min-width: var(--touch-target);
   padding: 0 0.875rem;
-  border: 1px solid var(--color-control-border);
+  border: 0;
   border-radius: var(--radius-control);
-  background: var(--color-surface);
+  background: var(--color-control);
   box-shadow: var(--shadow-control);
   color: var(--color-text);
   font-size: var(--text-md);
@@ -98,8 +98,8 @@ textarea {
   color: var(--color-text);
 }
 
-.btn:hover:not(:disabled) {
-  background: var(--color-surface-muted);
+.btn:active:not(:disabled) {
+  background: var(--color-control-active);
 }
 
 .btn:disabled {
@@ -113,20 +113,17 @@ textarea {
   color: var(--color-on-accent);
 }
 
-.btn-primary:hover:not(:disabled) {
-  border-color: var(--color-accent-hover);
+.btn-primary:active:not(:disabled) {
   background: var(--color-accent-hover);
 }
 
 .btn-quiet {
-  border-color: transparent;
   background: transparent;
   box-shadow: none;
 }
 
-input[type='checkbox'],
-input[type='radio'] {
-  accent-color: var(--color-accent);
+.btn-quiet:hover:not(:disabled) {
+  background: var(--color-surface-muted);
 }
 
 /* Form fields */
@@ -143,9 +140,6 @@ input[type='radio'] {
 .field input {
   min-height: var(--touch-target);
   padding: 0 var(--space-3);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
 }
 
 .field-hint {
@@ -234,16 +228,17 @@ details[open] > summary::before {
 }
 
 /*
- * Native-looking fields: small boxes with a thin grey border, as in a desktop app.
+ * macOS-style controls, drawn the same on every system: push buttons above, then text fields,
+ * pop-up menus, checkboxes, radio buttons and sliders.
  */
 input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file']),
-select,
 textarea {
   min-height: var(--touch-target);
   padding: 0 var(--space-2);
-  border: 1px solid var(--color-control-border);
-  border-radius: var(--radius-control);
+  border: 0;
+  border-radius: var(--radius-sm);
   background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-control-border);
   color: var(--color-text);
   font: inherit;
 }
@@ -252,7 +247,125 @@ textarea {
   padding: var(--space-2);
 }
 
+select {
+  appearance: none;
+  min-height: var(--touch-target);
+  padding: 0 1.5rem 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--color-control) var(--select-image) no-repeat right 0.45rem center / 0.5rem
+    0.75rem;
+  box-shadow: var(--shadow-control);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+input:not(
+    [type='checkbox'],
+    [type='radio'],
+    [type='range'],
+    [type='color'],
+    [type='file']
+  ):focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+.btn:focus-visible {
+  outline: 0;
+  box-shadow:
+    0 0 0 1px var(--color-focus),
+    0 0 0 4px color-mix(in srgb, var(--color-focus) 35%, transparent);
+}
+
 input[type='checkbox'],
 input[type='radio'] {
+  appearance: none;
+  flex: none;
+  width: 14px;
+  height: 14px;
   margin: 0;
+  border-radius: 3.5px;
+  background: var(--color-control) no-repeat center / 100%;
+  box-shadow: var(--shadow-control);
+  cursor: pointer;
+}
+
+input[type='radio'] {
+  border-radius: 50%;
+}
+
+input[type='checkbox']:checked {
+  background-color: var(--color-accent);
+  background-image: var(--check-image);
+  box-shadow: none;
+}
+
+input[type='radio']:checked {
+  background: radial-gradient(circle, var(--color-on-accent) 0 2.5px, var(--color-accent) 3px);
+  box-shadow: none;
+}
+
+input[type='checkbox']:disabled,
+input[type='radio']:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+input[type='range'] {
+  appearance: none;
+  height: var(--touch-target);
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+input[type='range']::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-track);
+}
+
+input[type='range']::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-track);
+}
+
+input[type='range']::-moz-range-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-accent);
+}
+
+input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow:
+    0 0 0 0.5px rgb(0 0 0 / 0.25),
+    0 1px 2px rgb(0 0 0 / 0.3);
+}
+
+input[type='range']::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow:
+    0 0 0 0.5px rgb(0 0 0 / 0.25),
+    0 1px 2px rgb(0 0 0 / 0.3);
+}
+
+/* Larger checkboxes and slider knobs for a finger on touch screens. */
+@media (pointer: coarse) {
+  input[type='checkbox'],
+  input[type='radio'] {
+    width: 20px;
+    height: 20px;
+  }
 }

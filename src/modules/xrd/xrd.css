@@ -6,6 +6,7 @@
 
 .drop-zone {
   display: grid;
+  align-content: center;
   justify-items: center;
   gap: var(--space-3);
   padding: var(--space-6) var(--space-4);
@@ -48,9 +49,6 @@
 .paste-field textarea {
   width: 100%;
   padding: var(--space-3);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
   font-family: var(--font-mono);
   font-size: var(--text-sm);
 }
@@ -173,10 +171,7 @@
 .pattern-unit select {
   min-height: var(--touch-target);
   max-width: 100%;
-  padding: 0 var(--space-3);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
+  padding: 0 1.5rem 0 var(--space-3);
 }
 
 .pattern-messages {
@@ -243,10 +238,7 @@
   min-width: 7.5rem;
   max-width: 100%;
   min-height: var(--touch-target);
-  padding: 0 var(--space-3);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
+  padding: 0 1.5rem 0 var(--space-3);
   font-size: var(--text-md);
 }
 
@@ -341,27 +333,22 @@
   align-items: center;
   min-height: var(--touch-target);
   padding: 0 var(--space-3);
-  border: 1px solid var(--color-border-strong);
-  background: var(--color-surface);
+  background: var(--color-surface-muted);
   cursor: pointer;
 }
 
-.segmented label + label {
-  margin-left: -1px;
-}
-
 .segmented label:first-of-type {
-  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  border-radius: var(--radius-control) 0 0 var(--radius-control);
 }
 
 .segmented label:last-of-type {
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
 }
 
 .segmented label.is-selected {
-  border-color: var(--color-accent);
-  background: var(--color-accent-soft);
-  font-weight: var(--weight-medium);
+  border-radius: var(--radius-control);
+  background: var(--color-control);
+  box-shadow: var(--shadow-control);
 }
 
 .segmented label:focus-within {
@@ -408,10 +395,6 @@
   width: 14rem;
   max-width: 100%;
   min-height: var(--touch-target);
-  padding: 0;
-  border: 0;
-  background: none;
-  accent-color: var(--color-accent);
 }
 
 .add-peak {
@@ -635,9 +618,6 @@
   width: 7rem;
   min-height: var(--touch-target);
   padding: 0 var(--space-2);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
   text-align: right;
 }
 
@@ -1305,7 +1285,7 @@
 }
 
 .data-source-title {
-  font-size: var(--text-base);
+  font-size: var(--text-md);
   font-weight: var(--weight-bold);
 }
 

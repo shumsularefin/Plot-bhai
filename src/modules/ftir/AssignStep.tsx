@@ -1,4 +1,4 @@
-import { useMemo } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { suggestAssignments, type AtmosphereTable, type GroupTable } from '../../core/ftir/assign';
 import { formatNumber } from '../../core/xrd/parsers/numbers';
 import { HelpTip } from '../../ui/HelpTip';
@@ -148,12 +148,10 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
                 </h4>
                 <div class="inline-field">
                   <label for={id}>Your assignment</label>
-                  <input
+                  <AssignmentInput
                     id={id}
-                    type="text"
-                    value={label}
-                    placeholder="none yet"
-                    onChange={(e) => setLabel(peak.wavenumber, e.currentTarget.value)}
+                    label={label}
+                    onCommit={(text) => setLabel(peak.wavenumber, text)}
                   />
                   {label !== '' && (
                     <button
@@ -239,5 +237,34 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
         </div>
       </details>
     </div>
+  );
+}
+
+/**
+ * The text box for one peak's assignment. What the user types is kept here until they leave the
+ * box or press Enter, so a redraw of the step while typing never puts the old text back.
+ */
+function AssignmentInput({
+  id,
+  label,
+  onCommit,
+}: {
+  id: string;
+  label: string;
+  onCommit: (text: string) => void;
+}) {
+  const [draft, setDraft] = useState(label);
+  useEffect(() => setDraft(label), [label]);
+  return (
+    <input
+      id={id}
+      type="text"
+      value={draft}
+      placeholder="none yet"
+      onInput={(e) => setDraft(e.currentTarget.value)}
+      onChange={(e) => {
+        if (e.currentTarget.value !== label) onCommit(e.currentTarget.value);
+      }}
+    />
   );
 }

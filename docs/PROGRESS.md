@@ -1,5 +1,12 @@
 # Progress
 
+## macOS-style controls and equal button sizes (done)
+
+- Controls are drawn macOS-style on every system: push buttons with a soft shadow instead of a border, text fields with a thin inset line, pop-up menus with up/down arrows, accent checkboxes and radio buttons, thin slider tracks with a white knob, a segmented control for the XRD choices and a light grey toolbar header. Focus shows the macOS blue ring. New tokens: `--color-control`, `--color-control-active`, `--color-toolbar`, `--color-track`, `--check-image`, `--select-image`, `--radius-control` (light and dark). Old per-module borders on fields and menus were removed so all of them look the same.
+- Button audit over every step of every tool: every `.btn` is 22 px high with a pointer (44 px on touch screens). "Choose files" was 28 px because the drop zone stretched it; fixed. Stepper numbers, periodic table cells and the particle mode cards are different kinds of control and keep their own size.
+- SF Pro cannot be self-hosted (licence), so text uses the system font: San Francisco on Apple devices, Segoe UI on Windows.
+- FTIR Assign: the assignment box now keeps what the user types until they leave the box or press Enter. Before, any redraw of the step while typing put the old text back. The owner reported entries resetting; I could not reproduce it with the example data, so the owner should confirm on real data.
+
 ## Plain, native-looking theme (done)
 
 - The owner asked for a plain desktop-app look across the whole site. The page and the panels are white now (#1e1e1e in dark mode), and steps no longer sit on a card with a shadow.
