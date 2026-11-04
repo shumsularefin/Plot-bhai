@@ -136,6 +136,37 @@ describe('exported figure with styling', () => {
     expect(svg).toMatch(/font-family="Arial[^"]*"[^>]*>Sample note/);
   });
 
+  it('draws free lines, boxes and ellipses with their fill, width, dash and text style', () => {
+    const f = figure({
+      annotations: [
+        { ...newAnnotation('line', 21, 20, { x: 29, y: 80 }), lineWidth: 2, dash: 'dashed' },
+        { ...newAnnotation('rect', 22, 30, { x: 24, y: 70 }), fill: '#ff0000', fillOpacity: 0.4 },
+        { ...newAnnotation('ellipse', 26, 30, { x: 28, y: 70 }), text: 'Zone', bold: true },
+        { ...newAnnotation('text', 22, 50), text: 'Slanted', italic: true },
+      ],
+    });
+    const svg = svgOf(f);
+    expect(svg).toMatch(
+      /<path d="M[\d.]+ [\d.]+L[\d.]+ [\d.]+" stroke="#000000" stroke-width="[\d.]+" stroke-dasharray=/,
+    );
+    expect(svg).toContain('fill="#ff0000" fill-opacity="0.4"');
+    expect(svg).toContain('<ellipse');
+    expect(svg).toMatch(/<ellipse[^>]*fill="none"/);
+    expect(svg).toMatch(/font-weight="bold"[^>]*>Zone</);
+    expect(svg).toMatch(/font-style="italic"[^>]*>Slanted</);
+  });
+
+  it('draws curve symbols, a chosen fill colour and an open frame', () => {
+    const f = figure({
+      series: { data: { symbol: 'square', fill: 'below', fillColor: '#123456' } },
+      axes: { ...DEFAULT_FIGURE.axes, frame: 'open' },
+    });
+    const svg = svgOf(f);
+    expect(svg).toContain('fill="#123456"');
+    expect((svg.match(/<rect x=/g) ?? []).length).toBeGreaterThan(5);
+    expect(svg).toMatch(/<path d="M0 0V[\d.]+H[\d.]+" fill="none"/);
+  });
+
   it('honours grid, outward ticks, legend placement and hiding', () => {
     const plain = svgOf(undefined);
     const styled = svgOf(
@@ -208,8 +239,8 @@ describe('PDF file', () => {
 });
 
 describe('figure editor on screen', () => {
-  // The figure editor is an advanced option.
-  beforeAll(() => setAdvancedShown(true));
+  // The figure editor shows in Simple mode too.
+  beforeAll(() => setAdvancedShown(false));
   it('stores styling per plot in the plot settings, leaving the data alone', () => {
     let settings: PlotSettings = {
       normalise: false,
@@ -235,7 +266,7 @@ describe('figure editor on screen', () => {
         />,
       );
     draw();
-    fireEvent.click(screen.getByText(/Edit figure/));
+    fireEvent.click(screen.getByText(/Edit graph/));
     fireEvent.change(screen.getByLabelText('Style'), { target: { value: 'dotted' } });
     fireEvent.input(screen.getByLabelText('y-axis title'), { target: { value: 'Counts' } });
     expect(settings.figures?.['sample-fit']?.series?.['data']?.dash).toBe('dotted');

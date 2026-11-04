@@ -173,8 +173,8 @@ export function PlotPanel(props: PlotPanelProps) {
     const annotation =
       placement.kind === 'arrow' && first
         ? newAnnotation('arrow', x, y, first)
-        : placement.kind === 'region' && first
-          ? newAnnotation('region', first.x, first.y, { x, y })
+        : first
+          ? newAnnotation(placement.kind, first.x, first.y, { x, y })
           : newAnnotation(placement.kind, x, y, undefined, placement.shape);
     setFigure({ ...figure, annotations: [...figure.annotations, annotation] });
     // The tool stays chosen, so several markers (or lines, labels) can be placed in a row.

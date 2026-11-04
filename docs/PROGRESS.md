@@ -1,5 +1,14 @@
 # Progress
 
+## Graph editor in every mode, with more drawing tools (done)
+
+- The graph editor ("Edit graph") now shows in Simple mode too; before, it sat inside an Advanced section and disappeared unless Advanced options was on.
+- New on the plot and in every export (SVG, PNG, PDF): free lines, rectangles and ellipses (two clicks), each with line width, line style, and fill on or off with fill colour and opacity; bold and italic text on every annotation; line width and style for arrows and reference lines.
+- Curves: separate fill colour, symbols along the curve (spaced so dense data stays readable, also shown in the legend), symbol size, and width 0 for symbols only.
+- Axes: closed box or open left-and-bottom frame, and axis line width.
+- Button text is centred on its capital height (CSS text-box trim, where supported), so labels sit exactly mid-button whatever the system font.
+- Tests: exported SVG checks for the new shapes, fills, text styles, symbols and open frame.
+
 ## macOS-style controls and equal button sizes (done)
 
 - Controls are drawn macOS-style on every system: push buttons with a soft shadow instead of a border, text fields with a thin inset line, pop-up menus with up/down arrows, accent checkboxes and radio buttons, thin slider tracks with a white knob, a segmented control for the XRD choices and a light grey toolbar header. Focus shows the macOS blue ring. New tokens: `--color-control`, `--color-control-active`, `--color-toolbar`, `--color-track`, `--check-image`, `--select-image`, `--radius-control` (light and dark). Old per-module borders on fields and menus were removed so all of them look the same.

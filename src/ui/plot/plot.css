@@ -115,6 +115,10 @@
   fill: var(--series);
 }
 
+.plot-symbols {
+  color: var(--series);
+}
+
 .plot-grid {
   stroke: var(--color-border);
 }

@@ -91,6 +91,21 @@ textarea {
     border-color var(--duration-fast);
 }
 
+/*
+ * Centre the letters themselves (capital height to baseline) rather than the font's line box,
+ * which sits a pixel high or low depending on the system font. Older browsers keep the flex
+ * centring above.
+ */
+@supports (text-box: trim-both cap alphabetic) {
+  .btn {
+    display: inline-block;
+    padding-block: calc((var(--touch-target) - 1cap) / 2);
+    text-align: center;
+    vertical-align: middle;
+    text-box: trim-both cap alphabetic;
+  }
+}
+
 .btn[aria-pressed='true'] {
   border-color: var(--color-border-strong);
   background: var(--color-surface-muted);
