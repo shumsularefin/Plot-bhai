@@ -90,6 +90,8 @@ function ColorBox(props: {
   value: string | undefined;
   fallback: string;
   onChange: (v: string | undefined) => void;
+  /** Leave out the "Automatic" button (for colours that have no automatic choice). */
+  fixed?: boolean;
 }) {
   return (
     <span class="figure-color">
@@ -101,7 +103,7 @@ function ColorBox(props: {
           onInput={(e) => props.onChange(e.currentTarget.value)}
         />
       </label>
-      {props.value && (
+      {props.value && !props.fixed && (
         <button type="button" class="btn btn-quiet" onClick={() => props.onChange(undefined)}>
           Automatic
         </button>
@@ -528,6 +530,7 @@ export function FigureEditor(props: FigureEditorProps) {
                         label="Fill colour"
                         value={a.fill}
                         fallback="#cccccc"
+                        fixed
                         onChange={(fill) => setAnnotation(a.id, { fill: fill ?? '#cccccc' })}
                       />
                       <NumberBox
