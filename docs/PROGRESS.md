@@ -1,5 +1,13 @@
 # Progress
 
+## Plain, native-looking theme (done)
+
+- The owner asked for a plain desktop-app look across the whole site. The page and the panels are white now (#1e1e1e in dark mode), and steps no longer sit on a card with a shadow.
+- Buttons are small rectangles: 5 px corners, a thin grey border (`--color-control-border`), a faint shadow and regular-weight text. A pressed button is light grey, with a slight inset shadow and black text.
+- Checkboxes and radio buttons use the accent colour. The stepper buttons are rectangles. The home page chips are no longer pills.
+- The selected particle drawing tool and drawing mode now show black text. Before, the text was white on light blue.
+- Checks: lint, typecheck, 909 tests, size and e2e all pass.
+
 ## Simple mode and higher contrast (done)
 
 - Advanced options are hidden by default. A switch, "Advanced options", in every wizard header shows them; the choice is remembered in the browser (`src/ui/advancedMode.ts`). Every `Advanced` section follows it.
