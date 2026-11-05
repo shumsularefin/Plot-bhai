@@ -21,7 +21,7 @@ screenshots (sidebar workflow, step panel, plot on the right), keeping the macOS
   and "Next" for screen readers and tests.
 - WizardStep has a new optional `summary`; every step of all eleven wizards has one, written from the
   step's own instructions. New token `--color-success` for the saved dot.
-- Checks: lint, type check, 912 tests (911 passed, 1 skipped; one new test for the sidebar), build,
+- Checks: lint, type check, 913 tests (912 passed, 1 skipped; one new test for the sidebar), build,
   size budget and e2e all pass. Checked by screenshot at 390, 1280, 1440 and 1920 px, light and dark.
 
 ## Graph editor in every mode, with more drawing tools (done)
