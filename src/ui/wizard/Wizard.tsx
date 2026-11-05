@@ -9,6 +9,26 @@ import { ValidateButton } from '../feedback/ValidateButton';
 import { setAdvancedShown, useAdvancedShown } from '../advancedMode';
 import './wizard.css';
 
+/** Browser-only preference: whether the step sidebar shows only the step numbers. */
+const RAIL_KEY = 'wizard-steps-collapsed';
+
+function readRail(): boolean {
+  try {
+    return localStorage.getItem(RAIL_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeRail(rail: boolean) {
+  try {
+    if (rail) localStorage.setItem(RAIL_KEY, '1');
+    else localStorage.removeItem(RAIL_KEY);
+  } catch {
+    // Storage blocked: the choice lasts until the page is reloaded.
+  }
+}
+
 interface WizardProps<D> {
   /** Tool name, shown above the stepper. */
   title: string;
@@ -30,6 +50,11 @@ export function Wizard<D>({ title, steps, store }: WizardProps<D>) {
   const history = useRef<History<D>>(emptyHistory());
   const advanced = useAdvancedShown();
   const [, setHistoryTick] = useState(0);
+  const [rail, setRail] = useState(readRail);
+  const toggleRail = () => {
+    writeRail(!rail);
+    setRail(!rail);
+  };
 
   const last = steps.length - 1;
   const index = Math.min(Math.max(state.step, 0), last);
@@ -108,93 +133,156 @@ export function Wizard<D>({ title, steps, store }: WizardProps<D>) {
   const error = checking ? (step.validate?.(state.data) ?? null) : null;
   const errorId = `wizard-error-${step.id}`;
 
+  const chevron = (d: string) => (
+    <svg class="btn-icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d={d} />
+    </svg>
+  );
+
   return (
-    <section class="wizard" aria-labelledby="wizard-step-heading">
-      <div class="wizard-header">
-        <p class="wizard-tool">{title}</p>
-        <div class="wizard-history">
-          <label class="switch">
-            <input
-              type="checkbox"
-              role="switch"
-              checked={advanced}
-              onChange={(e) => setAdvancedShown(e.currentTarget.checked)}
-            />
-            Advanced options
-          </label>
-          <button
-            type="button"
-            class="btn btn-quiet"
-            onClick={() => travel('undo')}
-            disabled={history.current.past.length === 0}
-            aria-keyshortcuts="Control+Z"
-            title="Undo (Ctrl+Z)"
-          >
-            Undo
-          </button>
-          <button
-            type="button"
-            class="btn btn-quiet"
-            onClick={() => travel('redo')}
-            disabled={history.current.future.length === 0}
-            aria-keyshortcuts="Control+Y"
-            title="Redo (Ctrl+Y)"
-          >
-            Redo
-          </button>
-          <button type="button" class="btn btn-quiet" onClick={startOver}>
-            Start over
-          </button>
-          <ValidateButton tool={title} />
+    <div class="wizard-frame">
+      <section class={`wizard${rail ? ' is-rail' : ''}`} aria-labelledby="wizard-step-heading">
+        <aside class="wizard-sidebar" aria-label={`${title} steps`}>
+          <div class="wizard-sidebar-head">
+            <button
+              type="button"
+              class="btn btn-quiet wizard-sidebar-toggle"
+              aria-expanded={!rail}
+              aria-label={rail ? 'Show step details' : 'Show step numbers only'}
+              title={rail ? 'Show step details' : 'Show step numbers only'}
+              onClick={toggleRail}
+            >
+              <svg class="sidebar-icon" viewBox="0 0 18 14" aria-hidden="true">
+                <rect x="0.75" y="0.75" width="16.5" height="12.5" rx="2.5" />
+                <path d="M6 1v12" />
+              </svg>
+            </button>
+            <p class="wizard-crumb">
+              <a href="#/">Tools</a>
+              <span aria-hidden="true"> › </span>
+            </p>
+            <p class="wizard-tool">{title}</p>
+            <p class={`wizard-saved${status === 'unavailable' ? ' is-off' : ''}`}>
+              {status === 'unavailable' ? 'Not saved in this browser' : 'Saved on this device'}
+            </p>
+          </div>
+          <Stepper
+            titles={steps.map((s) => s.title)}
+            summaries={steps.map((s) => s.summary)}
+            current={index}
+            furthest={Math.min(state.furthest, last)}
+            onSelect={goTo}
+          />
+        </aside>
+
+        <div class="wizard-main">
+          <div class="wizard-toolbar">
+            <p class="wizard-rail-title">
+              <a href="#/">Tools</a>
+              <span aria-hidden="true"> › </span>
+              {title}
+            </p>
+            <label class="switch">
+              <input
+                type="checkbox"
+                role="switch"
+                checked={advanced}
+                onChange={(e) => setAdvancedShown(e.currentTarget.checked)}
+              />
+              Advanced options
+            </label>
+            <div class="wizard-history">
+              <button
+                type="button"
+                class="btn btn-quiet"
+                onClick={() => travel('undo')}
+                disabled={history.current.past.length === 0}
+                aria-keyshortcuts="Control+Z"
+                title="Undo (Ctrl+Z)"
+              >
+                Undo
+              </button>
+              <button
+                type="button"
+                class="btn btn-quiet"
+                onClick={() => travel('redo')}
+                disabled={history.current.future.length === 0}
+                aria-keyshortcuts="Control+Y"
+                title="Redo (Ctrl+Y)"
+              >
+                Redo
+              </button>
+              <button type="button" class="btn btn-quiet" onClick={startOver}>
+                Start over
+              </button>
+              <ValidateButton tool={title} />
+            </div>
+          </div>
+
+          {status === 'unavailable' && (
+            <p class="wizard-notice" role="status">
+              This browser is not letting the site save your work, so it will be lost if you
+              refresh. Private browsing often causes this.
+            </p>
+          )}
+
+          <div class="wizard-body">
+            <header class="wizard-step-head">
+              <span class="wizard-step-number" aria-hidden="true">
+                {index + 1}
+              </span>
+              <div class="wizard-step-text">
+                <h2
+                  id="wizard-step-heading"
+                  class="wizard-step-title"
+                  tabIndex={-1}
+                  ref={headingRef}
+                >
+                  {step.title}
+                </h2>
+                {step.summary && <p class="wizard-step-summary">{step.summary}</p>}
+              </div>
+              <span class="wizard-count">
+                Step {index + 1} of {steps.length}
+              </span>
+            </header>
+            {step.guide && <StepGuide items={step.guide} />}
+            <div class="wizard-content">{step.render({ data: state.data, update })}</div>
+          </div>
+
+          <div class="wizard-footer">
+            {error !== null && (
+              <p id={errorId} class="wizard-error" role="alert">
+                {error}
+              </p>
+            )}
+            <div class="wizard-actions">
+              <button
+                type="button"
+                class="btn"
+                onClick={() => goTo(index - 1)}
+                disabled={index === 0}
+              >
+                {chevron('M10 3.5 5.5 8l4.5 4.5')}
+                Back
+              </button>
+              <span class="wizard-position" aria-hidden="true">
+                {index < last ? `Next: ${steps[index + 1]?.title}` : `Last step: ${step.title}`}
+              </span>
+              <button
+                type="button"
+                class="btn btn-primary"
+                onClick={next}
+                disabled={index === last}
+                aria-describedby={error !== null ? errorId : undefined}
+              >
+                Next
+                {chevron('M6 3.5 10.5 8 6 12.5')}
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-
-      <Stepper
-        titles={steps.map((s) => s.title)}
-        current={index}
-        furthest={Math.min(state.furthest, last)}
-        onSelect={goTo}
-      />
-
-      {status === 'unavailable' && (
-        <p class="wizard-notice" role="status">
-          This browser is not letting the site save your work, so it will be lost if you refresh.
-          Private browsing often causes this.
-        </p>
-      )}
-
-      <div class="wizard-body">
-        <h2 id="wizard-step-heading" class="wizard-step-title" tabIndex={-1} ref={headingRef}>
-          {step.title}
-        </h2>
-        {step.guide && <StepGuide items={step.guide} />}
-        <div class="wizard-content">{step.render({ data: state.data, update })}</div>
-      </div>
-
-      <div class="wizard-footer">
-        {error !== null && (
-          <p id={errorId} class="wizard-error" role="alert">
-            {error}
-          </p>
-        )}
-        <div class="wizard-actions">
-          <button type="button" class="btn" onClick={() => goTo(index - 1)} disabled={index === 0}>
-            Back
-          </button>
-          <span class="wizard-position" aria-hidden="true">
-            {index < last ? `Next: ${steps[index + 1]?.title}` : `Last step: ${step.title}`}
-          </span>
-          <button
-            type="button"
-            class="btn btn-primary"
-            onClick={next}
-            disabled={index === last}
-            aria-describedby={error !== null ? errorId : undefined}
-          >
-            Next
-          </button>
-        </div>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }

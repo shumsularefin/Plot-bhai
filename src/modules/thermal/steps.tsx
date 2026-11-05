@@ -13,6 +13,7 @@ export const thermalSteps: readonly WizardStep<ThermalData>[] = [
   {
     id: 'upload',
     title: 'Upload and describe the run',
+    summary: 'Load data, atmosphere and rate',
     guide: [
       'Drop your TGA file on the box, or press Choose a file. Or press Try with example data.',
       'Only have a picture of a graph? Press Use a graph image.',
@@ -34,6 +35,7 @@ export const thermalSteps: readonly WizardStep<ThermalData>[] = [
   {
     id: 'clean',
     title: 'Clean data',
+    summary: 'Blank, smoothing and normalising',
     guide: [
       'The run is cut to its heating part automatically.',
       'Optional: subtract a blank run, smooth, or normalise to a start temperature.',
@@ -44,6 +46,7 @@ export const thermalSteps: readonly WizardStep<ThermalData>[] = [
   {
     id: 'steps',
     title: 'Mass loss steps',
+    summary: 'Steps from TGA and DTG',
     guide: [
       'Each peak of the DTG curve (the lower plot) is one mass loss step.',
       'Adjust the detection, or drag the round markers to set where each step starts and ends.',
@@ -54,6 +57,7 @@ export const thermalSteps: readonly WizardStep<ThermalData>[] = [
   {
     id: 'assign',
     title: 'Assign events',
+    summary: 'Ranked event suggestions',
     guide: [
       'Each step gets ranked suggestions of what it might be, with a reason.',
       'Accept one, write your own, or leave it open. TGA alone cannot identify the gas released.',
@@ -64,6 +68,7 @@ export const thermalSteps: readonly WizardStep<ThermalData>[] = [
   {
     id: 'calcination',
     title: 'Calcination suggestion',
+    summary: 'A starting point to test',
     guide: [
       'The suggestion is the lowest temperature worth trying, after the last mass loss step.',
       'Calcine samples at the suggested temperatures and compare them, for example by XRD.',
@@ -74,6 +79,7 @@ export const thermalSteps: readonly WizardStep<ThermalData>[] = [
   {
     id: 'results',
     title: 'Results and export',
+    summary: 'Tables, figures and methods text',
     guide: [
       'Check the steps and events table.',
       'Download the CSV and the figure, and copy the methods text.',

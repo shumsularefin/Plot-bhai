@@ -1,5 +1,43 @@
 # Progress
 
+## Foldable step sidebar; space above buttons under boxes (done)
+
+- The step sidebar can be folded to a slim column of step numbers (the sidebar button at its top,
+  like the macOS sidebar toggle) to give the step more room; the choice is kept in this browser.
+  Hovering a number shows the step name and what it does; screen readers still hear the names.
+  When the wizard is too narrow for the full sidebar (for example 1280 px with the plot pinned) the
+  number column appears on its own instead of the compact progress bar, and the toolbar row then
+  shows "Tools › tool name".
+- Buttons stacked right under a text box, table, drop area or note had no space above them (the
+  owner's example: Copy text under the methods text). One rule in base.css now adds space above
+  buttons and button rows that follow such content in normal flow; rows laid out by flex or grid
+  parents keep their own gap. A script walked every step of the tools with example data and found
+  no button closer than 6 px under the content above it (apart from inline "?" help icons).
+
+## App-window layout for every tool: step sidebar, step header, tip tiles (done)
+
+The owner liked the macOS look and asked to rearrange the tool pages along the lines of three sample
+screenshots (sidebar workflow, step panel, plot on the right), keeping the macOS style.
+
+- Every wizard now has a sidebar like a macOS source list: Tools › tool name, "Saved on this device"
+  (or "Not saved in this browser" when storage is blocked), and every step as a row with its number,
+  name and a few words on what it does, joined by a line. The open step is highlighted; reached steps
+  can be clicked. The pinned plot stays on the right, so wide screens show three columns.
+- The sidebar appears when the wizard itself has room (a container query at 46rem), not at a fixed
+  screen width, so it adapts to the pinned plot. Narrower layouts keep the compact "Step 2 of 8" bar.
+  The pinned plot is a little narrower (38 % of the window instead of 46 %) so the sidebar fits from
+  about 1440 px.
+- The open step has a header: its number in a soft accent square, its name, the same short
+  description and "Step 3 of 9" (in the sidebar layout).
+- "How to do this step" is a grey grouped box with numbered tiles side by side when there is room.
+- Advanced options, Undo, Redo, Start over and Validate are a toolbar row above the step.
+- Back and Next carry chevrons one capital letter tall on the text baseline; their names stay "Back"
+  and "Next" for screen readers and tests.
+- WizardStep has a new optional `summary`; every step of all eleven wizards has one, written from the
+  step's own instructions. New token `--color-success` for the saved dot.
+- Checks: lint, type check, 913 tests (912 passed, 1 skipped; one new test for the sidebar), build,
+  size budget and e2e all pass. Checked by screenshot at 390, 1280, 1440 and 1920 px, light and dark.
+
 ## Graph editor in every mode, with more drawing tools (done)
 
 - The graph editor ("Edit graph") now shows in Simple mode too; before, it sat inside an Advanced section and disappeared unless Advanced options was on.

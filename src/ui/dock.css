@@ -1,7 +1,7 @@
 /* A figure kept in view (src/ui/Dock.tsx): beside the page on wide screens, along the bottom on narrow ones. */
 
 :root {
-  --dock-width: clamp(420px, 46vw, 900px);
+  --dock-width: clamp(380px, 38vw, 820px);
 }
 
 .dock-slot {

@@ -10,6 +10,7 @@ export const kineticsSteps: readonly WizardStep<KineticsData>[] = [
   {
     id: 'upload',
     title: 'Upload runs and heating rates',
+    summary: 'One run per heating rate',
     guide: [
       'Load one run per heating rate (at least three), or press Try with example data.',
       'Type the heating rate of each run.',
@@ -21,6 +22,7 @@ export const kineticsSteps: readonly WizardStep<KineticsData>[] = [
   {
     id: 'setup',
     title: 'Method and window',
+    summary: 'Kissinger, FWO or KAS',
     guide: [
       'Choose the method: Kissinger, an isoconversional method, or Coats-Redfern.',
       'Set the temperature window of the step to analyse.',
@@ -31,6 +33,7 @@ export const kineticsSteps: readonly WizardStep<KineticsData>[] = [
   {
     id: 'results',
     title: 'Results and export',
+    summary: 'Activation energy and plots',
     guide: [
       'Read the activation energy and check the straight-line plot.',
       'Download the CSV and copy the methods text.',
