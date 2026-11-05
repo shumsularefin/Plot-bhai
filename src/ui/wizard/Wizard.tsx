@@ -133,8 +133,8 @@ export function Wizard<D>({ title, steps, store }: WizardProps<D>) {
   const error = checking ? (step.validate?.(state.data) ?? null) : null;
   const errorId = `wizard-error-${step.id}`;
 
-  const chevron = (d: string) => (
-    <svg class="btn-icon" viewBox="0 0 16 16" aria-hidden="true">
+  const chevron = (d: string, side: 'start' | 'end') => (
+    <svg class={`btn-icon is-${side}`} viewBox="4 0 8 16" aria-hidden="true">
       <path d={d} />
     </svg>
   );
@@ -263,7 +263,7 @@ export function Wizard<D>({ title, steps, store }: WizardProps<D>) {
                 onClick={() => goTo(index - 1)}
                 disabled={index === 0}
               >
-                {chevron('M10 3.5 5.5 8l4.5 4.5')}
+                {chevron('M10 3.5 5.5 8l4.5 4.5', 'start')}
                 Back
               </button>
               <span class="wizard-position" aria-hidden="true">
@@ -277,7 +277,7 @@ export function Wizard<D>({ title, steps, store }: WizardProps<D>) {
                 aria-describedby={error !== null ? errorId : undefined}
               >
                 Next
-                {chevron('M6 3.5 10.5 8 6 12.5')}
+                {chevron('M6 3.5 10.5 8 6 12.5', 'end')}
               </button>
             </div>
           </div>

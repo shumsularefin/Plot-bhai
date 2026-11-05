@@ -382,16 +382,25 @@ html:has(.wizard-footer) {
 }
 
 /* Chevrons on Back and Next, one capital letter tall and sitting on the text's baseline. */
+/* The box is cropped to the arrow (viewBox 8 wide, 16 high), so no empty space sits beside it. */
 .btn-icon {
-  width: 1cap;
+  width: 0.5cap;
   height: 1cap;
-  margin: 0 0.3em;
   vertical-align: baseline;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* Space only between the arrow and the word, so the pair stays centred in the button. */
+.btn-icon.is-start {
+  margin-inline-end: 0.3em;
+}
+
+.btn-icon.is-end {
+  margin-inline-start: 0.3em;
 }
 
 .wizard-error {

@@ -1,5 +1,11 @@
 # Progress
 
+## Back and Next labels centred (done)
+
+- The arrow in Back and Next sat in a square box with empty space beside the drawing, plus a margin on both sides (it matched both `:first-child` and `:last-child`, being the only element in the button). That pushed "Back" about 2.5 px right and "Next" about 3.5 px left of centre.
+- The arrow box is now cropped to the arrow (viewBox 8 × 16, width 0.5cap) and has space only on the side facing the word (`.btn-icon.is-start` / `.is-end`). Measured on a 4× render, the arrow and word are now centred within half a pixel.
+- Checks: lint, type check, tests, build, bundle size and e2e all pass.
+
 ## Consistent format for suggestion lists and results sections (done)
 
 - Walked every step of XRD, UV-Vis, FTIR, TGA and particles with the example data and looked for the same problem as the Fit regions list: long loose sentences instead of a tidy layout.
