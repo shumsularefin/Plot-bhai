@@ -1,5 +1,13 @@
 # Progress
 
+## XRD Fit regions shown as a table (done)
+
+- The "Fit regions" summary in the XRD Fit peaks step was a loose list of long sentences. It is now a table in the same style as the peak table: 2θ range (°), number of peaks, R², χ²ν and a Check column.
+- Each problem has a short label in the Check column ("Did not converge", "R² below 0.9", "Misses structure", "Background too low", "Too few points", "No uncertainties"). Each label is explained once under the table, only when it appears. Regions with no problem read "Good".
+- `RegionMessage` in `src/core/xrd/peaks/fit.ts` now carries a `check` key; the full message text is unchanged and still goes into the fit record. Sessions saved before this change have no key and show the full text instead.
+- The e2e script now waits for the peak table only, not the region table.
+- Checks: lint, type check, 913 tests (912 passed, 1 skipped), build, bundle size and e2e all pass.
+
 ## Foldable step sidebar; space above buttons under boxes (done)
 
 - The step sidebar can be folded to a slim column of step numbers (the sidebar button at its top,
