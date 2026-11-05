@@ -1,5 +1,13 @@
 # Progress
 
+## Consistent format for suggestion lists and results sections (done)
+
+- Walked every step of XRD, UV-Vis, FTIR, TGA and particles with the example data and looked for the same problem as the Fit regions list: long loose sentences instead of a tidy layout.
+- FTIR Assign groups: each peak's suggestions are now a small table (Suggestion, Listed at, Distance in cm⁻¹, Accept). `Suggestion` in `src/core/ftir/assign.ts` gained `listed` (the matched range or band as printed) and `offset` (the true distance; `distance` stays the ranking value, which treats a band within 4 cm⁻¹ as on it). The long atmospheric-band warning is still shown as a note under the table. New unit test with a synthetic table.
+- TGA Assign events, DSC events and the combined TGA-DSC step: the step cards and ranked suggestion lists had no styles at all. They are now bordered cards; each ranked suggestion is a row with its number, name and confidence on top, the reason under it and the Accept button on the right. The theoretical mass loss block sits in the same box as other settings.
+- Every results and export step: tables, notes and the text under them had no space between them. A shared rule in `src/ui/base.css` adds a small gap there, and a sub-heading inside a results section gets space above it.
+- Checks: lint, type check, 914 tests (913 passed, 1 skipped), build, bundle size and e2e all pass.
+
 ## XRD Fit regions shown as a table (done)
 
 - The "Fit regions" summary in the XRD Fit peaks step was a loose list of long sentences. It is now a table in the same style as the peak table: 2θ range (°), number of peaks, R², χ²ν and a Check column.

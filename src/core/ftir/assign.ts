@@ -25,6 +25,10 @@ export interface Suggestion {
   kind: 'group' | 'oxide' | 'atmosphere';
   /** Distance from the typical range (0 inside it) or from the nearest listed band, cm⁻¹. */
   distance: number;
+  /** The listed range or band the peak was matched to, as printed, for example "1715–1745 cm⁻¹". */
+  listed: string;
+  /** How far the peak lies from `listed`, cm⁻¹ (0 inside a range or exactly on a band). */
+  offset: number;
   /** Plain-language reason, shown next to the suggestion. */
   reason: string;
 }
@@ -77,6 +81,8 @@ export function suggestAssignments(
       kind: 'group',
       distance: best.distance,
       width: best.width,
+      listed: printed,
+      offset: best.distance,
       reason:
         best.distance === 0
           ? `${cm(wavenumber)} is inside the typical range ${printed}.`
@@ -96,6 +102,8 @@ export function suggestAssignments(
       kind: 'oxide',
       distance: nearest.distance <= POINT_MATCH_CM ? 0 : nearest.distance,
       width: 0,
+      listed: cm(nearest.cm),
+      offset: nearest.distance,
       reason: `${cm(wavenumber)} is ${nearest.distance === 0 ? 'at' : `${cm(nearest.distance)} from`} a band listed for ${oxide.label} at ${cm(nearest.cm)}.`,
     });
   }
@@ -108,6 +116,8 @@ export function suggestAssignments(
       kind: 'atmosphere',
       distance: distance <= POINT_MATCH_CM ? 0 : distance,
       width: 0,
+      listed: cm(band.cm),
+      offset: distance,
       reason: `${cm(wavenumber)} is ${distance === 0 ? 'at' : `${cm(distance)} from`} the gas-phase band at ${cm(band.cm)}: air in the beam path that the background did not cancel. Compare with a fresh background spectrum before assigning it to the sample.`,
     });
   }

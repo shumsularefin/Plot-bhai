@@ -312,3 +312,23 @@ describe('atmospheric bands among the suggestions', () => {
     ).toMatch(/TiO2/);
   });
 });
+
+describe('listed value and offset of a suggestion', () => {
+  it('gives the matched range or band and the true distance to it', async () => {
+    const { suggestAssignments } = await import('../src/core/ftir/assign');
+    const table = {
+      functionalGroups: [{ id: 'g', label: 'Group', ranges: [{ from: 1700, to: 1750 }] }],
+      metalOxides: [{ id: 'o', label: 'Oxide', bands: [{ cm: 1690 }] }],
+    };
+    const [inside] = suggestAssignments(1720, table, 15);
+    expect(inside).toMatchObject({ id: 'g', listed: '1700–1750 cm⁻¹', offset: 0 });
+    const near = suggestAssignments(1693, table, 15);
+    // 3 cm⁻¹ from the band ranks as on it, but the offset shown stays the true 3 cm⁻¹.
+    expect(near.find((s) => s.id === 'o')).toMatchObject({
+      listed: '1690 cm⁻¹',
+      offset: 3,
+      distance: 0,
+    });
+    expect(near.find((s) => s.id === 'g')).toMatchObject({ offset: 7 });
+  });
+});

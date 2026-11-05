@@ -181,6 +181,20 @@ textarea {
   margin-top: var(--space-4);
 }
 
+/*
+ * Space between tables, notes and the text around them, in every tool. Low specificity (one
+ * element or class), so layouts that set their own margin still win.
+ */
+:where(.table-scroll, .message, .field-hint, p) + .message,
+:where(.table-scroll, .message) + p {
+  margin-top: var(--space-2);
+}
+
+/* A sub-heading inside a results section starts a new block. */
+:where(p, .table-scroll, .message, div) + h4.export-title {
+  margin-top: var(--space-5);
+}
+
 /* Specificity matches the rule above, so this one, coming later, wins. */
 :is(.drop-zone, .paste-field, .peak-table-header, .process-step, .particle-step)
   > :is(.btn, .export-actions, .upload-actions, .clean-actions, .fit-actions) {

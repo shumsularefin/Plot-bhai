@@ -71,3 +71,19 @@
 .event-limits {
   align-items: end;
 }
+
+/* Assign steps: the same spacing between sections as the other steps. */
+.assign-step,
+.events-step {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.assign-step > section,
+.events-step > section {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
