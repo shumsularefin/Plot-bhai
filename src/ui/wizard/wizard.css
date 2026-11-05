@@ -480,12 +480,40 @@ html:has(.wizard-footer) {
   display: none;
 }
 
-/* Wide layout (kept last so it wins over the narrow rules above). */
-@container wizard (min-width: 46rem) {
+.wizard-sidebar-toggle,
+.wizard-rail-title {
+  display: none;
+}
+
+.sidebar-icon {
+  width: 1.125rem;
+  height: 0.875rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+}
+
+.wizard-rail-title {
+  margin-right: auto;
+  font-weight: var(--weight-bold);
+}
+
+.wizard-rail-title a {
+  color: var(--color-text-muted);
+  font-weight: var(--weight-regular);
+  text-decoration: none;
+}
+
+/*
+ * Wide layouts (kept last so they win over the narrow rules above). From 34rem the steps sit in
+ * a slim column of numbers beside the step; from 46rem they show their names and descriptions
+ * unless the user has folded the sidebar to the numbers (.is-rail) to focus on the step.
+ */
+@container wizard (min-width: 34rem) {
   .wizard {
-    grid-template-columns: 13.5rem minmax(0, 1fr);
+    grid-template-columns: 3rem minmax(0, 1fr);
     align-items: start;
-    gap: var(--space-6);
+    gap: var(--space-5);
   }
 
   /* A macOS source list: grey panel, steps as rows, the open one highlighted. */
@@ -494,7 +522,7 @@ html:has(.wizard-footer) {
     top: var(--space-4);
     max-height: calc(100dvh - 2 * var(--space-4));
     overflow: auto;
-    padding: var(--space-4) var(--space-3);
+    padding: var(--space-3) var(--space-1);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     background: var(--color-toolbar);
@@ -502,16 +530,11 @@ html:has(.wizard-footer) {
 
   .wizard-sidebar-head {
     display: grid;
-    gap: var(--space-1);
-    padding: 0 var(--space-2);
+    justify-items: center;
   }
 
-  .wizard-crumb {
-    display: block;
-  }
-
-  .wizard-sidebar .wizard-tool {
-    font-size: var(--text-xl);
+  .wizard-sidebar-head > :not(.wizard-sidebar-toggle) {
+    display: none;
   }
 
   .stepper-compact {
@@ -523,8 +546,96 @@ html:has(.wizard-footer) {
     gap: 2px;
   }
 
+  .stepper-target {
+    justify-content: center;
+    padding: var(--space-3) 0;
+  }
+
+  /* Names stay for screen readers (and as the hover hint) while only the numbers show. */
+  .stepper-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .stepper-item:not(:last-child)::after {
+    left: calc(50% - 0.5px);
+  }
+
+  .wizard-rail-title {
+    display: block;
+  }
+
   /* The compact stepper's "Step 2 of 8" line is gone; the step header says it instead. */
   .wizard-count {
     display: inline-block;
+  }
+}
+
+@container wizard (min-width: 46rem) {
+  .wizard-sidebar-toggle {
+    display: inline-block;
+    min-width: 0;
+  }
+
+  .wizard:not(.is-rail) {
+    grid-template-columns: 13.5rem minmax(0, 1fr);
+    gap: var(--space-6);
+  }
+
+  .wizard:not(.is-rail) .wizard-sidebar {
+    padding: var(--space-4) var(--space-3);
+  }
+
+  .wizard:not(.is-rail) .wizard-sidebar-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+    justify-items: stretch;
+    gap: var(--space-1);
+    padding: 0 0 0 var(--space-2);
+  }
+
+  .wizard:not(.is-rail) .wizard-sidebar-head > * {
+    display: block;
+    grid-column: 1;
+  }
+
+  .wizard:not(.is-rail) .wizard-sidebar-head > .wizard-saved {
+    display: flex;
+  }
+
+  .wizard:not(.is-rail) .wizard-sidebar-toggle {
+    display: inline-block;
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .wizard:not(.is-rail) .wizard-tool {
+    font-size: var(--text-xl);
+  }
+
+  .wizard:not(.is-rail) .stepper-target {
+    justify-content: flex-start;
+    padding: var(--space-3) var(--space-2);
+  }
+
+  .wizard:not(.is-rail) .stepper-text {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+  }
+
+  .wizard:not(.is-rail) .stepper-item:not(:last-child)::after {
+    left: calc(var(--space-2) + 0.6875rem - 0.5px);
+  }
+
+  .wizard:not(.is-rail) .wizard-rail-title {
+    display: none;
   }
 }

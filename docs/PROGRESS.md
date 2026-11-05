@@ -1,5 +1,19 @@
 # Progress
 
+## Foldable step sidebar; space above buttons under boxes (done)
+
+- The step sidebar can be folded to a slim column of step numbers (the sidebar button at its top,
+  like the macOS sidebar toggle) to give the step more room; the choice is kept in this browser.
+  Hovering a number shows the step name and what it does; screen readers still hear the names.
+  When the wizard is too narrow for the full sidebar (for example 1280 px with the plot pinned) the
+  number column appears on its own instead of the compact progress bar, and the toolbar row then
+  shows "Tools › tool name".
+- Buttons stacked right under a text box, table, drop area or note had no space above them (the
+  owner's example: Copy text under the methods text). One rule in base.css now adds space above
+  buttons and button rows that follow such content in normal flow; rows laid out by flex or grid
+  parents keep their own gap. A script walked every step of the tools with example data and found
+  no button closer than 6 px under the content above it (apart from inline "?" help icons).
+
 ## App-window layout for every tool: step sidebar, step header, tip tiles (done)
 
 The owner liked the macOS look and asked to rearrange the tool pages along the lines of three sample

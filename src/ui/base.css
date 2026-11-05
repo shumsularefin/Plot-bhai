@@ -162,6 +162,31 @@ textarea {
   font-size: var(--text-sm);
 }
 
+/*
+ * Breathing room between a block of content (a text box, a table, a note) and the buttons that
+ * act on it, wherever they are stacked in normal flow. Rows of buttons laid out by a flex or grid
+ * parent keep that parent's gap instead (the second rule).
+ */
+:is(p, h3, h4, ul, ol, textarea, .methods-text, .table-scroll, .drop-zone, .paste-box, .plot-panel)
+  + :is(
+    .btn,
+    .export-actions,
+    .upload-actions,
+    .clean-actions,
+    .fit-actions,
+    .edit-peak-actions,
+    .phase-card-actions,
+    .figure-buttons
+  ) {
+  margin-top: var(--space-4);
+}
+
+/* Specificity matches the rule above, so this one, coming later, wins. */
+:is(.drop-zone, .paste-field, .peak-table-header, .process-step, .particle-step)
+  > :is(.btn, .export-actions, .upload-actions, .clean-actions, .fit-actions) {
+  margin-top: 0;
+}
+
 .advanced {
   margin: var(--space-3) 0;
   border: 1px solid var(--color-border);

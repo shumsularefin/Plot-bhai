@@ -57,6 +57,8 @@ export function Stepper({ titles, summaries, current, furthest, onSelect }: Step
       <ol class="stepper-list">
         {titles.map((title, index) => {
           const state = index === current ? 'current' : index <= furthest ? 'reached' : 'todo';
+          // Shown on hover, which matters when the sidebar shows only the numbers.
+          const hint = summaries?.[index] ? `${title}: ${summaries[index]}` : title;
           const content = (
             <>
               <span class="stepper-number" aria-hidden="true">
@@ -71,13 +73,14 @@ export function Stepper({ titles, summaries, current, furthest, onSelect }: Step
           return (
             <li key={title} class={`stepper-item is-${state}`}>
               {state === 'todo' ? (
-                <span class="stepper-target" aria-disabled="true">
+                <span class="stepper-target" aria-disabled="true" title={hint}>
                   {content}
                 </span>
               ) : (
                 <button
                   type="button"
                   class="stepper-target"
+                  title={hint}
                   aria-current={index === current ? 'step' : undefined}
                   onClick={() => onSelect(index)}
                 >
