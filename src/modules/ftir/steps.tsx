@@ -12,6 +12,7 @@ export const ftirSteps: readonly WizardStep<FtirData>[] = [
   {
     id: 'upload',
     title: 'Upload',
+    summary: 'Load your spectra',
     guide: [
       'Drop your spectrum files on the box, or press Choose files (.csv, .txt, .dpt, .jdx).',
       'Only have a picture of a graph? Press Use a graph image.',
@@ -27,6 +28,7 @@ export const ftirSteps: readonly WizardStep<FtirData>[] = [
   {
     id: 'clean',
     title: 'Clean data',
+    summary: 'Baseline and smoothing',
     guide: [
       'Every switch is optional: turn on only what your spectra need.',
       'Usually: a baseline correction; smoothing only for noisy spectra.',
@@ -37,6 +39,7 @@ export const ftirSteps: readonly WizardStep<FtirData>[] = [
   {
     id: 'peaks',
     title: 'Pick peaks',
+    summary: 'Find the bands',
     guide: [
       'Peaks are picked automatically and marked on the plot.',
       'Move the prominence slider to keep more or fewer peaks; limit the range if needed.',
@@ -47,6 +50,7 @@ export const ftirSteps: readonly WizardStep<FtirData>[] = [
   {
     id: 'bands',
     title: 'Bands',
+    summary: 'Fit, areas and ratios',
     guide: [
       'Every section is optional; skip this step with Next if you only need the peak table.',
       'Subtraction: pick a reference spectrum and a range where only it absorbs, then Find k.',
@@ -59,6 +63,7 @@ export const ftirSteps: readonly WizardStep<FtirData>[] = [
   {
     id: 'assign',
     title: 'Assign groups',
+    summary: 'Suggest functional groups',
     guide: [
       'Each peak gets ranked suggestions of functional groups, from typical wavenumber ranges.',
       'Accept a suggestion, write your own label, or leave the peak unassigned.',
@@ -69,6 +74,7 @@ export const ftirSteps: readonly WizardStep<FtirData>[] = [
   {
     id: 'results',
     title: 'Results and export',
+    summary: 'Tables, figures and methods text',
     guide: [
       'Check the peak and assignment table.',
       'Download the CSV files and the figure, and copy the methods text.',

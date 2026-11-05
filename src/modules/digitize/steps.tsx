@@ -13,6 +13,7 @@ export function digitizeSteps({ axes, tool, figure }: DigitizeTarget): WizardSte
     {
       id: 'image',
       title: 'Image',
+      summary: 'Load, turn and crop a picture',
       guide: [
         `Drop or paste a picture of ${figure}, or press Choose an image.`,
         'Turn it if needed and crop to the plot area.',
@@ -27,6 +28,7 @@ export function digitizeSteps({ axes, tool, figure }: DigitizeTarget): WizardSte
     {
       id: 'axes',
       title: 'Calibrate axes',
+      summary: 'Click known axis values',
       guide: [
         `Click two labelled ticks on the ${axes.x} axis and type their values.`,
         `Do the same for two ticks on the ${axes.y} axis.`,
@@ -41,6 +43,7 @@ export function digitizeSteps({ axes, tool, figure }: DigitizeTarget): WizardSte
     {
       id: 'curve',
       title: 'Trace the curve',
+      summary: 'Click the curve to trace it',
       guide: [
         'Click on the curve to trace it.',
         'Fix mistakes with erase boxes or by adding points.',
@@ -53,6 +56,7 @@ export function digitizeSteps({ axes, tool, figure }: DigitizeTarget): WizardSte
     {
       id: 'send',
       title: `Add to ${tool}`,
+      summary: 'Send the data to the tool',
       guide: [
         `Check the name, then add the curve to your ${tool} analysis.`,
         'It is marked as approximate, because it was read from a picture.',

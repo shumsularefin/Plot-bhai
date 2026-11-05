@@ -19,6 +19,8 @@ export interface WizardStep<D> {
   id: string;
   /** Full title, shown as the step heading. */
   title: string;
+  /** A few words on what the step does, shown under its name in the step list. */
+  summary?: string;
   render: (context: StepContext<D>) => ComponentChildren;
   /** Short instructions shown at the top of the step: what to do, in order. */
   guide?: readonly string[];

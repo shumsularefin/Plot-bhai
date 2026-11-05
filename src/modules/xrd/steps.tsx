@@ -16,6 +16,7 @@ export const xrdSteps: readonly WizardStep<XrdData>[] = [
   {
     id: 'upload',
     title: 'Upload',
+    summary: 'Load your XRD patterns',
     guide: [
       'Drop your pattern files on the box, or press Choose files (.xy, .csv, .xrdml, .ras and more).',
       'Only have a picture of a graph? Press Use a graph image.',
@@ -31,6 +32,7 @@ export const xrdSteps: readonly WizardStep<XrdData>[] = [
   {
     id: 'clean',
     title: 'Clean data',
+    summary: 'Background, smoothing and Kα2',
     guide: [
       'Every switch is optional: turn on only what your data need.',
       'Usually: remove the background, and strip Kα2 if your peaks look doubled at high angles.',
@@ -41,6 +43,7 @@ export const xrdSteps: readonly WizardStep<XrdData>[] = [
   {
     id: 'material',
     title: 'Choose material',
+    summary: 'Elements, formula or CIF',
     guide: [
       'Click the elements of your sample in the periodic table, or type a formula (BiVO4) or COD number in the search bar.',
       'Press Search, then Add the structures that might be in your sample.',
@@ -51,6 +54,7 @@ export const xrdSteps: readonly WizardStep<XrdData>[] = [
   {
     id: 'phases',
     title: 'Compare reference phases',
+    summary: 'Match reference patterns',
     guide: [
       "Each phase's reference lines are drawn under your pattern; solid lines have a peak in your data, dashed ones do not.",
       'Pick a phase under Compare to draw its lines through your pattern.',
@@ -61,6 +65,7 @@ export const xrdSteps: readonly WizardStep<XrdData>[] = [
   {
     id: 'rietveld',
     title: 'Rietveld refinement (optional)',
+    summary: 'Refine cell and phase fractions',
     guide: [
       'This step is optional: press Next to skip it.',
       'To refine, keep the cleaned data, tick the phases and press Refine.',
@@ -71,6 +76,7 @@ export const xrdSteps: readonly WizardStep<XrdData>[] = [
   {
     id: 'fit',
     title: 'Fit peaks',
+    summary: 'Peak positions and widths',
     guide: [
       'Peaks are found automatically (circles). Move the prominence slider to find more or fewer.',
       'Press Fit peaks. The fit adds peaks it missed and removes noise on its own; read the note it shows.',
@@ -81,6 +87,7 @@ export const xrdSteps: readonly WizardStep<XrdData>[] = [
   {
     id: 'instrument',
     title: 'Instrument correction',
+    summary: 'Remove instrument broadening',
     guide: [
       'Peaks are widened by the instrument too; remove that part for a true crystallite size.',
       'Best: load a standard (LaB₆ or Si) measured on the same instrument. Or type a known instrument width.',
@@ -92,6 +99,7 @@ export const xrdSteps: readonly WizardStep<XrdData>[] = [
   {
     id: 'results',
     title: 'Results',
+    summary: 'Size, strain and lattice',
     guide: [
       'Read the At a glance box first.',
       'Switch between Size and strain, Phases, (hkl) and lattice, and Texture and crystallinity.',
@@ -102,6 +110,7 @@ export const xrdSteps: readonly WizardStep<XrdData>[] = [
   {
     id: 'export',
     title: 'Export for your paper',
+    summary: 'Figures, tables and methods text',
     guide: [
       'Download the figure as SVG or PNG at the journal width you need.',
       'Copy the methods text and check it against your experiment.',

@@ -20,6 +20,7 @@
   --color-accent-soft: #e8f1fc;
   --color-on-accent: #ffffff;
   --color-danger: #b42318;
+  --color-success: #248a3d;
   --color-focus: #0068da;
   --color-control: #ffffff;
   --color-control-active: #e6e6e6;
@@ -137,6 +138,7 @@
     --color-accent-soft: #0b2a4a;
     --color-on-accent: #000000;
     --color-danger: #ff6961;
+    --color-success: #30d158;
     --color-focus: #2997ff;
     --color-control: #5a5a5e;
     --color-control-active: #707075;
@@ -165,6 +167,7 @@
   --color-accent-soft: #0b2a4a;
   --color-on-accent: #000000;
   --color-danger: #ff6961;
+  --color-success: #30d158;
   --color-focus: #2997ff;
   --color-control: #5a5a5e;
   --color-control-active: #707075;

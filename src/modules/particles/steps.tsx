@@ -10,6 +10,7 @@ export const particleSteps: readonly WizardStep<ParticleData>[] = [
   {
     id: 'upload',
     title: 'Upload',
+    summary: 'Load SEM or TEM images',
     guide: [
       'Drop an SEM or TEM image on the box, or press Choose an image (PNG, JPEG or TIFF).',
       'No image at hand? Press Try with example data.',
@@ -24,6 +25,7 @@ export const particleSteps: readonly WizardStep<ParticleData>[] = [
   {
     id: 'scale',
     title: 'Crop and scale',
+    summary: 'Set the scale bar',
     guide: [
       'Crop away the info bar if the image has one.',
       'Choose Draw the scale bar and drag along the bar printed on the image.',
@@ -34,6 +36,7 @@ export const particleSteps: readonly WizardStep<ParticleData>[] = [
   {
     id: 'detect',
     title: 'Find the particles',
+    summary: 'Detect or draw particles',
     guide: [
       'Choose Detect automatically, or Draw by hand to outline every particle yourself.',
       'Automatic: tick "darker than the background" for TEM images, then press Detect particles. For clumps, press "Separate the clumps" when it is offered.',
@@ -45,6 +48,7 @@ export const particleSteps: readonly WizardStep<ParticleData>[] = [
   {
     id: 'results',
     title: 'Distribution and export',
+    summary: 'Histogram and statistics',
     guide: [
       'Choose which particles go into the distribution.',
       'Read the mean size and the histogram.',

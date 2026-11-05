@@ -1,5 +1,29 @@
 # Progress
 
+## App-window layout for every tool: step sidebar, step header, tip tiles (done)
+
+The owner liked the macOS look and asked to rearrange the tool pages along the lines of three sample
+screenshots (sidebar workflow, step panel, plot on the right), keeping the macOS style.
+
+- Every wizard now has a sidebar like a macOS source list: Tools › tool name, "Saved on this device"
+  (or "Not saved in this browser" when storage is blocked), and every step as a row with its number,
+  name and a few words on what it does, joined by a line. The open step is highlighted; reached steps
+  can be clicked. The pinned plot stays on the right, so wide screens show three columns.
+- The sidebar appears when the wizard itself has room (a container query at 46rem), not at a fixed
+  screen width, so it adapts to the pinned plot. Narrower layouts keep the compact "Step 2 of 8" bar.
+  The pinned plot is a little narrower (38 % of the window instead of 46 %) so the sidebar fits from
+  about 1440 px.
+- The open step has a header: its number in a soft accent square, its name, the same short
+  description and "Step 3 of 9" (in the sidebar layout).
+- "How to do this step" is a grey grouped box with numbered tiles side by side when there is room.
+- Advanced options, Undo, Redo, Start over and Validate are a toolbar row above the step.
+- Back and Next carry chevrons one capital letter tall on the text baseline; their names stay "Back"
+  and "Next" for screen readers and tests.
+- WizardStep has a new optional `summary`; every step of all eleven wizards has one, written from the
+  step's own instructions. New token `--color-success` for the saved dot.
+- Checks: lint, type check, 912 tests (911 passed, 1 skipped; one new test for the sidebar), build,
+  size budget and e2e all pass. Checked by screenshot at 390, 1280, 1440 and 1920 px, light and dark.
+
 ## Graph editor in every mode, with more drawing tools (done)
 
 - The graph editor ("Edit graph") now shows in Simple mode too; before, it sat inside an Advanced section and disappeared unless Advanced options was on.
