@@ -99,8 +99,52 @@ export interface RegionFit {
   uncertaintiesOk: boolean;
   converged: boolean;
   iterations: number;
-  messages: DataMessage[];
+  messages: RegionMessage[];
 }
+
+/** Kinds of warning about a whole fit region, so a summary can name each one briefly. */
+export type RegionCheck =
+  | 'too-few-points'
+  | 'not-converged'
+  | 'low-r-squared'
+  | 'misfit'
+  | 'background-low'
+  | 'no-uncertainties';
+
+export interface RegionMessage extends DataMessage {
+  check: RegionCheck;
+}
+
+/** A short name for each region check and what it means, written once for a summary table. */
+export const REGION_CHECKS: Record<RegionCheck, { label: string; meaning: string }> = {
+  'too-few-points': {
+    label: 'Too few points',
+    meaning: 'The region has too few data points for the number of peaks in it.',
+  },
+  'not-converged': {
+    label: 'Did not converge',
+    meaning: 'The fit stopped before it settled, so its results may be unreliable.',
+  },
+  'low-r-squared': {
+    label: 'R² below 0.9',
+    meaning: 'The model does not describe the region well. Check for missing or extra peaks.',
+  },
+  misfit: {
+    label: 'Misses structure',
+    meaning:
+      'χ²ν above 4: the residual is more than twice the noise of the data, so the model misses real structure (an unresolved peak, a shoulder or the wrong profile shape). Look at the residual plot.',
+  },
+  'background-low': {
+    label: 'Background too low',
+    meaning:
+      'The straight background lies well below the data at the ends of the region, so a broad peak fills the gap. Add the missing peaks or remove the broad one, and fit again.',
+  },
+  'no-uncertainties': {
+    label: 'No uncertainties',
+    meaning:
+      'Some fit parameters are not independent (for example two peaks on top of each other), so uncertainties are shown as n/a. Remove or merge peaks and fit again.',
+  },
+};
 
 /** χ²ν above this (residual more than twice the noise) is reported as a misfit. */
 const CHI_SQUARED_HIGH = 4;
@@ -167,7 +211,7 @@ export function fitRegion(
   const m = 2 + PARAMS_PER_PEAK * k;
   const step = n > 1 ? ((xs[n - 1] as number) - (xs[0] as number)) / (n - 1) : 1;
   const pivot = ((xs[0] as number) + (xs[n - 1] as number)) / 2;
-  const messages: DataMessage[] = [];
+  const messages: RegionMessage[] = [];
 
   if (n < m + 2) {
     return {
@@ -184,6 +228,7 @@ export function fitRegion(
       messages: [
         {
           level: 'error',
+          check: 'too-few-points',
           text: `Too few data points (${n}) to fit ${k} peak${k === 1 ? '' : 's'} here.`,
         },
       ],
@@ -366,12 +411,14 @@ export function fitRegion(
   if (!result.converged) {
     messages.push({
       level: 'warning',
+      check: 'not-converged',
       text: `The fit did not converge within ${result.iterations} iterations, so results may be unreliable.`,
     });
   }
   if (rSquared < 0.9) {
     messages.push({
       level: 'warning',
+      check: 'low-r-squared',
       text: 'R² is below 0.9: the model does not describe this region well. Check for missing or extra peaks.',
     });
   }
@@ -383,6 +430,7 @@ export function fitRegion(
   if (reducedChiSquared > CHI_SQUARED_HIGH) {
     messages.push({
       level: 'warning',
+      check: 'misfit',
       text: `χ²ν = ${reducedChiSquared.toFixed(1)}: the residual is more than twice the noise of the data, so the model misses real structure here (an unresolved peak, a shoulder or the wrong profile shape). Look at the residual plot.`,
     });
   }
@@ -390,12 +438,14 @@ export function fitRegion(
   if (backgroundTooLow(xs, ys, background, noiseSd)) {
     messages.push({
       level: 'warning',
+      check: 'background-low',
       text: 'The straight background of this region lies well below the data at its ends, so a broad peak is filling the gap. The components are then not meaningful: add the missing peaks or remove the broad one, and fit again.',
     });
   }
   if (!result.covarianceOk) {
     messages.push({
       level: 'warning',
+      check: 'no-uncertainties',
       text: 'The uncertainties could not be calculated because some fit parameters are not independent (for example two peaks on top of each other). They are shown as n/a; remove or merge peaks and fit again.',
     });
   }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { DetectionOptions } from '../../core/xrd/peaks/detect';
 import {
   peakValue,
+  REGION_CHECKS,
   regionValue,
   type FitOptions,
   type PeakGuess,
@@ -617,6 +618,10 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
 }
 
 function RegionSummary({ regions }: { regions: readonly RegionFit[] }) {
+  // Each kind of warning is explained once under the table, not on every row.
+  const flagged = [
+    ...new Set(regions.flatMap((r) => r.messages.flatMap((m) => (m.check ? [m.check] : [])))),
+  ];
   return (
     <section class="region-summary" aria-labelledby="regions-title">
       <h3 id="regions-title" class="export-title">
@@ -635,24 +640,57 @@ function RegionSummary({ regions }: { regions: readonly RegionFit[] }) {
           </p>
         </HelpTip>
       </h3>
-      <ul class="region-list">
-        {regions.map((r, i) => (
-          <li key={i}>
-            <span class="region-range">
-              {r.start.toFixed(2)}–{r.end.toFixed(2)}°
-            </span>{' '}
-            {r.peaks.length} peak{r.peaks.length === 1 ? '' : 's'}, R² ={' '}
-            {Number.isFinite(r.rSquared) ? r.rSquared.toFixed(4) : '–'}, χ²ν ={' '}
-            {Number.isFinite(r.reducedChiSquared) ? r.reducedChiSquared.toFixed(2) : '–'}
-            {r.messages.map((m, k) => (
-              <span key={k} class={`message is-${m.level}`}>
-                {' '}
-                {m.text}
-              </span>
+      <div class="table-scroll" role="region" aria-label="Fit regions" tabIndex={0}>
+        <table class="peak-table region-table">
+          <thead>
+            <tr>
+              <th scope="col">2θ range (°)</th>
+              <th scope="col">Peaks</th>
+              <th scope="col">R²</th>
+              <th scope="col">
+                χ<sup>2</sup>
+                <sub>ν</sub>
+              </th>
+              <th scope="col">Check</th>
+            </tr>
+          </thead>
+          <tbody>
+            {regions.map((r, i) => (
+              <tr key={i}>
+                <td>
+                  {r.start.toFixed(2)}–{r.end.toFixed(2)}
+                </td>
+                <td>{r.peaks.length}</td>
+                <td>{Number.isFinite(r.rSquared) ? r.rSquared.toFixed(4) : '–'}</td>
+                <td>
+                  {Number.isFinite(r.reducedChiSquared) ? r.reducedChiSquared.toFixed(2) : '–'}
+                </td>
+                <td>
+                  {r.messages.length === 0 ? (
+                    <span class="region-ok">Good</span>
+                  ) : (
+                    r.messages.map((m, k) => (
+                      <span key={k} class={`region-flag is-${m.level}`}>
+                        {m.check ? REGION_CHECKS[m.check].label : m.text}
+                      </span>
+                    ))
+                  )}
+                </td>
+              </tr>
             ))}
-          </li>
-        ))}
-      </ul>
+          </tbody>
+        </table>
+      </div>
+      {flagged.length > 0 && (
+        <dl class="region-meanings">
+          {flagged.map((check) => (
+            <div key={check}>
+              <dt>{REGION_CHECKS[check].label}</dt>
+              <dd>{REGION_CHECKS[check].meaning}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
     </section>
   );
 }

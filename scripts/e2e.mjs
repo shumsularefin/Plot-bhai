@@ -149,7 +149,7 @@ async function walkToExport(log) {
     },
   );
   await fit.click();
-  await page.locator('.peak-table').waitFor({ timeout: 60_000 });
+  await page.locator('.peak-table:not(.region-table)').waitFor({ timeout: 60_000 });
   note('6 Fit peaks: peak table shown');
   await next('Instrument correction');
 

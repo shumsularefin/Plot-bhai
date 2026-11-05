@@ -434,23 +434,51 @@
   min-width: 0;
 }
 
-.region-list {
-  display: grid;
-  gap: var(--space-1);
-  margin: 0;
-  padding-left: var(--space-4);
-  font-size: var(--text-sm);
-  font-variant-numeric: tabular-nums;
+.region-table td:last-child {
+  white-space: normal;
 }
 
-.region-list .message {
-  border-left: 0;
-  padding-left: 0;
+.region-ok {
+  color: var(--color-text-muted);
 }
 
-.region-list .message.is-warning {
+/* Short labels for the region checks, explained once under the table. */
+.region-flag {
+  display: inline-block;
+  margin: 1px var(--space-1) 1px 0;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
   color: var(--color-text);
+  font-size: var(--text-xs);
   font-weight: var(--weight-medium);
+  line-height: 1.6;
+}
+
+.region-flag.is-error {
+  color: var(--color-danger);
+}
+
+.region-meanings {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.region-meanings dt {
+  display: inline;
+  font-weight: var(--weight-bold);
+}
+
+.region-meanings dt::after {
+  content: ': ';
+}
+
+.region-meanings dd {
+  display: inline;
+  margin: 0;
+  color: var(--color-text-muted);
 }
 
 .peak-table-header {
@@ -873,8 +901,15 @@
   margin-top: 2rem;
 }
 
-.assign-list,
-.suggestion-list {
+/*
+ * Even space between the parts of a results or export section (heading, text, tables, notes).
+ * Zero specificity, so the larger space above buttons and any element's own margin still win.
+ */
+:where(.export-step > section) > * + * {
+  margin-top: var(--space-2);
+}
+
+.assign-list {
   display: grid;
   gap: var(--space-3);
   margin: 0;
@@ -882,7 +917,8 @@
   list-style: none;
 }
 
-.assign-row {
+.assign-row,
+.step-card {
   display: grid;
   gap: var(--space-2);
   padding: var(--space-3);
@@ -890,17 +926,72 @@
   border-radius: var(--radius-md);
 }
 
-.assign-peak {
+.assign-peak,
+.step-card > h4 {
   margin: 0;
   font-size: var(--text-md);
+}
+
+.step-card > p {
+  margin: 0;
+}
+
+.step-card + .step-card {
+  margin-top: var(--space-3);
+}
+
+/* Ranked suggestions: name and confidence on top, the reason under it, Accept on the right. */
+.candidate-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  counter-reset: candidate;
+}
+
+.candidate-list > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-4);
+  align-items: center;
+  padding: var(--space-3);
+  counter-increment: candidate;
+}
+
+.candidate-list > li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+.candidate-list > li > p {
+  grid-column: 1;
+  margin: 0;
+}
+
+.candidate-list > li > p:first-child::before {
+  content: counter(candidate) '. ';
+  font-weight: var(--weight-bold);
+}
+
+.candidate-list > li > .btn {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  margin: 0;
 }
 
 .assign-row .inline-field input {
   min-width: 14rem;
 }
 
-.suggestion-list {
-  gap: var(--space-2);
+/* Suggestion name left, wrapping; the Accept button sits in the last column. */
+.suggestion-table th[scope='row'] {
+  white-space: normal;
+  text-align: left;
+  font-weight: var(--weight-medium);
+}
+
+.suggestion-table td:last-child {
+  text-align: right;
 }
 
 .quantity-choice {
