@@ -24,6 +24,9 @@
  *   Caglioti relation H² = U tan²θ + V tanθ + W (H in degrees 2θ, U, V, W in deg²). η is the
  *   Lorentzian fraction (0 to 1). Ω is cut off at ±25 H (the Lorentzian tails beyond hold about
  *   1.3 % of its area).
+ * - TCH profile (optional, GSAS-II's peak shape): the Gaussian width follows the Caglioti relation
+ *   above, H_G² = U tan²θ + V tanθ + W, the Lorentzian width H_L = X/cosθ + Y tanθ (degrees), and
+ *   H and η come from the Thompson–Cox–Hastings formulas (tch.ts) instead of a refined η.
  * - Peak asymmetry (optional, off unless refined): Ω is multiplied by the Bérar–Baldinozzi
  *   correction (J.-F. Bérar and G. Baldinozzi, J. Appl. Cryst. 26 (1993) 128–129), in the form of
  *   the FullProf manual (eq. 3.29) with its 1/tan θ terms:
@@ -38,10 +41,13 @@
  */
 
 import { dSpacing, lorentzPolarisation, reciprocalMetric, type Cell } from '../reference/powder';
+import { tchEta, tchFwhm } from './tch';
 import { cellFromParameters, cellParameterNames, type CellKind } from './cell';
 import type { Hkl, RefinementReflection } from './reflections';
 import {
   atomPosition,
+  atomTensor,
+  rotateTensor,
   structureFactorSquared,
   type AtomState,
   type StructureModel,
@@ -58,6 +64,8 @@ export interface PhaseModel {
   orientation: Hkl | null;
   /** Atoms, when the structure is refined: Σ|F|² is then calculated (structure.ts). */
   structure?: StructureModel;
+  /** Thompson–Cox–Hastings profile (GSAS-II) instead of the single-width pseudo-Voigt. */
+  tch?: boolean;
 }
 
 export interface Wavelengths {
@@ -87,12 +95,15 @@ export interface PhaseLayout {
   v: number;
   w: number;
   eta: number;
+  /** TCH Lorentzian widths X, Y (degrees), used only with the TCH profile. */
+  lx: number;
+  ly: number;
   orientation: number;
   b: number;
   /** Bérar–Baldinozzi asymmetry P1 and P2. */
   asymmetry: [number, number];
   /** Per atom of the structure (empty without one): free coordinate coefficients, occupancy, B. */
-  atoms: { coords: number[]; occupancy: number; b: number }[];
+  atoms: { coords: number[]; occupancy: number; b: number; aniso: number[] }[];
 }
 
 export function makeLayout(phases: readonly PhaseModel[], backgroundTerms: number): Layout {
@@ -108,6 +119,8 @@ export function makeLayout(phases: readonly PhaseModel[], backgroundTerms: numbe
     v: take(),
     w: take(),
     eta: take(),
+    lx: take(),
+    ly: take(),
     orientation: take(),
     b: take(),
     asymmetry: [take(), take()] as [number, number],
@@ -115,6 +128,7 @@ export function makeLayout(phases: readonly PhaseModel[], backgroundTerms: numbe
       coords: atom.basis.map(take),
       occupancy: take(),
       b: take(),
+      aniso: atom.uBasis.map(take),
     })),
   }));
   return { zero, displacement, background, phases: phaseLayouts, size: next };
@@ -219,6 +233,10 @@ export function phaseCell(phase: PhaseModel, layout: PhaseLayout, p: Float64Arra
 export function atomStates(phase: PhaseModel, layout: PhaseLayout, p: Float64Array): AtomState[] {
   return (phase.structure?.atoms ?? []).map((atom, a) => {
     const al = layout.atoms[a] as PhaseLayout['atoms'][number];
+    const u = atomTensor(
+      atom,
+      al.aniso.map((j) => p[j] as number),
+    );
     return {
       x: atomPosition(
         atom,
@@ -226,6 +244,7 @@ export function atomStates(phase: PhaseModel, layout: PhaseLayout, p: Float64Arr
       ),
       occupancy: p[al.occupancy] as number,
       b: p[al.b] as number,
+      ...(u && { uImages: atom.images.map((image) => rotateTensor(image.op.rot, u)) }),
     };
   });
 }
@@ -248,6 +267,8 @@ export function placePeaks(
   const v = p[pl.v] as number;
   const w = p[pl.w] as number;
   const eta = Math.min(1, Math.max(0, p[pl.eta] as number));
+  const lx = p[pl.lx] as number;
+  const ly = p[pl.ly] as number;
   const r = p[pl.orientation] as number;
   const b = p[pl.b] as number;
   const p1 = p[pl.asymmetry[0]] as number;
@@ -277,13 +298,21 @@ export function placePeaks(
       const theta = Math.asin(s);
       const tan = Math.tan(theta);
       const h2 = u * tan * tan + v * tan + w;
+      let fwhm = Math.sqrt(Math.max(h2, 1e-8));
+      let mix = eta;
+      if (phase.tch) {
+        const hl = Math.max(0, lx / Math.cos(theta) + ly * tan);
+        const hg = fwhm;
+        fwhm = tchFwhm(hg, hl);
+        mix = tchEta(hl / fwhm);
+      }
       out.push({
         phase: index,
         reflection: k,
         twoTheta: (2 * theta) / RAD + zero + displacement * Math.cos(theta),
         area: common * weight * lorentzPolarisation(theta),
-        fwhm: Math.sqrt(Math.max(h2, 1e-8)),
-        eta,
+        fwhm,
+        eta: mix,
         asymmetry: [p1 / tan, p2 / tan],
         line: line as 0 | 1,
       });

@@ -25,26 +25,13 @@
  */
 
 import type { Cell } from '../reference/powder';
+import { tchEta, tchFwhm } from '../rietveld/tch';
 import type { StoredStructure } from '../reference/types';
 
 const RAD = Math.PI / 180;
 const LN2_8 = 8 * Math.LN2;
 
-/** TCH mixing η for q = H_L/H. */
-export const tchEta = (q: number) => 1.36603 * q - 0.47719 * q * q + 0.11116 * q ** 3;
-
-/** TCH total FWHM from the Gaussian and Lorentzian FWHMs (any one unit). */
-export function tchFwhm(hg: number, hl: number): number {
-  return (
-    (hg ** 5 +
-      2.69269 * hg ** 4 * hl +
-      2.42843 * hg ** 3 * hl ** 2 +
-      4.47163 * hg ** 2 * hl ** 3 +
-      0.07842 * hg * hl ** 4 +
-      hl ** 5) **
-    0.2
-  );
-}
+export { tchEta, tchFwhm };
 
 /** Bisection for an increasing function on [0, 1]. */
 function solve(f: (t: number) => number, target: number): number {
@@ -119,6 +106,24 @@ export function tchFromPseudoVoigt(
     etaError = Math.max(etaError, Math.abs(tchEta(hl / 100 / h) - eta));
   }
   return { ...out, fwhmError, etaError };
+}
+
+/**
+ * Exact GSAS-II parameters for a refinement made with the TCH profile here, where H_G² =
+ * U tan²θ + V tanθ + W (deg²) and H_L = X/cosθ + Y tanθ (deg): σ² = H_G²/(8 ln 2) in centideg²
+ * and γ = H_L in centideg.
+ */
+export function tchExact(p: { u: number; v: number; w: number; x: number; y: number }): TchProfile {
+  const g = 1e4 / LN2_8;
+  return {
+    u: g * p.u,
+    v: g * p.v,
+    w: g * p.w,
+    x: 100 * p.x,
+    y: 100 * p.y,
+    fwhmError: 0,
+    etaError: 0,
+  };
 }
 
 export interface InstprmInput {

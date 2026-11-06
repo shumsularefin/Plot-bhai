@@ -51,7 +51,7 @@ import {
   type Wavelengths,
 } from './model';
 import { refinementReflections, type Hkl } from './reflections';
-import { restraintResiduals, structureModel } from './structure';
+import { positiveDefinite, restraintResiduals, structureModel } from './structure';
 
 export interface RietveldPhaseInput {
   id: string;
@@ -83,12 +83,16 @@ export interface RefineChoices {
   overallB: boolean;
   /** Bérar–Baldinozzi peak asymmetry P1, P2 of every phase (see model.ts). */
   asymmetry: boolean;
+  /** Thompson–Cox–Hastings profile (GSAS-II's) instead of one width and a refined η. */
+  tch?: boolean;
   /** Structure refinement (Advanced): free atom coordinates. */
   positions?: boolean;
   /** Structure refinement: site occupancies. */
   occupancy?: boolean;
   /** Structure refinement: isotropic displacement B of each isotropic atom. */
   biso?: boolean;
+  /** Structure refinement: anisotropic U_ij of every atom (isotropic ones are converted). */
+  aniso?: boolean;
   /** Bond-length restraints to the starting structure while positions are refined. */
   restraints?: boolean;
 }
@@ -127,8 +131,12 @@ export interface AtomResult {
   /** Fractional coordinates; refined only along the directions the site symmetry leaves free. */
   x: [Estimate, Estimate, Estimate];
   occupancy: Estimate;
-  /** Isotropic B (Å²); NaN value for anisotropic atoms, whose displacement is kept. */
+  /** Isotropic B (Å²); NaN value for anisotropic atoms. */
   b: Estimate;
+  /** Anisotropic U (CIF U11, U22, U33, U12, U13, U23; Å²), or null for isotropic atoms. */
+  u: Estimate[] | null;
+  /** False when the refined anisotropic U is not positive definite (physically impossible). */
+  positiveDefinite: boolean;
 }
 
 export interface Estimate {
@@ -150,7 +158,13 @@ export interface RietveldPhaseResult {
   u: Estimate;
   v: Estimate;
   w: Estimate;
+  /** η of the pseudo-Voigt; NaN with the TCH profile, where η follows from X, Y and U, V, W. */
   eta: Estimate;
+  /** TCH Lorentzian X, Y (degrees); 0 and fixed without the TCH profile. */
+  x: Estimate;
+  y: Estimate;
+  /** True when the TCH profile was used (then U, V, W are the Gaussian widths). */
+  tch: boolean;
   /** March–Dollase r, or null when the phase has no preferred direction. */
   orientation: Estimate | null;
   orientationDirection: Hkl | null;
@@ -259,7 +273,9 @@ export function refineRietveld(
   // Reflections that can appear in the data range: d down to λ / (2 sin θ_max), with 1° to spare.
   const thetaMax = (Math.min((x[n - 1] as number) + 1, 179) * Math.PI) / 360;
   const dMin = wavelengths.kAlpha1 / (2 * Math.sin(thetaMax));
-  const wantsStructure = Boolean(choices.positions || choices.occupancy || choices.biso);
+  const wantsStructure = Boolean(
+    choices.positions || choices.occupancy || choices.biso || choices.aniso,
+  );
   const noStructure: string[] = [];
   const phases: PhaseModel[] = input.phases.map((phase) => {
     const kind = cellKind(phase.crystalSystem, phase.cell);
@@ -267,7 +283,13 @@ export function refineRietveld(
     if (wantsStructure) {
       try {
         if (!phase.structure || !input.factors) throw new Error('no structure');
-        structure = structureModel(phase.cell, phase.structure, input.factors, input.radii ?? {});
+        structure = structureModel(
+          phase.cell,
+          phase.structure,
+          input.factors,
+          input.radii ?? {},
+          choices.aniso === true,
+        );
       } catch {
         noStructure.push(phase.name);
       }
@@ -280,6 +302,7 @@ export function refineRietveld(
       reflections: refinementReflections(phase.peaks, phase.cell, kind, dMin),
       orientation: phase.orientation,
       ...(structure && { structure }),
+      ...(choices.tch && { tch: true }),
     };
   });
   const empty = phases.find((phase) => phase.reflections.length === 0);
@@ -322,6 +345,8 @@ export function refineRietveld(
     bound(pl.v, -2, 2, 0, 0.01);
     bound(pl.w, 1e-6, 2, 0.01, 0.01);
     bound(pl.eta, 0, 1, 0.5, 0.1);
+    bound(pl.lx, 0, 2, choices.tch ? 0.02 : 0, 0.01);
+    bound(pl.ly, -1, 2, 0, 0.01);
     bound(pl.orientation, 0.3, 3, 1, 1);
     bound(pl.b, -2, 10, 0, 1);
     for (const j of pl.asymmetry) bound(j, -1, 1, 0, 0.01);
@@ -330,6 +355,7 @@ export function refineRietveld(
       for (const j of al.coords) bound(j, -0.1, 0.1, 0, 0.001);
       bound(al.occupancy, 0, Math.max(1, atom.occupancy0), atom.occupancy0, 0.01);
       bound(al.b, Math.min(0, atom.b0), 20, atom.b0, 0.1);
+      for (const j of al.aniso) bound(j, -0.05, 0.05, 0, 0.001);
     });
   });
 
@@ -357,6 +383,8 @@ export function refineRietveld(
     labels[pl.v] = `${phase.name}: V`;
     labels[pl.w] = `${phase.name}: W`;
     labels[pl.eta] = `${phase.name}: η`;
+    labels[pl.lx] = `${phase.name}: X`;
+    labels[pl.ly] = `${phase.name}: Y`;
     labels[pl.orientation] = `${phase.name}: March–Dollase r`;
     labels[pl.b] = `${phase.name}: B`;
     labels[pl.asymmetry[0]] = `${phase.name}: asymmetry P1`;
@@ -366,6 +394,7 @@ export function refineRietveld(
       al.coords.forEach((j, c) => (labels[j] = `${phase.name}: ${atom.label} position ${c + 1}`));
       labels[al.occupancy] = `${phase.name}: ${atom.label} occupancy`;
       labels[al.b] = `${phase.name}: ${atom.label} B`;
+      al.aniso.forEach((j, c) => (labels[j] = `${phase.name}: ${atom.label} U term ${c + 1}`));
     });
   });
 
@@ -380,10 +409,12 @@ export function refineRietveld(
       pl.v,
       pl.w,
       pl.eta,
+      pl.lx,
+      pl.ly,
       pl.orientation,
       pl.b,
       ...pl.asymmetry,
-      ...pl.atoms.flatMap((al) => [...al.coords, al.occupancy, al.b]),
+      ...pl.atoms.flatMap((al) => [...al.coords, al.occupancy, al.b, ...al.aniso]),
     ])
       phaseOf[j] = k;
   });
@@ -542,13 +573,13 @@ export function refineRietveld(
     );
   if (choices.width)
     stage(
-      'Peak width (W) and shape (η)',
-      layout.phases.flatMap((pl) => [pl.w, pl.eta]),
+      choices.tch ? 'Peak width (W) and Lorentzian width (X)' : 'Peak width (W) and shape (η)',
+      layout.phases.flatMap((pl) => [pl.w, choices.tch ? pl.lx : pl.eta]),
     );
   if (choices.widthSlope)
     stage(
-      'Width against angle (U, V)',
-      layout.phases.flatMap((pl) => [pl.u, pl.v]),
+      choices.tch ? 'Width against angle (U, V, Y)' : 'Width against angle (U, V)',
+      layout.phases.flatMap((pl) => (choices.tch ? [pl.u, pl.v, pl.ly] : [pl.u, pl.v])),
     );
   if (choices.asymmetry)
     stage(
@@ -598,6 +629,11 @@ export function refineRietveld(
         structured.flatMap(({ phase, pl }) =>
           pl.atoms.flatMap((al, a) => (phase.structure?.atoms[a]?.anisotropic ? [] : [al.b])),
         ),
+      );
+    if (choices.aniso)
+      stage(
+        'Anisotropic displacement (U_ij)',
+        structured.flatMap(({ pl }) => pl.atoms.flatMap((al) => al.aniso)),
       );
     progress('Final cycles with the structure');
     final = run([...mask], 200);
@@ -762,6 +798,26 @@ export function refineRietveld(
             x,
             occupancy: estimate(al.occupancy),
             b: atom.anisotropic ? { value: NaN, esd: 0, refined: false } : estimate(al.b),
+            u: atom.uCif0
+              ? atom.uCif0.map((u0, q) => {
+                  // U_q = U0_q + Σ_k c_k V_kq, var(U_q) = Σ_kl V_kq V_lq cov(c_k, c_l).
+                  let value = u0;
+                  let variance = 0;
+                  al.aniso.forEach((jk, kk) => {
+                    const vk = (atom.uBasisCif[kk] as number[])[q] as number;
+                    value += (params[jk] as number) * vk;
+                    al.aniso.forEach(
+                      (jl, ll) =>
+                        (variance +=
+                          vk * ((atom.uBasisCif[ll] as number[])[q] as number) * cov(jk, jl)),
+                    );
+                  });
+                  const refined =
+                    al.aniso.some((j) => mask[j]) && atom.uBasisCif.some((v) => v[q] !== 0);
+                  return { value, esd: refined ? Math.sqrt(Math.max(variance, 0)) : 0, refined };
+                })
+              : null,
+            positiveDefinite: state.uImages?.[0] ? positiveDefinite(state.uImages[0]) : true,
           };
         })
       : null;
@@ -779,7 +835,10 @@ export function refineRietveld(
       u: estimate(pl.u),
       v: estimate(pl.v),
       w: estimate(pl.w),
-      eta: estimate(pl.eta),
+      eta: choices.tch ? { value: NaN, esd: 0, refined: false } : estimate(pl.eta),
+      x: estimate(pl.lx),
+      y: estimate(pl.ly),
+      tch: choices.tch === true,
       orientation: phase.orientation ? estimate(pl.orientation) : null,
       orientationDirection: phase.orientation,
       overallB: estimate(pl.b),
@@ -872,6 +931,17 @@ export function refineRietveld(
     if (choices.occupancy && choices.biso)
       warnings.push(
         'Occupancies and B were refined together; they are strongly correlated (both lower high-angle intensity), so look at their uncertainties.',
+      );
+    if (choices.aniso)
+      warnings.push(
+        'Anisotropic U_ij need very good data to high angle; a laboratory pattern rarely supports them. Every atom was made anisotropic, starting from its isotropic value, so atom B values were not refined.',
+      );
+    const notPositive = phaseResults.flatMap((r) =>
+      (r.atoms ?? []).filter((a) => !a.positiveDefinite).map((a) => `${r.name} ${a.label}`),
+    );
+    if (notPositive.length > 0)
+      warnings.push(
+        `The refined U_ij of ${notPositive.join(', ')} are not positive definite, which is physically impossible: refine them isotropically instead.`,
       );
     if (choices.biso && choices.overallB)
       warnings.push('The overall B was kept fixed because the atoms’ own B values were refined.');

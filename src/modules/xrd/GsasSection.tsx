@@ -1,4 +1,4 @@
-import { instprm, phaseCif, tchFromPseudoVoigt } from '../../core/xrd/export/gsas';
+import { instprm, phaseCif, tchExact, tchFromPseudoVoigt } from '../../core/xrd/export/gsas';
 import { ANODES } from '../../core/xrd/radiation';
 import { phaseReference } from '../../core/xrd/reference/source';
 import type { ReferencePhase, StoredStructure } from '../../core/xrd/reference/types';
@@ -22,7 +22,10 @@ function refinedStructure(structure: StoredStructure, fit: RietveldPhaseResult |
         ...atom,
         x: r.x.map((c) => c.value) as [number, number, number],
         occupancy: r.occupancy.value,
-        uIso: Number.isFinite(r.b.value) ? r.b.value / (8 * Math.PI ** 2) : atom.uIso,
+        uIso: r.u ? null : Number.isFinite(r.b.value) ? r.b.value / (8 * Math.PI ** 2) : atom.uIso,
+        uAniso: r.u
+          ? (r.u.map((c) => c.value) as [number, number, number, number, number, number])
+          : atom.uAniso,
       };
     }),
   };
@@ -45,11 +48,19 @@ export function GsasSection({ data, phases }: { data: XrdData; phases: Reference
     if (!result || !first) return;
     const from = result.x[0] as number;
     const to = result.x[result.x.length - 1] as number;
-    const profile = tchFromPseudoVoigt(
-      { u: first.u.value, v: first.v.value, w: first.w.value, eta: first.eta.value },
-      from,
-      to,
-    );
+    const profile = first.tch
+      ? tchExact({
+          u: first.u.value,
+          v: first.v.value,
+          w: first.w.value,
+          x: first.x.value,
+          y: first.y.value,
+        })
+      : tchFromPseudoVoigt(
+          { u: first.u.value, v: first.v.value, w: first.w.value, eta: first.eta.value },
+          from,
+          to,
+        );
     save(
       instprm({
         kAlpha1: lines.kAlpha1,
@@ -58,8 +69,14 @@ export function GsasSection({ data, phases }: { data: XrdData; phases: Reference
         zero: result.zero.value,
         profile,
         comments: [
-          `Profile of ${first.name} from the Rietveld step (${from.toFixed(2)}-${to.toFixed(2)} deg 2theta), converted to the Thompson-Cox-Hastings form`,
-          `Largest difference over that range: FWHM ${(100 * profile.fwhmError).toFixed(2)} %, eta ${profile.etaError.toFixed(3)}. SH/L is GSAS-II's default, not refined here.`,
+          ...(first.tch
+            ? [
+                `Profile of ${first.name} from the Rietveld step, refined with the same Thompson-Cox-Hastings shape (exact). SH/L is GSAS-II's default, not refined here.`,
+              ]
+            : [
+                `Profile of ${first.name} from the Rietveld step (${from.toFixed(2)}-${to.toFixed(2)} deg 2theta), converted to the Thompson-Cox-Hastings form`,
+                `Largest difference over that range: FWHM ${(100 * profile.fwhmError).toFixed(2)} %, eta ${profile.etaError.toFixed(3)}. SH/L is GSAS-II's default, not refined here. Choose the GSAS-II peak shape in the Rietveld step for an exact file.`,
+              ]),
           'A starting point: refine the instrument and profile in GSAS-II.',
         ],
       }),

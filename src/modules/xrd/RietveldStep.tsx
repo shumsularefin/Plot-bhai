@@ -41,6 +41,11 @@ const CHOICE_LABELS: [keyof RefineChoices, string, string][] = [
   ['width', 'Peak width W and shape η', 'The width of every peak and its Lorentzian fraction.'],
   ['widthSlope', 'Width against angle (U, V)', 'How the width changes with 2θ (Caglioti U and V).'],
   [
+    'tch',
+    'GSAS-II peak shape (TCH)',
+    'Thompson–Cox–Hastings pseudo-Voigt, as in GSAS-II: a Gaussian width from U, V, W and a separate Lorentzian width X/cos θ + Y tan θ, instead of one width and a mixing η. Choose it to continue the refinement in GSAS-II with exactly the same peak shape.',
+  ],
+  [
     'asymmetry',
     'Peak asymmetry',
     'Lopsided peaks at low angles, from the beam spreading along the sample axis (Bérar–Baldinozzi P1 and P2). Turn it on only when the difference curve shows a wave under each low-angle peak.',
@@ -80,7 +85,7 @@ function parseDirection(text: string): Hkl | null {
 }
 
 const pct = (e: Estimate | null) => (e ? withUncertainty(100 * e.value, 100 * e.esd, 2) : '–');
-type StructureChoice = 'positions' | 'occupancy' | 'biso' | 'restraints';
+type StructureChoice = 'positions' | 'occupancy' | 'biso' | 'aniso' | 'restraints';
 const STRUCTURE_LABELS: [StructureChoice, string, string][] = [
   [
     'positions',
@@ -101,6 +106,11 @@ const STRUCTURE_LABELS: [StructureChoice, string, string][] = [
     'biso',
     'Atomic displacement B',
     'Thermal vibration of each atom (isotropic B = 8π²U). Atoms with anisotropic values in the file keep them. Replaces the overall B.',
+  ],
+  [
+    'aniso',
+    'Anisotropic displacement U_ij',
+    'Direction-dependent vibration of every atom (isotropic atoms are converted), only in the directions the site symmetry allows. Needs excellent data to high angle; with lab data it is usually not justified.',
   ],
 ];
 
@@ -436,7 +446,7 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
             <label key={choice} class="check">
               <input
                 type="checkbox"
-                checked={settings.choices[choice]}
+                checked={settings.choices[choice] === true}
                 onChange={(e) =>
                   set({ choices: { ...settings.choices, [choice]: e.currentTarget.checked } })
                 }
@@ -694,6 +704,7 @@ function Results({
                 <th scope="col">V (deg²)</th>
                 <th scope="col">W (deg²)</th>
                 <th scope="col">η</th>
+                <th scope="col">X, Y (deg)</th>
                 <th scope="col">March–Dollase r</th>
                 <th scope="col">B (Å²)</th>
                 <th scope="col">Asymmetry P1, P2</th>
@@ -707,7 +718,8 @@ function Results({
                   <td>{num(p.u)}</td>
                   <td>{num(p.v)}</td>
                   <td>{num(p.w)}</td>
-                  <td>{num(p.eta, 3)}</td>
+                  <td>{p.tch ? 'from TCH' : num(p.eta, 3)}</td>
+                  <td>{p.tch ? `${num(p.x, 4)}, ${num(p.y, 4)}` : '–'}</td>
                   <td>
                     {p.orientation && p.orientationDirection
                       ? `${num(p.orientation, 3)} along ${formatHkl([p.orientationDirection])}`
@@ -766,7 +778,9 @@ function Results({
                 { header: 'U (deg^2)', value: (p) => p.u.value },
                 { header: 'V (deg^2)', value: (p) => p.v.value },
                 { header: 'W (deg^2)', value: (p) => p.w.value },
-                { header: 'eta', value: (p) => p.eta.value },
+                { header: 'eta', value: (p) => (p.tch ? '' : p.eta.value) },
+                { header: 'TCH X (deg)', value: (p) => (p.tch ? p.x.value : '') },
+                { header: 'TCH Y (deg)', value: (p) => (p.tch ? p.y.value : '') },
                 { header: 'March-Dollase r', value: (p) => p.orientation?.value ?? '' },
                 { header: 'B (A^2)', value: (p) => p.overallB.value },
                 { header: 'Asymmetry P1', value: (p) => p.asymmetry[0].value },
@@ -821,6 +835,7 @@ function Results({
 
 /** Refined atoms of each phase (structure refinement), with a CSV download. */
 function AtomsTable({ result, name }: { result: RietveldResult; name: string }) {
+  const hasU = result.phases.some((p) => p.atoms?.some((a) => a.u));
   const rows = result.phases.flatMap((p) =>
     (p.atoms ?? []).map((atom) => ({ phase: p.name, atom })),
   );
@@ -843,6 +858,7 @@ function AtomsTable({ result, name }: { result: RietveldResult; name: string }) 
               <th scope="col">z</th>
               <th scope="col">Occupancy</th>
               <th scope="col">B (Å²)</th>
+              {hasU && <th scope="col">U11, U22, U33, U12, U13, U23 (Å²)</th>}
             </tr>
           </thead>
           <tbody>
@@ -854,7 +870,13 @@ function AtomsTable({ result, name }: { result: RietveldResult; name: string }) 
                   <td key={i}>{num(c)}</td>
                 ))}
                 <td>{num(atom.occupancy, 3)}</td>
-                <td>{Number.isFinite(atom.b.value) ? num(atom.b, 3) : 'anisotropic, kept'}</td>
+                <td>{Number.isFinite(atom.b.value) ? num(atom.b, 3) : 'anisotropic'}</td>
+                {hasU && (
+                  <td>
+                    {atom.u ? atom.u.map((c) => num(c, 4)).join(', ') : '–'}
+                    {!atom.positiveDefinite && ' (not positive definite)'}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -889,6 +911,16 @@ function AtomsTable({ result, name }: { result: RietveldResult; name: string }) 
                 value: (r) => (Number.isFinite(r.atom.b.value) ? r.atom.b.value : ''),
               },
               { header: 's.u. B', value: (r) => r.atom.b.esd },
+              ...(['U11', 'U22', 'U33', 'U12', 'U13', 'U23'] as const).flatMap((k, i) => [
+                {
+                  header: `${k} (A^2)`,
+                  value: (r: (typeof rows)[number]) => r.atom.u?.[i]?.value ?? '',
+                },
+                {
+                  header: `s.u. ${k}`,
+                  value: (r: (typeof rows)[number]) => r.atom.u?.[i]?.esd ?? '',
+                },
+              ]),
             ],
           )
         }

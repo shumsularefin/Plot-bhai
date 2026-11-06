@@ -48,8 +48,20 @@ export function rietveldMethods(input: RietveldMethodsInput): string {
     ...(choices.zero ? ['the zero shift'] : []),
     ...(choices.displacement ? ['the sample displacement'] : []),
     ...(choices.cell ? ['the unit cell parameters'] : []),
-    ...(choices.width ? ['the Caglioti W parameter and the pseudo-Voigt mixing parameter η'] : []),
-    ...(choices.widthSlope ? ['the Caglioti U and V parameters'] : []),
+    ...(choices.width
+      ? [
+          choices.tch
+            ? 'the Gaussian W and Lorentzian X widths'
+            : 'the Caglioti W parameter and the pseudo-Voigt mixing parameter η',
+        ]
+      : []),
+    ...(choices.widthSlope
+      ? [
+          choices.tch
+            ? 'the Gaussian U, V and Lorentzian Y widths'
+            : 'the Caglioti U and V parameters',
+        ]
+      : []),
     ...(choices.orientation && result.phases.some((p) => p.orientation)
       ? ['March–Dollase preferred orientation']
       : []),
@@ -67,7 +79,14 @@ export function rietveldMethods(input: RietveldMethodsInput): string {
               ]
             : []),
           ...(choices.occupancy ? ['the site occupancies'] : []),
-          ...(choices.biso ? ['the isotropic displacement parameters B of each atom'] : []),
+          ...(choices.biso && !choices.aniso
+            ? ['the isotropic displacement parameters B of each atom']
+            : []),
+          ...(choices.aniso
+            ? [
+                'the anisotropic displacement parameters U_ij of each atom, constrained by its site symmetry',
+              ]
+            : []),
         ]
       : []),
   ];
@@ -76,7 +95,7 @@ export function rietveldMethods(input: RietveldMethodsInput): string {
     items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
   const sentences = [
     `A ${structured ? 'Rietveld' : 'basic Rietveld'} refinement was carried out over 2θ = ${from.toFixed(2)}–${to.toFixed(2)}° with ${input.radiation}, using the structure models of ${list(input.phases.map((p) => `${p.name} (${p.reference})`))} ${structured ? ', starting from the atom positions, occupancies and displacement parameters of these files' : ' with atom positions, occupancies and displacement parameters fixed'}.`,
-    `Refined were ${list(refined)}; the profile was a pseudo-Voigt function with FWHM² = U tan²θ + V tanθ + W, and points were weighted by 1/y_obs.`,
+    `Refined were ${list(refined)}; the profile was ${choices.tch ? 'the Thompson–Cox–Hastings pseudo-Voigt (J. Appl. Cryst. 20 (1987) 79) with Gaussian FWHM² = U tan²θ + V tanθ + W and Lorentzian FWHM = X/cosθ + Y tanθ' : 'a pseudo-Voigt function with FWHM² = U tan²θ + V tanθ + W'}, and points were weighted by 1/y_obs.`,
     `Final agreement: R_wp = ${percent(result.stats.rwp)}, R_p = ${percent(result.stats.rp)}, R_exp = ${percent(result.stats.rexp)}, χ² = ${result.stats.chi2.toFixed(2)}.`,
   ];
   const fractions = result.phases.filter((p) => p.weightFraction);
