@@ -13,6 +13,7 @@ import { ANODES } from '../../core/xrd/radiation';
 import { HelpTip } from '../../ui/HelpTip';
 import type { StepContext } from '../../ui/wizard/types';
 import { readCifFile } from './cifClient';
+import { IndexingPanel } from './IndexingPanel';
 import { PhaseSearch } from './PhaseSearch';
 import { DEFAULT_MATERIAL, type MaterialState, type XrdData } from './data';
 import { familyOf, libraryIndex, loadReferenceFamily } from './referenceLibrary';
@@ -77,6 +78,7 @@ function cellText(cell: ListedPhase['cell'], system: string): string {
 export function MaterialStep({ data, update }: StepContext<XrdData>) {
   const material = data.material;
   const [unknown, setUnknown] = useState(false);
+  const [indexing, setIndexing] = useState(false);
   const setMaterial = (patch: Partial<MaterialState>) =>
     update({ material: { ...material, ...patch } });
 
@@ -177,6 +179,20 @@ export function MaterialStep({ data, update }: StepContext<XrdData>) {
             Not sure? Compare your peaks with the polymer library
           </button>
           {unknown && <UnknownGuide data={data} onAdd={add} isCandidate={isCandidate} />}
+        </section>
+      )}
+
+      {data.patterns.length > 0 && (
+        <section class="material-section">
+          <button
+            type="button"
+            class="btn"
+            aria-pressed={indexing}
+            onClick={() => setIndexing(!indexing)}
+          >
+            Not in any database? Index the pattern (suggest a cell)
+          </button>
+          {indexing && <IndexingPanel data={data} />}
         </section>
       )}
 

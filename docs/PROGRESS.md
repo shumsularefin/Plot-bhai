@@ -1,5 +1,25 @@
 # Progress
 
+## Stage 16d: indexing an unknown pattern (done)
+
+Branch `claude/loving-noether-y55l76`. No new dependencies.
+
+- **Choose material:** "Not in any database? Index the pattern (suggest a cell)". It takes the 20
+  strongest detected peaks (at least 10), tries cubic, tetragonal, hexagonal and orthorhombic cells
+  in a Web Worker (with progress and Stop), and lists up to 10 cells ranked by de Wolff M20, with
+  Smith–Snyder F_N, the lattice centring, unindexed lines, the indexed line list of the best cell
+  and a CSV download. Labelled as suggestions to confirm; warns when Kα2 is still in the data.
+- **Method:** Q = 1/d² is linear in the reciprocal cell parameters, so trial cells come from
+  assigning small hkl to one to three of the first lines and solving; each trial is refined by
+  linear least squares. Decisions (precision floor of 0.001°, dropping lower-symmetry
+  descriptions of higher-symmetry lattices) are in docs/validation.md, 16d.
+- **Validation:** 9 COD cells recovered exactly and with noise and missing lines; M20 and F_N
+  against an independent Python implementation; invariance; worker round trip.
+- **Checks:** lint, type check, 1025 unit tests, build, bundle size and e2e pass. The e2e example
+  pattern has fewer than 10 peaks, so e2e checks the panel and the unit test drives the worker.
+- **Open:** no comparison with DICVOL or TREOR; monoclinic and triclinic not searched.
+- **Next:** 16e, Rietveld structure refinement and GSAS-II export.
+
 ## Stage 16c: crystal structure viewer in Choose material (done)
 
 Branch `claude/loving-noether-y55l76`. No new dependencies.
@@ -19,7 +39,6 @@ Branch `claude/loving-noether-y55l76`. No new dependencies.
   viewer for ZnO and measures a distance).
 - **Decision (owner, November 2026):** 16f (Materials Project and AMCSD search) is skipped: it
   needs a backend and the owner's API key. CIF upload covers both databases.
-- **Next:** 16d, indexing an unknown pattern.
 
 ## Stage 16b: Pearson VII and split pseudo-Voigt peaks, Rietveld peak asymmetry (done)
 

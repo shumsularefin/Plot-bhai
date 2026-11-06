@@ -138,6 +138,22 @@ async function walkToExport(log) {
     );
     await page.getByRole('button', { name: 'Hide crystal structure' }).first().click();
   }
+  const indexToggle = page.getByRole('button', { name: /Index the pattern/ });
+  if (await indexToggle.isVisible()) {
+    await indexToggle.click();
+    const suggest = page.getByRole('button', { name: 'Suggest cells' });
+    if (await suggest.isVisible()) {
+      await suggest.click();
+      const table = page.getByRole('table', { name: 'Suggested cells, best first' });
+      const none = page.getByText('No cell indexed these lines.');
+      await table.or(none).waitFor({ timeout: 120_000 });
+      const first = (await table.isVisible())
+        ? (await table.locator('tbody tr').first().innerText()).replace(/\s+/g, ' ')
+        : 'no cell';
+      note(`3 Choose material: indexing in the worker, suggestion 1: ${first}`);
+    } else note('3 Choose material: indexing panel shown (too few peaks to index)');
+    await indexToggle.click();
+  }
   await next('Compare reference phases');
 
   // 4 Compare phases

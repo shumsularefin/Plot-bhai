@@ -84,3 +84,35 @@ Open:
   (SHELX style) in CIF geometry tables are skipped by the test, since the CIF dictionary does not
   define them; 250 rows remain.
 - No comparison with pymatgen or VESTA (not installable here); the CIF tables stand in for it.
+
+## 16d: indexing an unknown pattern
+
+Formulas: src/core/xrd/indexing/index.ts (Q = 1/d² forms, trial cells, least squares, M20, F_N).
+Worker: src/workers/indexing.worker.ts. Tests: tests/xrd-indexing.test.ts; independent figures
+of merit from tests/fixtures/make_indexing_fom.py (standard library only).
+
+| Method                  | Check                                                                                                                                                                                            | Source                                                           | Tolerance                   | Result |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- | --------------------------- | ------ |
+| Known cells, exact      | 9 patterns calculated from COD cells (CeO2, In2O3, LaB6 cubic; rutile, anatase tetragonal; ZnO, h-BN hexagonal; aragonite, brookite orthorhombic), first 20 lines: the true cell is suggestion 1 | synthetic data from tests/fixtures/cod-reference                 | edges 0.01 %; 0 unindexed   | pass   |
+| Noise and missing lines | the same 9 with Gaussian noise σ = 0.01° 2θ and two lines removed: the true cell is still suggestion 1                                                                                           | synthetic data                                                   | edges 0.2 %                 | pass   |
+| M20 and F_N             | 5 cells (cubic F, tetragonal P and I, hexagonal P, orthorhombic P): indexed count, N_calc, M20, F_N and mean \|Δ2θ\| against a separate Python implementation (all index signs, general metric)  | independent implementation; de Wolff 1968; Smith and Snyder 1979 | exact counts; 1e-6 relative | pass   |
+| Invariance              | the input order does not change the result; the same d-spacings with Co Kα1 give the same cell; every listed hkl reproduces its calculated 2θ from the reported cell                             | invariance and round trip                                        | identical; 0.001 Å; 1e-8°   | pass   |
+| Worker                  | the worker posts progress and the same solutions as a direct call                                                                                                                                | round trip                                                       | identical                   | pass   |
+
+Decisions that affect the figures:
+
+- Mean discrepancies below 0.001° 2θ are raised to 0.001° (a measured position is not more
+  precise), so error-free data do not divide by zero.
+- A tetragonal cell with c/a = 1 or √2, or an orthorhombic cell with two edges in the ratio 1, √2
+  or √3, is dropped because its lattice has higher symmetry (cubic, tetragonal or hexagonal) and
+  that search reports it. Without this, error-free data ranked such lower-symmetry descriptions of
+  the same lattice first.
+- N_calc counts the lines allowed by the lattice centring (P, I, F, C), not by a space group, so
+  the figures are lower than a program that applies space-group absences would give.
+
+Open:
+
+- No comparison with another indexing program (DICVOL, TREOR, McMaille) on the same lines; they
+  could not be installed here. A real pattern indexed by one of them would close this.
+- A pattern with fewer than 10 lines is refused: with 6 lines body-centred cubic and primitive
+  cubic at a/√2 index identically (iron, checked).
