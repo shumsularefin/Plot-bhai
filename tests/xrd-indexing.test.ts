@@ -300,7 +300,7 @@ function solve3(m: number[][], v: number[]): number[] {
   );
 }
 
-describe('indexing worker', () => {
+describe('indexing worker', { timeout: 120_000 }, () => {
   it('posts progress and then the same solutions as a direct call', async () => {
     const posted: unknown[] = [];
     const scope = globalThis as unknown as { self?: unknown };

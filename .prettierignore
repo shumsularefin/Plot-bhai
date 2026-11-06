@@ -8,3 +8,4 @@ scripts/cif-cache
 scripts/source-cache
 data/ftir
 data/thermal
+tests/fixtures/validation

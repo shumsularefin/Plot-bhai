@@ -1,5 +1,26 @@
 # Progress
 
+## Stage 16g: owner additions (done)
+
+Branch `claude/loving-noether-y55l76`. No new dependencies (GSAS-II and pymatgen run only on
+GitHub, in `.github/workflows/validation.yml`).
+
+- **Rietveld:** Thompson–Cox–Hastings profile (GSAS-II's U, V, W, X, Y) as a choice; anisotropic
+  U_ij under Structure refinement, only the terms the site symmetry allows, with a positive
+  definite check and a warning; the CIF and .instprm exports carry them.
+- **Indexing:** monoclinic (default) and triclinic (when ticked) cells, reduced, from zone trials;
+  α, β, γ in the table and CSV; a warning for triclinic.
+- **Feedback:** the Validate pop-up opens once per analysis when the last step is reached, as a
+  voluntary offer ("Not now").
+- **Home:** a small About button with the credits (also on the About page). The university is
+  written "Gopalganj Science and Technology University (GSTU)": the request said "Kopalganj"
+  but also "GSTU", so this is assumed to be a typo, to confirm.
+- **Validation in CI:** GSAS-II (built from source) simulates and refines anatase (TCH, O z,
+  U_iso) and rutile (U_ij); pymatgen gives distances and powder lines for four CIFs. The
+  fixtures are committed by the workflow; tests compare against them (docs/validation.md, 16g).
+- **Known issue:** COD 9015929 (anatase) has its U_ij columns out of order (docs/validation.md).
+- **Open:** no DICVOL/TREOR comparison for low-symmetry indexing.
+
 ## Stage 16e: Rietveld structure refinement and GSAS-II export (done)
 
 Branch `claude/loving-noether-y55l76`. No new dependencies.
@@ -24,7 +45,7 @@ Branch `claude/loving-noether-y55l76`. No new dependencies.
   with the refined cell and atoms. With the existing measured .xye this is the full starting set.
 - **Checks:** lint, type check, 1054 unit tests, build, bundle size and e2e (now also downloads
   the .instprm and a CIF) pass.
-- **Open:** no comparison with GSAS-II on the same data (GSAS-II cannot be installed here).
+- **Open:** no comparison with GSAS-II on the same data (closed in 16g by the CI workflow).
 - **Next:** stage 16 is complete (16f skipped by the owner).
 
 ## Stage 16d: indexing an unknown pattern (done)
@@ -44,7 +65,7 @@ Branch `claude/loving-noether-y55l76`. No new dependencies.
   against an independent Python implementation; invariance; worker round trip.
 - **Checks:** lint, type check, 1025 unit tests, build, bundle size and e2e pass. The e2e example
   pattern has fewer than 10 peaks, so e2e checks the panel and the unit test drives the worker.
-- **Open:** no comparison with DICVOL or TREOR; monoclinic and triclinic not searched.
+- **Open:** no comparison with DICVOL or TREOR (monoclinic and triclinic were added in 16g).
 - **Next:** 16e (done, above).
 
 ## Stage 16c: crystal structure viewer in Choose material (done)

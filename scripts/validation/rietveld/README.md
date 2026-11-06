@@ -1,7 +1,8 @@
 # Rietveld engine check against GSAS-II
 
-Independent check of `src/core/xrd/rietveld/` (not run in CI; its output is the fixture used by
-`tests/rietveld-gsas.test.ts`).
+Independent check of `src/core/xrd/rietveld/` (run by hand; its output is the fixture used by
+`tests/rietveld-gsas.test.ts`). The structure-refinement and TCH checks in `../gsas2/` and the
+pymatgen checks in `../pymatgen/` run on GitHub instead (`.github/workflows/validation.yml`).
 
 1. Build GSAS-II from source (commit 2c62562 of github.com/AdvancedPhotonSource/GSAS-II was used;
    it needs gfortran) into a virtual environment: `pip install ./GSAS-II`.
