@@ -18,6 +18,9 @@ CASES = [
     ("tio2.json", "anatase", "tetragonal", "I"),
     ("zno.json", "zno-wurtzite", "hexagonal", "P"),
     ("caco3.json", "aragonite", "orthorhombic", "P"),
+    ("zro2.json", "baddeleyite", "monoclinic", "P"),
+    ("copper-oxides.json", "tenorite", "monoclinic", "C"),
+    ("../../../data/reference/polymers.json", "pet", "triclinic", "P"),
 ]
 
 def positions(phase):
@@ -32,6 +35,7 @@ def allowed(c, h, k, l):
     if c == "P": return True
     if c == "I": return (h + k + l) % 2 == 0
     if c == "C": return (h + k) % 2 == 0
+    if c == "A": return (k + l) % 2 == 0
     return (h + k) % 2 == 0 and (k + l) % 2 == 0
 
 def q_of(system, a, b, c, h, k, l):
@@ -39,10 +43,23 @@ def q_of(system, a, b, c, h, k, l):
         return 4 / 3 * (h * h + h * k + k * k) / a ** 2 + l * l / c ** 2
     return h * h / a ** 2 + k * k / b ** 2 + l * l / c ** 2
 
+def reciprocal_metric(cell):
+    """G* = inverse of the direct metric G (cofactors over the determinant)."""
+    a, b, c = cell["a"], cell["b"], cell["c"]
+    ca, cb, cg = (math.cos(math.radians(cell[x])) for x in ("alpha", "beta", "gamma"))
+    g = [[a * a, a * b * cg, a * c * cb], [a * b * cg, b * b, b * c * ca], [a * c * cb, b * c * ca, c * c]]
+    det = (g[0][0] * (g[1][1] * g[2][2] - g[1][2] * g[2][1]) - g[0][1] * (g[1][0] * g[2][2] - g[1][2] * g[2][0])
+           + g[0][2] * (g[1][0] * g[2][1] - g[1][1] * g[2][0]))
+    cof = lambda i, j: (g[(i + 1) % 3][(j + 1) % 3] * g[(i + 2) % 3][(j + 2) % 3]
+                        - g[(i + 1) % 3][(j + 2) % 3] * g[(i + 2) % 3][(j + 1) % 3])
+    return [[cof(j, i) / det for j in range(3)] for i in range(3)]
+
 out = []
 for file, pid, system, centring in CASES:
     phase = next(p for p in json.load(open(f"tests/fixtures/cod-reference/{file}"))["phases"] if p["id"] == pid)
-    a, b, c = phase["cell"]["a"], phase["cell"]["b"], phase["cell"]["c"]
+    cell = phase["cell"]
+    a, b, c = cell["a"], cell["b"], cell["c"]
+    gs = reciprocal_metric(cell)
     obs = positions(phase)
     q_obs = [(2 * math.sin(math.radians(t / 2)) / LAMBDA) ** 2 for t in obs]
     q_max = q_obs[-1] * 1.02
@@ -53,7 +70,11 @@ for file, pid, system, centring in CASES:
             for l in range(-n, n + 1):
                 if (h, k, l) == (0, 0, 0) or not allowed(centring, h, k, l):
                     continue
-                q = q_of(system, a, b, c, h, k, l)
+                if system in ("monoclinic", "triclinic"):
+                    v = (h, k, l)
+                    q = sum(v[i] * gs[i][j] * v[j] for i in range(3) for j in range(3))
+                else:
+                    q = q_of(system, a, b, c, h, k, l)
                 if q <= q_max:
                     calc.add(round(q, 10))
     calc = sorted(calc)
@@ -73,7 +94,7 @@ for file, pid, system, centring in CASES:
     mean_q = max(dq, floor) / indexed
     mean_t = max(dt / indexed, PRECISION)
     out.append({
-        "id": pid, "file": file, "system": system, "centring": centring, "cell": [a, b, c],
+        "id": pid, "file": file, "system": system, "centring": centring, "cell": [a, b, c] + ([cell["alpha"], cell["beta"], cell["gamma"]] if system in ("monoclinic", "triclinic") else []),
         "positions": obs, "indexed": indexed, "nCalc": n_calc,
         "m20": q_obs[N - 1] / (2 * mean_q * n_calc), "fN": (1 / mean_t) * N / n_calc, "meanDelta": mean_t,
     })
