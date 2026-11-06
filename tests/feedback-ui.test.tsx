@@ -72,6 +72,31 @@ describe('Validate button', () => {
     expect(client.proofFor('XRD analysis')).toBeNull();
   });
 
+  it('offers a validation by itself once per finished analysis, and lets the user skip it', async () => {
+    const { client, ValidateButton } = await load(() => ({
+      status: 200,
+      body: { id: 'a2', proof: 'p2' },
+    }));
+    // Without a finished analysis nothing opens on the last step.
+    const first = render(<ValidateButton tool="FTIR analysis" offer />);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    first.unmount();
+    await client.recordAnalysis('FTIR analysis');
+    const view = render(<ValidateButton tool="FTIR analysis" offer />);
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.textContent).toContain('Your analysis is finished');
+    expect(dialog.textContent).toContain('voluntary');
+    fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    // Coming back to the last step does not ask again for the same analysis.
+    view.unmount();
+    render(<ValidateButton tool="FTIR analysis" offer />);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    // The button still opens it, without the offer text.
+    fireEvent.click(screen.getByRole('button', { name: 'Validate' }));
+    expect(screen.getByRole('dialog').textContent).not.toContain('Your analysis is finished');
+  });
+
   it('shows the reason when the service refuses', async () => {
     const { client, ValidateButton } = await load((path) =>
       path === '/analysis'
@@ -119,5 +144,25 @@ describe('Home counters', () => {
     const view = render(<Community />);
     await Promise.resolve();
     expect(view.container.textContent).toBe('');
+  });
+});
+
+describe('Credits', () => {
+  it('opens from the small About button and names the developer and supervisors', async () => {
+    const { CreditsButton } = await import('../src/ui/Credits');
+    render(<CreditsButton />);
+    fireEvent.click(screen.getByRole('button', { name: 'About' }));
+    const text = screen.getByRole('dialog').textContent ?? '';
+    for (const part of [
+      'Fit',
+      'graduate student',
+      'Dr. MD Kamruzzaman',
+      'Professor and Chairman',
+      'S. M. Fazle Rabbi',
+      'Lecturer',
+    ])
+      expect(text).toContain(part);
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 });

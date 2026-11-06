@@ -106,6 +106,25 @@ export function proofFor(tool: string): Proof | null {
   return proof && (proof.day === today() || proof.day === yesterday()) ? proof : null;
 }
 
+const OFFERED_KEY = 'plot-bhai-offered';
+
+/**
+ * Marks the analysis behind a proof as offered for validation; true the first time only, so the
+ * pop-up that offers it opens once per finished analysis, not on every visit to the last step.
+ */
+export function offerOnce(id: string): boolean {
+  try {
+    const seen = JSON.parse(localStorage.getItem(OFFERED_KEY) ?? '[]') as unknown;
+    const list = Array.isArray(seen) ? (seen as string[]) : [];
+    if (list.includes(id)) return false;
+    localStorage.setItem(OFFERED_KEY, JSON.stringify([...list, id].slice(-50)));
+    return true;
+  } catch {
+    // Without storage the offer is not remembered, so it is not made at all.
+    return false;
+  }
+}
+
 /** Records a finished analysis in a section, unless one from today is still waiting for validation. */
 export async function recordAnalysis(tool: string): Promise<void> {
   if (proofFor(tool)?.day === today()) return;

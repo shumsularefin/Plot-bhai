@@ -111,7 +111,7 @@ export function Wizard<D>({ title, steps, store }: WizardProps<D>) {
       <div class="wizard-header">
         <p class="wizard-tool">{title}</p>
         <div class="wizard-history">
-          <ValidateButton tool={title} />
+          <ValidateButton tool={title} offer={status === 'ready' && index === last} />
           <button
             type="button"
             class="btn btn-quiet"

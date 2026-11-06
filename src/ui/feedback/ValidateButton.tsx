@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { MAX_COMMENT } from './limits';
-import { FEEDBACK_API, proofFor, sendValidation, type SendResult, type Verdict } from './client';
+import {
+  FEEDBACK_API,
+  offerOnce,
+  proofFor,
+  sendValidation,
+  type SendResult,
+  type Verdict,
+} from './client';
 import './feedback.css';
 
 /** Whether the section has a finished analysis waiting for validation; follows changes in any tab. */
@@ -22,10 +29,13 @@ function useProof(tool: string): boolean {
 /**
  * The highlighted Validate button of an analysis section and its pop-up: the tool is a testing
  * version, so users are asked whether the result worked, with an optional comment that is
- * published only after the owner approves it. A validation needs a finished analysis.
+ * published only after the owner approves it. A validation needs a finished analysis. With
+ * `offer` (the wizard is on its last step) the pop-up also opens by itself, once for each newly
+ * finished analysis; answering stays voluntary.
  */
-export function ValidateButton({ tool }: { tool: string }) {
+export function ValidateButton({ tool, offer = false }: { tool: string; offer?: boolean }) {
   const [open, setOpen] = useState(false);
+  const [offered, setOffered] = useState(false);
   const [verdict, setVerdict] = useState<Verdict>('works');
   const [comment, setComment] = useState('');
   const [busy, setBusy] = useState(false);
@@ -35,11 +45,20 @@ export function ValidateButton({ tool }: { tool: string }) {
   const opener = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
+    const proof = offer && ready && FEEDBACK_API ? proofFor(tool) : null;
+    if (proof && offerOnce(proof.id)) {
+      setOffered(true);
+      setOpen(true);
+    }
+  }, [offer, ready, tool]);
+
+  useEffect(() => {
     if (open) dialog.current?.querySelector<HTMLElement>('input, textarea, button')?.focus();
   }, [open]);
 
   const close = () => {
     setOpen(false);
+    setOffered(false);
     setResult(null);
     opener.current?.focus();
   };
@@ -75,6 +94,13 @@ export function ValidateButton({ tool }: { tool: string }) {
             <h2 id="validate-title" class="validate-title">
               Help test {tool}
             </h2>
+            {offered && (
+              <p class="message is-info">
+                <strong>Your analysis is finished.</strong> Would you like to say whether it worked?
+                This is voluntary: choose Not now to skip, and use the Validate button at the top of
+                the tool at any time.
+              </p>
+            )}
             <p>
               This tool is an <strong>early testing version</strong>. Please check its result
               against what you know or another program, and say whether it worked. Your comment
@@ -153,7 +179,7 @@ export function ValidateButton({ tool }: { tool: string }) {
                 </button>
               )}
               <button type="button" class="btn" onClick={close}>
-                Close
+                {offered && !result?.ok ? 'Not now' : 'Close'}
               </button>
             </div>
           </div>

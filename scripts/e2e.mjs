@@ -227,10 +227,10 @@ try {
   assert.doesNotMatch(text, /NaN|undefined/);
   step('9 Export: methods text from the real settings');
 
-  // Validate: the finished analysis was recorded, so the pop-up sends a validation.
+  // Validate: the finished analysis was recorded, so the pop-up opens by itself and sends a validation.
   assert.ok(feedback.analyses >= 1, 'reaching the last step records an analysis');
-  await page.getByRole('button', { name: 'Validate' }).click();
   const dialog = page.getByRole('dialog');
+  await dialog.getByText('Your analysis is finished').waitFor();
   await dialog.getByText('early testing version').waitFor();
   await dialog.getByLabel('Comment (optional)').fill('Sizes look right.');
   await dialog.getByRole('button', { name: 'Send' }).click();
@@ -238,7 +238,11 @@ try {
   assert.equal(feedback.validations[0]?.comment, 'Sizes look right.');
   assert.equal(feedback.validations[0]?.proof, 'stub-proof');
   await dialog.getByRole('button', { name: 'Close' }).click();
-  step('Validate: pop-up sent the verdict and comment with the analysis proof');
+  step('Validate: offered by itself at the end; sent the verdict and comment with the proof');
+  // Later finished analyses offer it again; this run skips those offers.
+  await page.addLocatorHandler(page.getByRole('button', { name: 'Not now' }), (button) =>
+    button.click(),
+  );
 
   await page.getByRole('button', { name: 'Download SVG' }).waitFor({ timeout: 20_000 });
   const [svgDownload] = await Promise.all([

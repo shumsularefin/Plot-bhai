@@ -176,3 +176,8 @@
   margin-top: var(--space-1);
   color: var(--color-text-muted);
 }
+
+.credits-button {
+  margin-top: var(--space-3);
+  min-height: 44px;
+}
