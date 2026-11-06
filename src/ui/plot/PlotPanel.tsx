@@ -5,9 +5,17 @@ import { Dock } from '../Dock';
 import { HelpTip } from '../HelpTip';
 import { ExportPanel } from './ExportPanel';
 import { FigureEditor, type Placement } from './FigureEditor';
-import { clicksFor, newAnnotation, resolveFigure, styledSeries, type FigureStyle } from './figure';
+import {
+  clicksFor,
+  newAnnotation,
+  resolveFigure,
+  styledSeries,
+  type EditRef,
+  type FigureStyle,
+} from './figure';
+import { moveObject, ObjectEditor } from './ObjectEditor';
 import type { ExportSettings, LowerAxis } from './export';
-import { InteractivePlot, type InteractivePlotProps } from './InteractivePlot';
+import { InteractivePlot, type InteractivePlotProps, type PlotEditing } from './InteractivePlot';
 import type { PeakLabelSet } from './peakLabels';
 import { laneGuides, ReferenceLanes, type ReferenceLane } from './ReferenceLanes';
 import { prepareSeries, xExtent, type SeriesSource } from './series';
@@ -94,6 +102,11 @@ export function PlotPanel(props: PlotPanelProps) {
   const setFigure = (next: FigureStyle) =>
     onSettingsChange({ figures: { ...settings.figures, [exportName]: next } });
   const [placement, setPlacement] = useState<Placement | null>(null);
+  // An object picked on the plot, and the figure as it looks while it is being dragged.
+  const [selected, setSelected] = useState<EditRef | null>(null);
+  const [dragged, setDragged] = useState<FigureStyle | null>(null);
+  const draggedRef = useRef<FigureStyle | null>(null);
+  draggedRef.current = dragged;
   const plotRef = useRef<HTMLDivElement>(null);
   const placing = placement !== null;
   // The editor sits under the plot; bring the plot into view when it waits for a click.
@@ -160,8 +173,8 @@ export function PlotPanel(props: PlotPanelProps) {
     const annotation =
       placement.kind === 'arrow' && first
         ? newAnnotation('arrow', x, y, first)
-        : placement.kind === 'region' && first
-          ? newAnnotation('region', first.x, first.y, { x, y })
+        : first
+          ? newAnnotation(placement.kind, first.x, first.y, { x, y })
           : newAnnotation(placement.kind, x, y, undefined, placement.shape);
     setFigure({ ...figure, annotations: [...figure.annotations, annotation] });
     // The tool stays chosen, so several markers (or lines, labels) can be placed in a row.
@@ -174,6 +187,28 @@ export function PlotPanel(props: PlotPanelProps) {
         hint: 'Click or tap the plot to place the annotation.',
       }
     : props.interaction;
+  const editing: PlotEditing | undefined = placement
+    ? undefined
+    : {
+        selected,
+        onSelect: setSelected,
+        onMove: (ref, move) => {
+          setSelected(ref);
+          setDragged(moveObject(figure, ref, move, reversed));
+        },
+        onMoveEnd: () => {
+          if (draggedRef.current) setFigure(draggedRef.current);
+          setDragged(null);
+        },
+      };
+  useEffect(() => {
+    if (!selected) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSelected(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selected]);
   const legendSeries = styledSeries(series, figure).filter((s) => !s.quiet);
   const centre = (domain[0] + domain[1]) / 2;
   const zoom = (factor: number) => {
@@ -236,10 +271,27 @@ export function PlotPanel(props: PlotPanelProps) {
             {...(props.peakLabels && { peakLabels: props.peakLabels })}
             guides={guides}
             {...interaction}
-            figure={figure}
+            figure={dragged ?? figure}
+            {...(editing && { editing })}
             description={`Plot of intensity against ${xName}, ${series.length} pattern${series.length === 1 ? '' : 's'}.`}
           />
         </div>
+        {selected && !placement ? (
+          <ObjectEditor
+            selected={selected}
+            figure={figure}
+            onChange={setFigure}
+            peakLabels={props.peakLabels}
+            onClose={() => setSelected(null)}
+          />
+        ) : (
+          (props.peakLabels || figure.annotations.length > 0) &&
+          !placement && (
+            <p class="field-hint plot-edit-hint">
+              Click a label or annotation on the plot to edit it; drag it to move it.
+            </p>
+          )
+        )}
         {props.lanes && props.lanes.length > 0 && (
           <ReferenceLanes
             lanes={props.lanes}

@@ -1,15 +1,18 @@
 interface StepperProps {
   titles: readonly string[];
+  /** A few words under each step name in the full list; optional per step. */
+  summaries?: readonly (string | undefined)[];
   current: number;
   furthest: number;
   onSelect: (index: number) => void;
 }
 
 /**
- * Progress indicator. Wide screens show every step; narrow screens show a compact
- * "Step 2 of 8" line, a progress bar and one tap target per step. Steps already reached can be revisited.
+ * Progress indicator. Wide layouts show every step in a list down the side, with what each one
+ * does; narrow ones show a compact "Step 2 of 8" line, a progress bar and one tap target per
+ * step. Steps already reached can be revisited.
  */
-export function Stepper({ titles, current, furthest, onSelect }: StepperProps) {
+export function Stepper({ titles, summaries, current, furthest, onSelect }: StepperProps) {
   const total = titles.length;
   const percent = Math.round(((current + 1) / total) * 100);
 
@@ -54,24 +57,30 @@ export function Stepper({ titles, current, furthest, onSelect }: StepperProps) {
       <ol class="stepper-list">
         {titles.map((title, index) => {
           const state = index === current ? 'current' : index <= furthest ? 'reached' : 'todo';
+          // Shown on hover, which matters when the sidebar shows only the numbers.
+          const hint = summaries?.[index] ? `${title}: ${summaries[index]}` : title;
           const content = (
             <>
               <span class="stepper-number" aria-hidden="true">
                 {index + 1}
               </span>
-              <span class="stepper-title">{title}</span>
+              <span class="stepper-text">
+                <span class="stepper-title">{title}</span>
+                {summaries?.[index] && <span class="stepper-summary">{summaries[index]}</span>}
+              </span>
             </>
           );
           return (
             <li key={title} class={`stepper-item is-${state}`}>
               {state === 'todo' ? (
-                <span class="stepper-target" aria-disabled="true">
+                <span class="stepper-target" aria-disabled="true" title={hint}>
                   {content}
                 </span>
               ) : (
                 <button
                   type="button"
                   class="stepper-target"
+                  title={hint}
                   aria-current={index === current ? 'step' : undefined}
                   onClick={() => onSelect(index)}
                 >

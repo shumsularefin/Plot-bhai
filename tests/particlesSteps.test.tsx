@@ -84,7 +84,7 @@ describe('particle wizard', () => {
       'Upload',
       'Crop and scale',
       'Adjust the image',
-      'Detect particles',
+      'Find the particles',
       'Distribution and export',
     ]);
   });

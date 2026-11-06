@@ -13,6 +13,8 @@ import {
   styledYDomain,
   type FigureStyle,
 } from '../src/ui/plot/figure';
+import { moveObject } from '../src/ui/plot/ObjectEditor';
+import { setAdvancedShown } from '../src/ui/advancedMode';
 import { pdfFromRgb } from '../src/ui/plot/pdf';
 import { PlotPanel, type PlotSettings } from '../src/ui/plot/PlotPanel';
 import type { PlotSeries } from '../src/ui/plot/types';
@@ -134,6 +136,37 @@ describe('exported figure with styling', () => {
     expect(svg).toMatch(/font-family="Arial[^"]*"[^>]*>Sample note/);
   });
 
+  it('draws free lines, boxes and ellipses with their fill, width, dash and text style', () => {
+    const f = figure({
+      annotations: [
+        { ...newAnnotation('line', 21, 20, { x: 29, y: 80 }), lineWidth: 2, dash: 'dashed' },
+        { ...newAnnotation('rect', 22, 30, { x: 24, y: 70 }), fill: '#ff0000', fillOpacity: 0.4 },
+        { ...newAnnotation('ellipse', 26, 30, { x: 28, y: 70 }), text: 'Zone', bold: true },
+        { ...newAnnotation('text', 22, 50), text: 'Slanted', italic: true },
+      ],
+    });
+    const svg = svgOf(f);
+    expect(svg).toMatch(
+      /<path d="M[\d.]+ [\d.]+L[\d.]+ [\d.]+" stroke="#000000" stroke-width="[\d.]+" stroke-dasharray=/,
+    );
+    expect(svg).toContain('fill="#ff0000" fill-opacity="0.4"');
+    expect(svg).toContain('<ellipse');
+    expect(svg).toMatch(/<ellipse[^>]*fill="none"/);
+    expect(svg).toMatch(/font-weight="bold"[^>]*>Zone</);
+    expect(svg).toMatch(/font-style="italic"[^>]*>Slanted</);
+  });
+
+  it('draws curve symbols, a chosen fill colour and an open frame', () => {
+    const f = figure({
+      series: { data: { symbol: 'square', fill: 'below', fillColor: '#123456' } },
+      axes: { ...DEFAULT_FIGURE.axes, frame: 'open' },
+    });
+    const svg = svgOf(f);
+    expect(svg).toContain('fill="#123456"');
+    expect((svg.match(/<rect x=/g) ?? []).length).toBeGreaterThan(5);
+    expect(svg).toMatch(/<path d="M0 0V[\d.]+H[\d.]+" fill="none"/);
+  });
+
   it('honours grid, outward ticks, legend placement and hiding', () => {
     const plain = svgOf(undefined);
     const styled = svgOf(
@@ -159,6 +192,32 @@ describe('exported figure with styling', () => {
     expect(svg).toContain('>A(101)<');
     expect(svg).not.toContain('>(101)<');
   });
+
+  it('draws a dragged peak label where it was moved, with a leader to its peak', () => {
+    const peakLabels = { labels: [{ x: 25, y: 110, text: '(101)' }], key: [] };
+    const textX = (svg: string) => Number(/<text x="([\d.]+)"[^>]*>\(101\)</.exec(svg)?.[1]);
+    const before = svgOf(figure({}), peakLabels);
+    const moved = moveObject(
+      figure({}),
+      `label:${labelKey(25)}`,
+      { dxFraction: 0.1, dyFraction: 0, dx: 1, dy: 0 },
+      false,
+    );
+    const after = svgOf(moved, peakLabels);
+    expect(textX(after)).toBeGreaterThan(textX(before) + 10);
+    expect(after).not.toContain('data-edit');
+  });
+
+  it('moves an annotation by the drag, in shown units on a reversed axis', () => {
+    const a = newAnnotation('text', 1600, 50);
+    const moved = moveObject(
+      figure({ annotations: [a] }),
+      `annotation:${a.id}`,
+      { dxFraction: 0, dyFraction: 0, dx: 10, dy: -5 },
+      true,
+    );
+    expect(moved.annotations[0]).toMatchObject({ x: 1590, y: 45 });
+  });
 });
 
 describe('PDF file', () => {
@@ -180,6 +239,8 @@ describe('PDF file', () => {
 });
 
 describe('figure editor on screen', () => {
+  // The figure editor shows in Simple mode too.
+  beforeAll(() => setAdvancedShown(false));
   it('stores styling per plot in the plot settings, leaving the data alone', () => {
     let settings: PlotSettings = {
       normalise: false,
@@ -205,7 +266,7 @@ describe('figure editor on screen', () => {
         />,
       );
     draw();
-    fireEvent.click(screen.getByText(/Edit figure/));
+    fireEvent.click(screen.getByText(/Edit graph/));
     fireEvent.change(screen.getByLabelText('Style'), { target: { value: 'dotted' } });
     fireEvent.input(screen.getByLabelText('y-axis title'), { target: { value: 'Counts' } });
     expect(settings.figures?.['sample-fit']?.series?.['data']?.dash).toBe('dotted');
@@ -237,5 +298,22 @@ describe('figure height check', () => {
     // A bare plot fits the 65 mm default; three lanes, a residual and a 4-row legend do not.
     expect(bare).toBeLessThan(DEFAULT_EXPORT_SETTINGS.heightMm);
     expect(crowded).toBeGreaterThan(DEFAULT_EXPORT_SETTINGS.heightMm);
+  });
+});
+
+describe('advanced options switch', () => {
+  it('leaves advanced sections out until they are switched on', async () => {
+    const { Advanced } = await import('../src/ui/Advanced');
+    setAdvancedShown(false);
+    const view = render(
+      <Advanced id="test-advanced" title="Hidden extras">
+        <p>extra</p>
+      </Advanced>,
+    );
+    expect(screen.queryByText('Hidden extras')).toBeNull();
+    expect(document.documentElement.classList.contains('is-simple')).toBe(true);
+    setAdvancedShown(true);
+    expect(await screen.findByText('Hidden extras')).toBeTruthy();
+    view.unmount();
   });
 });

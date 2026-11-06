@@ -1,4 +1,4 @@
-import { useMemo } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { suggestAssignments, type AtmosphereTable, type GroupTable } from '../../core/ftir/assign';
 import { formatNumber } from '../../core/xrd/parsers/numbers';
 import { HelpTip } from '../../ui/HelpTip';
@@ -148,12 +148,10 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
                 </h4>
                 <div class="inline-field">
                   <label for={id}>Your assignment</label>
-                  <input
+                  <AssignmentInput
                     id={id}
-                    type="text"
-                    value={label}
-                    placeholder="none yet"
-                    onChange={(e) => setLabel(peak.wavenumber, e.currentTarget.value)}
+                    label={label}
+                    onCommit={(text) => setLabel(peak.wavenumber, text)}
                   />
                   {label !== '' && (
                     <button
@@ -174,22 +172,54 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
                     Nothing in the table lies within {data.toleranceCm} cm⁻¹ of this peak.
                   </p>
                 ) : (
-                  <ul class="suggestion-list">
-                    {suggestions.map((s) => (
-                      <li key={s.id}>
-                        <button
-                          type="button"
-                          class="btn"
-                          onClick={() => setLabel(peak.wavenumber, s.label)}
-                          disabled={label === s.label}
-                        >
-                          Accept<span class="visually-hidden"> {s.label}</span>
-                        </button>{' '}
-                        <strong>{s.label}</strong>
-                        <span class="field-hint"> {s.reason}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <>
+                    <div
+                      class="table-scroll"
+                      tabIndex={0}
+                      role="region"
+                      aria-label={`Suggestions for ${formatNumber(peak.wavenumber, 1)} cm⁻¹`}
+                    >
+                      <table class="peak-table suggestion-table">
+                        <thead>
+                          <tr>
+                            <th scope="col">Suggestion</th>
+                            <th scope="col">Listed at</th>
+                            <th scope="col">Distance (cm⁻¹)</th>
+                            <th scope="col">
+                              <span class="visually-hidden">Action</span>
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {suggestions.map((s) => (
+                            <tr key={s.id}>
+                              <th scope="row">{s.label}</th>
+                              <td>{s.listed}</td>
+                              <td>{s.offset === 0 ? 'inside' : formatNumber(s.offset, 0)}</td>
+                              <td>
+                                <button
+                                  type="button"
+                                  class="btn"
+                                  onClick={() => setLabel(peak.wavenumber, s.label)}
+                                  disabled={label === s.label}
+                                >
+                                  {label === s.label ? 'Accepted' : 'Accept'}
+                                  <span class="visually-hidden"> {s.label}</span>
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {suggestions
+                      .filter((s) => s.kind === 'atmosphere')
+                      .map((s) => (
+                        <p key={s.id} class="message is-warning">
+                          <strong>Check:</strong> {s.reason}
+                        </p>
+                      ))}
+                  </>
                 )}
               </li>
             );
@@ -239,5 +269,34 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
         </div>
       </details>
     </div>
+  );
+}
+
+/**
+ * The text box for one peak's assignment. What the user types is kept here until they leave the
+ * box or press Enter, so a redraw of the step while typing never puts the old text back.
+ */
+function AssignmentInput({
+  id,
+  label,
+  onCommit,
+}: {
+  id: string;
+  label: string;
+  onCommit: (text: string) => void;
+}) {
+  const [draft, setDraft] = useState(label);
+  useEffect(() => setDraft(label), [label]);
+  return (
+    <input
+      id={id}
+      type="text"
+      value={draft}
+      placeholder="none yet"
+      onInput={(e) => setDraft(e.currentTarget.value)}
+      onChange={(e) => {
+        if (e.currentTarget.value !== label) onCommit(e.currentTarget.value);
+      }}
+    />
   );
 }

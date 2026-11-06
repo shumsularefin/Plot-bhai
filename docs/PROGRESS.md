@@ -18,6 +18,12 @@ GitHub, in `.github/workflows/validation.yml`).
 - **Validation in CI:** GSAS-II (built from source) simulates and refines anatase (TCH, O z,
   U_iso) and rutile (U_ij); pymatgen gives distances and powder lines for four CIFs. The
   fixtures are committed by the workflow; tests compare against them (docs/validation.md, 16g).
+- **Merge with main:** main's new wizard layout and Particles design were kept; the Particles
+  ImageJ tools (Adjust the image, Auto Threshold, Set Measurements, line profile) were ported into
+  main's "Find the particles" step. Main's simpler cell search in the Results step (cubic,
+  tetragonal, hexagonal, from fitted peaks) stays as it was, with its worker renamed
+  `indexingFit.worker.ts`; the Choose material search above is separate. Two cell searches exist
+  now; the owner may want to unify them.
 - **Known issue:** COD 9015929 (anatase) has its U_ij columns out of order (docs/validation.md).
 - **Open:** no DICVOL/TREOR comparison for low-symmetry indexing.
 
@@ -182,6 +188,150 @@ the must-haves for beginners and the rest under Advanced, and for Shift to strai
 - **Known differences from ImageJ, for the owner to note:** the background is a flat-window
   top-hat, not a rolling ball; Triangle may differ from ImageJ by one grey level on a bright tail;
   equalisation is the classic form.
+
+## Back and Next labels centred (done)
+
+- The arrow in Back and Next sat in a square box with empty space beside the drawing, plus a margin on both sides (it matched both `:first-child` and `:last-child`, being the only element in the button). That pushed "Back" about 2.5 px right and "Next" about 3.5 px left of centre.
+- The arrow box is now cropped to the arrow (viewBox 8 × 16, width 0.5cap) and has space only on the side facing the word (`.btn-icon.is-start` / `.is-end`). Measured on a 4× render, the arrow and word are now centred within half a pixel.
+- Checks: lint, type check, tests, build, bundle size and e2e all pass.
+
+## Consistent format for suggestion lists and results sections (done)
+
+- Walked every step of XRD, UV-Vis, FTIR, TGA and particles with the example data and looked for the same problem as the Fit regions list: long loose sentences instead of a tidy layout.
+- FTIR Assign groups: each peak's suggestions are now a small table (Suggestion, Listed at, Distance in cm⁻¹, Accept). `Suggestion` in `src/core/ftir/assign.ts` gained `listed` (the matched range or band as printed) and `offset` (the true distance; `distance` stays the ranking value, which treats a band within 4 cm⁻¹ as on it). The long atmospheric-band warning is still shown as a note under the table. New unit test with a synthetic table.
+- TGA Assign events, DSC events and the combined TGA-DSC step: the step cards and ranked suggestion lists had no styles at all. They are now bordered cards; each ranked suggestion is a row with its number, name and confidence on top, the reason under it and the Accept button on the right. The theoretical mass loss block sits in the same box as other settings.
+- Every results and export step: tables, notes and the text under them had no space between them. A shared rule in `src/ui/base.css` adds a small gap there, and a sub-heading inside a results section gets space above it.
+- Checks: lint, type check, 914 tests (913 passed, 1 skipped), build, bundle size and e2e all pass.
+
+## XRD Fit regions shown as a table (done)
+
+- The "Fit regions" summary in the XRD Fit peaks step was a loose list of long sentences. It is now a table in the same style as the peak table: 2θ range (°), number of peaks, R², χ²ν and a Check column.
+- Each problem has a short label in the Check column ("Did not converge", "R² below 0.9", "Misses structure", "Background too low", "Too few points", "No uncertainties"). Each label is explained once under the table, only when it appears. Regions with no problem read "Good".
+- `RegionMessage` in `src/core/xrd/peaks/fit.ts` now carries a `check` key; the full message text is unchanged and still goes into the fit record. Sessions saved before this change have no key and show the full text instead.
+- The e2e script now waits for the peak table only, not the region table.
+- Checks: lint, type check, 913 tests (912 passed, 1 skipped), build, bundle size and e2e all pass.
+
+## Foldable step sidebar; space above buttons under boxes (done)
+
+- The step sidebar can be folded to a slim column of step numbers (the sidebar button at its top,
+  like the macOS sidebar toggle) to give the step more room; the choice is kept in this browser.
+  Hovering a number shows the step name and what it does; screen readers still hear the names.
+  When the wizard is too narrow for the full sidebar (for example 1280 px with the plot pinned) the
+  number column appears on its own instead of the compact progress bar, and the toolbar row then
+  shows "Tools › tool name".
+- Buttons stacked right under a text box, table, drop area or note had no space above them (the
+  owner's example: Copy text under the methods text). One rule in base.css now adds space above
+  buttons and button rows that follow such content in normal flow; rows laid out by flex or grid
+  parents keep their own gap. A script walked every step of the tools with example data and found
+  no button closer than 6 px under the content above it (apart from inline "?" help icons).
+
+## App-window layout for every tool: step sidebar, step header, tip tiles (done)
+
+The owner liked the macOS look and asked to rearrange the tool pages along the lines of three sample
+screenshots (sidebar workflow, step panel, plot on the right), keeping the macOS style.
+
+- Every wizard now has a sidebar like a macOS source list: Tools › tool name, "Saved on this device"
+  (or "Not saved in this browser" when storage is blocked), and every step as a row with its number,
+  name and a few words on what it does, joined by a line. The open step is highlighted; reached steps
+  can be clicked. The pinned plot stays on the right, so wide screens show three columns.
+- The sidebar appears when the wizard itself has room (a container query at 46rem), not at a fixed
+  screen width, so it adapts to the pinned plot. Narrower layouts keep the compact "Step 2 of 8" bar.
+  The pinned plot is a little narrower (38 % of the window instead of 46 %) so the sidebar fits from
+  about 1440 px.
+- The open step has a header: its number in a soft accent square, its name, the same short
+  description and "Step 3 of 9" (in the sidebar layout).
+- "How to do this step" is a grey grouped box with numbered tiles side by side when there is room.
+- Advanced options, Undo, Redo, Start over and Validate are a toolbar row above the step.
+- Back and Next carry chevrons one capital letter tall on the text baseline; their names stay "Back"
+  and "Next" for screen readers and tests.
+- WizardStep has a new optional `summary`; every step of all eleven wizards has one, written from the
+  step's own instructions. New token `--color-success` for the saved dot.
+- Checks: lint, type check, 913 tests (912 passed, 1 skipped; one new test for the sidebar), build,
+  size budget and e2e all pass. Checked by screenshot at 390, 1280, 1440 and 1920 px, light and dark.
+
+## Graph editor in every mode, with more drawing tools (done)
+
+- The graph editor ("Edit graph") now shows in Simple mode too; before, it sat inside an Advanced section and disappeared unless Advanced options was on.
+- New on the plot and in every export (SVG, PNG, PDF): free lines, rectangles and ellipses (two clicks), each with line width, line style, and fill on or off with fill colour and opacity; bold and italic text on every annotation; line width and style for arrows and reference lines.
+- Curves: separate fill colour, symbols along the curve (spaced so dense data stays readable, also shown in the legend), symbol size, and width 0 for symbols only.
+- Axes: closed box or open left-and-bottom frame, and axis line width.
+- Button text is centred on its capital height (CSS text-box trim, where supported), so labels sit exactly mid-button whatever the system font.
+- Tests: exported SVG checks for the new shapes, fills, text styles, symbols and open frame.
+
+## macOS-style controls and equal button sizes (done)
+
+- Controls are drawn macOS-style on every system: push buttons with a soft shadow instead of a border, text fields with a thin inset line, pop-up menus with up/down arrows, accent checkboxes and radio buttons, thin slider tracks with a white knob, a segmented control for the XRD choices and a light grey toolbar header. Focus shows the macOS blue ring. New tokens: `--color-control`, `--color-control-active`, `--color-toolbar`, `--color-track`, `--check-image`, `--select-image`, `--radius-control` (light and dark). Old per-module borders on fields and menus were removed so all of them look the same.
+- Button audit over every step of every tool: every `.btn` is 22 px high with a pointer (44 px on touch screens). "Choose files" was 28 px because the drop zone stretched it; fixed. Stepper numbers, periodic table cells and the particle mode cards are different kinds of control and keep their own size.
+- SF Pro cannot be self-hosted (licence), so text uses the system font: San Francisco on Apple devices, Segoe UI on Windows.
+- FTIR Assign: the assignment box now keeps what the user types until they leave the box or press Enter. Before, any redraw of the step while typing put the old text back. The owner reported entries resetting; I could not reproduce it with the example data, so the owner should confirm on real data.
+
+## Plain, native-looking theme (done)
+
+- The owner asked for a plain desktop-app look across the whole site. The page and the panels are white now (#1e1e1e in dark mode), and steps no longer sit on a card with a shadow.
+- Buttons are small rectangles: 5 px corners, a thin grey border (`--color-control-border`), a faint shadow and regular-weight text. A pressed button is light grey, with a slight inset shadow and black text.
+- Checkboxes and radio buttons use the accent colour. The stepper buttons are rectangles. The home page chips are no longer pills.
+- The selected particle drawing tool and drawing mode now show black text. Before, the text was white on light blue.
+- Second pass, to match the owner's sample exactly:
+  - desktop-app sizes: 13 px body text, 11 to 12 px small text, 16 to 20 px headings and tighter spacing;
+  - compact controls 22 px tall with 4 px corners;
+  - every on/off switch shows as the browser's own checkbox;
+  - inputs and drop-down menus are small boxes with a thin grey border.
+- Touch screens keep 44 px controls (`@media (pointer: fine)` sets 22 px for mouse users only), as CLAUDE.md requires. Text contrast is unchanged and still passes AA.
+- Checks: lint, typecheck, 909 tests, size and e2e all pass.
+
+## Simple mode and higher contrast (done)
+
+- Advanced options are hidden by default. A switch, "Advanced options", in every wizard header shows them; the choice is remembered in the browser (`src/ui/advancedMode.ts`). Every `Advanced` section follows it.
+- Higher contrast: text is pure black (white in dark mode), secondary text is #3c3c43 (#d1d1d6 in dark mode), and the strong border is darker. All pairs still pass `tests/tokens.test.ts`. Body text is 17 px and the smallest text is 14 px. Font thinning (grayscale antialiasing) is removed.
+- Each step's tips are now a plain numbered list with an accent bar, not a grey box. The footer names the next step ("Next: Choose material").
+- In simple mode, the long description under each processing switch that is off is hidden. Warnings and results are always shown.
+- The on/off switch styles moved from xrd.css to base.css, because the wizard header uses them.
+- Checks: lint, typecheck, 909 tests, build, size and e2e all pass.
+
+## Plot editing, particle drawing modes, XRD indexing and a cleaner look (done)
+
+Branch `claude/zen-edison-acnmco`. No new dependencies.
+
+- **Plot objects:** click a (hkl) label or an annotation on any plot to select it, drag it to
+  move it (one undo step per drag), and edit its text, colour or size in a small bar under the
+  plot. Moved labels keep a leader line to their peak and stay in place at every export size
+  (offsets are fractions of the plot area). Export files carry no editing marks.
+- **XRD search of one element:** typing "Fe" now offers "Only Fe (the pure element)" or
+  "Anything that contains Fe"; before, there was no way to ask for the pure element.
+- **Particles: Detect automatically or Draw by hand.** A clear choice at the top of the step.
+  Manual mode hides the detection settings and starts on a new "Trace an outline" tool (freehand,
+  closed automatically, filled by an even-odd scanline in `polygonRuns`). When one outline holds
+  more than 30 % of the particle area, a button separates the clumps (Hough method) and detects
+  again. The Methods text says when every outline was drawn by hand. The step is renamed
+  "Find the particles".
+- **TEM check (owner's Au-TiO2 image, 2048 px, inverted):** the threshold outlines follow the
+  particle edges closely. "Necks" found 224 particles in 3.2 s and merged an agglomerate of about
+  four particles into one; "Clumps" found 248 in 5.0 s (diameter estimated at 41 px) and separated
+  that agglomerate. In overlapping particles the hidden part of each particle is cut off along a
+  chord, so their areas are underestimated; correct those by hand (trace or circle).
+- **XRD: unit cell without a reference** (Results > Phases, an estimate). Trial indexing for
+  cubic (P, I, F), tetragonal (P, I) and hexagonal (P) cells, with the system chosen or tried
+  automatically, least-squares refinement (`refineLattice`) and ranking by de Wolff's M(N)
+  (J. Appl. Cryst. 1 (1968) 108). Runs in a web worker. Tested on synthetic fcc, body-centred
+  tetragonal and hexagonal lines. Centring matters: with only primitive lattices, an fcc pattern
+  of 8 lines was beaten by a false tetragonal sub-cell.
+- **Look:** Apple-like system font stack (San Francisco, Segoe UI Variable, Roboto; nothing
+  downloaded), neutral greys with one blue accent (#0066cc light, #2997ff dark, all pairs AA in
+  `tests/tokens.test.ts`), larger and tighter headings, pill buttons, rounder cards, calmer tips
+  and message boxes, and a translucent Back/Next bar.
+
+### Verification (real results)
+
+- `npm run lint`, `npm run typecheck`: pass. `npx vitest run`: 908 pass, 1 skipped.
+- `npm run build`: pass. `npm run size`: within budget. `npm run e2e`: passed.
+
+### Known issues and to-dos
+
+- Indexing cannot find orthorhombic, monoclinic, triclinic or rhombohedral cells, and ignores
+  absences from glide planes and screw axes.
+- AI (Gemini) particle detection is not built: it would send the image off the device, which the
+  project rules forbid. Waiting for the owner's decision.
+- Occluded particles in clumps are not completed by fitting a circle to the visible arc.
 
 ## Polymer library and public-release files (done)
 

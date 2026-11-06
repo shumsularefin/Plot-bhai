@@ -162,6 +162,8 @@ async function walkToExport(log) {
   await next('Rietveld refinement (optional)');
 
   // 5 Rietveld refinement of the candidate (optional; run once to check it works in a worker).
+  // The refinement choices sit under Advanced, which is hidden until "Advanced options" is on.
+  await page.getByLabel('Advanced options').check();
   const asymmetry = page.getByLabel('Peak asymmetry');
   if (!(await asymmetry.isVisible()))
     await page.locator('summary', { hasText: 'What to refine' }).click();
@@ -188,7 +190,7 @@ async function walkToExport(log) {
     },
   );
   await fit.click();
-  await page.locator('.peak-table').waitFor({ timeout: 60_000 });
+  await page.locator('.peak-table:not(.region-table)').waitFor({ timeout: 60_000 });
   note('6 Fit peaks: peak table shown');
   // The other shapes: Pearson VII adds its m column; then back to pseudo-Voigt for the rest.
   await page.getByLabel('Pearson VII').check();
@@ -514,7 +516,7 @@ try {
   await page.getByRole('button', { name: 'Undo the last change' }).click();
   await page.getByText('Minimum (becomes black): 0').waitFor();
   step('Particles: adjust step, Auto brightness and contrast, undo');
-  await next('Detect particles');
+  await next('Find the particles');
   await page.locator('button.btn-primary', { hasText: 'Detect particles' }).click();
   await page.getByText(/12 of 12 particles shown/).waitFor({ timeout: 30_000 });
   const detected = await page

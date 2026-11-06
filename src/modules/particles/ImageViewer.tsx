@@ -37,9 +37,10 @@ export type Tool =
   | 'ellipse'
   | 'add-circle'
   | 'add-ellipse'
-  | 'cut';
-/** Tools that draw by dragging. */
-export type DrawTool = Exclude<Tool, 'pan' | 'select'>;
+  | 'cut'
+  | 'trace';
+/** Tools that draw by dragging from one point to another. */
+export type DrawTool = Exclude<Tool, 'pan' | 'select' | 'trace'>;
 
 /** A detected particle on the overlay: outline path in working grid pixels and a label position. */
 export interface ParticleOverlay {
@@ -80,6 +81,8 @@ interface ImageViewerProps {
   measurements?: readonly Measurement[];
   /** Called when the user finishes dragging with a drawing tool; points are in original pixels. */
   onDraw?: (tool: DrawTool, a: Point, b: Point) => void;
+  /** Called when the user finishes tracing an outline with the trace tool (original pixels). */
+  onTrace?: (points: Point[]) => void;
   /** Detected particles (outlines on the working grid) and the working copy's scale to the original. */
   particles?: readonly ParticleOverlay[];
   workScale?: number;
@@ -105,6 +108,8 @@ interface Gesture {
   fromScreen?: Point;
   /** Where the pointer is while drawing, in original pixels, before snapping. */
   to?: Point;
+  /** Trace tool: the outline so far, in original pixels. */
+  path?: Point[];
 }
 
 /**
@@ -116,7 +121,7 @@ interface Gesture {
  * square. All coordinates handed out are in pixels of the original image.
  */
 export function ImageViewer(props: ImageViewerProps) {
-  const { image, tool, scale, measurements = [], onDraw, onPick, label } = props;
+  const { image, tool, scale, measurements = [], onDraw, onTrace, onPick, label } = props;
   const { focusCrop = false, onCropChange } = props;
   // While a crop edge is dragged, the changed crop is shown before it is saved.
   const [editedCrop, setEditedCrop] = useState<Rect | null>(null);
@@ -130,7 +135,8 @@ export function ImageViewer(props: ImageViewerProps) {
   const [view, setView] = useState<ViewTransform | null>(null);
   const [draft, setDraft] = useState<{ a: Point; b: Point } | null>(null);
   const [snapOn, setSnapOn] = useState(false);
-  const drawing = tool !== 'pan' && tool !== 'select';
+  const drawing = tool !== 'pan' && tool !== 'select' && tool !== 'trace';
+  const [trail, setTrail] = useState<Point[] | null>(null);
   const pointers = useRef(new Map<number, Point>());
   const gesture = useRef<Gesture>({ mode: 'none' });
 
@@ -252,6 +258,7 @@ export function ImageViewer(props: ImageViewerProps) {
         start: { distance: distance(a, b), view, mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } },
       };
       setDraft(null);
+      setTrail(null);
       return;
     }
     const grab = cropGrab(p);
@@ -259,6 +266,10 @@ export function ImageViewer(props: ImageViewerProps) {
       gesture.current = { mode: 'crop', grab, startCrop: crop, from: toImage(p, view) };
     } else if (tool === 'pan' || tool === 'select') {
       gesture.current = { mode: 'pan', last: p, fromScreen: p };
+    } else if (tool === 'trace') {
+      const from = toImage(p, view);
+      gesture.current = { mode: 'draw', from, fromScreen: p, path: [from] };
+      setTrail([from]);
     } else {
       const from = toImage(p, view);
       gesture.current = { mode: 'draw', from, fromScreen: p, to: from };
@@ -295,6 +306,14 @@ export function ImageViewer(props: ImageViewerProps) {
       setEditedCrop(
         dragRect(g.startCrop, g.grab, at.x - g.from.x, at.y - g.from.y, image.width, image.height),
       );
+    } else if (g.mode === 'draw' && g.path) {
+      const at = toImage(p, view);
+      const last = g.path[g.path.length - 1] as Point;
+      // Keep a point every 2 screen pixels: smooth enough, and short paths stay light.
+      if (distance(at, last) * view.scale >= 2) {
+        g.path.push(at);
+        setTrail([...g.path]);
+      }
     } else if (g.mode === 'draw' && g.from) {
       g.to = toImage(p, view);
       setDraft({ a: g.from, b: constrain(tool, g.from, g.to, event.shiftKey || snapOn) });
@@ -325,6 +344,10 @@ export function ImageViewer(props: ImageViewerProps) {
     if (g.mode === 'crop') {
       if (editedCrop) onCropChange?.(editedCrop);
       setEditedCrop(null);
+      gesture.current = { mode: 'none' };
+    } else if (g.mode === 'draw' && g.path) {
+      if (g.path.length >= 3) onTrace?.(g.path);
+      setTrail(null);
       gesture.current = { mode: 'none' };
     } else if (g.mode === 'draw' && g.from && g.fromScreen && view) {
       if (distance(p, g.fromScreen) >= MIN_DRAG_PX && drawing) {
@@ -434,6 +457,20 @@ export function ImageViewer(props: ImageViewerProps) {
               <>
                 <Shape kind={draftKind(tool)} a={s(draft.a)} b={s(draft.b)} draft />
                 <DraftReadout tool={tool} a={draft.a} b={draft.b} at={s(draft.b)} />
+              </>
+            )}
+            {trail && trail.length > 1 && (
+              <>
+                <polygon
+                  points={trail.map((q) => `${s(q).x},${s(q).y}`).join(' ')}
+                  class="shape-halo"
+                  fill="none"
+                />
+                <polygon
+                  points={trail.map((q) => `${s(q).x},${s(q).y}`).join(' ')}
+                  class="shape shape-cut is-draft"
+                  fill="none"
+                />
               </>
             )}
           </svg>

@@ -3,6 +3,8 @@ import { useId } from 'preact/hooks';
 import { niceTicks } from './axes';
 import { decimate, lowerBound, type Decimated } from './decimate';
 import {
+  labelKey,
+  type EditRef,
   dashArray,
   styledLabels,
   styledPeakLabels,
@@ -62,6 +64,11 @@ interface PlotSvgProps {
   peakLabels?: PeakLabelSet;
   /** Styling chosen in the figure editor (colours, fills, annotations, axes, legend). */
   figure?: FigureStyle;
+  /**
+   * On screen: mark labels and annotations as pickable (data-edit, see EditRef) and outline the
+   * selected one. Never set for exports.
+   */
+  editable?: { selected: EditRef | null };
   /** Extra attributes for the root element, for example physical width and height for export. */
   svgAttributes?: SVGAttributes<SVGSVGElement>;
   children?: ComponentChildren;
@@ -106,7 +113,8 @@ export function visibleYDomain(
  * and exported files, so what is exported matches what is shown.
  */
 export function PlotSvg(props: PlotSvgProps) {
-  const { xDomain, width, height, style, samples, legend, markers, bands, figure } = props;
+  const { xDomain, width, height, style, samples, legend, markers, bands, figure, editable } =
+    props;
   const { svgAttributes, children } = props;
   const series = styledSeries(props.series, figure);
   const labels = styledLabels(props.labels, figure);
@@ -192,7 +200,8 @@ export function PlotSvg(props: PlotSvgProps) {
   const ticksOut = figure?.axes.ticks === 'out';
   const print = style.print;
   const ink = print ? '#000000' : undefined;
-  const frameWidth = print ? 0.75 : 1;
+  const frameWidth = (print ? 0.75 : 1) * (figure?.axes.axisWidth ?? 1);
+  const openFrame = figure?.axes.frame === 'open';
   const text = print
     ? { 'font-family': print.fontFamily, 'font-size': style.fontSize, fill: ink }
     : {};
@@ -246,7 +255,7 @@ export function PlotSvg(props: PlotSvgProps) {
       {
         id: s.id,
         d: `${d}Z`,
-        color: color(s),
+        color: own(s)?.fillColor ?? color(s),
         colorIndex: s.colorIndex,
         opacity: own(s)?.fillOpacity ?? 0.25,
       },
@@ -302,6 +311,13 @@ export function PlotSvg(props: PlotSvgProps) {
             .map((a) => (
               <rect
                 key={a.id}
+                {...(editable && {
+                  'data-edit': `annotation:${a.id}`,
+                  class:
+                    editable.selected === `annotation:${a.id}`
+                      ? 'plot-editable is-selected'
+                      : 'plot-editable',
+                })}
                 x={Math.min(ax(a.x), ax(a.x2 ?? a.x))}
                 width={Math.abs(ax(a.x2 ?? a.x) - ax(a.x))}
                 y={0}
@@ -336,9 +352,39 @@ export function PlotSvg(props: PlotSvgProps) {
               stroke-dasharray={dash(s)}
             />
           ))}
+          {series.map((s, i) => {
+            const symbol = own(s)?.symbol;
+            if (!symbol || symbol === 'none') return null;
+            const r = style.fontSize * 0.35 * (own(s)?.symbolSize ?? 1);
+            return (
+              <g
+                key={`symbols-${s.id}`}
+                class={
+                  print || own(s)?.color
+                    ? undefined
+                    : `plot-symbols series-${s.colorIndex % PRINT_COLORS.length}`
+                }
+                style={own(s)?.opacity !== undefined ? { opacity: own(s)?.opacity } : undefined}
+              >
+                {symbolPoints(lines[i] as Decimated, px, py, r * 3).map(([sx, sy], k) => (
+                  <MarkerShapePath
+                    key={k}
+                    shape={symbol}
+                    x={sx}
+                    y={sy}
+                    r={r}
+                    color={color(s) ?? 'currentColor'}
+                    lineWidth={widthOf(s)}
+                  />
+                ))}
+              </g>
+            );
+          })}
           {annotations.map((a) => (
             <AnnotationLines
               key={a.id}
+              {...(editable && { selected: editable.selected === `annotation:${a.id}` })}
+              editable={editable !== undefined}
               a={a}
               fontFamily={print?.fontFamily}
               ink={print ? '#000000' : 'currentColor'}
@@ -379,14 +425,20 @@ export function PlotSvg(props: PlotSvgProps) {
         </g>
 
         <g class={print ? undefined : 'plot-ink'} stroke={ink} stroke-width={frameWidth}>
-          <rect width={innerW} height={innerH} fill="none" />
+          {openFrame ? (
+            <path d={`M0 0V${innerH}H${innerW}`} fill="none" />
+          ) : (
+            <rect width={innerW} height={innerH} fill="none" />
+          )}
           {xTicks.map((t) => (
             <path
               key={t.value}
               d={
                 ticksOut
                   ? `M${px(t.value).toFixed(2)} ${innerH}v${tickLength}`
-                  : `M${px(t.value).toFixed(2)} ${innerH}v${-tickLength}M${px(t.value).toFixed(2)} 0v${tickLength}`
+                  : openFrame
+                    ? `M${px(t.value).toFixed(2)} ${innerH}v${-tickLength}`
+                    : `M${px(t.value).toFixed(2)} ${innerH}v${-tickLength}M${px(t.value).toFixed(2)} 0v${tickLength}`
               }
             />
           ))}
@@ -396,7 +448,9 @@ export function PlotSvg(props: PlotSvgProps) {
               d={
                 ticksOut
                   ? `M0 ${py(t.value).toFixed(2)}h${-tickLength}`
-                  : `M0 ${py(t.value).toFixed(2)}h${tickLength}M${innerW} ${py(t.value).toFixed(2)}h${-tickLength}`
+                  : openFrame
+                    ? `M0 ${py(t.value).toFixed(2)}h${tickLength}`
+                    : `M0 ${py(t.value).toFixed(2)}h${tickLength}M${innerW} ${py(t.value).toFixed(2)}h${-tickLength}`
               }
             />
           ))}
@@ -465,6 +519,24 @@ export function PlotSvg(props: PlotSvgProps) {
                     stroke-width={widthOf(s)}
                     stroke-dasharray={dash(s)}
                   />
+                  {own(s)?.symbol && own(s)?.symbol !== 'none' && (
+                    <g
+                      class={
+                        print || own(s)?.color
+                          ? undefined
+                          : `plot-symbols series-${s.colorIndex % PRINT_COLORS.length}`
+                      }
+                    >
+                      <MarkerShapePath
+                        shape={own(s)?.symbol as MarkerShape}
+                        x={swatchStart + swatch / 2}
+                        y={y}
+                        r={style.fontSize * 0.35 * (own(s)?.symbolSize ?? 1)}
+                        color={color(s) ?? 'currentColor'}
+                        lineWidth={widthOf(s)}
+                      />
+                    </g>
+                  )}
                 </g>
               );
             })}
@@ -486,29 +558,48 @@ export function PlotSvg(props: PlotSvgProps) {
         )}
         {placedLabels.length > 0 && (
           <g class={print ? undefined : 'plot-text'} {...text} text-anchor="middle">
-            {placedLabels.map(({ label, placed }, i) => (
-              <g key={i}>
-                {placed.leader && (
-                  <path
-                    d={
-                      below
-                        ? `M${placed.x.toFixed(2)} ${(placed.baseline - style.fontSize * 0.95).toFixed(2)}V${(py(label.y) + style.fontSize * 0.3).toFixed(2)}`
-                        : `M${placed.x.toFixed(2)} ${(placed.baseline + style.fontSize * 0.25).toFixed(2)}V${(py(label.y) - style.fontSize * 0.3).toFixed(2)}`
-                    }
-                    fill="none"
-                    stroke={ink ?? 'currentColor'}
-                    stroke-width={style.lineWidth * 0.5}
-                  />
-                )}
-                <text
-                  x={placed.x}
-                  y={placed.baseline}
-                  font-weight={label.strong ? 'bold' : undefined}
+            {placedLabels.map(({ label, placed: auto }, i) => {
+              const key = labelKey(label.x);
+              const ref: EditRef = `label:${key}`;
+              const offset = figure?.peakLabels.offset?.[key];
+              const placed = offset
+                ? {
+                    x: auto.x + offset.dx * innerW,
+                    baseline: auto.baseline + offset.dy * innerH,
+                    leader: true,
+                  }
+                : auto;
+              return (
+                <g
+                  key={i}
+                  {...(editable && {
+                    'data-edit': ref,
+                    class:
+                      editable.selected === ref ? 'plot-editable is-selected' : 'plot-editable',
+                  })}
                 >
-                  {label.text}
-                </text>
-              </g>
-            ))}
+                  {placed.leader && (
+                    <path
+                      d={
+                        below
+                          ? `M${placed.x.toFixed(2)} ${(placed.baseline - style.fontSize * 0.95).toFixed(2)}L${px(label.x).toFixed(2)} ${(py(label.y) + style.fontSize * 0.3).toFixed(2)}`
+                          : `M${placed.x.toFixed(2)} ${(placed.baseline + style.fontSize * 0.25).toFixed(2)}L${px(label.x).toFixed(2)} ${(py(label.y) - style.fontSize * 0.3).toFixed(2)}`
+                      }
+                      fill="none"
+                      stroke={ink ?? 'currentColor'}
+                      stroke-width={style.lineWidth * 0.5}
+                    />
+                  )}
+                  <text
+                    x={placed.x}
+                    y={placed.baseline}
+                    font-weight={label.strong ? 'bold' : undefined}
+                  >
+                    {label.text}
+                  </text>
+                </g>
+              );
+            })}
           </g>
         )}
         {children}
@@ -581,18 +672,61 @@ interface AnnotationProps {
   fontFamily: string | undefined;
   /** Colour used when the annotation has none: black in exports, the text colour on screen. */
   ink: string;
+  /** On screen: pickable with a click (data-edit), outlined when selected. */
+  editable?: boolean;
+  selected?: boolean;
 }
 
-/** One annotation in plot coordinates; regions are drawn behind the curves, elsewhere. */
+/** One annotation in plot coordinates, pickable on screen. */
 function AnnotationLines(props: AnnotationProps) {
+  const drawn = AnnotationShape(props);
+  if (!props.editable || drawn === null) return drawn;
+  return (
+    <g
+      data-edit={`annotation:${props.a.id}`}
+      class={props.selected ? 'plot-editable is-selected' : 'plot-editable'}
+    >
+      {drawn}
+    </g>
+  );
+}
+
+/** One annotation's marks; regions are drawn behind the curves, elsewhere. */
+function AnnotationShape(props: AnnotationProps) {
   const { ax, py, innerW, innerH, lineWidth, fontSize, fontFamily, ink } = props;
   const a = { ...props.a, color: props.a.color || ink };
   const size = fontSize * a.size;
+  const lw = lineWidth * (a.lineWidth ?? 1);
+  const dash = dashArray(
+    a.dash ?? (a.kind === 'vline' || a.kind === 'hline' ? 'dashed' : 'solid'),
+    lw,
+  );
   const label = a.text.trim() !== '' && (
-    <text x={0} y={0} fill={a.color} stroke="none" font-size={size} font-family={fontFamily}>
+    <text
+      x={0}
+      y={0}
+      fill={a.color}
+      stroke="none"
+      font-size={size}
+      font-family={fontFamily}
+      {...(a.bold && { 'font-weight': 'bold' })}
+      {...(a.italic && { 'font-style': 'italic' })}
+    >
       {a.text}
     </text>
   );
+  const f2 = (v: number) => v.toFixed(2);
+  const boxX = Math.min(ax(a.x), ax(a.x2 ?? a.x));
+  const boxY = Math.min(py(a.y), py(a.y2 ?? a.y));
+  const boxW = Math.abs(ax(a.x2 ?? a.x) - ax(a.x));
+  const boxH = Math.abs(py(a.y2 ?? a.y) - py(a.y));
+  const boxPaint = {
+    fill: a.fill ? a.fill : 'none',
+    ...(a.fill && { 'fill-opacity': a.fillOpacity ?? 0.25 }),
+    stroke: a.color,
+    'stroke-width': lw,
+    'stroke-dasharray': dash,
+  };
   const at = (x: number, y: number, children: ComponentChildren) => (
     <g transform={`translate(${x.toFixed(2)} ${y.toFixed(2)})`}>{children}</g>
   );
@@ -619,8 +753,8 @@ function AnnotationLines(props: AnnotationProps) {
           <path
             d={`M${ax(a.x).toFixed(2)} 0V${innerH}`}
             stroke={a.color}
-            stroke-width={lineWidth}
-            stroke-dasharray={`${lineWidth * 4} ${lineWidth * 3}`}
+            stroke-width={lw}
+            stroke-dasharray={dash}
           />
           {label && at(ax(a.x) + size * 0.3, size * 1.1, label)}
         </g>
@@ -631,10 +765,42 @@ function AnnotationLines(props: AnnotationProps) {
           <path
             d={`M0 ${py(a.y).toFixed(2)}H${innerW}`}
             stroke={a.color}
-            stroke-width={lineWidth}
-            stroke-dasharray={`${lineWidth * 4} ${lineWidth * 3}`}
+            stroke-width={lw}
+            stroke-dasharray={dash}
           />
           {label && at(size * 0.3, py(a.y) - size * 0.3, label)}
+        </g>
+      );
+    case 'line':
+      return (
+        <g>
+          <path
+            d={`M${f2(ax(a.x))} ${f2(py(a.y))}L${f2(ax(a.x2 ?? a.x))} ${f2(py(a.y2 ?? a.y))}`}
+            stroke={a.color}
+            stroke-width={lw}
+            stroke-dasharray={dash}
+          />
+          {label && at(ax(a.x2 ?? a.x) + size * 0.3, py(a.y2 ?? a.y), label)}
+        </g>
+      );
+    case 'rect':
+      return (
+        <g>
+          <rect x={f2(boxX)} y={f2(boxY)} width={f2(boxW)} height={f2(boxH)} {...boxPaint} />
+          {label && at(boxX + size * 0.3, boxY + size * 1.1, label)}
+        </g>
+      );
+    case 'ellipse':
+      return (
+        <g>
+          <ellipse
+            cx={f2(boxX + boxW / 2)}
+            cy={f2(boxY + boxH / 2)}
+            rx={f2(boxW / 2)}
+            ry={f2(boxH / 2)}
+            {...boxPaint}
+          />
+          {label && at(boxX + boxW / 2, boxY - size * 0.3, <g text-anchor="middle">{label}</g>)}
         </g>
       );
     case 'region':
@@ -654,7 +820,8 @@ function AnnotationLines(props: AnnotationProps) {
           <path
             d={`M${f(x1)} ${f(y1)}L${f(x2 - head * 0.8 * Math.cos(angle))} ${f(y2 - head * 0.8 * Math.sin(angle))}`}
             stroke={a.color}
-            stroke-width={lineWidth}
+            stroke-width={lw}
+            stroke-dasharray={dash}
           />
           <path
             d={`M${f(x2)} ${f(y2)}L${f(left[0])} ${f(left[1])}L${f(right[0])} ${f(right[1])}Z`}
@@ -671,4 +838,28 @@ function AnnotationLines(props: AnnotationProps) {
       );
     }
   }
+}
+
+/**
+ * Points of a drawn curve at which to put symbols, at least `gap` px apart along the curve, so a
+ * dense pattern gets evenly spaced symbols instead of a solid band.
+ */
+function symbolPoints(
+  line: Decimated,
+  px: (x: number) => number,
+  py: (y: number) => number,
+  gap: number,
+): [number, number][] {
+  const out: [number, number][] = [];
+  let last: [number, number] | null = null;
+  line.x.forEach((x, k) => {
+    const y = line.y[k] as number;
+    if (Number.isNaN(y)) return;
+    const p: [number, number] = [px(x), py(y)];
+    if (!last || Math.hypot(p[0] - last[0], p[1] - last[1]) >= gap) {
+      out.push(p);
+      last = p;
+    }
+  });
+  return out;
 }

@@ -20,7 +20,12 @@ const steps: WizardStep<Data>[] = [
     ),
     validate: (data) => (data.name === '' ? 'Enter a name to continue.' : null),
   },
-  { id: 'two', title: 'Second step', render: () => <p>Second content</p> },
+  {
+    id: 'two',
+    title: 'Second step',
+    summary: 'What the second step does',
+    render: () => <p>Second content</p>,
+  },
   { id: 'three', title: 'Third step', render: () => <p>Third content</p> },
 ];
 
@@ -38,6 +43,16 @@ async function renderWizard(key: string) {
 const heading = () => screen.getByRole('heading', { level: 2 });
 
 describe('Wizard', () => {
+  it('lists every step with what it does, and names the open one with its place', async () => {
+    const store = await renderWizard('sidebar');
+    act(() => store.set((s) => ({ ...s, step: 1, furthest: 1 })));
+    expect(screen.getByRole('complementary', { name: 'Test tool steps' })).toBeTruthy();
+    // Once in the step list and once under the open step's heading.
+    expect(screen.getAllByText('What the second step does')).toHaveLength(2);
+    expect(screen.getByText('Step 2 of 3')).toBeTruthy();
+    expect(screen.getByText('Saved on this device')).toBeTruthy();
+  });
+
   it('blocks Next with a plain-language message until the step is valid', async () => {
     await renderWizard('validation');
     expect(heading().textContent).toBe('First step');

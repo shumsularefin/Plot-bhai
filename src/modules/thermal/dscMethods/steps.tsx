@@ -10,6 +10,7 @@ export const dscMethodsSteps: readonly WizardStep<DscMethodsData>[] = [
   {
     id: 'upload',
     title: 'Method and runs',
+    summary: 'Pick a method, load runs',
     guide: [
       'Choose the method, then load the runs it asks for, or press Try with example data.',
       'Say which way exothermic peaks point, and type the masses.',
@@ -21,6 +22,7 @@ export const dscMethodsSteps: readonly WizardStep<DscMethodsData>[] = [
   {
     id: 'setup',
     title: 'Range and settings',
+    summary: 'Range, peak limits, gas switch',
     guide: [
       'Check the runs on the plot.',
       'Set the temperature range, peak limits or gas switch time.',
@@ -31,6 +33,7 @@ export const dscMethodsSteps: readonly WizardStep<DscMethodsData>[] = [
   {
     id: 'results',
     title: 'Results and export',
+    summary: 'Result, CSV and methods text',
     guide: ['Read the result and check the plot.', 'Download the CSV and copy the methods text.'],
     render: (context) => <DscMethodsResultsStep {...context} />,
   },

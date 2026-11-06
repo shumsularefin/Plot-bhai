@@ -77,7 +77,7 @@ export function AssignStep({ data, update }: StepContext<ThermalData>) {
         {...(numbers && { peakLabels: numbers })}
       />
 
-      <section aria-labelledby="theory-title">
+      <section class="process-step" aria-labelledby="theory-title">
         <h3 id="theory-title" class="process-step-title">
           Theoretical mass loss{' '}
           <HelpTip term="theoretical mass loss">

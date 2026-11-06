@@ -25,6 +25,8 @@ export interface ParticleMethodsInput {
     settings: DetectSettings;
     /** True when particles were merged, cut, added or deleted by hand after detection. */
     edited: boolean;
+    /** True when every outline was drawn by hand (no automatic detection was used). */
+    byHand?: boolean;
     /** Typical diameter used to separate clumps, in pixels of the working copy; null otherwise. */
     diameterUsed: number | null;
     /** Grey level the automatic threshold chose, and whether its method fell back to Otsu's. */
@@ -58,6 +60,10 @@ const number = (value: number, digits = 4) => Number(value.toPrecision(digits)).
 
 function detectionSentence(d: NonNullable<ParticleMethodsInput['detection']>): string {
   const { settings: s, filters: f } = d;
+  const filter = filterSentence(f);
+  if (d.byHand) {
+    return `Particle outlines were drawn by hand on the image (traced along the edge, or as circles or ellipses).${filter}`;
+  }
   const parts: string[] = [];
   const a = s.adjust;
   if (a.background.enabled)
@@ -104,17 +110,21 @@ function detectionSentence(d: NonNullable<ParticleMethodsInput['detection']>): s
       `and clumps were separated into particles by finding particle centres with a circular Hough transform on the edges (typical diameter ${number(d.diameterUsed, 3)} px${s.split.diameter === null ? ', estimated from the image' : ''}, radii 0.7 to 1.3 times half of it; centres needing at least ${number(s.split.outlinePercent)} % of a whole outline) and giving each mask pixel to the nearest centre`,
     );
   }
+  const edit = d.edited
+    ? ' The outlines were reviewed and corrected by hand (merged, cut, added or deleted particles).'
+    : ' The outlines were reviewed.';
+  return `Particles were detected automatically: the image was ${parts.join(', ')}.${filter}${edit}`;
+}
+
+/** The sentence on particles left out by the filters, or '' when none were set. */
+function filterSentence(f: NonNullable<ParticleMethodsInput['detection']>['filters']): string {
   const limits: string[] = [];
   const unit = f.unit;
   if (f.minDiameter !== null) limits.push(`smaller than ${number(f.minDiameter)} ${unit}`);
   if (f.maxDiameter !== null) limits.push(`larger than ${number(f.maxDiameter)} ${unit}`);
   if (f.minCircularity !== null) limits.push(`with circularity below ${number(f.minCircularity)}`);
   if (f.excludeEdge) limits.push('touching the edge of the analysed area');
-  const filter = limits.length > 0 ? ` Particles ${limits.join(' or ')} were left out.` : '';
-  const edit = d.edited
-    ? ' The outlines were reviewed and corrected by hand (merged, cut, added or deleted particles).'
-    : ' The outlines were reviewed.';
-  return `Particles were detected automatically: the image was ${parts.join(', ')}.${filter}${edit}`;
+  return limits.length > 0 ? ` Particles ${limits.join(' or ')} were left out.` : '';
 }
 
 /** The paragraph, as plain text. */

@@ -10,6 +10,7 @@ export const uvvisSteps: readonly WizardStep<UvvisData>[] = [
   {
     id: 'upload',
     title: 'Upload',
+    summary: 'Load your spectra',
     guide: [
       'Drop your spectrum files on the box, or press Choose files.',
       'Only have a picture of a graph? Press Use a graph image.',
@@ -25,6 +26,7 @@ export const uvvisSteps: readonly WizardStep<UvvisData>[] = [
   {
     id: 'clean',
     title: 'Data type and cleaning',
+    summary: 'Display, blank and smoothing',
     guide: [
       'Choose how the spectra are shown; your data are not changed.',
       'Optional: subtract a blank, set a baseline offset or smooth noisy spectra.',
@@ -35,6 +37,7 @@ export const uvvisSteps: readonly WizardStep<UvvisData>[] = [
   {
     id: 'bandgap',
     title: 'Band gap',
+    summary: 'Tauc plot and fit',
     guide: [
       'Choose the transition type (direct or indirect) for the Tauc plot.',
       'The straight part of the absorption edge is suggested; drag or type its limits to adjust.',
@@ -45,6 +48,7 @@ export const uvvisSteps: readonly WizardStep<UvvisData>[] = [
   {
     id: 'results',
     title: 'Results and export',
+    summary: 'Tables, figures and methods text',
     guide: [
       'Check the results table.',
       'Download the CSV and copy the methods text.',

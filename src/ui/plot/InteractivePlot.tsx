@@ -5,6 +5,7 @@ import {
   styledPeakLabels,
   styledSeries,
   styledYDomain,
+  type EditRef,
   type FigureStyle,
 } from './figure';
 import { labelRoom, type PeakLabelSet } from './peakLabels';
@@ -48,6 +49,27 @@ export interface InteractivePlotProps {
   hideReadout?: boolean;
   /** Figure styling, applied on screen exactly as in exports. */
   figure?: FigureStyle;
+  /** Lets peak labels and annotations be picked with a click and dragged. */
+  editing?: PlotEditing;
+}
+
+/** How far a dragged object has moved: as fractions of the plot area and in data units. */
+export interface ObjectMove {
+  /** Rightwards and downwards, as fractions of the plot's inner width and height. */
+  dxFraction: number;
+  dyFraction: number;
+  /** In plotted x units and y units (y upwards). */
+  dx: number;
+  dy: number;
+}
+
+export interface PlotEditing {
+  selected: EditRef | null;
+  /** A click on an object (its ref), or on empty plot (null). */
+  onSelect: (ref: EditRef | null) => void;
+  /** While dragging an object: the total move since the drag started. */
+  onMove: (ref: EditRef, move: ObjectMove) => void;
+  onMoveEnd: () => void;
 }
 
 /** How close (px) a pointer must be to a marker to pick it; larger for fingers. */
@@ -190,6 +212,13 @@ export function InteractivePlot(props: InteractivePlotProps) {
     return best;
   };
   const dragging = useRef<number | null>(null);
+  const objectDrag = useRef<{
+    ref: EditRef;
+    x: number;
+    y: number;
+    moved: boolean;
+  } | null>(null);
+  const editing = props.editing;
 
   const pointers = useRef(new Map<number, Pointer>());
   const gesture = useRef<{ start: Domain; points: Pointer[]; moved: boolean } | null>(null);
@@ -204,7 +233,16 @@ export function InteractivePlot(props: InteractivePlotProps) {
 
   const onPointerDown = (event: PointerEvent) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
+    const picked =
+      editing && pointers.current.size === 0
+        ? (event.target as Element | null)?.closest?.('[data-edit]')
+        : null;
     (event.currentTarget as Element).setPointerCapture(event.pointerId);
+    if (picked) {
+      const ref = picked.getAttribute('data-edit') as EditRef;
+      objectDrag.current = { ref, x: event.clientX, y: event.clientY, moved: false };
+      return;
+    }
     if (onMarkerDrag && pointers.current.size === 0) {
       const hit = markerAt(event.clientX, event.clientY, event.pointerType !== 'mouse');
       if (hit >= 0) {
@@ -217,6 +255,22 @@ export function InteractivePlot(props: InteractivePlotProps) {
   };
 
   const onPointerMove = (event: PointerEvent) => {
+    const drag = objectDrag.current;
+    if (drag) {
+      const dxPx = event.clientX - drag.x;
+      const dyPx = event.clientY - drag.y;
+      if (!drag.moved && Math.hypot(dxPx, dyPx) < 4) return;
+      drag.moved = true;
+      const [a, b] = domain;
+      const [y0, y1] = yDomain;
+      editing?.onMove(drag.ref, {
+        dxFraction: dxPx / innerW,
+        dyFraction: dyPx / innerH,
+        dx: (dxPx / innerW) * (b - a),
+        dy: (-dyPx / innerH) * (y1 - y0),
+      });
+      return;
+    }
     if (dragging.current !== null) {
       onMarkerDrag?.(dragging.current, valueAt(event.clientX));
       return;
@@ -254,6 +308,13 @@ export function InteractivePlot(props: InteractivePlotProps) {
   };
 
   const onPointerUp = (event: PointerEvent) => {
+    const drag = objectDrag.current;
+    if (drag) {
+      objectDrag.current = null;
+      if (drag.moved) editing?.onMoveEnd();
+      else editing?.onSelect(drag.ref);
+      return;
+    }
     if (dragging.current !== null) {
       dragging.current = null;
       onMarkerDragEnd?.();
@@ -266,6 +327,7 @@ export function InteractivePlot(props: InteractivePlotProps) {
       const hit = onMarkerClick
         ? markerAt(event.clientX, event.clientY, event.pointerType !== 'mouse')
         : -1;
+      editing?.onSelect(null);
       if (hit >= 0) onMarkerClick?.(hit);
       else if (onPlotClick) {
         const top = (svgRef.current?.getBoundingClientRect().top ?? 0) + m.top;
@@ -368,6 +430,7 @@ export function InteractivePlot(props: InteractivePlotProps) {
             {...(bands && { bands })}
             {...(peakLabels && { peakLabels })}
             {...(figure && { figure })}
+            {...(editing && { editable: { selected: editing.selected } })}
           >
             {guides
               ?.filter((g) => g.x >= domain[0] && g.x <= domain[1])

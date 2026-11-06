@@ -19,13 +19,20 @@ export interface SeriesStyle {
   fill?: 'none' | 'below' | { between: string };
   /** Fill opacity, 0 to 1. */
   fillOpacity?: number;
+  /** Fill colour as #rrggbb; the line colour when missing. */
+  fillColor?: string | undefined;
+  /** Symbols drawn along the curve (line and symbol, or symbols only with a zero-width line). */
+  symbol?: MarkerShape | 'none';
+  /** Symbol size as a multiple of the figure's font size. */
+  symbolSize?: number;
   /** Name in the legend. */
   label?: string;
   /** Leave the series out of the figure. */
   hidden?: boolean;
 }
 
-export type AnnotationKind = 'text' | 'arrow' | 'marker' | 'vline' | 'hline' | 'region';
+export type AnnotationKind =
+  'text' | 'arrow' | 'line' | 'rect' | 'ellipse' | 'marker' | 'vline' | 'hline' | 'region';
 
 export type MarkerShape = 'circle' | 'square' | 'triangle' | 'diamond' | 'cross' | 'tick';
 
@@ -41,7 +48,8 @@ export const MARKER_SHAPE_LABELS: Record<MarkerShape, string> = {
 /**
  * Something drawn on top of the data. Positions are in the units shown on the axes (for a
  * reversed wavenumber axis, the positive wavenumber). An arrow points from (x2, y2) to (x, y);
- * a region spans x to x2.
+ * a line runs from (x, y) to (x2, y2); a rectangle or ellipse fills the box with corners (x, y)
+ * and (x2, y2); a region spans x to x2.
  */
 export interface Annotation {
   id: string;
@@ -59,6 +67,17 @@ export interface Annotation {
   opacity: number;
   /** Shape of a marker; a circle when missing (markers saved by older versions). */
   shape?: MarkerShape;
+  /** Line width as a multiple of the figure's line width; 1 when missing. */
+  lineWidth?: number;
+  /** Line style; dashed for vertical and horizontal lines, solid otherwise, when missing. */
+  dash?: DashStyle;
+  /** Fill of a rectangle or ellipse as #rrggbb, or '' (or missing) for no fill. */
+  fill?: string;
+  /** Opacity of that fill, 0 to 1; 0.25 when missing. */
+  fillOpacity?: number;
+  /** Bold or italic text. */
+  bold?: boolean;
+  italic?: boolean;
 }
 
 export interface AxisStyle {
@@ -72,6 +91,10 @@ export interface AxisStyle {
   grid: 'none' | 'x' | 'y' | 'both';
   /** Numbers on the y axis: the tool's choice, or always shown, or never. */
   yValues: 'auto' | 'show' | 'hide';
+  /** A closed box round the plot, or only the left and bottom axes (open, L-shaped). */
+  frame: 'box' | 'open';
+  /** Axis line and tick width as a multiple of the default. */
+  axisWidth: number;
 }
 
 export type LegendPosition = 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
@@ -82,8 +105,21 @@ export interface FigureStyle {
   annotations: Annotation[];
   axes: AxisStyle;
   legend: { show: boolean; position: LegendPosition };
-  /** Peak labels: shown or not, and edited text keyed by the label's x position (see labelKey). */
-  peakLabels: { show: boolean; text: Record<string, string> };
+  /**
+   * Peak labels: shown or not, edited text and moved positions, keyed by the label's x position
+   * (see labelKey). An offset is a fraction of the plot's inner width (dx, rightwards) and height
+   * (dy, downwards), so a moved label sits in the same place at every export size.
+   */
+  peakLabels: {
+    show: boolean;
+    text: Record<string, string>;
+    offset?: Record<string, LabelOffset>;
+  };
+}
+
+export interface LabelOffset {
+  dx: number;
+  dy: number;
 }
 
 export const DEFAULT_FIGURE: FigureStyle = {
@@ -97,6 +133,8 @@ export const DEFAULT_FIGURE: FigureStyle = {
     ticks: 'in',
     grid: 'none',
     yValues: 'auto',
+    frame: 'box',
+    axisWidth: 1,
   },
   legend: { show: true, position: 'top-right' },
   peakLabels: { show: true, text: {} },
@@ -145,6 +183,9 @@ export function newAnnotation(
   const text: Record<AnnotationKind, string> = {
     text: 'Text',
     arrow: '',
+    line: '',
+    rect: '',
+    ellipse: '',
     marker: '',
     vline: '',
     hline: '',
@@ -164,13 +205,19 @@ export function newAnnotation(
   };
 }
 
-/** How many clicks on the plot an annotation needs: two for arrows (tail, then head) and regions. */
+/**
+ * How many clicks on the plot an annotation needs: two for arrows (tail, then head), lines
+ * (start, then end), rectangles and ellipses (two opposite corners) and regions.
+ */
 export const clicksFor = (kind: AnnotationKind): 1 | 2 =>
-  kind === 'arrow' || kind === 'region' ? 2 : 1;
+  kind === 'text' || kind === 'marker' || kind === 'vline' || kind === 'hline' ? 1 : 2;
 
 export const ANNOTATION_LABELS: Record<AnnotationKind, string> = {
   text: 'Text',
   arrow: 'Arrow',
+  line: 'Line',
+  rect: 'Rectangle',
+  ellipse: 'Ellipse',
   marker: 'Marker',
   vline: 'Vertical line',
   hline: 'Horizontal line',
@@ -203,6 +250,23 @@ export function styledLabels<L extends { x: unknown; y: unknown; yValues?: boole
     ...(xTitle !== null && xTitle.trim() !== '' && { x: xTitle }),
     ...(yTitle !== null && yTitle.trim() !== '' && { y: yTitle }),
     ...(yValues !== 'auto' && { yValues: yValues === 'show' }),
+  };
+}
+
+/**
+ * A figure object that can be picked on the plot: a peak label (by labelKey) or an annotation
+ * (by id). Written into the SVG as data-edit so a click finds it.
+ */
+export type EditRef = `label:${string}` | `annotation:${string}`;
+
+/** The annotation moved by a drag of (dx, dy) in shown x units and y units. */
+export function movedAnnotation(a: Annotation, dx: number, dy: number): Annotation {
+  return {
+    ...a,
+    x: a.x + dx,
+    y: a.y + dy,
+    ...(a.x2 !== undefined && { x2: a.x2 + dx }),
+    ...(a.y2 !== undefined && { y2: a.y2 + dy }),
   };
 }
 

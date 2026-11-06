@@ -6,6 +6,7 @@
 
 .drop-zone {
   display: grid;
+  align-content: center;
   justify-items: center;
   gap: var(--space-3);
   padding: var(--space-6) var(--space-4);
@@ -48,9 +49,6 @@
 .paste-field textarea {
   width: 100%;
   padding: var(--space-3);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
   font-family: var(--font-mono);
   font-size: var(--text-sm);
 }
@@ -173,10 +171,7 @@
 .pattern-unit select {
   min-height: var(--touch-target);
   max-width: 100%;
-  padding: 0 var(--space-3);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
+  padding: 0 1.5rem 0 var(--space-3);
 }
 
 .pattern-messages {
@@ -189,8 +184,10 @@
 }
 
 .message {
-  padding-left: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   border-left: 3px solid var(--color-border-strong);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  background: var(--color-bg);
 }
 
 .message.is-warning {
@@ -241,10 +238,7 @@
   min-width: 7.5rem;
   max-width: 100%;
   min-height: var(--touch-target);
-  padding: 0 var(--space-3);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
+  padding: 0 1.5rem 0 var(--space-3);
   font-size: var(--text-md);
 }
 
@@ -252,14 +246,15 @@
   display: grid;
   gap: var(--space-2);
   min-width: 0;
-  padding: var(--space-3) var(--space-4) var(--space-4);
+  padding: var(--space-4) var(--space-5) var(--space-5);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-bg);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
 }
 
-.process-step.is-on {
-  border-color: var(--color-accent);
+/* A switched-off step recedes. */
+.process-step:not(.is-on) {
+  background: var(--color-bg);
 }
 
 .process-step-header {
@@ -291,55 +286,6 @@
 }
 
 /* On/off switch built on a checkbox, so it keeps native keyboard and screen reader behaviour. */
-.switch {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-height: var(--touch-target);
-  cursor: pointer;
-}
-
-.switch input {
-  appearance: none;
-  flex: none;
-  position: relative;
-  width: 2.75rem;
-  height: 1.5rem;
-  margin: 0;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-pill);
-  background: var(--color-surface-muted);
-  cursor: pointer;
-  transition: background-color var(--duration-fast);
-}
-
-.switch input::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: calc(1.5rem - 6px);
-  height: calc(1.5rem - 6px);
-  border-radius: 50%;
-  background: var(--color-text-muted);
-  transition: transform var(--duration-fast);
-}
-
-.switch input:checked {
-  border-color: var(--color-accent);
-  background: var(--color-accent);
-}
-
-.switch input:checked::after {
-  background: var(--color-on-accent);
-  transform: translateX(1.25rem);
-}
-
-.switch input:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
 .method-choice {
   display: flex;
   flex-wrap: wrap;
@@ -387,27 +333,22 @@
   align-items: center;
   min-height: var(--touch-target);
   padding: 0 var(--space-3);
-  border: 1px solid var(--color-border-strong);
-  background: var(--color-surface);
+  background: var(--color-surface-muted);
   cursor: pointer;
 }
 
-.segmented label + label {
-  margin-left: -1px;
-}
-
 .segmented label:first-of-type {
-  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  border-radius: var(--radius-control) 0 0 var(--radius-control);
 }
 
 .segmented label:last-of-type {
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
 }
 
 .segmented label.is-selected {
-  border-color: var(--color-accent);
-  background: var(--color-accent-soft);
-  font-weight: var(--weight-medium);
+  border-radius: var(--radius-control);
+  background: var(--color-control);
+  box-shadow: var(--shadow-control);
 }
 
 .segmented label:focus-within {
@@ -454,10 +395,6 @@
   width: 14rem;
   max-width: 100%;
   min-height: var(--touch-target);
-  padding: 0;
-  border: 0;
-  background: none;
-  accent-color: var(--color-accent);
 }
 
 .add-peak {
@@ -497,23 +434,51 @@
   min-width: 0;
 }
 
-.region-list {
-  display: grid;
-  gap: var(--space-1);
-  margin: 0;
-  padding-left: var(--space-4);
-  font-size: var(--text-sm);
-  font-variant-numeric: tabular-nums;
+.region-table td:last-child {
+  white-space: normal;
 }
 
-.region-list .message {
-  border-left: 0;
-  padding-left: 0;
+.region-ok {
+  color: var(--color-text-muted);
 }
 
-.region-list .message.is-warning {
+/* Short labels for the region checks, explained once under the table. */
+.region-flag {
+  display: inline-block;
+  margin: 1px var(--space-1) 1px 0;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
   color: var(--color-text);
+  font-size: var(--text-xs);
   font-weight: var(--weight-medium);
+  line-height: 1.6;
+}
+
+.region-flag.is-error {
+  color: var(--color-danger);
+}
+
+.region-meanings {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.region-meanings dt {
+  display: inline;
+  font-weight: var(--weight-bold);
+}
+
+.region-meanings dt::after {
+  content: ': ';
+}
+
+.region-meanings dd {
+  display: inline;
+  margin: 0;
+  color: var(--color-text-muted);
 }
 
 .peak-table-header {
@@ -681,9 +646,6 @@
   width: 7rem;
   min-height: var(--touch-target);
   padding: 0 var(--space-2);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
   text-align: right;
 }
 
@@ -953,8 +915,15 @@
   margin-top: 2rem;
 }
 
-.assign-list,
-.suggestion-list {
+/*
+ * Even space between the parts of a results or export section (heading, text, tables, notes).
+ * Zero specificity, so the larger space above buttons and any element's own margin still win.
+ */
+:where(.export-step > section) > * + * {
+  margin-top: var(--space-2);
+}
+
+.assign-list {
   display: grid;
   gap: var(--space-3);
   margin: 0;
@@ -962,7 +931,8 @@
   list-style: none;
 }
 
-.assign-row {
+.assign-row,
+.step-card {
   display: grid;
   gap: var(--space-2);
   padding: var(--space-3);
@@ -970,17 +940,72 @@
   border-radius: var(--radius-md);
 }
 
-.assign-peak {
+.assign-peak,
+.step-card > h4 {
   margin: 0;
   font-size: var(--text-md);
+}
+
+.step-card > p {
+  margin: 0;
+}
+
+.step-card + .step-card {
+  margin-top: var(--space-3);
+}
+
+/* Ranked suggestions: name and confidence on top, the reason under it, Accept on the right. */
+.candidate-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  counter-reset: candidate;
+}
+
+.candidate-list > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-4);
+  align-items: center;
+  padding: var(--space-3);
+  counter-increment: candidate;
+}
+
+.candidate-list > li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+.candidate-list > li > p {
+  grid-column: 1;
+  margin: 0;
+}
+
+.candidate-list > li > p:first-child::before {
+  content: counter(candidate) '. ';
+  font-weight: var(--weight-bold);
+}
+
+.candidate-list > li > .btn {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  margin: 0;
 }
 
 .assign-row .inline-field input {
   min-width: 14rem;
 }
 
-.suggestion-list {
-  gap: var(--space-2);
+/* Suggestion name left, wrapping; the Accept button sits in the last column. */
+.suggestion-table th[scope='row'] {
+  white-space: normal;
+  text-align: left;
+  font-weight: var(--weight-medium);
+}
+
+.suggestion-table td:last-child {
+  text-align: right;
 }
 
 .quantity-choice {
@@ -1365,7 +1390,7 @@
 }
 
 .data-source-title {
-  font-size: var(--text-base);
+  font-size: var(--text-md);
   font-weight: var(--weight-bold);
 }
 

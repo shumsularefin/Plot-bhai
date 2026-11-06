@@ -264,6 +264,16 @@ describe('methods text', () => {
     expect(chosen).toContain('typical diameter 40 px, radii');
   });
 
+  it('says the outlines were drawn by hand when no detection was used', () => {
+    const text = particleMethodsParagraph({
+      ...base,
+      detection: { ...base.detection, byHand: true },
+    });
+    expect(text).toContain('Particle outlines were drawn by hand');
+    expect(text).not.toContain('detected automatically');
+    expect(text).not.toContain('Otsu');
+  });
+
   it('leaves out what was not used', () => {
     const text = particleMethodsParagraph({
       ...base,

@@ -11,6 +11,7 @@ export const particleSteps: readonly WizardStep<ParticleData>[] = [
   {
     id: 'upload',
     title: 'Upload',
+    summary: 'Load SEM or TEM images',
     guide: [
       'Drop an SEM or TEM image on the box, or press Choose an image (PNG, JPEG or TIFF).',
       'No image at hand? Press Try with example data.',
@@ -25,6 +26,7 @@ export const particleSteps: readonly WizardStep<ParticleData>[] = [
   {
     id: 'scale',
     title: 'Crop and scale',
+    summary: 'Set the scale bar',
     guide: [
       'Crop away the info bar if the image has one.',
       'Choose Draw the scale bar and drag along the bar printed on the image.',
@@ -35,6 +37,7 @@ export const particleSteps: readonly WizardStep<ParticleData>[] = [
   {
     id: 'adjust',
     title: 'Adjust the image',
+    summary: 'Brightness, background, noise',
     guide: [
       'Say whether the particles are darker or lighter than the background.',
       'Press Auto under Brightness and contrast if the image looks flat.',
@@ -45,19 +48,20 @@ export const particleSteps: readonly WizardStep<ParticleData>[] = [
   },
   {
     id: 'detect',
-    title: 'Detect particles',
+    title: 'Find the particles',
+    summary: 'Detect or draw particles',
     guide: [
-      'Press Detect particles. The pink overlay previews what counts as particle.',
-      'If too much or too little is marked, try another method under part 2, or Manual and move the slider.',
-      'If the particles sit in clumps, choose "In clumps or overlapping" under part 3 and detect again.',
-      'Check every outline against the image: merge, cut, delete or add particles where it went wrong.',
-      'Measure particles the detection cannot outline with Add a line, then press Next.',
+      'Choose Detect automatically, or Draw by hand to outline every particle yourself.',
+      'Automatic: tick "darker than the background" for TEM images, then press Detect particles. If too much or too little is marked, try another method under part 2. For clumps, press "Separate the clumps" when it is offered.',
+      'By hand: trace around each particle, or drag a circle or ellipse over it.',
+      'Check every outline against the image, correct it with the tools under the image, then press Next.',
     ],
     render: (context) => <DetectStep {...context} />,
   },
   {
     id: 'results',
     title: 'Distribution and export',
+    summary: 'Histogram and statistics',
     guide: [
       'Choose which particles go into the distribution.',
       'Read the mean size and the histogram.',

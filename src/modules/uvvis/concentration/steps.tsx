@@ -10,6 +10,7 @@ export const concentrationSteps: readonly WizardStep<ConcentrationData>[] = [
   {
     id: 'samples',
     title: 'Standards and samples',
+    summary: 'Calibration standards and unknowns',
     guide: [
       'Load the spectra of standards of known concentration, of samples taken over time, or both.',
       'Or press Try with example data. No spectra? Type the absorbances instead.',
@@ -21,6 +22,7 @@ export const concentrationSteps: readonly WizardStep<ConcentrationData>[] = [
   {
     id: 'wavelength',
     title: 'Wavelength',
+    summary: 'Pick the analysis wavelength',
     guide: [
       'The absorbance is read at the band maximum, chosen automatically.',
       'Click the plot or type a wavelength to change it, then press Next.',
@@ -30,6 +32,7 @@ export const concentrationSteps: readonly WizardStep<ConcentrationData>[] = [
   {
     id: 'results',
     title: 'Results and export',
+    summary: 'Calibration line and concentrations',
     guide: [
       'Check the calibration line and the rate constant.',
       'Download the CSV files and figures, and copy the methods text.',

@@ -1,7 +1,7 @@
 /* A figure kept in view (src/ui/Dock.tsx): beside the page on wide screens, along the bottom on narrow ones. */
 
 :root {
-  --dock-width: clamp(420px, 46vw, 900px);
+  --dock-width: clamp(380px, 38vw, 820px);
 }
 
 .dock-slot {
@@ -18,7 +18,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-border);
   background: var(--color-surface);
   box-shadow: var(--shadow-popover);
 }
@@ -86,7 +86,7 @@
     width: var(--dock-width);
     max-height: calc(100dvh - 2 * var(--space-4));
     border-width: 1px;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
   }
 
   .has-dock .shell {
