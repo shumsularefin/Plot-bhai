@@ -14,6 +14,7 @@ import {
   reflections,
   type FormFactors,
 } from './powder.ts';
+import { storeStructure } from '../structure/geometry.ts';
 import type { ReferencePhase } from './types.ts';
 import type { DataMessage } from '../types.ts';
 
@@ -202,6 +203,7 @@ export function phaseFromCif(
     crystalSystem: number === null ? 'unknown' : crystalSystemOf(number),
     cell: { ...crystal.cell },
     cellContents: roundedContents(cellComposition(sites)),
+    structure: storeStructure(crystal),
     citation: {
       journal: text(block, '_journal_name_full') ?? '',
       volume: text(block, '_journal_volume') ?? '',

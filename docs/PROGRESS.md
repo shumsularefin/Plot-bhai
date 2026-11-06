@@ -1,5 +1,26 @@
 # Progress
 
+## Stage 16c: crystal structure viewer in Choose material (done)
+
+Branch `claude/loving-noether-y55l76`. No new dependencies.
+
+- **Stored structure:** each phase now keeps its symmetry operators and asymmetric unit
+  (`ReferencePhase.structure`), from a loaded or COD-fetched CIF and in the rebuilt polymer and
+  test libraries (peaks unchanged). Stage 16e uses the same data for structure refinement.
+- **Viewer:** "Show crystal structure" under each candidate phase (loaded on demand). SVG,
+  orthographic: drag to rotate, wheel or pinch to zoom, arrow keys rotate, + and − zoom, 0 resets.
+  Atoms coloured by element (Okabe–Ito, with a legend); atoms on faces, edges and corners are
+  drawn on both sides; bonds when d ≤ r₁ + r₂ + 0.45 Å (Cordero 2008 covalent radii, new file
+  data/reference/covalent-radii.json, flagged for verification). Click (or Enter on) two atoms
+  for the distance, three for the angle at the middle one, all through the metric tensor.
+- **Validation:** docs/validation.md, 16c: 250 published bond lengths and angles from 10 COD CIFs
+  reproduced, exact geometry, Cartesian cross-check, invariance and round trips.
+- **Checks:** lint, type check, 998 unit tests, build, bundle size and e2e pass (e2e opens the
+  viewer for ZnO and measures a distance).
+- **Decision (owner, November 2026):** 16f (Materials Project and AMCSD search) is skipped: it
+  needs a backend and the owner's API key. CIF upload covers both databases.
+- **Next:** 16d, indexing an unknown pattern.
+
 ## Stage 16b: Pearson VII and split pseudo-Voigt peaks, Rietveld peak asymmetry (done)
 
 Branch `claude/loving-noether-y55l76`. No new dependencies.

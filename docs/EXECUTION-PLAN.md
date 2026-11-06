@@ -41,10 +41,10 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | audit     | Research-readiness audit against the user's data             | done    |
 | 16a       | XRD formats (.brml, .rasx, .raw) and .xy/.xye export         | done    |
 | 16b       | Pearson VII, split pseudo-Voigt, Rietveld peak asymmetry     | done    |
-| 16c       | 3D crystal structure viewer with distances and angles        | todo    |
+| 16c       | 3D crystal structure viewer with distances and angles        | done    |
 | 16d       | Indexing an unknown pattern (Web Worker)                     | todo    |
 | 16e       | Rietveld structure refinement and GSAS-II export             | todo    |
-| 16f       | Materials Project / AMCSD search through a backend           | todo    |
+| 16f       | Materials Project / AMCSD search through a backend           | skipped |
 
 ## The one prompt you paste in every new session
 
@@ -562,5 +562,6 @@ wizard step where it belongs (see CLAUDE.md section 8) and lists its checks in d
   refinement; restraints on bond lengths optional; R_Bragg per phase; checked by refining a
   pattern calculated from a perturbed structure back to the true one, and against GSAS-II on
   the same data when the owner can run it. Export step: GSAS-II starting files.
-- **16f** Materials Project / AMCSD: blocked until the owner approves a backend and holds a
+- **16f** Skipped by the owner (November 2026): not possible on the free plan without a backend
+  and an API key; CIF upload covers both databases. Original note: blocked until the owner approves a backend and holds a
   Materials Project API key; AMCSD's terms of use must be read first.

@@ -91,7 +91,7 @@ XRD full package (approved by the owner in November 2026, stage 16 in docs/EXECU
 - Step 5 Rietveld: peak asymmetry; under Advanced, structure refinement of atom positions (only coordinates that symmetry leaves free), site occupancies and isotropic displacement parameters, with restraints, released only after the basic refinement has converged, and with clear warnings that a lab pattern rarely supports it.
 - Step 6 Fit peaks: Pearson VII and split (asymmetric) pseudo-Voigt profiles in addition to Gaussian, Lorentzian and pseudo-Voigt.
 - Step 9 Export: the processed pattern as .xy and .xye, and a GSAS-II starting set (.xye data, .instprm instrument parameters, CIF of each phase) so the refinement can be checked or continued in GSAS-II.
-- Step 3 search of the Materials Project and AMCSD: only through a backend the owner approves (a Materials Project API key cannot be kept secret in a browser), and only once the owner has the key. Until then CIF upload covers both.
+- Step 3 search of the Materials Project and AMCSD: skipped by the owner (November 2026). It would need a backend (a Materials Project API key cannot be kept secret in a browser) and an API key, so CIF upload covers both databases. Do not build it unless the owner asks again.
 
 Size and strain methods: Scherrer, Monshi-Scherrer, Williamson-Hall (UDM, USDM, UDEDM), Size-Strain Plot, Halder-Wagner. Also strain, dislocation density, lattice parameters, texture coefficient, crystallinity index.
 

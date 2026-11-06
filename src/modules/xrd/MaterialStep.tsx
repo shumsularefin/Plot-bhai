@@ -243,6 +243,10 @@ export function MaterialStep({ data, update }: StepContext<XrdData>) {
                     }
                   />
                 </label>
+                <StructureToggle
+                  phaseId={phase.id}
+                  loaded={material.userPhases.find((p) => p.id === phase.id)}
+                />
               </PhaseRow>
             ))}
           </ul>
@@ -304,6 +308,48 @@ function PhaseRow({ phase, family, action, children }: PhaseRowProps) {
       </div>
       <div class="phase-result-action">{action}</div>
     </li>
+  );
+}
+
+/** "Show structure" for one candidate: loads the full phase (library file or loaded CIF) on demand. */
+function StructureToggle({
+  phaseId,
+  loaded,
+}: {
+  phaseId: string;
+  loaded: ReferencePhase | undefined;
+}) {
+  const [open, setOpen] = useState(false);
+  const [phase, setPhase] = useState<ReferencePhase | null>(loaded ?? null);
+  const [viewer, setViewer] = useState<typeof import('./StructureViewer').StructureViewer | null>(
+    null,
+  );
+  useEffect(() => {
+    if (!open) return;
+    let live = true;
+    void import('./StructureViewer').then((m) => live && setViewer(() => m.StructureViewer));
+    const family = familyOf(phaseId);
+    if (!phase && family)
+      void loadReferenceFamily(family.file).then(
+        (list) => live && setPhase(list.find((p) => p.id === phaseId) ?? null),
+      );
+    return () => {
+      live = false;
+    };
+  }, [open, phaseId, phase]);
+  const Viewer = viewer;
+  return (
+    <div class="structure-toggle">
+      <button
+        type="button"
+        class="btn btn-quiet"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+      >
+        {open ? 'Hide crystal structure' : 'Show crystal structure'}
+      </button>
+      {open && (Viewer && phase ? <Viewer phase={phase} /> : <p class="field-hint">Loading…</p>)}
+    </div>
   );
 }
 

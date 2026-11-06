@@ -123,6 +123,21 @@ async function walkToExport(log) {
     .first()
     .waitFor({ timeout: 20_000 });
   note('3 Choose material: ZnO (COD 1577381) loaded from its CIF');
+  const showStructure = page.getByRole('button', { name: 'Show crystal structure' }).first();
+  if (await showStructure.isVisible()) {
+    await showStructure.click();
+    const atoms = page.locator('.structure-atom');
+    await atoms.first().waitFor();
+    await atoms.nth(0).click();
+    await atoms.nth(1).click();
+    const text = await page.locator('.structure-measure').innerText();
+    if (!/Distance .+ Å/.test(text)) throw new Error(`No distance shown: ${text}`);
+    await page.locator('.structure-canvas').press('ArrowLeft');
+    note(
+      `3 Choose material: structure viewer, ${await atoms.count()} atoms, ${text.split('\n').find((l) => l.startsWith('Distance'))}`,
+    );
+    await page.getByRole('button', { name: 'Hide crystal structure' }).first().click();
+  }
   await next('Compare reference phases');
 
   // 4 Compare phases

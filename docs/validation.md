@@ -62,3 +62,25 @@ Open:
   confirm the volume and pages, so the code cites it by title, authors and year only.
 - The manual's 1/tan 2θ asymmetry terms (P3, P4) and its angle limit for the correction are not
   used; asymmetry applies to every peak with the 1/tan θ terms only.
+
+## 16c: crystal structure viewer
+
+Formulas: src/core/xrd/structure/geometry.ts (metric tensor, orthogonalisation, drawn cell,
+bonds). Tests: tests/structure-geometry.test.ts. Covalent radii: data/reference/covalent-radii.json
+(Cordero et al., Dalton Trans. 2008, 2832–2838, as tabulated in ASE; flagged for verification).
+
+| Method              | Check                                                                                                                                               | Source                                                       | Tolerance               | Result |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ----------------------- | ------ |
+| Distance and angle  | cubic edge, face and body diagonals; tetrahedral angle arccos(−1/3); hexagonal \|a + b\| = a and γ = 120°                                           | exact geometry                                               | 1e-10                   | pass   |
+| Metric vs Cartesian | triclinic cell: lengths and angles from Cartesian coordinates equal those from G; Mᵀ M = G                                                          | independent route (orthogonalisation matrix)                 | 1e-10                   | pass   |
+| Published geometry  | 250 bond lengths and angles from the _geom_bond and _geom_angle tables of 10 COD CIFs, rebuilt from the cell, operators and symmetry codes          | the authors' refinement programs (values printed in the CIF) | 3σ + 0.002 Å; 3σ + 0.1° | pass   |
+| Drawn cell          | NaCl (Fm-3m): 14 Na and 13 Cl drawn (corners, faces, edges, centre), 8 atoms in the cell; every bond is Na–Cl = a/2                                 | exact                                                        | count exact; 1e-6 Å     | pass   |
+| Invariance          | a pair moved by every operator, and by a lattice translation, keeps its distance                                                                    | invariance                                                   | 1e-10                   | pass   |
+| Round trip          | operators written back to text and parsed again are identical; 70 stored library structures rebuild the same operators and atom count as their CIFs | round trip                                                   | exact                   | pass   |
+
+Open:
+
+- Symmetry codes with a three-digit operator number (GSAS numbering) and negative codes
+  (SHELX style) in CIF geometry tables are skipped by the test, since the CIF dictionary does not
+  define them; 250 rows remain.
+- No comparison with pymatgen or VESTA (not installable here); the CIF tables stand in for it.
