@@ -39,6 +39,12 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 14b       | About page, PWA, deploy, final status (items 5–8)            | done    |
 | 15        | Gemini (optional; only when asked)                           | skipped |
 | audit     | Research-readiness audit against the user's data             | done    |
+| 16a       | XRD formats (.brml, .rasx, .raw) and .xy/.xye export         | todo    |
+| 16b       | Pearson VII, split pseudo-Voigt, Rietveld peak asymmetry     | todo    |
+| 16c       | 3D crystal structure viewer with distances and angles        | todo    |
+| 16d       | Indexing an unknown pattern (Web Worker)                     | todo    |
+| 16e       | Rietveld structure refinement and GSAS-II export             | todo    |
+| 16f       | Materials Project / AMCSD search through a backend           | todo    |
 
 ## The one prompt you paste in every new session
 
@@ -529,3 +535,32 @@ extract-based sample. The step mass losses should match your instrument software
 10. 15 (optional)
 
 That is about 20 sessions. Merge after every one.
+
+## 14. Stage 16: the full XRD package (owner request, November 2026)
+
+The owner asked for the features of GSAS-II, Profex, FullProf, Fityk, PowDLL, VESTA and Mercury
+that the site lacked, in the same sequential wizard. Each sub-stage puts its feature into the
+wizard step where it belongs (see CLAUDE.md section 8) and lists its checks in docs/validation.md.
+
+- **16a** Readers for .brml and .rasx (zip + XML), and .raw, each only against real files in
+  tests/fixtures-real/ (public sample files with a stated source count). Export step: .xy and
+  .xye of the processed pattern, with σ = √counts stated in the header when no σ was loaded.
+- **16b** Fit peaks: Pearson VII (width, shape m) and split pseudo-Voigt (left and right widths
+  and η). Areas, integral breadths and their uncertainties from closed forms, checked against
+  numerical integration. Rietveld: peak asymmetry (Bérar–Baldinozzi or Finger–Cox–Jephcoat; say
+  which and cite it), off by default.
+- **16c** Choose material: structure viewer from the CIF (symmetry operators applied, atoms
+  within the cell plus those on its faces and edges, bonds from covalent radii with a stated
+  tolerance), orthographic SVG projection, drag to rotate, wheel and pinch to zoom, keyboard
+  rotation, measure distance and angle with standard formulas in the metric tensor. Check
+  distances against the CIF's own geometry tables where they exist, or against pymatgen.
+- **16d** Choose material, "not in any database": indexing in a Web Worker from fitted peak
+  positions, cubic to orthorhombic, ranked by M20 and F_N; checked on patterns calculated from
+  known COD cells, including with noise and missing peaks. The result is a cell for hkl labels
+  and lattice refinement, never a claimed identification.
+- **16e** Rietveld, Advanced: refine free atom coordinates, occupancies and Biso after the basic
+  refinement; restraints on bond lengths optional; R_Bragg per phase; checked by refining a
+  pattern calculated from a perturbed structure back to the true one, and against GSAS-II on
+  the same data when the owner can run it. Export step: GSAS-II starting files.
+- **16f** Materials Project / AMCSD: blocked until the owner approves a backend and holds a
+  Materials Project API key; AMCSD's terms of use must be read first.

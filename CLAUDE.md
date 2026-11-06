@@ -21,6 +21,7 @@ The user is a researcher who writes papers. Results must be scientifically corre
 - The optional network features are the COD lookup, the feedback Worker and Gemini text generation through Firebase AI Logic (last stage). The site must work fully without them (CIF upload stays as the fallback).
 - Do not bundle or fetch JCPDS/ICDD data. Reference patterns come from the open Crystallography Open Database (COD): a library precomputed at build time into small JSON files, plus any COD entry fetched through the lookup and calculated in the browser. The user may type a JCPDS number by hand to print in tables; the site never claims to have verified it.
 - Never invent scientific data. This includes COD IDs, reference patterns, test expectations, published values and literature citations. If something cannot be verified (for example the network is blocked), stop, mark it TODO and tell me.
+- Validation (owner, November 2026: "it must be super accurate and super validated"). Every new numerical method is checked three ways before it is called done: (1) synthetic data with a known answer, (2) an independent implementation or a published worked example (another program's output on the same input, or a table from the paper), and (3) round-trip or invariance checks (for example a symmetry-equivalent atom gives the same distance). The checks, their sources and their tolerances are listed in docs/validation.md, and any check that could not be run is listed there as open.
 
 ## 3. Tech stack (keep it small)
 
@@ -83,13 +84,22 @@ docs/            PROGRESS.md and method notes
 
 XRD wizard order: 1 Upload, 2 Clean data, 3 Choose material, 4 Compare reference phases, 5 Rietveld refinement (optional, basic), 6 Fit peaks, 7 Instrument correction, 8 Results tables, 9 Export. The build order differs from the wizard order, so wire placeholders early.
 
+XRD full package (approved by the owner in November 2026, stage 16 in docs/EXECUTION-PLAN.md). Every addition goes into the step where it belongs scientifically, never as a separate tool:
+
+- Step 1 Upload: also Bruker .brml and Rigaku .rasx (zipped XML, unpacked with the browser's DecompressionStream) and Bruker .raw (binary). A reader is written only against real instrument files kept in tests/fixtures-real/; until then the format stays "recognised, cannot read".
+- Step 3 Choose material: a 3D crystal structure viewer of the chosen phase (SVG, no 3D library: rotate, zoom, atoms coloured by element, bonds, click two atoms for a distance and three for an angle, symmetry-generated from the CIF). When no reference fits, "Index an unknown pattern": cubic, tetragonal, hexagonal and orthorhombic cells from 10 to 20 peak positions, in a Web Worker, ranked by figures of merit (de Wolff M20, Smith-Snyder F_N), always labelled as suggestions to confirm.
+- Step 5 Rietveld: peak asymmetry; under Advanced, structure refinement of atom positions (only coordinates that symmetry leaves free), site occupancies and isotropic displacement parameters, with restraints, released only after the basic refinement has converged, and with clear warnings that a lab pattern rarely supports it.
+- Step 6 Fit peaks: Pearson VII and split (asymmetric) pseudo-Voigt profiles in addition to Gaussian, Lorentzian and pseudo-Voigt.
+- Step 9 Export: the processed pattern as .xy and .xye, and a GSAS-II starting set (.xye data, .instprm instrument parameters, CIF of each phase) so the refinement can be checked or continued in GSAS-II.
+- Step 3 search of the Materials Project and AMCSD: only through a backend the owner approves (a Materials Project API key cannot be kept secret in a browser), and only once the owner has the key. Until then CIF upload covers both.
+
 Size and strain methods: Scherrer, Monshi-Scherrer, Williamson-Hall (UDM, USDM, UDEDM), Size-Strain Plot, Halder-Wagner. Also strain, dislocation density, lattice parameters, texture coefficient, crystallinity index.
 
 Thermal wizard order: 1 Upload and describe the run (atmosphere, heating rate, sample mass, sample type), 2 Clean data, 3 Baseline and steps (TGA mass loss steps with DTG, DSC peaks and glass transition), 4 Assign events, 5 Combined TGA-DSC interpretation and calcination suggestion, 6 Results and export. Calculations: onset, peak and endset temperatures, mass loss, residue, T5, T10 and T50, enthalpy, Tg and heat capacity change, polymer crystallinity, theoretical mass loss from formulas, and optional multi-rate activation energy (Kissinger, Flynn-Wall-Ozawa, Kissinger-Akahira-Sunose).
 
 ## 9. Out of scope
 
-Full Rietveld structure refinement (atom positions, occupancies, displacement parameters; the basic refinement of cell, profile, preferred orientation and phase fractions approved by the owner in October 2026 is in scope), reliable identification of complex mixtures, any claim that a sample is or is not a single crystal, identifying evolved gases from TGA alone, claiming a suggested calcination temperature is optimal, bundling ICDD/JCPDS data, accounts, servers.
+Anisotropic displacement parameters, magnetic structures and neutron or synchrotron-specific models (the basic Rietveld refinement approved in October 2026 and the structure refinement of positions, occupancies and isotropic displacement approved in November 2026 are in scope), solving unknown structures (indexing suggests a cell only), reliable identification of complex mixtures, any claim that a sample is or is not a single crystal, identifying evolved gases from TGA alone, claiming a suggested calcination temperature is optimal, bundling ICDD/JCPDS data, accounts, servers.
 
 ## 10. Working rules for Claude
 
