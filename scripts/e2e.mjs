@@ -163,7 +163,8 @@ async function walkToExport(log) {
 
   // 5 Rietveld refinement of the candidate (optional; run once to check it works in a worker).
   const asymmetry = page.getByLabel('Peak asymmetry');
-  if (!(await asymmetry.isVisible())) await page.getByText('What to refine').click();
+  if (!(await asymmetry.isVisible()))
+    await page.locator('summary', { hasText: 'What to refine' }).click();
   await page.getByLabel('Peak asymmetry').check();
   await page.getByRole('button', { name: 'Refine', exact: true }).click();
   await page.getByText('Refinement results (estimates)').waitFor({ timeout: 60_000 });
@@ -276,6 +277,26 @@ try {
   const [, counts, sigma] = row.split(' ').map(Number);
   assert.equal(sigma, counts > 0 ? Math.sqrt(counts) : 1);
   step('9 Export: measured pattern as .xye with sigma = sqrt(counts)');
+
+  const [instDownload] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Instrument parameters (.instprm)' }).click(),
+  ]);
+  const inst = readFileSync(await instDownload.path(), 'utf8');
+  assert.match(inst.split('\n')[0] ?? '', /GSAS-II/);
+  assert.match(inst, /\nType:PXC;Bank:1\n/);
+  assert.match(inst, /;Zero:[-\d.e]+;Polariz\.:0\.5;/);
+  const [cifDownload] = await Promise.all([
+    page.waitForEvent('download'),
+    page
+      .getByRole('button', { name: /\(\.cif\)$/ })
+      .first()
+      .click(),
+  ]);
+  const cif = readFileSync(await cifDownload.path(), 'utf8');
+  assert.match(cif, /_space_group_symop_operation_xyz/);
+  assert.match(cif, /_atom_site_fract_x/);
+  step('9 Export: GSAS-II .instprm and phase CIF');
 
   const [sessionDownload] = await Promise.all([
     page.waitForEvent('download'),

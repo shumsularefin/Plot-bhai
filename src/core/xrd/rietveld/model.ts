@@ -6,7 +6,8 @@
  *
  * - b: background, Chebyshev polynomial Σ_n b_n T_n(t) with t = 2·(2θ − 2θ_min)/(2θ_max − 2θ_min) − 1.
  * - S: phase scale factor (dimensionless, absorbs the incident intensity and the volume fraction).
- * - M|F|²_k: Σ|F|² of reflection family k from the reference structure (electron units²).
+ * - M|F|²_k: Σ|F|² of reflection family k from the reference structure (electron units²), or
+ *   calculated from the refined atoms when the structure is refined (structure.ts).
  * - LP(θ) = (1 + cos²2θ)/(sin²θ cosθ): Lorentz-polarisation factor with no monochromator.
  * - P_k: March–Dollase preferred orientation, mean over the family's reflections of
  *   (r² cos²α + sin²α / r)^(−3/2), α the angle between the reflection's normal and the preferred
@@ -39,6 +40,12 @@
 import { dSpacing, lorentzPolarisation, reciprocalMetric, type Cell } from '../reference/powder';
 import { cellFromParameters, cellParameterNames, type CellKind } from './cell';
 import type { Hkl, RefinementReflection } from './reflections';
+import {
+  atomPosition,
+  structureFactorSquared,
+  type AtomState,
+  type StructureModel,
+} from './structure';
 
 export interface PhaseModel {
   id: string;
@@ -49,6 +56,8 @@ export interface PhaseModel {
   reflections: RefinementReflection[];
   /** Preferred-orientation direction as a plane normal (h k l), or null for none. */
   orientation: Hkl | null;
+  /** Atoms, when the structure is refined: Σ|F|² is then calculated (structure.ts). */
+  structure?: StructureModel;
 }
 
 export interface Wavelengths {
@@ -82,6 +91,8 @@ export interface PhaseLayout {
   b: number;
   /** Bérar–Baldinozzi asymmetry P1 and P2. */
   asymmetry: [number, number];
+  /** Per atom of the structure (empty without one): free coordinate coefficients, occupancy, B. */
+  atoms: { coords: number[]; occupancy: number; b: number }[];
 }
 
 export function makeLayout(phases: readonly PhaseModel[], backgroundTerms: number): Layout {
@@ -100,6 +111,11 @@ export function makeLayout(phases: readonly PhaseModel[], backgroundTerms: numbe
     orientation: take(),
     b: take(),
     asymmetry: [take(), take()] as [number, number],
+    atoms: (phase.structure?.atoms ?? []).map((atom) => ({
+      coords: atom.basis.map(take),
+      occupancy: take(),
+      b: take(),
+    })),
   }));
   return { zero, displacement, background, phases: phaseLayouts, size: next };
 }
@@ -199,6 +215,21 @@ export function phaseCell(phase: PhaseModel, layout: PhaseLayout, p: Float64Arra
   );
 }
 
+/** Positions, occupancies and B of a phase's atoms for parameter vector p. */
+export function atomStates(phase: PhaseModel, layout: PhaseLayout, p: Float64Array): AtomState[] {
+  return (phase.structure?.atoms ?? []).map((atom, a) => {
+    const al = layout.atoms[a] as PhaseLayout['atoms'][number];
+    return {
+      x: atomPosition(
+        atom,
+        al.coords.map((j) => p[j] as number),
+      ),
+      occupancy: p[al.occupancy] as number,
+      b: p[al.b] as number,
+    };
+  });
+}
+
 /** Every peak of a phase for parameters p, within [lo, hi] degrees 2θ (with a margin). */
 export function placePeaks(
   phases: readonly PhaseModel[],
@@ -224,14 +255,22 @@ export function placePeaks(
   const lines: [number, number][] = [[wavelengths.kAlpha1, 1]];
   if (wavelengths.ratio > 0) lines.push([wavelengths.kAlpha2, wavelengths.ratio]);
   const out: PlacedPeak[] = [];
+  const structure = phase.structure;
+  const states = structure ? atomStates(phase, pl, p) : [];
   phase.reflections.forEach((reflection, k) => {
     const [h, kk, l] = reflection.hkl;
     const d = dSpacing(gStar, h, kk, l);
+    const mf2 = structure
+      ? reflection.members.reduce(
+          (sum, m) => sum + structureFactorSquared(structure, states, m, d),
+          0,
+        )
+      : reflection.mf2;
     const orientation =
       phase.orientation && r !== 1
         ? marchDollase(gStar, reflection.members, phase.orientation, r)
         : 1;
-    const common = scale * reflection.mf2 * orientation * Math.exp(-b / (2 * d * d));
+    const common = scale * mf2 * orientation * Math.exp(-b / (2 * d * d));
     lines.forEach(([lambda, weight], line) => {
       const s = lambda / (2 * d);
       if (!(s < 1)) return;

@@ -3,6 +3,9 @@ import {
   type RietveldInput,
   type RietveldOutcome,
 } from '../core/xrd/rietveld/refine';
+import type { FormFactors } from '../core/xrd/reference/powder';
+import scattering from '../../data/reference/scattering-factors.json';
+import covalent from '../../data/reference/covalent-radii.json';
 
 export type RietveldRequest = { id: number; input: RietveldInput };
 
@@ -20,8 +23,13 @@ const scope = self as unknown as WorkerScope;
 scope.onmessage = ({ data: request }) => {
   let outcome: RietveldOutcome;
   try {
-    outcome = refineRietveld(request.input, (stage) =>
-      scope.postMessage({ id: request.id, kind: 'progress', stage }),
+    outcome = refineRietveld(
+      {
+        ...request.input,
+        factors: (scattering as unknown as { factors: FormFactors }).factors,
+        radii: covalent.radii,
+      },
+      (stage) => scope.postMessage({ id: request.id, kind: 'progress', stage }),
     );
   } catch (e) {
     outcome = {

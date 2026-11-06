@@ -13,6 +13,7 @@ import { processingFor, type XrdData } from './data';
 import { referenceLanesFor } from './figure';
 import { xrdLabels } from './labels';
 import { methodsFor } from './methodsText';
+import { GsasSection } from './GsasSection';
 import { PatternFilesSection } from './PatternFilesSection';
 import { parseSession, serialiseSession } from './session';
 import { allTables, combinedCsv } from './tables';
@@ -134,6 +135,7 @@ export function ExportStep({ data, update }: StepContext<XrdData>) {
         radiation={data.radiation}
         normalised={(id) => processingFor(data, id).normalise.enabled}
       />
+      <GsasSection data={data} phases={phases ?? []} />
       <RecordSection
         build={() => xrdRecord(data, phases ?? [])}
         stem={data.patterns[0]?.name ?? 'xrd'}

@@ -59,11 +59,23 @@ export function rietveldMethods(input: RietveldMethodsInput): string {
           'the peak asymmetry parameters P1 and P2 of the Bérar–Baldinozzi correction (J. Appl. Cryst. 26 (1993) 128), applied with their 1/tan θ terms',
         ]
       : []),
+    ...(result.phases.some((p) => p.atoms)
+      ? [
+          ...(choices.positions
+            ? [
+                `the atom coordinates left free by the site symmetry${choices.restraints ? ' (with bond-length restraints to the starting structure, σ = 0.02 Å)' : ''}`,
+              ]
+            : []),
+          ...(choices.occupancy ? ['the site occupancies'] : []),
+          ...(choices.biso ? ['the isotropic displacement parameters B of each atom'] : []),
+        ]
+      : []),
   ];
+  const structured = result.phases.some((p) => p.atoms);
   const list = (items: string[]) =>
     items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
   const sentences = [
-    `A basic Rietveld refinement was carried out over 2θ = ${from.toFixed(2)}–${to.toFixed(2)}° with ${input.radiation}, using the structure models of ${list(input.phases.map((p) => `${p.name} (${p.reference})`))} with atom positions, occupancies and displacement parameters fixed.`,
+    `A ${structured ? 'Rietveld' : 'basic Rietveld'} refinement was carried out over 2θ = ${from.toFixed(2)}–${to.toFixed(2)}° with ${input.radiation}, using the structure models of ${list(input.phases.map((p) => `${p.name} (${p.reference})`))} ${structured ? ', starting from the atom positions, occupancies and displacement parameters of these files' : ' with atom positions, occupancies and displacement parameters fixed'}.`,
     `Refined were ${list(refined)}; the profile was a pseudo-Voigt function with FWHM² = U tan²θ + V tanθ + W, and points were weighted by 1/y_obs.`,
     `Final agreement: R_wp = ${percent(result.stats.rwp)}, R_p = ${percent(result.stats.rp)}, R_exp = ${percent(result.stats.rexp)}, χ² = ${result.stats.chi2.toFixed(2)}.`,
   ];

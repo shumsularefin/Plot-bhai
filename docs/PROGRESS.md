@@ -1,5 +1,32 @@
 # Progress
 
+## Stage 16e: Rietveld structure refinement and GSAS-II export (done)
+
+Branch `claude/loving-noether-y55l76`. No new dependencies.
+
+- **Rietveld, What to refine, Structure refinement (advanced):** atom positions (only the
+  directions the site symmetry leaves free, from the null space of R − I over the site's
+  stabiliser), optional bond-length restraints (σ = 0.02 Å to the starting bonds, from the
+  covalent radii), site occupancies and isotropic B per atom. They are released one after another
+  only after the basic refinement has converged; otherwise they are skipped with a warning. Each
+  family's Σ|F|² is then calculated from the atoms at every cycle. Results: a refined-atoms table
+  with standard uncertainties, a CSV, and methods sentences that name what was refined.
+- **Decisions:** only sites the file gives as partly filled (occupancy below 1) are refined,
+  because refining every occupancy together with the scale factor has no unique answer (found by
+  the tests, where it gave NaN uncertainties). Atoms with anisotropic U keep it; B is not refined
+  for them. The overall B stays fixed when atom B values are refined. Reflections below 0.05 % of
+  the strongest in the reference are not in the model, as before.
+- **Warnings:** a lab pattern rarely supports structure refinement; occupancy and B are strongly
+  correlated; phases with no stored atoms (older sessions) keep their structure.
+- **Export, GSAS-II starting set:** an .instprm file (format checked against the GSAS-II source:
+  ReadInstprm and defaultIparms.py) with the profile converted to the Thompson–Cox–Hastings
+  U, V, W, X, Y and the size of the conversion difference in its header, and a CIF per phase
+  with the refined cell and atoms. With the existing measured .xye this is the full starting set.
+- **Checks:** lint, type check, 1054 unit tests, build, bundle size and e2e (now also downloads
+  the .instprm and a CIF) pass.
+- **Open:** no comparison with GSAS-II on the same data (GSAS-II cannot be installed here).
+- **Next:** stage 16 is complete (16f skipped by the owner).
+
 ## Stage 16d: indexing an unknown pattern (done)
 
 Branch `claude/loving-noether-y55l76`. No new dependencies.
@@ -18,7 +45,7 @@ Branch `claude/loving-noether-y55l76`. No new dependencies.
 - **Checks:** lint, type check, 1025 unit tests, build, bundle size and e2e pass. The e2e example
   pattern has fewer than 10 peaks, so e2e checks the panel and the unit test drives the worker.
 - **Open:** no comparison with DICVOL or TREOR; monoclinic and triclinic not searched.
-- **Next:** 16e, Rietveld structure refinement and GSAS-II export.
+- **Next:** 16e (done, above).
 
 ## Stage 16c: crystal structure viewer in Choose material (done)
 

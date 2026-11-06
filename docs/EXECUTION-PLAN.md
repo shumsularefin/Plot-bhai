@@ -43,7 +43,7 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 16b       | Pearson VII, split pseudo-Voigt, Rietveld peak asymmetry     | done    |
 | 16c       | 3D crystal structure viewer with distances and angles        | done    |
 | 16d       | Indexing an unknown pattern (Web Worker)                     | done    |
-| 16e       | Rietveld structure refinement and GSAS-II export             | todo    |
+| 16e       | Rietveld structure refinement and GSAS-II export             | done    |
 | 16f       | Materials Project / AMCSD search through a backend           | skipped |
 
 ## The one prompt you paste in every new session

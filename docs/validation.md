@@ -116,3 +116,37 @@ Open:
   could not be installed here. A real pattern indexed by one of them would close this.
 - A pattern with fewer than 10 lines is refused: with 6 lines body-centred cubic and primitive
   cubic at a/√2 index identically (iron, checked).
+
+## 16e: Rietveld structure refinement and GSAS-II export
+
+Formulas: src/core/xrd/rietveld/structure.ts (free directions, structure factor, restraints),
+model.ts and refine.ts (stages, restraint rows, uncertainties), src/core/xrd/export/gsas.ts
+(TCH conversion, .instprm, CIF). Tests: tests/rietveld-structure.test.ts and
+tests/gsas-export.test.ts.
+
+| Method                    | Check                                                                                                                                                                     | Source                                                             | Tolerance                          | Result |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------- | ------ |
+| Free coordinates          | null space of R − I: none at an inversion centre, (1, 1, 1) on a 3-fold axis; rutile Ti 0 and O (x, x, 0) 1 direction, anatase O (0, 0, z), brookite 3 per atom           | exact (site symmetry tables)                                       | exact                              | pass   |
+| Σ\|F\|² from the atoms    | the refinement's structure factors at the start equal the library Σ\|F\|² for rutile, anatase, brookite, CeO2 and ZnO (all lines above 1 % of the strongest)              | independent implementation (reference/powder.ts, whole-cell route) | 0.2 % (5-figure storage)           | pass   |
+| Absences kept             | rutile 0 0 1 and 1 0 0 stay absent after moving O along its free direction                                                                                                | invariance                                                         | \|F\|² < 1e-12                     | pass   |
+| Positions and B recovered | brookite with all 9 coordinates moved by up to 0.004 and B = 0.5 Å², with counting noise: refined from the file values back to the truth                                  | synthetic data                                                     | 4 s.u. + 2e-4; B 4 s.u. + 0.1 Å²   | pass   |
+| Occupancy recovered       | brookite O2 at 0.8 in the data, 0.9 in the file: refined to 0.8; full sites stay at 1 and are not refined                                                                 | synthetic data                                                     | 4 s.u. + 0.005                     | pass   |
+| Restraints                | zero residual at the start; with restraints the refined bonds stay within 4σ (0.08 Å) of the start                                                                        | synthetic data                                                     | 4σ                                 | pass   |
+| No change, no move        | the unperturbed structure refines to itself                                                                                                                               | invariance                                                         | 4 s.u. + 1e-4                      | pass   |
+| TCH conversion            | TCH limits (pure Gaussian, pure Lorentzian); for η = 0, 0.2, 0.5, 0.8, 1 the GSAS-II profile gives this site's FWHM and η over 20–90° 2θ; η = 0 gives σ² = FWHM²/(8 ln 2) | round trip; TCH formulas as in GSAS-II's GSASIIpwd.py (getgamFW)   | FWHM 2 %, η 0.02; exact for η = 0  | pass   |
+| .instprm layout           | first line contains GSAS-II, comments only before the values, every key GSAS-II's lab default file has (Type, Bank, Lam1, Lam2, I(L2)/I(L1), Zero, Polariz., …)           | GSAS-II source (GSASIIfiles.py ReadInstprm, defaultIparms.py)      | all keys present                   | pass   |
+| CIF round trip            | the CIF of rutile, anatase, brookite, CeO2, ZnO and calcite read back by this site's CIF reader gives the same cell, operators, atoms and powder pattern                  | round trip                                                         | identical; d 1e-4 Å; Σ\|F\|² 0.1 % | pass   |
+
+Conventions checked in the GSAS-II source: 2θ_obs = 2θ_calc + Zero (same sign as here);
+Polariz. 0.5 is an unpolarised beam, matching this site's Lorentz–polarisation factor. SH/L is
+written as GSAS-II's default 0.002, because this site's asymmetry model (Bérar–Baldinozzi) is
+not the same.
+
+Open:
+
+- No comparison with GSAS-II refining the same pattern (structure and profile), and the files
+  have not been loaded into GSAS-II itself: it cannot be installed here. Loading the exported
+  .xye, .instprm and CIF into GSAS-II and refining would close both.
+- The synthetic patterns are made with this site's own model, so the recovery checks test the
+  least squares, not the model; the model's Σ|F|² is checked against the independent library
+  route above.
