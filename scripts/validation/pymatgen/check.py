@@ -20,8 +20,7 @@ for cod in CIFS:
     sites = []
     seen = set()
     for site in structure:
-        key = site.species_string, round(site.frac_coords[0] % 1, 4), round(site.frac_coords[1] % 1, 4), round(site.frac_coords[2] % 1, 4)
-        label = site.properties.get('label') if hasattr(site, 'properties') else None
+        label = site.label  # the CIF _atom_site_label, shared by all symmetry copies
         if label in seen:
             continue
         seen.add(label)
