@@ -133,6 +133,11 @@ async function walkToExport(log) {
     const text = await page.locator('.structure-measure').innerText();
     if (!/Distance .+ Å/.test(text)) throw new Error(`No distance shown: ${text}`);
     await page.locator('.structure-canvas').press('ArrowLeft');
+    const viewer = page.locator('.structure-viewer').first();
+    await viewer.getByLabel('Style').selectOption('space');
+    await viewer.getByRole('button', { name: 'View along c' }).click();
+    if ((await viewer.locator('.structure-bond').count()) !== 0)
+      throw new Error('Space filling still draws bonds');
     note(
       `3 Choose material: structure viewer, ${await atoms.count()} atoms, ${text.split('\n').find((l) => l.startsWith('Distance'))}`,
     );

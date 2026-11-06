@@ -37,9 +37,10 @@ export function PatternFilesSection({
         Pattern files
       </h3>
       <p class="field-hint">
-        Each pattern as plain text for other programs such as GSAS-II, FullProf or Origin. The
-        measured file holds the numbers as loaded; the processed file holds them after the steps
-        chosen in Clean data. The header lines start with #.{' '}
+        Optional: each pattern as plain text, only if you also want to open it in other programs
+        such as GSAS-II, FullProf or Origin. The measured file holds the numbers as loaded; the
+        processed file holds them after the steps chosen in Clean data. The header lines start with
+        #.{' '}
         <HelpTip term=".xye">
           <p>
             A .xye file has a third column, σ: the standard uncertainty of each intensity, used to
