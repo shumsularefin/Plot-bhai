@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import {
   DEFAULT_INDEXING,
@@ -10,6 +10,9 @@ import {
   type IndexSystem,
 } from '../src/core/xrd/indexing/index';
 import type { ReferenceFamilyFile, ReferencePhase } from '../src/core/xrd/reference/types';
+
+// Searching monoclinic cells by default makes each search take seconds, more on a CI runner.
+vi.setConfig({ testTimeout: 120_000 });
 
 const CU = 1.5405929;
 const phase = (file: string, id: string): ReferencePhase => {
