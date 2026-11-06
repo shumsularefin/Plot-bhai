@@ -1,0 +1,50 @@
+name: Validation (GSAS-II and pymatgen)
+
+# Independent checks of the Rietveld, structure-refinement and crystal-geometry code: builds GSAS-II
+# from source and installs pymatgen, writes reference fixtures to tests/fixtures/validation/ and
+# commits them, so the unit tests compare against programs that are not part of this repository.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/validation/**'
+      - '.github/workflows/validation.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: validation-${{ github.ref }}
+
+jobs:
+  fixtures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GSAS2_COMMIT: 2c62562
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install gfortran
+        run: sudo apt-get update && sudo apt-get install -y gfortran
+      - name: Build GSAS-II from source and install pymatgen
+        run: |
+          git clone https://github.com/AdvancedPhotonSource/GSAS-II.git "$RUNNER_TEMP/GSAS-II"
+          git -C "$RUNNER_TEMP/GSAS-II" checkout "$GSAS2_COMMIT"
+          python -m pip install --upgrade pip
+          python -m pip install numpy scipy pymatgen
+          python -m pip install "$RUNNER_TEMP/GSAS-II"
+      - name: GSAS-II simulations and refinements
+        run: python -I scripts/validation/gsas2/structure.py "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
+      - name: pymatgen distances and powder patterns
+        run: python -I scripts/validation/pymatgen/check.py "$GITHUB_WORKSPACE"
+      - name: Commit the fixtures
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tests/fixtures/validation
+          if git diff --cached --quiet; then echo 'Fixtures unchanged.'; exit 0; fi
+          git commit -m 'Validation fixtures from GSAS-II and pymatgen'
+          git push
