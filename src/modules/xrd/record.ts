@@ -1,3 +1,4 @@
+import { hasEtaChoice } from '../../core/xrd/peaks/fit';
 import { runPipeline } from '../../core/xrd/process/pipeline';
 import { ANODES } from '../../core/xrd/radiation';
 import { phaseReference } from '../../core/xrd/reference/source';
@@ -91,7 +92,7 @@ export async function xrdRecord(
           used: peaks.fit !== null,
           parameters: [
             `profile ${peaks.fitOptions.profile}`,
-            ...(peaks.fitOptions.profile === 'pseudo-voigt'
+            ...(hasEtaChoice(peaks.fitOptions.profile)
               ? [
                   peaks.fitOptions.fixedEta === null
                     ? 'η fitted'

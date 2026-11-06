@@ -41,6 +41,11 @@ const CHOICE_LABELS: [keyof RefineChoices, string, string][] = [
   ['width', 'Peak width W and shape η', 'The width of every peak and its Lorentzian fraction.'],
   ['widthSlope', 'Width against angle (U, V)', 'How the width changes with 2θ (Caglioti U and V).'],
   [
+    'asymmetry',
+    'Peak asymmetry',
+    'Lopsided peaks at low angles, from the beam spreading along the sample axis (Bérar–Baldinozzi P1 and P2). Turn it on only when the difference curve shows a wave under each low-angle peak.',
+  ],
+  [
     'orientation',
     'Preferred orientation',
     'March–Dollase correction along the direction you type for each phase below.',
@@ -641,6 +646,7 @@ function Results({
                 <th scope="col">η</th>
                 <th scope="col">March–Dollase r</th>
                 <th scope="col">B (Å²)</th>
+                <th scope="col">Asymmetry P1, P2</th>
                 <th scope="col">Scale</th>
               </tr>
             </thead>
@@ -658,6 +664,11 @@ function Results({
                       : '–'}
                   </td>
                   <td>{num(p.overallB, 3)}</td>
+                  <td>
+                    {p.asymmetry[0].refined
+                      ? `${num(p.asymmetry[0], 4)}, ${num(p.asymmetry[1], 4)}`
+                      : '–'}
+                  </td>
                   <td>{p.scale.value.toExponential(4)}</td>
                 </tr>
               ))}
@@ -708,6 +719,10 @@ function Results({
                 { header: 'eta', value: (p) => p.eta.value },
                 { header: 'March-Dollase r', value: (p) => p.orientation?.value ?? '' },
                 { header: 'B (A^2)', value: (p) => p.overallB.value },
+                { header: 'Asymmetry P1', value: (p) => p.asymmetry[0].value },
+                { header: 's.u. P1', value: (p) => p.asymmetry[0].esd },
+                { header: 'Asymmetry P2', value: (p) => p.asymmetry[1].value },
+                { header: 's.u. P2', value: (p) => p.asymmetry[1].esd },
                 { header: 'Scale', value: (p) => p.scale.value },
               ],
             )

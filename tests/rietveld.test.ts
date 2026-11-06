@@ -6,11 +6,14 @@ import type { Cell } from '../src/core/xrd/reference/powder';
 import type { ReferenceFamilyFile, ReferencePhase } from '../src/core/xrd/reference/types';
 import { cellFromParameters, cellKind, cellVolume } from '../src/core/xrd/rietveld/cell';
 import {
+  addProfiles,
+  asymmetryFactor,
   backgroundCurve,
   chebyshevBasis,
   makeLayout,
   phaseCurve,
   type PhaseModel,
+  type PlacedPeak,
 } from '../src/core/xrd/rietveld/model';
 import { refinementReflections } from '../src/core/xrd/rietveld/reflections';
 import {
@@ -55,6 +58,8 @@ interface TruePhase {
   eta: number;
   /** March–Dollase direction and r. */
   orientation?: { direction: [number, number, number]; r: number };
+  /** Bérar–Baldinozzi P1, P2. */
+  asymmetry?: [number, number];
 }
 
 /**
@@ -100,6 +105,8 @@ function synthetic(truth: TruePhase[], zero: number, step = 0.02, from = 20, to 
     p[pl.w] = t.w;
     p[pl.eta] = t.eta;
     p[pl.orientation] = t.orientation?.r ?? 1;
+    p[pl.asymmetry[0]] = t.asymmetry?.[0] ?? 0;
+    p[pl.asymmetry[1]] = t.asymmetry?.[1] ?? 0;
   });
   const bg = backgroundCurve(chebyshevBasis(x, 3), layout, p, x.length);
   const parts = models.map((_, k) => phaseCurve(x, models, layout, k, p, CU));
@@ -293,6 +300,110 @@ describe('Rietveld refinement of synthetic patterns', () => {
       atomicWeights,
     });
     expect(result.ok).toBe(false);
+  });
+});
+
+describe('Bérar–Baldinozzi peak asymmetry', () => {
+  it('has As(0) = 1, odd Fa and Fb, and Fa, Fb = H1, H3 Hermite polynomials × e^(−z²)', () => {
+    expect(asymmetryFactor(0, 0.3, 0.2)).toBe(1);
+    for (const z of [0.1, 0.5, 0.9, 1.7, 2.6]) {
+      const fa = asymmetryFactor(z, 1, 0) - 1;
+      const fb = asymmetryFactor(z, 0, 1) - 1;
+      expect(asymmetryFactor(-z, 1, 0) - 1).toBeCloseTo(-fa, 14);
+      expect(asymmetryFactor(-z, 0, 1) - 1).toBeCloseTo(-fb, 14);
+      expect(fa).toBeCloseTo(2 * z * Math.exp(-z * z), 14);
+      expect(fb).toBeCloseTo((8 * z ** 3 - 12 * z) * Math.exp(-z * z), 14);
+    }
+  });
+
+  it('moves intensity between the sides of a peak without changing its area', () => {
+    const x = Float64Array.from({ length: 40001 }, (_, i) => 20 + i * 0.0005);
+    const base: PlacedPeak = {
+      phase: 0,
+      reflection: 0,
+      twoTheta: 30.0123,
+      area: 1000,
+      fwhm: 0.2,
+      eta: 0.4,
+      asymmetry: [0, 0],
+      line: 0,
+    };
+    const symmetric = new Float64Array(x.length);
+    addProfiles(x, [base], symmetric);
+    const sum = (a: Float64Array) => a.reduce((s, v) => s + v, 0) * 0.0005;
+    const centroid = (a: Float64Array) =>
+      a.reduce((s, v, i) => s + v * (x[i] as number), 0) / a.reduce((s, v) => s + v, 0);
+    for (const asymmetry of [
+      [-0.3, 0],
+      [0.2, 0.05],
+      [0, -0.04],
+    ] as [number, number][]) {
+      const lopsided = new Float64Array(x.length);
+      addProfiles(x, [{ ...base, asymmetry }], lopsided);
+      expect(Math.abs(sum(lopsided) - sum(symmetric)) / sum(symmetric)).toBeLessThan(1e-9);
+      expect(Math.abs(centroid(lopsided) - centroid(symmetric))).toBeGreaterThan(1e-4);
+    }
+    // a < 0 moves intensity to the low-angle side: the centroid shifts down.
+    const low = new Float64Array(x.length);
+    addProfiles(x, [{ ...base, asymmetry: [-0.3, 0] }], low);
+    expect(centroid(low)).toBeLessThan(centroid(symmetric));
+  });
+
+  const ceria = phase('ceo2', 'ceo2');
+  const truth = (asymmetry?: [number, number]): TruePhase[] => [
+    {
+      ref: ceria,
+      cell: { ...ceria.cell },
+      scale: 2e-4,
+      u: 0,
+      v: 0,
+      w: 0.008,
+      eta: 0.4,
+      ...(asymmetry && { asymmetry }),
+    },
+  ];
+  const refine = (x: Float64Array, y: Float64Array, asymmetry: boolean) =>
+    refineRietveld({
+      x,
+      y,
+      wavelengths: CU,
+      phases: [input(ceria)],
+      choices: { ...DEFAULT_CHOICES, widthSlope: false, asymmetry },
+      backgroundTerms: 4,
+      atomicWeights,
+    });
+
+  it('is off by default and leaves P1 = P2 = 0 fixed', () => {
+    expect(DEFAULT_CHOICES.asymmetry).toBe(false);
+    const { x, y } = synthetic(truth(), 0);
+    const result = refine(x, y, false);
+    if (!result.ok) throw new Error(result.error);
+    expect(result.phases[0]?.asymmetry.map((e) => [e.value, e.esd, e.refined])).toEqual([
+      [0, 0, false],
+      [0, 0, false],
+    ]);
+  });
+
+  it('recovers P1 and P2 from a pattern made with them, and improves R_wp', () => {
+    const { x, y } = synthetic(truth([-0.04, 0.006]), 0, 0.01, 20, 90);
+    const result = refine(x, y, true);
+    const without = refine(x, y, false);
+    if (!result.ok || !without.ok) throw new Error('refinement failed');
+    const [p1, p2] = result.phases[0]?.asymmetry ?? [];
+    if (!p1 || !p2) throw new Error('no asymmetry');
+    expect(Math.abs(p1.value + 0.04)).toBeLessThan(4 * p1.esd + 2e-3);
+    expect(Math.abs(p2.value - 0.006)).toBeLessThan(4 * p2.esd + 1e-3);
+    expect(result.stats.chi2).toBeLessThan(1.15);
+    expect(result.stats.rwp).toBeLessThan(without.stats.rwp);
+  });
+
+  it('refines to zero, within its uncertainty, on symmetric peaks', () => {
+    const { x, y } = synthetic(truth(), 0, 0.01, 20, 90);
+    const result = refine(x, y, true);
+    if (!result.ok) throw new Error(result.error);
+    for (const e of result.phases[0]?.asymmetry ?? []) {
+      expect(Math.abs(e.value)).toBeLessThan(4 * e.esd);
+    }
   });
 });
 

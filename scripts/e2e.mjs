@@ -131,11 +131,18 @@ async function walkToExport(log) {
   await next('Rietveld refinement (optional)');
 
   // 5 Rietveld refinement of the candidate (optional; run once to check it works in a worker).
+  const asymmetry = page.getByLabel('Peak asymmetry');
+  if (!(await asymmetry.isVisible())) await page.getByText('What to refine').click();
+  await page.getByLabel('Peak asymmetry').check();
   await page.getByRole('button', { name: 'Refine', exact: true }).click();
   await page.getByText('Refinement results (estimates)').waitFor({ timeout: 60_000 });
+  const stages = page.getByText(/^Peak asymmetry \(P1, P2\): R/);
+  if (!(await stages.isVisible()))
+    await page.getByText('Peak shape, orientation and refinement stages').click();
+  await page.getByText(/^Peak asymmetry \(P1, P2\): R/).waitFor();
   const rwp = await page.locator('.result-summary dd').first().textContent();
   assert.match(rwp ?? '', /^\d+\.\d\d %$/);
-  note(`5 Rietveld: refined, Rwp ${rwp}`);
+  note(`5 Rietveld: refined with peak asymmetry, Rwp ${rwp}`);
   await next('Fit peaks');
 
   // 5 Fit peaks
@@ -151,6 +158,16 @@ async function walkToExport(log) {
   await fit.click();
   await page.locator('.peak-table').waitFor({ timeout: 60_000 });
   note('6 Fit peaks: peak table shown');
+  // The other shapes: Pearson VII adds its m column; then back to pseudo-Voigt for the rest.
+  await page.getByLabel('Pearson VII').check();
+  await fit.click();
+  await page.locator('.peak-table th', { hasText: 'Pearson VII m' }).waitFor({ timeout: 60_000 });
+  await page.getByLabel('Pseudo-Voigt', { exact: true }).check();
+  await fit.click();
+  await page
+    .locator('.peak-table th', { hasText: 'Pearson VII m' })
+    .waitFor({ state: 'detached', timeout: 60_000 });
+  note('6 Fit peaks: Pearson VII fitted (m column shown), then pseudo-Voigt again');
   await next('Instrument correction');
 
   // 6 Instrument correction: skip, which is allowed and warned about in the results.

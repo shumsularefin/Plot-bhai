@@ -4,6 +4,8 @@
  * nothing is said about the instrument that the data files do not state.
  */
 
+import type { FitProfileKind } from '../peaks/profiles';
+
 export interface MethodsInput {
   software: string;
   /** Radiation assumed in the analysis. */
@@ -30,7 +32,7 @@ export interface MethodsInput {
     normalisedTo: number | null;
   };
   /** Peak fitting; null when no peaks were fitted. */
-  fit: { profile: 'gaussian' | 'lorentzian' | 'pseudo-voigt'; fixedEta: number | null } | null;
+  fit: { profile: FitProfileKind; fixedEta: number | null } | null;
   /** Instrumental broadening. */
   instrument:
     | { kind: 'skipped' }
@@ -55,11 +57,13 @@ const list = (items: readonly string[]) =>
     ? (items[0] ?? '')
     : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
 
-const PROFILES = {
+const PROFILES: Record<FitProfileKind, string> = {
   gaussian: 'Gaussian',
   lorentzian: 'Lorentzian',
   'pseudo-voigt': 'pseudo-Voigt',
-} as const;
+  'pearson-vii': 'Pearson VII',
+  'split-pseudo-voigt': 'split (asymmetric) pseudo-Voigt',
+};
 const CORRECTIONS = {
   gaussian: 'Gaussian (β² = B² − b²)',
   lorentzian: 'Lorentzian (β = B − b)',
@@ -120,12 +124,17 @@ export function methodsParagraph(input: MethodsInput): string {
   );
 
   if (input.fit) {
+    const kind = input.fit.profile;
     const eta =
-      input.fit.profile === 'pseudo-voigt'
-        ? input.fit.fixedEta === null
-          ? ', with the Lorentzian fraction fitted'
-          : `, with the Lorentzian fraction fixed at ${number(input.fit.fixedEta)}`
-        : '';
+      kind === 'pearson-vii'
+        ? ', with the shape exponent m fitted for each peak'
+        : kind === 'pseudo-voigt' || kind === 'split-pseudo-voigt'
+          ? `${kind === 'split-pseudo-voigt' ? ', with separate widths either side of the maximum' : ''}${
+              input.fit.fixedEta === null
+                ? ', with the Lorentzian fraction fitted'
+                : `, with the Lorentzian fraction fixed at ${number(input.fit.fixedEta)}`
+            }`
+          : '';
     sentences.push(
       `Peak positions, widths (FWHM) and areas were obtained by non-linear least-squares fitting of ${PROFILES[input.fit.profile]} profile functions${eta}; interplanar spacings follow from Bragg's law, λ = 2d sin θ.`,
     );

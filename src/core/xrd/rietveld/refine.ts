@@ -8,7 +8,8 @@
  * Parameters are released in stages, as recommended for a stable refinement (for example
  * L. B. McCusker, R. B. Von Dreele, D. E. Cox, D. Louër and P. Scardi, J. Appl. Cryst. 32 (1999)
  * 36–50): scale factors and background, then zero shift (and sample displacement), then the cell,
- * then the peak widths and shape, then preferred orientation, then an overall displacement factor.
+ * then the peak widths and shape, then peak asymmetry, then preferred orientation, then an overall
+ * displacement factor.
  * Before that the starting width is chosen from a few values, and each phase's cell is lined up
  * by trying small isotropic changes of its lengths (± 1.5 %), because least squares cannot find a
  * peak that starts further away than about its own width.
@@ -37,6 +38,7 @@ import type { ReferencePeak } from '../reference/types';
 import { cellKind, cellParameterNames, cellVolume } from './cell';
 import {
   addProfiles,
+  asymmetryFactor,
   backgroundCurve,
   chebyshevBasis,
   makeLayout,
@@ -75,6 +77,8 @@ export interface RefineChoices {
   orientation: boolean;
   /** Overall displacement factor B of every phase. */
   overallB: boolean;
+  /** Bérar–Baldinozzi peak asymmetry P1, P2 of every phase (see model.ts). */
+  asymmetry: boolean;
 }
 
 export const DEFAULT_CHOICES: RefineChoices = {
@@ -85,6 +89,7 @@ export const DEFAULT_CHOICES: RefineChoices = {
   widthSlope: true,
   orientation: false,
   overallB: false,
+  asymmetry: false,
 };
 
 export interface RietveldInput {
@@ -125,6 +130,8 @@ export interface RietveldPhaseResult {
   orientation: Estimate | null;
   orientationDirection: Hkl | null;
   overallB: Estimate;
+  /** Bérar–Baldinozzi P1 and P2 (0 and fixed unless asymmetry was refined). */
+  asymmetry: [Estimate, Estimate];
   rBragg: number;
   /** Kα1 positions (degrees 2θ) of the reflections inside the data range, with one (h k l) each. */
   ticks: { twoTheta: number; hkl: Hkl }[];
@@ -278,6 +285,7 @@ export function refineRietveld(
     bound(pl.eta, 0, 1, 0.5, 0.1);
     bound(pl.orientation, 0.3, 3, 1, 1);
     bound(pl.b, -2, 10, 0, 1);
+    for (const j of pl.asymmetry) bound(j, -1, 1, 0, 0.01);
   });
 
   // Starting scale: the strongest calculated peak matches the strongest measured one.
@@ -306,13 +314,25 @@ export function refineRietveld(
     labels[pl.eta] = `${phase.name}: η`;
     labels[pl.orientation] = `${phase.name}: March–Dollase r`;
     labels[pl.b] = `${phase.name}: B`;
+    labels[pl.asymmetry[0]] = `${phase.name}: asymmetry P1`;
+    labels[pl.asymmetry[1]] = `${phase.name}: asymmetry P2`;
   });
 
   const curves = (params: Float64Array) =>
     phases.map((_, k) => phaseCurve(x, phases, layout, k, params, wavelengths));
   const phaseOf = new Int32Array(layout.size).fill(-1);
   layout.phases.forEach((pl, k) => {
-    for (const j of [pl.scale, ...pl.cell, pl.u, pl.v, pl.w, pl.eta, pl.orientation, pl.b])
+    for (const j of [
+      pl.scale,
+      ...pl.cell,
+      pl.u,
+      pl.v,
+      pl.w,
+      pl.eta,
+      pl.orientation,
+      pl.b,
+      ...pl.asymmetry,
+    ])
       phaseOf[j] = k;
   });
   const backgroundIndex = new Map(layout.background.map((j, i) => [j, i]));
@@ -444,6 +464,11 @@ export function refineRietveld(
     stage(
       'Width against angle (U, V)',
       layout.phases.flatMap((pl) => [pl.u, pl.v]),
+    );
+  if (choices.asymmetry)
+    stage(
+      'Peak asymmetry (P1, P2)',
+      layout.phases.flatMap((pl) => pl.asymmetry),
     );
   if (choices.orientation)
     stage(
@@ -606,6 +631,7 @@ export function refineRietveld(
       orientation: phase.orientation ? estimate(pl.orientation) : null,
       orientationDirection: phase.orientation,
       overallB: estimate(pl.b),
+      asymmetry: [estimate(pl.asymmetry[0]), estimate(pl.asymmetry[1])],
       rBragg: denominator > 0 ? numerator / denominator : NaN,
       ticks: peaks
         .filter((peak) => peak.line === 0 && peak.twoTheta >= xLo && peak.twoTheta <= xHi)
@@ -637,6 +663,22 @@ export function refineRietveld(
     warnings.push(
       'GOF is well above 1: the model misses something in the data, for example another phase, peak asymmetry, size or strain broadening that differs between reflections, or the wrong preferred orientation. Look at the difference curve.',
     );
+  if (choices.asymmetry) {
+    // The corrected profile must stay ≥ 0: check As(z) on |z| ≤ 3 for every peak in the range.
+    const negative = phases.filter((_, k) =>
+      placePeaks(phases, layout, k, params, wavelengths).some((peak) => {
+        if (peak.twoTheta < xLo || peak.twoTheta > xHi) return false;
+        for (let z = -3; z <= 3; z += 0.01) {
+          if (asymmetryFactor(z, ...peak.asymmetry) < 0) return true;
+        }
+        return false;
+      }),
+    );
+    if (negative.length > 0)
+      warnings.push(
+        `The refined asymmetry is so large that some calculated peaks of ${negative.map((p) => p.name).join(', ')} dip below the background on one side, which is not physical. Start from a narrower 2θ range or leave asymmetry off.`,
+      );
+  }
   phaseResults.forEach((phase) => {
     if (phase.scale.value <= 0 || phase.scale.esd > phase.scale.value)
       warnings.push(

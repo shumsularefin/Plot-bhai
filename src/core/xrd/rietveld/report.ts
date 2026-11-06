@@ -54,6 +54,11 @@ export function rietveldMethods(input: RietveldMethodsInput): string {
       ? ['March–Dollase preferred orientation']
       : []),
     ...(choices.overallB ? ['an overall displacement factor B'] : []),
+    ...(choices.asymmetry
+      ? [
+          'the peak asymmetry parameters P1 and P2 of the Bérar–Baldinozzi correction (J. Appl. Cryst. 26 (1993) 128), applied with their 1/tan θ terms',
+        ]
+      : []),
   ];
   const list = (items: string[]) =>
     items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;

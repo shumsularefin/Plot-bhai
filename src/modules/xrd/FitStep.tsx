@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { DetectionOptions } from '../../core/xrd/peaks/detect';
 import {
+  hasEtaChoice,
   peakValue,
   regionValue,
   type FitOptions,
   type PeakGuess,
   type RegionFit,
 } from '../../core/xrd/peaks/fit';
-import type { ProfileKind } from '../../core/xrd/peaks/profiles';
+import type { FitProfileKind } from '../../core/xrd/peaks/profiles';
 import { lowerBoundIndex } from '../../core/xrd/peaks/search';
 import { missedPeaks } from '../../core/xrd/peaks/missed';
 import { peakTable } from '../../core/xrd/peaks/table';
@@ -48,10 +49,12 @@ const MODE_HINTS: Record<Mode, string | undefined> = {
   remove: 'Click or tap a peak marker to remove it.',
   move: 'Drag a peak marker sideways to move it.',
 };
-const PROFILE_LABELS: Record<ProfileKind, string> = {
+const PROFILE_LABELS: Record<FitProfileKind, string> = {
   gaussian: 'Gaussian',
   lorentzian: 'Lorentzian',
   'pseudo-voigt': 'Pseudo-Voigt',
+  'pearson-vii': 'Pearson VII',
+  'split-pseudo-voigt': 'Split pseudo-Voigt (asymmetric)',
 };
 const UNDO_LIMIT = 50;
 
@@ -463,12 +466,23 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
               the two, with η the Lorentzian fraction (0 = Gaussian, 1 = Lorentzian). Each fit
               region also has its own straight background line.
             </p>
+            <p>
+              Pearson VII sets the tails with an exponent m: m = 1 is a Lorentzian and a large m
+              (above about 10) is close to a Gaussian. Split pseudo-Voigt has a different width on
+              each side of the maximum, for peaks that are lopsided (common at low angles).
+            </p>
+            <p>
+              For both, the table shows the full FWHM and the η of the pseudo-Voigt with the same
+              FWHM and integral breadth, so size, strain and instrument correction work the same
+              way. Pseudo-Voigt is the usual choice; try another shape when the residual shows the
+              tails or one side are not followed.
+            </p>
           </HelpTip>
         </h3>
         <div class="process-step-body">
           <fieldset class="method-choice">
             <legend>Profile</legend>
-            {(Object.keys(PROFILE_LABELS) as ProfileKind[]).map((kind) => (
+            {(Object.keys(PROFILE_LABELS) as FitProfileKind[]).map((kind) => (
               <label key={kind} class="check">
                 <input
                   type="radio"
@@ -481,7 +495,7 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
               </label>
             ))}
           </fieldset>
-          {state.fitOptions.profile === 'pseudo-voigt' && (
+          {hasEtaChoice(state.fitOptions.profile) && (
             <>
               <label class="check">
                 <input

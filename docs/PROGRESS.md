@@ -1,5 +1,36 @@
 # Progress
 
+## Stage 16b: Pearson VII and split pseudo-Voigt peaks, Rietveld peak asymmetry (done)
+
+Branch `claude/loving-noether-y55l76`. No new dependencies.
+
+- **Fit peaks (step 6):** two more shapes beside Gaussian, Lorentzian and pseudo-Voigt.
+  Pearson VII has a fitted exponent m (0.6 to 50, starting at 2). Split pseudo-Voigt has separate
+  left and right FWHM and one η (fixable as for the pseudo-Voigt). Both are also offered for the
+  line-profile standard. Each shape has its own parameter count in the fitter
+  (`parameterCount`, `peakFromVector`), with analytic derivatives, and the Kα2 copy works for all.
+- **Decision:** downstream steps see every shape the same way. `fwhm` is the true FWHM, and
+  `eta` is the η of the pseudo-Voigt with the same FWHM and integral breadth: exact for the split
+  shape, an approximation for Pearson VII, clamped to 1 for m < 1 with a note. Size, strain and
+  the Voigt instrument correction therefore need no change. Areas and breadths use closed forms
+  (ln Γ by Lanczos, in src/core/math/gamma.ts). Their σ, and those of the derived FWHM and η, come
+  through the fit covariance.
+- **Peak table:** columns for m, or for the left and right FWHM, appear when used; with Pearson VII
+  the η column is labelled "η (equivalent)". The Methods text and the processing record name the
+  shape.
+- **Rietveld (step 5):** "Peak asymmetry" choice, off by default, refined after the widths. It is
+  the Bérar–Baldinozzi correction in the FullProf manual's form (eq. 3.29), with the 1/tan θ terms
+  P1 and P2 per phase. It keeps each peak's area, and the refinement warns if the corrected
+  profile would go negative. The results table and CSV show P1 and P2.
+- **Validation:** docs/validation.md, 16b: lnΓ and the Pearson area against Python's
+  `math.lgamma`; areas against numerical integration; exact limits; derivatives against finite
+  differences; known-answer fits; invariance; asymmetry recovered from a synthetic CeO2 pattern.
+- **Checks:** lint, type check, 978 unit tests, build, bundle size and e2e all pass. The e2e
+  test now refines with asymmetry in the worker, and fits Pearson VII and then pseudo-Voigt again.
+- **Open:** no fit compared with Fityk or FullProf on the same data (Fityk could not be installed
+  here), and the Pearson VII paper's volume and pages are unconfirmed.
+- **Next:** 16c, the crystal structure viewer in Choose material.
+
 ## Stage 16a: Bruker .brml and .raw, Rigaku .rasx, .xy/.xye export (done)
 
 Branch `claude/loving-noether-y55l76`. No new dependencies: ZIP archives are unpacked with the

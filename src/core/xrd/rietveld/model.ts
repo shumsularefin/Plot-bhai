@@ -23,8 +23,17 @@
  *   Caglioti relation H² = U tan²θ + V tanθ + W (H in degrees 2θ, U, V, W in deg²). η is the
  *   Lorentzian fraction (0 to 1). Ω is cut off at ±25 H (the Lorentzian tails beyond hold about
  *   1.3 % of its area).
+ * - Peak asymmetry (optional, off unless refined): Ω is multiplied by the Bérar–Baldinozzi
+ *   correction (J.-F. Bérar and G. Baldinozzi, J. Appl. Cryst. 26 (1993) 128–129), in the form of
+ *   the FullProf manual (eq. 3.29) with its 1/tan θ terms:
+ *     As(z) = 1 + [P1 Fa(z) + P2 Fb(z)] / tan θ_k,   z = (2θ_i − 2θ_k) / H,
+ *     Fa(z) = 2z exp(−z²),   Fb(z) = 2(2z² − 3) Fa(z),
+ *   θ_k the Bragg angle of the line. Fa and Fb are odd in z and Ω is even, so the correction moves
+ *   intensity from one side of the peak to the other without changing its area. The manual's
+ *   further 1/tan 2θ terms (P3, P4) are not used: they matter mainly at high angle, where lab
+ *   patterns show little asymmetry.
  *
- * Peak asymmetry, anisotropic broadening, absorption and surface roughness are not modelled.
+ * Anisotropic broadening, absorption and surface roughness are not modelled.
  */
 
 import { dSpacing, lorentzPolarisation, reciprocalMetric, type Cell } from '../reference/powder';
@@ -71,6 +80,8 @@ export interface PhaseLayout {
   eta: number;
   orientation: number;
   b: number;
+  /** Bérar–Baldinozzi asymmetry P1 and P2. */
+  asymmetry: [number, number];
 }
 
 export function makeLayout(phases: readonly PhaseModel[], backgroundTerms: number): Layout {
@@ -88,6 +99,7 @@ export function makeLayout(phases: readonly PhaseModel[], backgroundTerms: numbe
     eta: take(),
     orientation: take(),
     b: take(),
+    asymmetry: [take(), take()] as [number, number],
   }));
   return { zero, displacement, background, phases: phaseLayouts, size: next };
 }
@@ -166,8 +178,16 @@ export interface PlacedPeak {
   area: number;
   fwhm: number;
   eta: number;
+  /** Coefficients of Fa(z) and Fb(z) in the asymmetry correction: P1 / tan θ and P2 / tan θ. */
+  asymmetry: [number, number];
   /** 0 for Kα1, 1 for Kα2. */
   line: 0 | 1;
+}
+
+/** Bérar–Baldinozzi correction As(z) = 1 + a·Fa(z) + b·Fb(z), Fa = 2z e^(−z²), Fb = 2(2z² − 3) Fa. */
+export function asymmetryFactor(z: number, a: number, b: number): number {
+  const fa = 2 * z * Math.exp(-z * z);
+  return 1 + a * fa + b * 2 * (2 * z * z - 3) * fa;
 }
 
 /** The cell of a phase for parameter vector p. */
@@ -199,6 +219,8 @@ export function placePeaks(
   const eta = Math.min(1, Math.max(0, p[pl.eta] as number));
   const r = p[pl.orientation] as number;
   const b = p[pl.b] as number;
+  const p1 = p[pl.asymmetry[0]] as number;
+  const p2 = p[pl.asymmetry[1]] as number;
   const lines: [number, number][] = [[wavelengths.kAlpha1, 1]];
   if (wavelengths.ratio > 0) lines.push([wavelengths.kAlpha2, wavelengths.ratio]);
   const out: PlacedPeak[] = [];
@@ -223,6 +245,7 @@ export function placePeaks(
         area: common * weight * lorentzPolarisation(theta),
         fwhm: Math.sqrt(Math.max(h2, 1e-8)),
         eta,
+        asymmetry: [p1 / tan, p2 / tan],
         line: line as 0 | 1,
       });
     });
@@ -243,13 +266,15 @@ export function addProfiles(
     const inv = 1 / peak.fwhm;
     const gNorm = 2 * SQRT_LN2_PI * inv;
     const lNorm = (2 / Math.PI) * inv;
+    const [a, b] = peak.asymmetry;
+    const asymmetric = a !== 0 || b !== 0;
     for (let i = start; i < end; i++) {
       const t = ((x[i] as number) - peak.twoTheta) * inv;
       const t2 = 4 * t * t;
-      out[i] =
-        (out[i] as number) +
+      const value =
         peak.area *
-          ((peak.eta * lNorm) / (1 + t2) + (1 - peak.eta) * gNorm * Math.exp(-Math.LN2 * t2));
+        ((peak.eta * lNorm) / (1 + t2) + (1 - peak.eta) * gNorm * Math.exp(-Math.LN2 * t2));
+      out[i] = (out[i] as number) + (asymmetric ? value * asymmetryFactor(t, a, b) : value);
     }
   }
 }
