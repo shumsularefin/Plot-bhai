@@ -14,7 +14,7 @@ import { formatWithSigma } from '../../ui/format';
 import { HelpTip } from '../../ui/HelpTip';
 import { downloadCsv } from './csv';
 import { peaksFor, type XrdData } from './data';
-import { indexInWorker } from './indexingClient';
+import { indexInWorker } from './indexingFitClient';
 import { TableBox } from './MethodDetails';
 import { NumberInput } from './NumberInput';
 

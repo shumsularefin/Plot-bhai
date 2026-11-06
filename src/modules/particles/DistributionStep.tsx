@@ -30,7 +30,9 @@ import {
   type SizeMeasure,
 } from './data';
 import { downloadParticles } from './DetectStep';
+import { grayOf } from './grayImage';
 import { HistogramChart } from './HistogramChart';
+import { GREY_GROUPS, measureColumns } from './measureColumns';
 import { useImage } from './useImage';
 import { collectSizes, imageSizes, keptParticles, poolEntryOf } from './sizes';
 import { stereologyMethods, stereologyOf } from './stereology';
@@ -127,6 +129,8 @@ export function DistributionStep({ data, update }: StepContext<ParticleData>) {
             edited: data.detect.edited,
             byHand: data.detect.particles.every((p) => p.source === 'added'),
             diameterUsed: data.detect.diameterUsed,
+            thresholdUsed: data.detect.thresholdUsed,
+            fellBack: data.detect.fellBack,
             filters: data.detect.filters,
           }
         : null,
@@ -268,6 +272,17 @@ export function DistributionStep({ data, update }: StepContext<ParticleData>) {
       perPixelNm,
       edgeArea,
       data.image?.name.replace(/\.[^.]+$/, '') ?? 'particles',
+      measureColumns(
+        // Grey values need the image; leave those columns out while it is not loaded.
+        imageState.status === 'ready'
+          ? data.detect.columns
+          : data.detect.columns.filter((g) => !GREY_GROUPS.has(g)),
+        {
+          scale,
+          gray: imageState.status === 'ready' ? grayOf(imageState.image) : null,
+          nmPerPixel: perPixelNm,
+        },
+      ),
     );
   };
 

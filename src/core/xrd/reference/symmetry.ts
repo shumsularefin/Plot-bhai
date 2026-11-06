@@ -91,3 +91,28 @@ export function orbitRepresentative(
   for (const op of ops) consider(rotateHkl(op, h));
   return best;
 }
+
+/** Writes an operator back as CIF text ("-x+1/2,y,z+1/4"); parseSymop(formatSymop(op)) = op. */
+export function formatSymop(op: Symop): string {
+  const fraction = (v: number): string => {
+    for (const den of [1, 2, 3, 4, 6, 8, 12]) {
+      const num = Math.round(v * den);
+      if (Math.abs(num / den - v) < 1e-6) return den === 1 ? String(num) : `${num}/${den}`;
+    }
+    return String(Number(v.toFixed(6)));
+  };
+  return [0, 1, 2]
+    .map((row) => {
+      let out = '';
+      ['x', 'y', 'z'].forEach((axis, col) => {
+        const c = op.rot[row * 3 + col] as number;
+        if (c === 0) return;
+        const size = Math.abs(c) === 1 ? '' : `${fraction(Math.abs(c))}*`;
+        out += `${c < 0 ? '-' : out ? '+' : ''}${size}${axis}`;
+      });
+      const t = op.trans[row as 0 | 1 | 2];
+      if (Math.abs(t) > 1e-9) out += `${t < 0 ? '-' : '+'}${fraction(Math.abs(t))}`;
+      return out || '0';
+    })
+    .join(',');
+}

@@ -26,8 +26,17 @@ export interface PeakRow {
   areaSigma: number;
   /** Height relative to the highest fitted peak, percent. */
   relativeIntensity: number;
+  /** η; for Pearson VII the η of the pseudo-Voigt with the same FWHM and breadth. */
   eta: number;
   etaSigma: number;
+  /** Pearson VII exponent m (NaN for other shapes). */
+  pearsonM: number;
+  pearsonMSigma: number;
+  /** Split pseudo-Voigt FWHM left and right of the maximum, degrees (NaN for other shapes). */
+  fwhmLeft: number;
+  fwhmLeftSigma: number;
+  fwhmRight: number;
+  fwhmRightSigma: number;
 }
 
 /**
@@ -72,6 +81,12 @@ export function peakTable(regions: readonly RegionFit[], lambda: number): PeakRo
       relativeIntensity: maxHeight > 0 ? (100 * p.height) / maxHeight : 0,
       eta: p.eta,
       etaSigma: p.sigma.eta,
+      pearsonM: p.shape?.kind === 'pearson-vii' ? p.shape.m : NaN,
+      pearsonMSigma: p.sigma.shape?.kind === 'pearson-vii' ? p.sigma.shape.m : NaN,
+      fwhmLeft: p.shape?.kind === 'split-pseudo-voigt' ? p.shape.fwhmLeft : NaN,
+      fwhmLeftSigma: p.sigma.shape?.kind === 'split-pseudo-voigt' ? p.sigma.shape.fwhmLeft : NaN,
+      fwhmRight: p.shape?.kind === 'split-pseudo-voigt' ? p.shape.fwhmRight : NaN,
+      fwhmRightSigma: p.sigma.shape?.kind === 'split-pseudo-voigt' ? p.sigma.shape.fwhmRight : NaN,
     }))
     .sort((a, b) => a.twoTheta - b.twoTheta);
 }

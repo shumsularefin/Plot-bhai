@@ -1,4 +1,4 @@
-import type { Point, Rect } from '../geometry';
+import { lineAngle, type Point, type Rect } from '../geometry';
 
 /**
  * A particle is stored as runs of pixels, three numbers per run: row y, first column x0 and
@@ -255,6 +255,10 @@ export interface Shape {
   feretMin: number;
   /** feretMax / feretMin. */
   aspect: number;
+  /** Direction of the longest caliper, degrees from 0 up to 180, counter-clockwise from +x with y up. */
+  feretAngle: number;
+  /** Area of the convex hull of the outline, px²; solidity is area / convexArea. */
+  convexArea: number;
   perimeter: number;
   /**
    * 4π · area / perimeter², at most 1. A circle drawn in pixels reads about 0.9, not 1, because
@@ -296,15 +300,16 @@ export function shapeOf(runs: Runs): Shape {
   const perimeter = edge - outer.length * (1 - Math.SQRT1_2);
   const hull = convexHull(outer);
   let feretMax = 0;
+  let feretAngle = 0;
   for (let i = 0; i < hull.length; i++) {
     for (let j = i + 1; j < hull.length; j++) {
-      feretMax = Math.max(
-        feretMax,
-        Math.hypot(
-          (hull[i] as Point).x - (hull[j] as Point).x,
-          (hull[i] as Point).y - (hull[j] as Point).y,
-        ),
-      );
+      const a = hull[i] as Point;
+      const b = hull[j] as Point;
+      const length = Math.hypot(a.x - b.x, a.y - b.y);
+      if (length > feretMax) {
+        feretMax = length;
+        feretAngle = lineAngle(a, b) % 180;
+      }
     }
   }
   let feretMin = Infinity;
@@ -331,6 +336,8 @@ export function shapeOf(runs: Runs): Shape {
     feretMax,
     feretMin,
     aspect: feretMin > 0 ? feretMax / feretMin : 1,
+    feretAngle,
+    convexArea: Math.abs(polygonArea(hull)),
     perimeter,
     circularity: perimeter > 0 ? Math.min(1, (4 * Math.PI * area) / perimeter ** 2) : 0,
   };

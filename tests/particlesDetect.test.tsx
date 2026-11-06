@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/preact';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/preact';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { ellipseRuns } from '../src/core/particles/detect/manual';
 import { runsArea } from '../src/core/particles/detect/regions';
@@ -56,6 +56,7 @@ vi.mock('../src/modules/particles/detectClient', () => ({
           ellipseRuns(500, 300, 10, 10, 1024, 864),
         ],
         threshold: 117,
+        fellBack: false,
         diameter:
           (input as { settings: { split: { method: string } } }).settings.split.method === 'clumps'
             ? 33
@@ -63,7 +64,12 @@ vi.mock('../src/modules/particles/detectClient', () => ({
       };
     }
     async mask() {
-      return { mask: new Uint8Array(4), threshold: 117 };
+      return {
+        mask: new Uint8Array(4),
+        threshold: 117,
+        fellBack: false,
+        histogram: new Int32Array(256),
+      };
     }
   },
 }));
@@ -126,8 +132,9 @@ describe('detect step', () => {
     await detect(store);
     expect(store.get().detect.particles.map((p) => p.id)).toEqual([1, 2, 3]);
     expect(store.get().detect.thresholdUsed).toBe(117);
-    expect(screen.getByText(/Otsu chose grey level 117/)).toBeTruthy();
-    expect(screen.getAllByRole('row')).toHaveLength(1 + 3);
+    expect(await screen.findByText(/Otsu chooses grey level 117/)).toBeTruthy();
+    const table = screen.getByRole('region', { name: /Detected particles/ });
+    expect(within(table).getAllByRole('row')).toHaveLength(1 + 3);
     expect(detectCalls.length).toBeGreaterThan(0);
   });
 

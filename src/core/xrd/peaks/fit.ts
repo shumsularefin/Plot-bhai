@@ -3,14 +3,17 @@ import { kAlpha2Position } from '../process/kAlpha2';
 import { localNoise } from './noise';
 import { lowerBoundIndex } from './search';
 import {
+  derivedGradients,
   integralBreadth,
-  integralBreadthGradient,
+  parameterCount,
   peakArea,
-  peakAreaGradient,
+  peakFromVector,
+  PEARSON_M_MAX,
+  PEARSON_M_MIN,
   profile,
   profileWithGradient,
+  type FitProfileKind,
   type PeakParameters,
-  type ProfileKind,
 } from './profiles';
 import type { DataMessage } from '../types';
 
@@ -22,8 +25,8 @@ export interface PeakGuess {
 }
 
 export interface FitOptions {
-  profile: ProfileKind;
-  /** Pseudo-Voigt only: a fixed Lorentzian fraction, or null to fit it. */
+  profile: FitProfileKind;
+  /** Pseudo-Voigt and split pseudo-Voigt: a fixed Lorentzian fraction, or null to fit it. */
   fixedEta: number | null;
   /** When the data still contain Kα2: fit each peak as a Kα1 + Kα2 pair (see kAlpha2Copy). */
   kAlpha2?: KAlpha2Pair | null;
@@ -62,7 +65,16 @@ export function peakValue(x: number, peak: PeakParameters, pair: KAlpha2Pair | n
   return profile(x, peak) + (copy ? profile(x, copy.peak) : 0);
 }
 
-/** Fitted peak with standard uncertainties (σ, from the covariance matrix). */
+/** True when the shape has a Lorentzian fraction η the user may fix. */
+export function hasEtaChoice(kind: FitProfileKind): boolean {
+  return kind === 'pseudo-voigt' || kind === 'split-pseudo-voigt';
+}
+
+/**
+ * Fitted peak with standard uncertainties (σ, from the covariance matrix). For Pearson VII and
+ * split pseudo-Voigt, fwhm and eta are derived (see profiles.ts) and `shape` holds the fitted
+ * shape parameters; sigma.shape holds their σ.
+ */
 export interface PeakFit extends PeakParameters {
   sigma: PeakParameters;
   /** Area, intensity × degrees. */
@@ -187,13 +199,13 @@ export function groupRegions(
   return regions;
 }
 
-const PARAMS_PER_PEAK = 4;
-
 /**
  * Fits one region: the sum of k peaks (see profiles.ts) plus a straight background line,
  * by bounded Levenberg–Marquardt. With options.kAlpha2 each peak is a Kα1 + Kα2 pair (see
- * kAlpha2Copy), so the fitted height, centre, width and η are those of Kα1. Bounds: height ≥ 0; centre within one starting width of its
- * guess; FWHM between one data step and the region width; 0 ≤ η ≤ 1.
+ * kAlpha2Copy), so the fitted height, centre, width and shape are those of Kα1. Bounds:
+ * height ≥ 0; centre within one starting width of its guess; each FWHM (wL and wR for the
+ * split pseudo-Voigt) between one data step and the region width; 0 ≤ η ≤ 1; Pearson VII
+ * 0.6 ≤ m ≤ 50 (starting at 2).
  * x in degrees 2θ (increasing), y in intensity units.
  */
 export function fitRegion(
@@ -208,7 +220,9 @@ export function fitRegion(
   const ys = y.subarray(i0, i1);
   const n = xs.length;
   const k = region.peaks.length;
-  const m = 2 + PARAMS_PER_PEAK * k;
+  const kind = options.profile;
+  const count = parameterCount(kind);
+  const m = 2 + count * k;
   const step = n > 1 ? ((xs[n - 1] as number) - (xs[0] as number)) / (n - 1) : 1;
   const pivot = ((xs[0] as number) + (xs[n - 1] as number)) / 2;
   const messages: RegionMessage[] = [];
@@ -257,42 +271,44 @@ export function fitRegion(
   const startWidths: number[] = [];
   initial[0] = (yLeft + yRight) / 2;
   initial[1] = slope0;
+  const etaFree = hasEtaChoice(kind) && options.fixedEta === null;
+  const startEta = kind === 'gaussian' ? 0 : kind === 'lorentzian' ? 1 : (options.fixedEta ?? 0.5);
   region.peaks.forEach((g, p) => {
-    const o = 2 + PARAMS_PER_PEAK * p;
+    const o = 2 + count * p;
     const at = Math.min(n - 1, Math.max(0, lowerBoundIndex(xs, g.center)));
     const width = Math.min(Math.max(g.width, 2 * step), (xs[n - 1] as number) - (xs[0] as number));
     const reach = Math.max(width, 2 * step);
     startWidths.push(width);
     initial[o] = Math.max((ys[at] as number) - background0(g.center), range * 0.01);
     initial[o + 1] = g.center;
-    initial[o + 2] = width;
-    initial[o + 3] =
-      options.profile === 'gaussian'
-        ? 0
-        : options.profile === 'lorentzian'
-          ? 1
-          : (options.fixedEta ?? 0.5);
     lower[o] = 0;
     upper[o] = 3 * range;
     lower[o + 1] = Math.max(xs[0] as number, g.center - reach);
     upper[o + 1] = Math.min(xs[n - 1] as number, g.center + reach);
-    lower[o + 2] = step;
-    upper[o + 2] = (xs[n - 1] as number) - (xs[0] as number);
-    lower[o + 3] = 0;
-    upper[o + 3] = 1;
-    free[o + 3] = options.profile === 'pseudo-voigt' && options.fixedEta === null;
+    const widths = kind === 'split-pseudo-voigt' ? 2 : 1;
+    for (let j = 0; j < widths; j++) {
+      initial[o + 2 + j] = width;
+      lower[o + 2 + j] = step;
+      upper[o + 2 + j] = (xs[n - 1] as number) - (xs[0] as number);
+    }
+    const last = o + count - 1;
+    if (kind === 'pearson-vii') {
+      initial[last] = 2;
+      lower[last] = PEARSON_M_MIN;
+      upper[last] = PEARSON_M_MAX;
+    } else {
+      initial[last] = startEta;
+      lower[last] = 0;
+      upper[last] = 1;
+      free[last] = etaFree;
+    }
   });
 
-  const gradient = new Float64Array(PARAMS_PER_PEAK);
-  const gradient2 = new Float64Array(PARAMS_PER_PEAK);
+  const gradient = new Float64Array(count);
+  const gradient2 = new Float64Array(count);
   const pair = options.kAlpha2 ?? null;
   const unit = options.unit ?? '°';
-  const peakAt = (p: Float64Array, o: number): PeakParameters => ({
-    height: p[o] as number,
-    center: p[o + 1] as number,
-    fwhm: p[o + 2] as number,
-    eta: p[o + 3] as number,
-  });
+  const peakAt = (p: Float64Array, o: number) => peakFromVector(kind, p, o);
   const result = levenbergMarquardt({
     y: ys,
     initial,
@@ -300,7 +316,7 @@ export function fitRegion(
     upper,
     free,
     evaluate(p, model, jacobian) {
-      const peaks = region.peaks.map((_, q) => peakAt(p, 2 + PARAMS_PER_PEAK * q));
+      const peaks = region.peaks.map((_, q) => peakAt(p, 2 + count * q));
       for (let i = 0; i < n; i++) {
         const xi = xs[i] as number;
         let value = (p[0] as number) + (p[1] as number) * (xi - pivot);
@@ -315,10 +331,11 @@ export function fitRegion(
               value += profileWithGradient(xi, copy.peak, gradient2);
               gradient[0] = (gradient[0] as number) + pair.ratio * (gradient2[0] as number);
               gradient[1] = (gradient[1] as number) + copy.dCenter * (gradient2[1] as number);
-              gradient[2] = (gradient[2] as number) + (gradient2[2] as number);
-              gradient[3] = (gradient[3] as number) + (gradient2[3] as number);
+              for (let j = 2; j < count; j++) {
+                gradient[j] = (gradient[j] as number) + (gradient2[j] as number);
+              }
             }
-            jacobian.set(gradient, row + 2 + PARAMS_PER_PEAK * q);
+            jacobian.set(gradient, row + 2 + count * q);
           });
         } else {
           for (const peak of peaks) value += peakValue(xi, peak, pair);
@@ -332,24 +349,51 @@ export function fitRegion(
   const cov = (a: number, b: number) => result.covariance[a * m + b] as number;
   const propagate = (o: number, g: readonly number[]) => {
     let v = 0;
-    for (let s = 0; s < PARAMS_PER_PEAK; s++) {
-      for (let t = 0; t < PARAMS_PER_PEAK; t++)
-        v += (g[s] as number) * (g[t] as number) * cov(o + s, o + t);
+    for (let s = 0; s < count; s++) {
+      for (let t = 0; t < count; t++) v += (g[s] as number) * (g[t] as number) * cov(o + s, o + t);
     }
     return Math.sqrt(Math.max(0, v));
   };
+  /** As propagate, but NaN when a parameter it depends on has no defined σ (at a bound). */
+  const propagateDefined = (o: number, g: readonly number[]) =>
+    g.some((v, j) => v !== 0 && Number.isNaN(result.standardErrors[o + j] as number))
+      ? NaN
+      : propagate(o, g);
 
   const peaks: PeakFit[] = region.peaks.map((_, q) => {
-    const o = 2 + PARAMS_PER_PEAK * q;
+    const o = 2 + count * q;
     const peak = peakAt(p, o);
-    const sigma = peakAt(result.standardErrors, o);
+    const gradients = derivedGradients(peak);
+    const se = result.standardErrors;
+    const sigma: PeakParameters = {
+      height: se[o] as number,
+      center: se[o + 1] as number,
+      fwhm: propagateDefined(o, gradients.fwhm),
+      eta: propagateDefined(o, gradients.eta),
+      ...(peak.shape?.kind === 'pearson-vii' && {
+        shape: { kind: 'pearson-vii', m: se[o + 3] as number },
+      }),
+      ...(peak.shape?.kind === 'split-pseudo-voigt' && {
+        shape: {
+          kind: 'split-pseudo-voigt',
+          fwhmLeft: se[o + 2] as number,
+          fwhmRight: se[o + 3] as number,
+        },
+      }),
+    };
     const notes: DataMessage[] = [];
-    if (result.atBound[o + 2] && peak.fwhm <= step * 1.000001) {
+    const widthAtFloor =
+      result.atBound[o + 2] || (kind === 'split-pseudo-voigt' && result.atBound[o + 3]);
+    const narrowest =
+      kind === 'split-pseudo-voigt'
+        ? Math.min(p[o + 2] as number, p[o + 3] as number)
+        : (p[o + 2] as number);
+    if (widthAtFloor && narrowest <= step * 1.000001) {
       notes.push({
         level: 'warning',
         text: 'The width hit its lower limit (one data step). This may be noise rather than a real peak.',
       });
-    } else if (peak.fwhm < 3 * step) {
+    } else if (narrowest < 3 * step) {
       notes.push({
         level: 'warning',
         text: 'Fewer than three data points across the peak width, so width and shape are poorly defined.',
@@ -367,15 +411,30 @@ export function fitRegion(
         text: 'The centre moved to the edge of its allowed range. Check the starting position.',
       });
     }
-    if (free[o + 3] && result.atBound[o + 3]) {
+    const last = o + count - 1;
+    if (kind === 'pearson-vii' && result.atBound[last]) {
+      notes.push({
+        level: 'info',
+        text:
+          (peak.shape?.kind === 'pearson-vii' ? peak.shape.m : 0) < 1
+            ? `The Pearson VII shape m reached its lower limit (${PEARSON_M_MIN}): the tails are longer than a Lorentzian's.`
+            : `The Pearson VII shape m reached its upper limit (${PEARSON_M_MAX}): the peak is practically Gaussian.`,
+      });
+    } else if (free[last] && result.atBound[last]) {
       notes.push({
         level: 'info',
         text: `η reached ${peak.eta < 0.5 ? '0 (pure Gaussian)' : '1 (pure Lorentzian)'}.`,
       });
     }
+    if (kind === 'pearson-vii' && peak.shape?.kind === 'pearson-vii' && peak.shape.m < 1) {
+      notes.push({
+        level: 'info',
+        text: 'With m below 1 the peak has longer tails than any pseudo-Voigt, so the η shown (used by the Voigt instrument correction) is capped at 1 and the correction is approximate.',
+      });
+    }
     const start = startWidths[q] as number;
     const others = region.peaks
-      .map((_, r) => p[2 + PARAMS_PER_PEAK * r + 2] as number)
+      .map((_, r) => peakAt(p, 2 + count * r).fwhm)
       .filter((_, r) => r !== q)
       .sort((a, b) => a - b);
     const typical = others[others.length >> 1];
@@ -397,9 +456,9 @@ export function fitRegion(
       ...peak,
       sigma,
       area: peakArea(peak),
-      areaSigma: propagate(o, peakAreaGradient(peak)),
+      areaSigma: propagate(o, gradients.area),
       breadth: integralBreadth(peak),
-      breadthSigma: propagate(o, integralBreadthGradient(peak)),
+      breadthSigma: propagate(o, gradients.breadth),
       messages: notes,
     };
   });

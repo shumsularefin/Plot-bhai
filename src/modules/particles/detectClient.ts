@@ -1,7 +1,9 @@
 import type { DetectSettings } from '../../core/particles/detect/pipeline';
-import type { Runs } from '../../core/particles/detect/regions';
 import type { Rect } from '../../core/particles/geometry';
 import type { DetectRequest, DetectResponse } from '../../workers/detect.worker';
+
+/** A successful answer of the given kind. */
+type Answer<K extends DetectResponse['kind']> = Extract<DetectResponse, { kind: K }>;
 
 export interface DetectInput {
   gray: Uint8Array;
@@ -50,27 +52,23 @@ export class DetectClient {
     });
   }
 
-  async detect(
-    input: DetectInput,
-  ): Promise<{ particles: Runs[]; threshold: number; diameter: number | null } | 'error' | null> {
+  async detect(input: DetectInput): Promise<Answer<'detect'> | 'error' | null> {
     const response = await this.run({ kind: 'detect', ...input });
     if (!response) return null;
-    return response.kind === 'detect'
-      ? {
-          particles: response.particles,
-          threshold: response.threshold,
-          diameter: response.diameter,
-        }
-      : 'error';
+    return response.kind === 'detect' ? response : 'error';
   }
 
-  async mask(
-    input: DetectInput,
-  ): Promise<{ mask: Uint8Array; threshold: number } | 'error' | null> {
+  /** The threshold preview: the mask, the level used and the histogram it was chosen from. */
+  async mask(input: DetectInput): Promise<Answer<'mask'> | 'error' | null> {
     const response = await this.run({ kind: 'mask', ...input });
     if (!response) return null;
-    return response.kind === 'mask'
-      ? { mask: response.mask, threshold: response.threshold }
-      : 'error';
+    return response.kind === 'mask' ? response : 'error';
+  }
+
+  /** The adjusted and smoothed image to show while preparing it. */
+  async adjust(input: DetectInput): Promise<Answer<'adjust'> | 'error' | null> {
+    const response = await this.run({ kind: 'adjust', ...input });
+    if (!response) return null;
+    return response.kind === 'adjust' ? response : 'error';
   }
 }

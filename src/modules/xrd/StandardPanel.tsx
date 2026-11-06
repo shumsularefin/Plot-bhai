@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { CurveKind } from '../../core/xrd/instrument/curve';
-import type { ProfileKind } from '../../core/xrd/peaks/profiles';
+import type { FitProfileKind } from '../../core/xrd/peaks/profiles';
 import { exampleStandard } from '../../core/xrd/synthetic';
 import { formatWithSigma } from '../../ui/format';
 import { HelpTip } from '../../ui/HelpTip';
@@ -25,10 +25,12 @@ const MATERIAL_LABELS: Record<StandardState['material'], string> = {
   Si: 'Si',
   other: 'Other',
 };
-const PROFILE_LABELS: Record<ProfileKind, string> = {
+const PROFILE_LABELS: Record<FitProfileKind, string> = {
   gaussian: 'Gaussian',
   lorentzian: 'Lorentzian',
   'pseudo-voigt': 'Pseudo-Voigt (η free)',
+  'pearson-vii': 'Pearson VII',
+  'split-pseudo-voigt': 'Split pseudo-Voigt (η free)',
 };
 export const CURVE_LABELS: Record<CurveKind, string> = {
   caglioti: 'Caglioti (U, V, W)',
@@ -292,7 +294,7 @@ function StandardFit({ data, update, standard, setStandard }: StandardFitProps) 
 
       <fieldset class="method-choice">
         <legend>Peak shape for the standard</legend>
-        {(Object.keys(PROFILE_LABELS) as ProfileKind[]).map((kind) => (
+        {(Object.keys(PROFILE_LABELS) as FitProfileKind[]).map((kind) => (
           <label key={kind} class="check">
             <input
               type="radio"

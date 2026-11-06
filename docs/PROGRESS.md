@@ -1,5 +1,194 @@
 # Progress
 
+## Stage 16g: owner additions (done)
+
+Branch `claude/loving-noether-y55l76`. No new dependencies (GSAS-II and pymatgen run only on
+GitHub, in `.github/workflows/validation.yml`).
+
+- **Rietveld:** Thompson–Cox–Hastings profile (GSAS-II's U, V, W, X, Y) as a choice; anisotropic
+  U_ij under Structure refinement, only the terms the site symmetry allows, with a positive
+  definite check and a warning; the CIF and .instprm exports carry them.
+- **Indexing:** monoclinic (default) and triclinic (when ticked) cells, reduced, from zone trials;
+  α, β, γ in the table and CSV; a warning for triclinic.
+- **Feedback:** the Validate pop-up opens once per analysis when the last step is reached, as a
+  voluntary offer ("Not now").
+- **Home:** a small About button with the credits (also on the About page). The university is
+  written "Gopalganj Science and Technology University (GSTU)" (confirmed by the owner), and the
+  developer is Shumsul Arefin, linked to https://shumsul-arefin.web.app.
+- **Validation in CI:** GSAS-II (built from source) simulates and refines anatase (TCH, O z,
+  U_iso) and rutile (U_ij); pymatgen gives distances and powder lines for four CIFs. The
+  fixtures are committed by the workflow; tests compare against them (docs/validation.md, 16g).
+- **Merge with main:** main's new wizard layout and Particles design were kept; the Particles
+  ImageJ tools (Adjust the image, Auto Threshold, Set Measurements, line profile) were ported into
+  main's "Find the particles" step. Main's simpler cell search in the Results step (cubic,
+  tetragonal, hexagonal, from fitted peaks) stays as it was, with its worker renamed
+  `indexingFit.worker.ts`; the Choose material search above is separate. Two cell searches exist
+  now; the owner may want to unify them.
+- **Known issue:** COD 9015929 (anatase) has its U_ij columns out of order (docs/validation.md).
+- **Open:** no DICVOL/TREOR comparison for low-symmetry indexing.
+
+## Stage 16e: Rietveld structure refinement and GSAS-II export (done)
+
+Branch `claude/loving-noether-y55l76`. No new dependencies.
+
+- **Rietveld, What to refine, Structure refinement (advanced):** atom positions (only the
+  directions the site symmetry leaves free, from the null space of R − I over the site's
+  stabiliser), optional bond-length restraints (σ = 0.02 Å to the starting bonds, from the
+  covalent radii), site occupancies and isotropic B per atom. They are released one after another
+  only after the basic refinement has converged; otherwise they are skipped with a warning. Each
+  family's Σ|F|² is then calculated from the atoms at every cycle. Results: a refined-atoms table
+  with standard uncertainties, a CSV, and methods sentences that name what was refined.
+- **Decisions:** only sites the file gives as partly filled (occupancy below 1) are refined,
+  because refining every occupancy together with the scale factor has no unique answer (found by
+  the tests, where it gave NaN uncertainties). Atoms with anisotropic U keep it; B is not refined
+  for them. The overall B stays fixed when atom B values are refined. Reflections below 0.05 % of
+  the strongest in the reference are not in the model, as before.
+- **Warnings:** a lab pattern rarely supports structure refinement; occupancy and B are strongly
+  correlated; phases with no stored atoms (older sessions) keep their structure.
+- **Export, GSAS-II starting set:** an .instprm file (format checked against the GSAS-II source:
+  ReadInstprm and defaultIparms.py) with the profile converted to the Thompson–Cox–Hastings
+  U, V, W, X, Y and the size of the conversion difference in its header, and a CIF per phase
+  with the refined cell and atoms. With the existing measured .xye this is the full starting set.
+- **Checks:** lint, type check, 1054 unit tests, build, bundle size and e2e (now also downloads
+  the .instprm and a CIF) pass.
+- **Open:** no comparison with GSAS-II on the same data (closed in 16g by the CI workflow).
+- **Next:** stage 16 is complete (16f skipped by the owner).
+
+## Stage 16d: indexing an unknown pattern (done)
+
+Branch `claude/loving-noether-y55l76`. No new dependencies.
+
+- **Choose material:** "Not in any database? Index the pattern (suggest a cell)". It takes the 20
+  strongest detected peaks (at least 10), tries cubic, tetragonal, hexagonal and orthorhombic cells
+  in a Web Worker (with progress and Stop), and lists up to 10 cells ranked by de Wolff M20, with
+  Smith–Snyder F_N, the lattice centring, unindexed lines, the indexed line list of the best cell
+  and a CSV download. Labelled as suggestions to confirm; warns when Kα2 is still in the data.
+- **Method:** Q = 1/d² is linear in the reciprocal cell parameters, so trial cells come from
+  assigning small hkl to one to three of the first lines and solving; each trial is refined by
+  linear least squares. Decisions (precision floor of 0.001°, dropping lower-symmetry
+  descriptions of higher-symmetry lattices) are in docs/validation.md, 16d.
+- **Validation:** 9 COD cells recovered exactly and with noise and missing lines; M20 and F_N
+  against an independent Python implementation; invariance; worker round trip.
+- **Checks:** lint, type check, 1025 unit tests, build, bundle size and e2e pass. The e2e example
+  pattern has fewer than 10 peaks, so e2e checks the panel and the unit test drives the worker.
+- **Open:** no comparison with DICVOL or TREOR (monoclinic and triclinic were added in 16g).
+- **Next:** 16e (done, above).
+
+## Stage 16c: crystal structure viewer in Choose material (done)
+
+Branch `claude/loving-noether-y55l76`. No new dependencies.
+
+- **Stored structure:** each phase now keeps its symmetry operators and asymmetric unit
+  (`ReferencePhase.structure`), from a loaded or COD-fetched CIF and in the rebuilt polymer and
+  test libraries (peaks unchanged). Stage 16e uses the same data for structure refinement.
+- **Viewer:** "Show crystal structure" under each candidate phase (loaded on demand). SVG,
+  orthographic: drag to rotate, wheel or pinch to zoom, arrow keys rotate, + and − zoom, 0 resets.
+  Atoms coloured by element (Okabe–Ito, with a legend); atoms on faces, edges and corners are
+  drawn on both sides; bonds when d ≤ r₁ + r₂ + 0.45 Å (Cordero 2008 covalent radii, new file
+  data/reference/covalent-radii.json, flagged for verification). Click (or Enter on) two atoms
+  for the distance, three for the angle at the middle one, all through the metric tensor.
+- **Validation:** docs/validation.md, 16c: 250 published bond lengths and angles from 10 COD CIFs
+  reproduced, exact geometry, Cartesian cross-check, invariance and round trips.
+- **Checks:** lint, type check, 998 unit tests, build, bundle size and e2e pass (e2e opens the
+  viewer for ZnO and measures a distance).
+- **Decision (owner, November 2026):** 16f (Materials Project and AMCSD search) is skipped: it
+  needs a backend and the owner's API key. CIF upload covers both databases.
+
+## Stage 16b: Pearson VII and split pseudo-Voigt peaks, Rietveld peak asymmetry (done)
+
+Branch `claude/loving-noether-y55l76`. No new dependencies.
+
+- **Fit peaks (step 6):** two more shapes beside Gaussian, Lorentzian and pseudo-Voigt.
+  Pearson VII has a fitted exponent m (0.6 to 50, starting at 2). Split pseudo-Voigt has separate
+  left and right FWHM and one η (fixable as for the pseudo-Voigt). Both are also offered for the
+  line-profile standard. Each shape has its own parameter count in the fitter
+  (`parameterCount`, `peakFromVector`), with analytic derivatives, and the Kα2 copy works for all.
+- **Decision:** downstream steps see every shape the same way. `fwhm` is the true FWHM, and
+  `eta` is the η of the pseudo-Voigt with the same FWHM and integral breadth: exact for the split
+  shape, an approximation for Pearson VII, clamped to 1 for m < 1 with a note. Size, strain and
+  the Voigt instrument correction therefore need no change. Areas and breadths use closed forms
+  (ln Γ by Lanczos, in src/core/math/gamma.ts). Their σ, and those of the derived FWHM and η, come
+  through the fit covariance.
+- **Peak table:** columns for m, or for the left and right FWHM, appear when used; with Pearson VII
+  the η column is labelled "η (equivalent)". The Methods text and the processing record name the
+  shape.
+- **Rietveld (step 5):** "Peak asymmetry" choice, off by default, refined after the widths. It is
+  the Bérar–Baldinozzi correction in the FullProf manual's form (eq. 3.29), with the 1/tan θ terms
+  P1 and P2 per phase. It keeps each peak's area, and the refinement warns if the corrected
+  profile would go negative. The results table and CSV show P1 and P2.
+- **Validation:** docs/validation.md, 16b: lnΓ and the Pearson area against Python's
+  `math.lgamma`; areas against numerical integration; exact limits; derivatives against finite
+  differences; known-answer fits; invariance; asymmetry recovered from a synthetic CeO2 pattern.
+- **Checks:** lint, type check, 978 unit tests, build, bundle size and e2e all pass. The e2e
+  test now refines with asymmetry in the worker, and fits Pearson VII and then pseudo-Voigt again.
+- **Open:** no fit compared with Fityk or FullProf on the same data (Fityk could not be installed
+  here), and the Pearson VII paper's volume and pages are unconfirmed.
+- **Next:** 16c, the crystal structure viewer in Choose material.
+
+## Stage 16a: Bruker .brml and .raw, Rigaku .rasx, .xy/.xye export (done)
+
+Branch `claude/loving-noether-y55l76`. No new dependencies: ZIP archives are unpacked with the
+browser's own DecompressionStream (src/core/text/unzip.ts, CRC-32 checked).
+
+- **Upload (step 1):** reads Rigaku .rasx (src/core/xrd/parsers/rasx.ts), Bruker .brml
+  (brml.ts, columns found from the file's DataViews, absorber-corrected intensities kept as
+  stored) and Bruker .raw version 4 (brukerRaw.ts, record size honoured). Each reads the Kα1
+  wavelength and scan settings into the record. Older .raw versions are refused with a plain
+  message. Packed files go through the import worker (`importFileAsync`).
+- **Export (step 9):** a "Pattern files" section with, per pattern, measured .xy, measured .xye
+  (σ from the file, or √counts, or √(cps·t)/t when the counting time is known; refused with the
+  reason otherwise) and processed .xy. Headers start with # and state the unit and how σ was
+  made; the site reads its own files back exactly.
+- **Validation:** six real files (FAIRmat, cheminfo, geddes; sources and licences in
+  tests/fixtures-real/README.md) matched point by point against geddes's reference values and an
+  independent Python extraction; details and open items in docs/validation.md.
+- **Checks:** lint, type check, 944 unit tests, build, bundle size and e2e (now uploads the
+  three real formats in Chromium and checks the .xye) all pass.
+- **Open:** .raw versions 1 to 3 need real files; Materials Project/AMCSD (16f) waits for the
+  owner's backend approval and API key.
+- **Next:** 16b, Pearson VII and split pseudo-Voigt in Fit peaks; Rietveld peak asymmetry.
+
+## Particle size: ImageJ tools in the wizard, Shift-snapping of drawn lines (done)
+
+Branch `claude/loving-noether-y55l76`. No new dependencies. The owner asked for the most useful
+parts of ImageJ (Set Measurements, Analyze, Process, Image › Adjust) in a step-by-step form, with
+the must-haves for beginners and the rest under Advanced, and for Shift to straighten drawn lines.
+
+- **Shift-snapping (every image viewer, so particles and graph digitising):** hold Shift, or
+  switch on "Snap angles" on touch screens, and a line snaps to 15° steps (0°, 45°, 90° …) with
+  its length kept; boxes (crop, ellipse) become squares. A readout shows the angle and length
+  while drawing. `snapLine`, `snapSquare`, `lineAngle` in src/core/particles/geometry.ts.
+- **New step 3, Adjust the image** (wizard now 5 steps; saved sessions move on by one step,
+  state version 6): particle tone; Brightness and contrast with ImageJ's Auto (0.35 % saturated)
+  and min/max sliders over a histogram; Uneven background (top-hat with a flat square window,
+  a stand-in for the rolling ball, not identical to it); noise smoothing (moved here from the
+  detect step); Advanced: unsharp mask and histogram equalisation (classic form, not ImageJ's
+  square-root variant). Undo and reset; Adjusted/Original view. Adjustments only change the image
+  the particles are found on; sizes come from outlines and grey values from the original.
+  src/core/particles/detect/adjust.ts.
+- **Auto Threshold methods** (detect step, part 2, Advanced): Default (IsoData), Intermodes,
+  Li, MaxEntropy, Mean, Minimum, Moments, Otsu, Triangle, each cited in code and in the methods
+  text; a "try all" table with each level and the share marked, with a Use button. Intermodes and
+  Minimum fall back to Otsu without two peaks, with a warning. The detect step now always shows
+  the histogram with the threshold line; the pink preview overlay is drawn (it was never drawn
+  before, a bug). src/core/particles/detect/autoThreshold.ts.
+- **Set measurements** (Advanced, under the particle table): area, perimeter, centroid,
+  bounding rectangle, fit ellipse, shape descriptors (ellipse AR, round, solidity), Feret angle,
+  mean/SD/mode, min/max, median, integrated density, skewness and kurtosis. Added to the table and
+  both CSV downloads. Grey values from the unadjusted working copy. src/core/particles/detect/measure.ts.
+- **Plot profile** (Advanced, after hand measurements): grey levels along a hand-drawn line,
+  bilinear, in px or the calibrated unit, with the usual figure export.
+- **Methods text** now lists the adjustments in order and the threshold method with its source
+  and grey level. Fixed: it used to say "median" when smoothing was off.
+- **Left out on purpose** (little use for particle sizing): FFT, Math, Shadows, Find Edges,
+  Find Maxima, LUTs, stacks, rotate, Auto Local Threshold (the existing adaptive method covers
+  uneven backgrounds).
+- **Checks:** lint, type check, 915 unit tests (new tests/particles-imagej.test.ts with synthetic
+  data of known answer), production build, bundle-size check and e2e all pass.
+- **Known differences from ImageJ, for the owner to note:** the background is a flat-window
+  top-hat, not a rolling ball; Triangle may differ from ImageJ by one grey level on a bright tail;
+  equalisation is the classic form.
+
 ## Back and Next labels centred (done)
 
 - The arrow in Back and Next sat in a square box with empty space beside the drawing, plus a margin on both sides (it matched both `:first-child` and `:last-child`, being the only element in the button). That pushed "Back" about 2.5 px right and "Next" about 3.5 px left of centre.

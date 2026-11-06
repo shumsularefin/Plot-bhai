@@ -1,36 +1,45 @@
-import type { IndexingSolution } from '../../core/xrd/reference/indexing';
+import type { IndexOptions, IndexSolution } from '../../core/xrd/indexing/index';
 import type { IndexingRequest, IndexingResponse } from '../../workers/indexing.worker';
 
 let worker: Worker | undefined;
 let nextId = 1;
-const waiting = new Map<number, (solutions: IndexingSolution[] | null) => void>();
 
-function getWorker(): Worker {
-  if (!worker) {
-    worker = new Worker(new URL('../../workers/indexing.worker.ts', import.meta.url), {
-      type: 'module',
-    });
-    worker.onmessage = ({ data }: MessageEvent<IndexingResponse>) => {
-      waiting.get(data.id)?.(data.solutions);
-      waiting.delete(data.id);
+/**
+ * Indexes line positions in a web worker. A new request stops the one running; resolves with
+ * null when stopped or when the worker fails.
+ */
+export function indexInWorker(
+  positions: number[],
+  options: IndexOptions,
+  onProgress: (fraction: number) => void,
+): Promise<IndexSolution[] | null> {
+  worker?.terminate();
+  const current = new Worker(new URL('../../workers/indexing.worker.ts', import.meta.url), {
+    type: 'module',
+  });
+  worker = current;
+  const id = nextId++;
+  return new Promise((resolve) => {
+    current.onmessage = ({ data }: MessageEvent<IndexingResponse>) => {
+      if (data.id !== id) return;
+      if (data.kind === 'progress') onProgress(data.fraction);
+      else {
+        resolve(data.solutions);
+        current.terminate();
+        if (worker === current) worker = undefined;
+      }
     };
-    worker.onerror = () => {
-      for (const resolve of waiting.values()) resolve(null);
-      waiting.clear();
-      worker?.terminate();
-      worker = undefined;
+    current.onerror = () => {
+      resolve(null);
+      current.terminate();
+      if (worker === current) worker = undefined;
     };
-  }
-  return worker;
+    current.postMessage({ id, positions, options } satisfies IndexingRequest);
+  });
 }
 
-/** Indexes peak positions in a web worker; null when the search failed. */
-export function indexInWorker(
-  request: Omit<IndexingRequest, 'id'>,
-): Promise<IndexingSolution[] | null> {
-  return new Promise((resolve) => {
-    const id = nextId++;
-    waiting.set(id, resolve);
-    getWorker().postMessage({ id, ...request } satisfies IndexingRequest);
-  });
+/** Stops a running indexing job. */
+export function stopIndexing(): void {
+  worker?.terminate();
+  worker = undefined;
 }

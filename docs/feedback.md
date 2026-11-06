@@ -2,6 +2,9 @@
 
 The tools are an early testing version, so every analysis section has a highlighted
 **Validate** button. Its pop-up asks whether the result worked and takes an optional comment.
+When the last step of a tool is reached, the pop-up opens by itself once per analysis, as a
+voluntary offer: "Not now" closes it, and the button stays for later. The analyses already
+offered are remembered in the browser (localStorage `plot-bhai-offered`, the last 50 IDs).
 The home page shows how many visits, finished analyses and validations there have been, and the
 comments the owner has approved. A small Cloudflare Worker with a D1 database (`worker-feedback/`)
 keeps these, on the Cloudflare free plan.

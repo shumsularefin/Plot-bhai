@@ -1,4 +1,5 @@
 import type { ComponentChildren } from 'preact';
+import { CreditsButton } from './Credits';
 import { Community } from './feedback/Community';
 import './home.css';
 
@@ -90,6 +91,7 @@ export function Home() {
           <li>Free, no account</li>
           <li>Works with data files or pictures of graphs</li>
         </ul>
+        <CreditsButton />
       </section>
 
       <section aria-labelledby="home-tools">

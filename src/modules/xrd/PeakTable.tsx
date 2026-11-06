@@ -4,7 +4,7 @@ import type { PeakRow } from '../../core/xrd/peaks/table';
 import { formatWithSigma } from '../../ui/format';
 import { HelpTip } from '../../ui/HelpTip';
 import { downloadTable } from './csv';
-import { PEAK_COLUMNS as COLUMNS, peakFitTable } from './tables';
+import { peakColumns, peakFitTable } from './tables';
 
 interface PeakTableProps {
   rows: PeakRow[];
@@ -24,6 +24,7 @@ export function PeakTable({ rows, regions, intensityUnit, lambda, patternName }:
     const d = (a[sort.key] as number) - (b[sort.key] as number);
     return sort.ascending ? d : -d;
   });
+  const columns = peakColumns(rows);
   const notesOf = (row: PeakRow) => regions[row.region]?.peaks[row.peak]?.messages ?? [];
 
   const exportCsv = () =>
@@ -48,6 +49,8 @@ export function PeakTable({ rows, regions, intensityUnit, lambda, patternName }:
             with the same height and area. Some size and strain methods use it instead of the FWHM.
           </p>
         </HelpTip>
+        {columns.some((c) => c.key === 'pearsonM') &&
+          ' For Pearson VII peaks, η is that of the pseudo-Voigt with the same FWHM and integral breadth (used by the Voigt instrument correction).'}
       </p>
       <div
         class="table-scroll"
@@ -59,7 +62,7 @@ export function PeakTable({ rows, regions, intensityUnit, lambda, patternName }:
           <thead>
             <tr>
               <th scope="col">#</th>
-              {COLUMNS.map((c) => (
+              {columns.map((c) => (
                 <th
                   key={c.key}
                   scope="col"
@@ -91,7 +94,7 @@ export function PeakTable({ rows, regions, intensityUnit, lambda, patternName }:
             {sorted.map((row, i) => (
               <tr key={`${row.region}-${row.peak}`}>
                 <td>{i + 1}</td>
-                {COLUMNS.map((c) => (
+                {columns.map((c) => (
                   <td key={c.key}>
                     {c.sigma
                       ? formatWithSigma(row[c.key] as number, row[c.sigma] as number)

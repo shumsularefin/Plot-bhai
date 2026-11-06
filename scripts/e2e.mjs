@@ -123,6 +123,37 @@ async function walkToExport(log) {
     .first()
     .waitFor({ timeout: 20_000 });
   note('3 Choose material: ZnO (COD 1577381) loaded from its CIF');
+  const showStructure = page.getByRole('button', { name: 'Show crystal structure' }).first();
+  if (await showStructure.isVisible()) {
+    await showStructure.click();
+    const atoms = page.locator('.structure-atom');
+    await atoms.first().waitFor();
+    await atoms.nth(0).click();
+    await atoms.nth(1).click();
+    const text = await page.locator('.structure-measure').innerText();
+    if (!/Distance .+ Å/.test(text)) throw new Error(`No distance shown: ${text}`);
+    await page.locator('.structure-canvas').press('ArrowLeft');
+    note(
+      `3 Choose material: structure viewer, ${await atoms.count()} atoms, ${text.split('\n').find((l) => l.startsWith('Distance'))}`,
+    );
+    await page.getByRole('button', { name: 'Hide crystal structure' }).first().click();
+  }
+  const indexToggle = page.getByRole('button', { name: /Index the pattern/ });
+  if (await indexToggle.isVisible()) {
+    await indexToggle.click();
+    const suggest = page.getByRole('button', { name: 'Suggest cells' });
+    if (await suggest.isVisible()) {
+      await suggest.click();
+      const table = page.getByRole('table', { name: 'Suggested cells, best first' });
+      const none = page.getByText('No cell indexed these lines.');
+      await table.or(none).waitFor({ timeout: 120_000 });
+      const first = (await table.isVisible())
+        ? (await table.locator('tbody tr').first().innerText()).replace(/\s+/g, ' ')
+        : 'no cell';
+      note(`3 Choose material: indexing in the worker, suggestion 1: ${first}`);
+    } else note('3 Choose material: indexing panel shown (too few peaks to index)');
+    await indexToggle.click();
+  }
   await next('Compare reference phases');
 
   // 4 Compare phases
@@ -131,11 +162,21 @@ async function walkToExport(log) {
   await next('Rietveld refinement (optional)');
 
   // 5 Rietveld refinement of the candidate (optional; run once to check it works in a worker).
+  // The refinement choices sit under Advanced, which is hidden until "Advanced options" is on.
+  await page.getByLabel('Advanced options').check();
+  const asymmetry = page.getByLabel('Peak asymmetry');
+  if (!(await asymmetry.isVisible()))
+    await page.locator('summary', { hasText: 'What to refine' }).click();
+  await page.getByLabel('Peak asymmetry').check();
   await page.getByRole('button', { name: 'Refine', exact: true }).click();
   await page.getByText('Refinement results (estimates)').waitFor({ timeout: 60_000 });
+  const stages = page.getByText(/^Peak asymmetry \(P1, P2\): R/);
+  if (!(await stages.isVisible()))
+    await page.getByText('Peak shape, orientation and refinement stages').click();
+  await page.getByText(/^Peak asymmetry \(P1, P2\): R/).waitFor();
   const rwp = await page.locator('.result-summary dd').first().textContent();
   assert.match(rwp ?? '', /^\d+\.\d\d %$/);
-  note(`5 Rietveld: refined, Rwp ${rwp}`);
+  note(`5 Rietveld: refined with peak asymmetry, Rwp ${rwp}`);
   await next('Fit peaks');
 
   // 5 Fit peaks
@@ -151,6 +192,16 @@ async function walkToExport(log) {
   await fit.click();
   await page.locator('.peak-table:not(.region-table)').waitFor({ timeout: 60_000 });
   note('6 Fit peaks: peak table shown');
+  // The other shapes: Pearson VII adds its m column; then back to pseudo-Voigt for the rest.
+  await page.getByLabel('Pearson VII').check();
+  await fit.click();
+  await page.locator('.peak-table th', { hasText: 'Pearson VII m' }).waitFor({ timeout: 60_000 });
+  await page.getByLabel('Pseudo-Voigt', { exact: true }).check();
+  await fit.click();
+  await page
+    .locator('.peak-table th', { hasText: 'Pearson VII m' })
+    .waitFor({ state: 'detached', timeout: 60_000 });
+  note('6 Fit peaks: Pearson VII fitted (m column shown), then pseudo-Voigt again');
   await next('Instrument correction');
 
   // 6 Instrument correction: skip, which is allowed and warned about in the results.
@@ -178,10 +229,10 @@ try {
   assert.doesNotMatch(text, /NaN|undefined/);
   step('9 Export: methods text from the real settings');
 
-  // Validate: the finished analysis was recorded, so the pop-up sends a validation.
+  // Validate: the finished analysis was recorded, so the pop-up opens by itself and sends a validation.
   assert.ok(feedback.analyses >= 1, 'reaching the last step records an analysis');
-  await page.getByRole('button', { name: 'Validate' }).click();
   const dialog = page.getByRole('dialog');
+  await dialog.getByText('Your analysis is finished').waitFor();
   await dialog.getByText('early testing version').waitFor();
   await dialog.getByLabel('Comment (optional)').fill('Sizes look right.');
   await dialog.getByRole('button', { name: 'Send' }).click();
@@ -189,7 +240,11 @@ try {
   assert.equal(feedback.validations[0]?.comment, 'Sizes look right.');
   assert.equal(feedback.validations[0]?.proof, 'stub-proof');
   await dialog.getByRole('button', { name: 'Close' }).click();
-  step('Validate: pop-up sent the verdict and comment with the analysis proof');
+  step('Validate: offered by itself at the end; sent the verdict and comment with the proof');
+  // Later finished analyses offer it again; this run skips those offers.
+  await page.addLocatorHandler(page.getByRole('button', { name: 'Not now' }), (button) =>
+    button.click(),
+  );
 
   await page.getByRole('button', { name: 'Download SVG' }).waitFor({ timeout: 20_000 });
   const [svgDownload] = await Promise.all([
@@ -216,6 +271,38 @@ try {
   const csv = readFileSync(await csvDownload.path(), 'utf8');
   assert.match(csv, /## .*-peaks/);
   step('9 Export: all tables in one CSV');
+
+  const [xyeDownload] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Measured .xye' }).first().click(),
+  ]);
+  const xye = readFileSync(await xyeDownload.path(), 'utf8');
+  assert.match(xye, /^# Pattern: /);
+  assert.match(xye, /# Uncertainty: sigma = sqrt\(counts\)/);
+  const row = xye.split('\n').find((line) => !line.startsWith('#') && line.trim() !== '');
+  const [, counts, sigma] = row.split(' ').map(Number);
+  assert.equal(sigma, counts > 0 ? Math.sqrt(counts) : 1);
+  step('9 Export: measured pattern as .xye with sigma = sqrt(counts)');
+
+  const [instDownload] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Instrument parameters (.instprm)' }).click(),
+  ]);
+  const inst = readFileSync(await instDownload.path(), 'utf8');
+  assert.match(inst.split('\n')[0] ?? '', /GSAS-II/);
+  assert.match(inst, /\nType:PXC;Bank:1\n/);
+  assert.match(inst, /;Zero:[-\d.e]+;Polariz\.:0\.5;/);
+  const [cifDownload] = await Promise.all([
+    page.waitForEvent('download'),
+    page
+      .getByRole('button', { name: /\(\.cif\)$/ })
+      .first()
+      .click(),
+  ]);
+  const cif = readFileSync(await cifDownload.path(), 'utf8');
+  assert.match(cif, /_space_group_symop_operation_xyz/);
+  assert.match(cif, /_atom_site_fract_x/);
+  step('9 Export: GSAS-II .instprm and phase CIF');
 
   const [sessionDownload] = await Promise.all([
     page.waitForEvent('download'),
@@ -255,6 +342,34 @@ try {
   });
   await page.getByText('This is not a Plot Bhai XRD session file.').waitFor();
   step('9 Export: a foreign JSON file is refused');
+
+  // Real instrument files: the packed (.rasx, .brml) and binary (.raw) readers in the worker.
+  await page.evaluate(() =>
+    indexedDB.databases().then((dbs) => dbs.forEach((d) => indexedDB.deleteDatabase(d.name))),
+  );
+  await page.goto(`http://localhost:${PORT}/#/xrd`);
+  await page.reload();
+  await heading().waitFor();
+  await page
+    .locator('input[type=file]')
+    .first()
+    .setInputFiles([
+      'tests/fixtures-real/rigaku_powder.rasx',
+      'tests/fixtures-real/bruker_absorber.brml',
+      'tests/fixtures-real/bruker4_v5converter.raw',
+    ]);
+  for (const [badge, points] of [
+    ['Rigaku RASX', '2,726'],
+    ['Bruker BRML', '2,001'],
+    ['Bruker RAW', '4,059'],
+  ]) {
+    const card = page
+      .locator('article, section, li')
+      .filter({ hasText: badge })
+      .filter({ hasText: points });
+    await card.first().waitFor({ timeout: 20_000 });
+  }
+  step('1 Upload: real .rasx, .brml and .raw files read in the browser');
 
   // UV-Vis: example data, blank subtraction, Tauc band gap, results, methods text.
   await page.goto(`http://localhost:${PORT}/#/uvvis`);
@@ -387,11 +502,26 @@ try {
   // Keep the data bar out of the analysis area, then detect the 12 example particles.
   await page.getByLabel(/Remove a strip from the bottom/).fill('96');
   await page.getByRole('button', { name: 'Apply', exact: true }).click();
+  // The adjust step: Auto contrast works and can be undone; the detection below uses no adjustment.
+  await next('Adjust the image');
+  const autoContrast = page.getByRole('button', { name: 'Auto', exact: true });
+  await page.waitForFunction(
+    () =>
+      [...document.querySelectorAll('button')].some((b) => b.textContent === 'Auto' && !b.disabled),
+    null,
+    { timeout: 15_000 },
+  );
+  await autoContrast.click();
+  await page.getByText(/Minimum \(becomes black\): [1-9]/).waitFor();
+  await page.getByRole('button', { name: 'Undo the last change' }).click();
+  await page.getByText('Minimum (becomes black): 0').waitFor();
+  step('Particles: adjust step, Auto brightness and contrast, undo');
   await next('Find the particles');
   await page.locator('button.btn-primary', { hasText: 'Detect particles' }).click();
   await page.getByText(/12 of 12 particles shown/).waitFor({ timeout: 30_000 });
   const detected = await page
-    .locator('.peak-table tbody tr')
+    .getByRole('region', { name: /Detected particles/ })
+    .locator('tbody tr')
     .evaluateAll((rows) =>
       rows.map((row) => parseFloat(row.querySelectorAll('td, th')[3].textContent)),
     );

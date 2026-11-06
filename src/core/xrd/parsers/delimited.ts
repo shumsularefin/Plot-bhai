@@ -31,13 +31,15 @@ export interface HeaderInfo {
  * ("K-Alpha1 wavelength,1.5405980"). Every pair is kept as written, for the record of the
  * analysis. The K-alpha1 wavelength is taken when its value lies between 0.3 and 3 Å (every
  * laboratory anode does), and the time per step when it is a positive number of seconds.
- * Section titles in brackets and lines without a value are skipped.
+ * Section titles in brackets and lines without a value are skipped. A leading #, ! or // is
+ * ignored.
  */
 export function readHeader(header: readonly string[]): HeaderInfo {
   const fields: HeaderField[] = [];
   const info: HeaderInfo = { fields };
   for (const line of header) {
-    const text = line.trim();
+    // A leading comment mark ("# Wavelength: 1.54") is dropped, as .xy/.xye headers use one.
+    const text = line.trim().replace(/^(?:#|!|\/\/)\s*/, '');
     if (text === '' || /^\[.*\]$/.test(text)) continue;
     const match = /^([A-Za-z][^,:=\t]*?)\s*[,:=\t]\s*(.*)$/.exec(text);
     if (!match) continue;

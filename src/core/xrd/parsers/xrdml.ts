@@ -1,5 +1,6 @@
 import type { DataMessage, IntensityUnit, ParseResult } from '../types';
 import { parseNumber, parseNumberList } from './numbers';
+import { attribute, elements, firstText, NS } from './xml';
 
 /*
  * PANalytical XRDML reader. Structure (checked against the XRDML readers in xrayutilities,
@@ -15,25 +16,7 @@ import { parseNumber, parseNumberList } from './numbers';
  *         <commonCountingTime unit="seconds">…</commonCountingTime>
  *         <intensities unit="counts">…</intensities>   (newer files, attenuation already applied)
  *         or <counts unit="counts">…</counts> with optional <beamAttenuationFactors>
- *
- * A small regular-expression reader is used instead of DOMParser so the same code runs in a
- * web worker, where DOMParser is not available.
  */
-
-const NS = '(?:[\\w.-]+:)?'; // optional namespace prefix
-
-function elements(xml: string, tag: string): { attrs: string; body: string }[] {
-  const re = new RegExp(`<${NS}${tag}\\b([^>]*?)(?:/>|>([\\s\\S]*?)</${NS}${tag}>)`, 'g');
-  return [...xml.matchAll(re)].map((m) => ({ attrs: m[1] ?? '', body: m[2] ?? '' }));
-}
-
-function attribute(attrs: string, name: string): string | undefined {
-  return new RegExp(`\\b${name}\\s*=\\s*"([^"]*)"`).exec(attrs)?.[1];
-}
-
-function firstText(xml: string, tag: string): string | undefined {
-  return elements(xml, tag)[0]?.body.trim();
-}
 
 export function looksLikeXrdml(text: string): boolean {
   return new RegExp(`<${NS}xrdMeasurement\\b`).test(text.slice(0, 20000));

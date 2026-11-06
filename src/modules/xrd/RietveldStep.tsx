@@ -41,6 +41,16 @@ const CHOICE_LABELS: [keyof RefineChoices, string, string][] = [
   ['width', 'Peak width W and shape η', 'The width of every peak and its Lorentzian fraction.'],
   ['widthSlope', 'Width against angle (U, V)', 'How the width changes with 2θ (Caglioti U and V).'],
   [
+    'tch',
+    'GSAS-II peak shape (TCH)',
+    'Thompson–Cox–Hastings pseudo-Voigt, as in GSAS-II: a Gaussian width from U, V, W and a separate Lorentzian width X/cos θ + Y tan θ, instead of one width and a mixing η. Choose it to continue the refinement in GSAS-II with exactly the same peak shape.',
+  ],
+  [
+    'asymmetry',
+    'Peak asymmetry',
+    'Lopsided peaks at low angles, from the beam spreading along the sample axis (Bérar–Baldinozzi P1 and P2). Turn it on only when the difference curve shows a wave under each low-angle peak.',
+  ],
+  [
     'orientation',
     'Preferred orientation',
     'March–Dollase correction along the direction you type for each phase below.',
@@ -75,6 +85,35 @@ function parseDirection(text: string): Hkl | null {
 }
 
 const pct = (e: Estimate | null) => (e ? withUncertainty(100 * e.value, 100 * e.esd, 2) : '–');
+type StructureChoice = 'positions' | 'occupancy' | 'biso' | 'aniso' | 'restraints';
+const STRUCTURE_LABELS: [StructureChoice, string, string][] = [
+  [
+    'positions',
+    'Atom positions',
+    'Moves each atom only along the directions its site symmetry allows (an atom on a centre of symmetry does not move). Needs good data to high angle.',
+  ],
+  [
+    'restraints',
+    'Keep bond lengths (restraints)',
+    'Adds each starting bond as an extra observation with σ = 0.02 Å, so the atoms cannot drift into unphysical positions. Recommended with lab data.',
+  ],
+  [
+    'occupancy',
+    'Site occupancies',
+    'The fraction of each site that is filled. Only sites the file gives as partly filled (below 1) are refined; full sites stay at 1. Strongly correlated with B.',
+  ],
+  [
+    'biso',
+    'Atomic displacement B',
+    'Thermal vibration of each atom (isotropic B = 8π²U). Atoms with anisotropic values in the file keep them. Replaces the overall B.',
+  ],
+  [
+    'aniso',
+    'Anisotropic displacement U_ij',
+    'Direction-dependent vibration of every atom (isotropic atoms are converted), only in the directions the site symmetry allows. Needs excellent data to high angle; with lab data it is usually not justified.',
+  ],
+];
+
 const num = (e: Estimate, fixed = 5) => withUncertainty(e.value, e.esd, fixed);
 
 /** Wizard step 5: basic Rietveld refinement of the candidate phases (optional). */
@@ -173,6 +212,7 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
         cell: p.cell,
         peaks: p.peaks,
         ...(p.cellContents && { cellContents: p.cellContents }),
+        ...(p.structure && { structure: p.structure }),
         orientation: settings.choices.orientation ? orientationOf(p) : null,
       })),
       choices: settings.choices,
@@ -287,8 +327,8 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
       <p class="message is-info">
         <strong>Optional.</strong> Fits the whole calculated pattern of your phases to the measured
         one: scale, background, zero shift, cell and peak shape, and weight fractions for mixtures.
-        Atom positions are not refined, so this is not a structure refinement. Skip it with Next if
-        you only need peak fitting.{' '}
+        Atom positions stay as in the reference unless you turn on structure refinement under What
+        to refine. Skip it with Next if you only need peak fitting.{' '}
         <HelpTip term="Rietveld refinement">
           <p>
             Every reflection of every phase is drawn with a peak shape whose width follows FWHM² = U
@@ -406,7 +446,7 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
             <label key={choice} class="check">
               <input
                 type="checkbox"
-                checked={settings.choices[choice]}
+                checked={settings.choices[choice] === true}
                 onChange={(e) =>
                   set({ choices: { ...settings.choices, [choice]: e.currentTarget.checked } })
                 }
@@ -418,6 +458,30 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
             </label>
           ))}
         </div>
+        <fieldset class="method-choice">
+          <legend>Structure refinement (advanced)</legend>
+          <p class="message is-warning">
+            <strong>Check:</strong> a laboratory powder pattern rarely has enough information to
+            refine a structure. These are released only after the basic refinement has converged.
+            Treat the results as estimates and check the bond lengths.
+          </p>
+          {STRUCTURE_LABELS.map(([choice, label, help]) => (
+            <label key={choice} class="check">
+              <input
+                type="checkbox"
+                checked={settings.choices[choice] === true}
+                disabled={choice === 'restraints' && !settings.choices.positions}
+                onChange={(e) =>
+                  set({ choices: { ...settings.choices, [choice]: e.currentTarget.checked } })
+                }
+              />
+              {label}{' '}
+              <HelpTip term={label.toLowerCase()}>
+                <p>{help}</p>
+              </HelpTip>
+            </label>
+          ))}
+        </fieldset>
         {settings.choices.orientation &&
           included.map((phase) => (
             <label key={phase.id} class="inline-field">
@@ -623,6 +687,7 @@ function Results({
         Numbers in brackets are standard uncertainties in the last digits. They come from the
         least-squares fit and usually underestimate the real uncertainty.
       </p>
+      {result.phases.some((p) => p.atoms) && <AtomsTable result={result} name={name} />}
 
       <Advanced id="rietveld-details" title="Peak shape, orientation and refinement stages">
         <div
@@ -639,8 +704,10 @@ function Results({
                 <th scope="col">V (deg²)</th>
                 <th scope="col">W (deg²)</th>
                 <th scope="col">η</th>
+                <th scope="col">X, Y (deg)</th>
                 <th scope="col">March–Dollase r</th>
                 <th scope="col">B (Å²)</th>
+                <th scope="col">Asymmetry P1, P2</th>
                 <th scope="col">Scale</th>
               </tr>
             </thead>
@@ -651,13 +718,19 @@ function Results({
                   <td>{num(p.u)}</td>
                   <td>{num(p.v)}</td>
                   <td>{num(p.w)}</td>
-                  <td>{num(p.eta, 3)}</td>
+                  <td>{p.tch ? 'from TCH' : num(p.eta, 3)}</td>
+                  <td>{p.tch ? `${num(p.x, 4)}, ${num(p.y, 4)}` : '–'}</td>
                   <td>
                     {p.orientation && p.orientationDirection
                       ? `${num(p.orientation, 3)} along ${formatHkl([p.orientationDirection])}`
                       : '–'}
                   </td>
                   <td>{num(p.overallB, 3)}</td>
+                  <td>
+                    {p.asymmetry[0].refined
+                      ? `${num(p.asymmetry[0], 4)}, ${num(p.asymmetry[1], 4)}`
+                      : '–'}
+                  </td>
                   <td>{p.scale.value.toExponential(4)}</td>
                 </tr>
               ))}
@@ -705,9 +778,15 @@ function Results({
                 { header: 'U (deg^2)', value: (p) => p.u.value },
                 { header: 'V (deg^2)', value: (p) => p.v.value },
                 { header: 'W (deg^2)', value: (p) => p.w.value },
-                { header: 'eta', value: (p) => p.eta.value },
+                { header: 'eta', value: (p) => (p.tch ? '' : p.eta.value) },
+                { header: 'TCH X (deg)', value: (p) => (p.tch ? p.x.value : '') },
+                { header: 'TCH Y (deg)', value: (p) => (p.tch ? p.y.value : '') },
                 { header: 'March-Dollase r', value: (p) => p.orientation?.value ?? '' },
                 { header: 'B (A^2)', value: (p) => p.overallB.value },
+                { header: 'Asymmetry P1', value: (p) => p.asymmetry[0].value },
+                { header: 's.u. P1', value: (p) => p.asymmetry[0].esd },
+                { header: 'Asymmetry P2', value: (p) => p.asymmetry[1].value },
+                { header: 's.u. P2', value: (p) => p.asymmetry[1].esd },
                 { header: 'Scale', value: (p) => p.scale.value },
               ],
             )
@@ -751,5 +830,103 @@ function Results({
         </p>
       </div>
     </section>
+  );
+}
+
+/** Refined atoms of each phase (structure refinement), with a CSV download. */
+function AtomsTable({ result, name }: { result: RietveldResult; name: string }) {
+  const hasU = result.phases.some((p) => p.atoms?.some((a) => a.u));
+  const rows = result.phases.flatMap((p) =>
+    (p.atoms ?? []).map((atom) => ({ phase: p.name, atom })),
+  );
+  return (
+    <>
+      <h4 class="export-title">Refined atoms (estimates)</h4>
+      <div
+        class="table-scroll"
+        tabIndex={0}
+        role="region"
+        aria-label="Refined atoms, scrolls sideways"
+      >
+        <table class="peak-table">
+          <thead>
+            <tr>
+              <th scope="col">Phase</th>
+              <th scope="col">Atom</th>
+              <th scope="col">x</th>
+              <th scope="col">y</th>
+              <th scope="col">z</th>
+              <th scope="col">Occupancy</th>
+              <th scope="col">B (Å²)</th>
+              {hasU && <th scope="col">U11, U22, U33, U12, U13, U23 (Å²)</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ phase, atom }) => (
+              <tr key={`${phase}-${atom.label}`}>
+                <td>{phase}</td>
+                <th scope="row">{atom.label}</th>
+                {atom.x.map((c, i) => (
+                  <td key={i}>{num(c)}</td>
+                ))}
+                <td>{num(atom.occupancy, 3)}</td>
+                <td>{Number.isFinite(atom.b.value) ? num(atom.b, 3) : 'anisotropic'}</td>
+                {hasU && (
+                  <td>
+                    {atom.u ? atom.u.map((c) => num(c, 4)).join(', ') : '–'}
+                    {!atom.positiveDefinite && ' (not positive definite)'}
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p class="field-hint">
+        Coordinates without brackets are fixed by the site symmetry or were not refined.
+      </p>
+      <button
+        type="button"
+        class="btn"
+        onClick={() =>
+          downloadCsv(
+            `${name}-rietveld-atoms`,
+            'Rietveld structure refinement (estimates): fractional coordinates, occupancies and isotropic B. s.u. 0 means fixed.',
+            rows,
+            [
+              { header: 'Phase', value: (r) => r.phase },
+              { header: 'Atom', value: (r) => r.atom.label },
+              { header: 'Element', value: (r) => r.atom.element },
+              ...(['x', 'y', 'z'] as const).flatMap((k, i) => [
+                { header: k, value: (r: (typeof rows)[number]) => r.atom.x[i]?.value ?? '' },
+                {
+                  header: `s.u. ${k}`,
+                  value: (r: (typeof rows)[number]) => r.atom.x[i]?.esd ?? '',
+                },
+              ]),
+              { header: 'Occupancy', value: (r) => r.atom.occupancy.value },
+              { header: 's.u. occupancy', value: (r) => r.atom.occupancy.esd },
+              {
+                header: 'B (A^2)',
+                value: (r) => (Number.isFinite(r.atom.b.value) ? r.atom.b.value : ''),
+              },
+              { header: 's.u. B', value: (r) => r.atom.b.esd },
+              ...(['U11', 'U22', 'U33', 'U12', 'U13', 'U23'] as const).flatMap((k, i) => [
+                {
+                  header: `${k} (A^2)`,
+                  value: (r: (typeof rows)[number]) => r.atom.u?.[i]?.value ?? '',
+                },
+                {
+                  header: `s.u. ${k}`,
+                  value: (r: (typeof rows)[number]) => r.atom.u?.[i]?.esd ?? '',
+                },
+              ]),
+            ],
+          )
+        }
+      >
+        Download atoms CSV
+      </button>
+    </>
   );
 }

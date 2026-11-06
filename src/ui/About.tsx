@@ -1,3 +1,4 @@
+import { CreditsText } from './Credits';
 import './about.css';
 
 /** One equation with a plain-language reading. Static text, so no maths renderer is needed. */
@@ -19,6 +20,11 @@ export default function About() {
         lists the equations used, the assumptions behind them and what the tools cannot do.
       </p>
 
+      <section aria-labelledby="about-credits">
+        <h2 id="about-credits">Credits</h2>
+        <CreditsText />
+      </section>
+
       <section aria-labelledby="about-privacy">
         <h2 id="about-privacy">Privacy</h2>
         <p>
@@ -39,11 +45,13 @@ export default function About() {
         <h2 id="about-limits">Limitations</h2>
         <ul>
           <li>
-            The Rietveld refinement is basic: it refines scale factors, background, zero shift,
-            cells, peak widths and shape, preferred orientation and an overall B, but not atom
-            positions, occupancies or individual displacement parameters, so it is not a structure
-            refinement. Phase comparison is a visual and numerical aid for simple phases, not a
-            proof of identity.
+            The Rietveld refinement refines scale factors, background, zero shift, cells, peak
+            widths and shape (pseudo-Voigt or the GSAS-II TCH profile), asymmetry, preferred
+            orientation and an overall B; under Advanced also free atom coordinates, occupancies and
+            isotropic or anisotropic displacement parameters. A laboratory pattern rarely supports
+            the structure terms, so treat them with care, and it does not solve unknown structures.
+            Phase comparison is a visual and numerical aid for simple phases, not a proof of
+            identity.
           </li>
           <li>
             Automatic phase matching, single-crystal or polycrystalline hints, thermal event

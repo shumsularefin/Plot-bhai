@@ -8,7 +8,8 @@
  * Parameters are released in stages, as recommended for a stable refinement (for example
  * L. B. McCusker, R. B. Von Dreele, D. E. Cox, D. Louër and P. Scardi, J. Appl. Cryst. 32 (1999)
  * 36–50): scale factors and background, then zero shift (and sample displacement), then the cell,
- * then the peak widths and shape, then preferred orientation, then an overall displacement factor.
+ * then the peak widths and shape, then peak asymmetry, then preferred orientation, then an overall
+ * displacement factor.
  * Before that the starting width is chosen from a few values, and each phase's cell is lined up
  * by trying small isotropic changes of its lengths (± 1.5 %), because least squares cannot find a
  * peak that starts further away than about its own width.
@@ -32,13 +33,15 @@
  */
 
 import { levenbergMarquardt } from '../../math/levenbergMarquardt';
-import type { Cell } from '../reference/powder';
-import type { ReferencePeak } from '../reference/types';
+import type { Cell, FormFactors } from '../reference/powder';
+import type { ReferencePeak, StoredStructure } from '../reference/types';
 import { cellKind, cellParameterNames, cellVolume } from './cell';
 import {
   addProfiles,
+  asymmetryFactor,
   backgroundCurve,
   chebyshevBasis,
+  atomStates,
   makeLayout,
   phaseCell,
   phaseCurve,
@@ -48,6 +51,7 @@ import {
   type Wavelengths,
 } from './model';
 import { refinementReflections, type Hkl } from './reflections';
+import { positiveDefinite, restraintResiduals, structureModel } from './structure';
 
 export interface RietveldPhaseInput {
   id: string;
@@ -60,6 +64,8 @@ export interface RietveldPhaseInput {
   cellContents?: Readonly<Record<string, number>>;
   /** Preferred-orientation direction (h k l), or null. */
   orientation: Hkl | null;
+  /** Symmetry operators and atoms, needed for structure refinement. */
+  structure?: StoredStructure;
 }
 
 /** Which groups of parameters are refined. Scale factors and background always are. */
@@ -75,6 +81,20 @@ export interface RefineChoices {
   orientation: boolean;
   /** Overall displacement factor B of every phase. */
   overallB: boolean;
+  /** Bérar–Baldinozzi peak asymmetry P1, P2 of every phase (see model.ts). */
+  asymmetry: boolean;
+  /** Thompson–Cox–Hastings profile (GSAS-II's) instead of one width and a refined η. */
+  tch?: boolean;
+  /** Structure refinement (Advanced): free atom coordinates. */
+  positions?: boolean;
+  /** Structure refinement: site occupancies. */
+  occupancy?: boolean;
+  /** Structure refinement: isotropic displacement B of each isotropic atom. */
+  biso?: boolean;
+  /** Structure refinement: anisotropic U_ij of every atom (isotropic ones are converted). */
+  aniso?: boolean;
+  /** Bond-length restraints to the starting structure while positions are refined. */
+  restraints?: boolean;
 }
 
 export const DEFAULT_CHOICES: RefineChoices = {
@@ -85,6 +105,7 @@ export const DEFAULT_CHOICES: RefineChoices = {
   widthSlope: true,
   orientation: false,
   overallB: false,
+  asymmetry: false,
 };
 
 export interface RietveldInput {
@@ -99,6 +120,23 @@ export interface RietveldInput {
   backgroundTerms: number;
   /** Atomic weights (g/mol) by element symbol. */
   atomicWeights: Readonly<Record<string, number>>;
+  /** Scattering factors and covalent radii (Å), needed only for structure refinement. */
+  factors?: FormFactors;
+  radii?: Readonly<Record<string, number>>;
+}
+
+export interface AtomResult {
+  label: string;
+  element: string;
+  /** Fractional coordinates; refined only along the directions the site symmetry leaves free. */
+  x: [Estimate, Estimate, Estimate];
+  occupancy: Estimate;
+  /** Isotropic B (Å²); NaN value for anisotropic atoms. */
+  b: Estimate;
+  /** Anisotropic U (CIF U11, U22, U33, U12, U13, U23; Å²), or null for isotropic atoms. */
+  u: Estimate[] | null;
+  /** False when the refined anisotropic U is not positive definite (physically impossible). */
+  positiveDefinite: boolean;
 }
 
 export interface Estimate {
@@ -120,12 +158,22 @@ export interface RietveldPhaseResult {
   u: Estimate;
   v: Estimate;
   w: Estimate;
+  /** η of the pseudo-Voigt; NaN with the TCH profile, where η follows from X, Y and U, V, W. */
   eta: Estimate;
+  /** TCH Lorentzian X, Y (degrees); 0 and fixed without the TCH profile. */
+  x: Estimate;
+  y: Estimate;
+  /** True when the TCH profile was used (then U, V, W are the Gaussian widths). */
+  tch: boolean;
   /** March–Dollase r, or null when the phase has no preferred direction. */
   orientation: Estimate | null;
   orientationDirection: Hkl | null;
   overallB: Estimate;
+  /** Bérar–Baldinozzi P1 and P2 (0 and fixed unless asymmetry was refined). */
+  asymmetry: [Estimate, Estimate];
   rBragg: number;
+  /** Refined atoms when the structure was refined, otherwise null. */
+  atoms: AtomResult[] | null;
   /** Kα1 positions (degrees 2θ) of the reflections inside the data range, with one (h k l) each. */
   ticks: { twoTheta: number; hkl: Hkl }[];
 }
@@ -225,8 +273,27 @@ export function refineRietveld(
   // Reflections that can appear in the data range: d down to λ / (2 sin θ_max), with 1° to spare.
   const thetaMax = (Math.min((x[n - 1] as number) + 1, 179) * Math.PI) / 360;
   const dMin = wavelengths.kAlpha1 / (2 * Math.sin(thetaMax));
+  const wantsStructure = Boolean(
+    choices.positions || choices.occupancy || choices.biso || choices.aniso,
+  );
+  const noStructure: string[] = [];
   const phases: PhaseModel[] = input.phases.map((phase) => {
     const kind = cellKind(phase.crystalSystem, phase.cell);
+    let structure;
+    if (wantsStructure) {
+      try {
+        if (!phase.structure || !input.factors) throw new Error('no structure');
+        structure = structureModel(
+          phase.cell,
+          phase.structure,
+          input.factors,
+          input.radii ?? {},
+          choices.aniso === true,
+        );
+      } catch {
+        noStructure.push(phase.name);
+      }
+    }
     return {
       id: phase.id,
       name: phase.name,
@@ -234,6 +301,8 @@ export function refineRietveld(
       cell: phase.cell,
       reflections: refinementReflections(phase.peaks, phase.cell, kind, dMin),
       orientation: phase.orientation,
+      ...(structure && { structure }),
+      ...(choices.tch && { tch: true }),
     };
   });
   const empty = phases.find((phase) => phase.reflections.length === 0);
@@ -276,8 +345,18 @@ export function refineRietveld(
     bound(pl.v, -2, 2, 0, 0.01);
     bound(pl.w, 1e-6, 2, 0.01, 0.01);
     bound(pl.eta, 0, 1, 0.5, 0.1);
+    bound(pl.lx, 0, 2, choices.tch ? 0.02 : 0, 0.01);
+    bound(pl.ly, -1, 2, 0, 0.01);
     bound(pl.orientation, 0.3, 3, 1, 1);
     bound(pl.b, -2, 10, 0, 1);
+    for (const j of pl.asymmetry) bound(j, -1, 1, 0, 0.01);
+    phase.structure?.atoms.forEach((atom, a) => {
+      const al = pl.atoms[a] as (typeof pl.atoms)[number];
+      for (const j of al.coords) bound(j, -0.1, 0.1, 0, 0.001);
+      bound(al.occupancy, 0, Math.max(1, atom.occupancy0), atom.occupancy0, 0.01);
+      bound(al.b, Math.min(0, atom.b0), 20, atom.b0, 0.1);
+      for (const j of al.aniso) bound(j, -0.05, 0.05, 0, 0.001);
+    });
   });
 
   // Starting scale: the strongest calculated peak matches the strongest measured one.
@@ -304,20 +383,60 @@ export function refineRietveld(
     labels[pl.v] = `${phase.name}: V`;
     labels[pl.w] = `${phase.name}: W`;
     labels[pl.eta] = `${phase.name}: η`;
+    labels[pl.lx] = `${phase.name}: X`;
+    labels[pl.ly] = `${phase.name}: Y`;
     labels[pl.orientation] = `${phase.name}: March–Dollase r`;
     labels[pl.b] = `${phase.name}: B`;
+    labels[pl.asymmetry[0]] = `${phase.name}: asymmetry P1`;
+    labels[pl.asymmetry[1]] = `${phase.name}: asymmetry P2`;
+    phase.structure?.atoms.forEach((atom, a) => {
+      const al = pl.atoms[a] as (typeof pl.atoms)[number];
+      al.coords.forEach((j, c) => (labels[j] = `${phase.name}: ${atom.label} position ${c + 1}`));
+      labels[al.occupancy] = `${phase.name}: ${atom.label} occupancy`;
+      labels[al.b] = `${phase.name}: ${atom.label} B`;
+      al.aniso.forEach((j, c) => (labels[j] = `${phase.name}: ${atom.label} U term ${c + 1}`));
+    });
   });
 
   const curves = (params: Float64Array) =>
     phases.map((_, k) => phaseCurve(x, phases, layout, k, params, wavelengths));
   const phaseOf = new Int32Array(layout.size).fill(-1);
   layout.phases.forEach((pl, k) => {
-    for (const j of [pl.scale, ...pl.cell, pl.u, pl.v, pl.w, pl.eta, pl.orientation, pl.b])
+    for (const j of [
+      pl.scale,
+      ...pl.cell,
+      pl.u,
+      pl.v,
+      pl.w,
+      pl.eta,
+      pl.lx,
+      pl.ly,
+      pl.orientation,
+      pl.b,
+      ...pl.asymmetry,
+      ...pl.atoms.flatMap((al) => [...al.coords, al.occupancy, al.b, ...al.aniso]),
+    ])
       phaseOf[j] = k;
   });
   const backgroundIndex = new Map(layout.background.map((j, i) => [j, i]));
 
   let free = new Array<boolean>(layout.size).fill(false);
+  // Bond restraints: extra rows (d − d₀)/σ after the data, with target 0 (structure.ts).
+  const restrained = Boolean(choices.restraints && choices.positions);
+  const restraints = (params: Float64Array): number[] =>
+    restrained
+      ? phases.flatMap((phase, k) => {
+          const pl = layout.phases[k] as (typeof layout.phases)[number];
+          return phase.structure
+            ? restraintResiduals(
+                phaseCell(phase, pl, params),
+                phase.structure,
+                atomStates(phase, pl, params),
+              )
+            : [];
+        })
+      : [];
+  const rows = n + restraints(p).length;
   const evaluate = (params: Float64Array, model: Float64Array, jacobian: Float64Array | null) => {
     const bg = backgroundCurve(basis, layout, params, n);
     const parts = curves(params);
@@ -326,11 +445,21 @@ export function refineRietveld(
       for (const part of parts) total += part[i] as number;
       model[i] = total * (sw[i] as number);
     }
+    const r0 = restraints(params);
+    r0.forEach((v, i) => (model[n + i] = v));
     if (!jacobian) return;
     jacobian.fill(0);
     const m = layout.size;
     for (let j = 0; j < m; j++) {
       if (!free[j]) continue;
+      if (r0.length > 0 && phaseOf[j] !== -1) {
+        const h = 1e-6 * Math.max(Math.abs(params[j] as number), typical[j] as number);
+        const shifted = params.slice();
+        shifted[j] = (params[j] as number) + h;
+        restraints(shifted).forEach(
+          (v, i) => (jacobian[(n + i) * m + j] = (v - (r0[i] as number)) / h),
+        );
+      }
       const bgTerm = backgroundIndex.get(j);
       if (bgTerm !== undefined) {
         for (let i = 0; i < n; i++)
@@ -361,11 +490,13 @@ export function refineRietveld(
   };
 
   const sumWy2 = target.reduce((s, v) => s + v * v, 0);
+  const goal = new Float64Array(rows);
+  goal.set(target);
   let current: Float64Array = p;
   const run = (freeNow: boolean[], maxIterations: number) => {
     free = freeNow;
     const result = levenbergMarquardt({
-      y: target,
+      y: goal,
       initial: current,
       lower,
       upper,
@@ -376,7 +507,12 @@ export function refineRietveld(
     current = result.parameters;
     return result;
   };
-  const rwpOf = (ssr: number) => Math.sqrt(ssr / sumWy2);
+  // R_wp of the data rows only (restraint rows excluded).
+  const rwpOf = (result: { model: Float64Array }) => {
+    let ssr = 0;
+    for (let i = 0; i < n; i++) ssr += ((target[i] as number) - (result.model[i] as number)) ** 2;
+    return Math.sqrt(ssr / sumWy2);
+  };
 
   const mask = new Array<boolean>(layout.size).fill(false);
   const release = (indices: number[]) => indices.forEach((j) => (mask[j] = true));
@@ -418,13 +554,13 @@ export function refineRietveld(
       current = bestFactor.params;
     });
   }
-  stages.push({ name: 'Scale factors and background', rwp: rwpOf(run([...mask], 50).ssr) });
+  stages.push({ name: 'Scale factors and background', rwp: rwpOf(run([...mask], 50)) });
 
   const stage = (name: string, indices: number[]) => {
     if (indices.length === 0) return;
     progress(name);
     release(indices);
-    stages.push({ name, rwp: rwpOf(run([...mask], 100).ssr) });
+    stages.push({ name, rwp: rwpOf(run([...mask], 100)) });
   };
   stage('Zero shift' + (choices.displacement ? ' and sample displacement' : ''), [
     ...(choices.zero ? [layout.zero] : []),
@@ -437,13 +573,18 @@ export function refineRietveld(
     );
   if (choices.width)
     stage(
-      'Peak width (W) and shape (η)',
-      layout.phases.flatMap((pl) => [pl.w, pl.eta]),
+      choices.tch ? 'Peak width (W) and Lorentzian width (X)' : 'Peak width (W) and shape (η)',
+      layout.phases.flatMap((pl) => [pl.w, choices.tch ? pl.lx : pl.eta]),
     );
   if (choices.widthSlope)
     stage(
-      'Width against angle (U, V)',
-      layout.phases.flatMap((pl) => [pl.u, pl.v]),
+      choices.tch ? 'Width against angle (U, V, Y)' : 'Width against angle (U, V)',
+      layout.phases.flatMap((pl) => (choices.tch ? [pl.u, pl.v, pl.ly] : [pl.u, pl.v])),
+    );
+  if (choices.asymmetry)
+    stage(
+      'Peak asymmetry (P1, P2)',
+      layout.phases.flatMap((pl) => pl.asymmetry),
     );
   if (choices.orientation)
     stage(
@@ -452,13 +593,51 @@ export function refineRietveld(
         (phases[k] as PhaseModel).orientation ? [pl.orientation] : [],
       ),
     );
-  if (choices.overallB)
+  if (choices.overallB && !choices.biso)
     stage(
       'Overall displacement factor B',
       layout.phases.map((pl) => pl.b),
     );
   progress('Final cycles');
-  const final = run([...mask], 200);
+  let final = run([...mask], 200);
+
+  // Structure (Advanced): only once the basic refinement has converged.
+  const structured = phases.flatMap((phase, k) =>
+    phase.structure ? [{ phase, pl: layout.phases[k] as (typeof layout.phases)[number] }] : [],
+  );
+  const structureSkipped = structured.length > 0 && !final.converged;
+  if (structured.length > 0 && final.converged) {
+    if (choices.positions)
+      stage(
+        'Atom positions' + (restrained ? ' (with bond restraints)' : ''),
+        structured.flatMap(({ pl }) => pl.atoms.flatMap((al) => al.coords)),
+      );
+    if (choices.occupancy)
+      stage(
+        'Site occupancies',
+        // Only sites the file gives as partly filled: refining every occupancy with the scale
+        // factor is singular (all of them times k is the same pattern as the scale times k).
+        structured.flatMap(({ phase, pl }) =>
+          pl.atoms.flatMap((al, a) =>
+            (phase.structure?.atoms[a]?.occupancy0 ?? 1) < 1 ? [al.occupancy] : [],
+          ),
+        ),
+      );
+    if (choices.biso)
+      stage(
+        'Atomic displacement B',
+        structured.flatMap(({ phase, pl }) =>
+          pl.atoms.flatMap((al, a) => (phase.structure?.atoms[a]?.anisotropic ? [] : [al.b])),
+        ),
+      );
+    if (choices.aniso)
+      stage(
+        'Anisotropic displacement (U_ij)',
+        structured.flatMap(({ pl }) => pl.atoms.flatMap((al) => al.aniso)),
+      );
+    progress('Final cycles with the structure');
+    final = run([...mask], 200);
+  }
 
   // Results.
   const params = final.parameters;
@@ -588,6 +767,60 @@ export function refineRietveld(
     }
 
     const fraction = fractions?.[k];
+    const states = atomStates(phase, pl, params);
+    const atoms: AtomResult[] | null = phase.structure
+      ? phase.structure.atoms.map((atom, a) => {
+          const al = pl.atoms[a] as (typeof pl.atoms)[number];
+          const state = states[a] as (typeof states)[number];
+          const coordFree = al.coords.some((j) => mask[j]);
+          const x = [0, 1, 2].map((i) => {
+            // x_i = x0_i + Σ_k c_k v_ki, so var(x_i) = Σ_kl v_ki v_li cov(c_k, c_l).
+            let variance = 0;
+            al.coords.forEach((jk, kk) =>
+              al.coords.forEach(
+                (jl, ll) =>
+                  (variance +=
+                    ((atom.basis[kk] as number[])[i] as number) *
+                    ((atom.basis[ll] as number[])[i] as number) *
+                    cov(jk, jl)),
+              ),
+            );
+            const moves = atom.basis.some((v) => v[i] !== 0);
+            return {
+              value: state.x[i] as number,
+              esd: coordFree && moves ? Math.sqrt(Math.max(variance, 0)) : 0,
+              refined: coordFree && moves,
+            };
+          }) as [Estimate, Estimate, Estimate];
+          return {
+            label: atom.label,
+            element: atom.element,
+            x,
+            occupancy: estimate(al.occupancy),
+            b: atom.anisotropic ? { value: NaN, esd: 0, refined: false } : estimate(al.b),
+            u: atom.uCif0
+              ? atom.uCif0.map((u0, q) => {
+                  // U_q = U0_q + Σ_k c_k V_kq, var(U_q) = Σ_kl V_kq V_lq cov(c_k, c_l).
+                  let value = u0;
+                  let variance = 0;
+                  al.aniso.forEach((jk, kk) => {
+                    const vk = (atom.uBasisCif[kk] as number[])[q] as number;
+                    value += (params[jk] as number) * vk;
+                    al.aniso.forEach(
+                      (jl, ll) =>
+                        (variance +=
+                          vk * ((atom.uBasisCif[ll] as number[])[q] as number) * cov(jk, jl)),
+                    );
+                  });
+                  const refined =
+                    al.aniso.some((j) => mask[j]) && atom.uBasisCif.some((v) => v[q] !== 0);
+                  return { value, esd: refined ? Math.sqrt(Math.max(variance, 0)) : 0, refined };
+                })
+              : null,
+            positiveDefinite: state.uImages?.[0] ? positiveDefinite(state.uImages[0]) : true,
+          };
+        })
+      : null;
     return {
       id: phase.id,
       name: phase.name,
@@ -602,11 +835,16 @@ export function refineRietveld(
       u: estimate(pl.u),
       v: estimate(pl.v),
       w: estimate(pl.w),
-      eta: estimate(pl.eta),
+      eta: choices.tch ? { value: NaN, esd: 0, refined: false } : estimate(pl.eta),
+      x: estimate(pl.lx),
+      y: estimate(pl.ly),
+      tch: choices.tch === true,
       orientation: phase.orientation ? estimate(pl.orientation) : null,
       orientationDirection: phase.orientation,
       overallB: estimate(pl.b),
+      asymmetry: [estimate(pl.asymmetry[0]), estimate(pl.asymmetry[1])],
       rBragg: denominator > 0 ? numerator / denominator : NaN,
+      atoms,
       ticks: peaks
         .filter((peak) => peak.line === 0 && peak.twoTheta >= xLo && peak.twoTheta <= xHi)
         .map((peak) => ({
@@ -637,6 +875,22 @@ export function refineRietveld(
     warnings.push(
       'GOF is well above 1: the model misses something in the data, for example another phase, peak asymmetry, size or strain broadening that differs between reflections, or the wrong preferred orientation. Look at the difference curve.',
     );
+  if (choices.asymmetry) {
+    // The corrected profile must stay ≥ 0: check As(z) on |z| ≤ 3 for every peak in the range.
+    const negative = phases.filter((_, k) =>
+      placePeaks(phases, layout, k, params, wavelengths).some((peak) => {
+        if (peak.twoTheta < xLo || peak.twoTheta > xHi) return false;
+        for (let z = -3; z <= 3; z += 0.01) {
+          if (asymmetryFactor(z, ...peak.asymmetry) < 0) return true;
+        }
+        return false;
+      }),
+    );
+    if (negative.length > 0)
+      warnings.push(
+        `The refined asymmetry is so large that some calculated peaks of ${negative.map((p) => p.name).join(', ')} dip below the background on one side, which is not physical. Start from a narrower 2θ range or leave asymmetry off.`,
+      );
+  }
   phaseResults.forEach((phase) => {
     if (phase.scale.value <= 0 || phase.scale.esd > phase.scale.value)
       warnings.push(
@@ -651,9 +905,47 @@ export function refineRietveld(
     warnings.push(
       'Weight fractions need the unit-cell contents of every phase; at least one phase does not have them (reload its CIF or reference to add them).',
     );
-  warnings.push(
-    'Atom positions, occupancies and displacement parameters are kept from the reference structures; this is not a structure refinement.',
-  );
+  if (!wantsStructure)
+    warnings.push(
+      'Atom positions, occupancies and displacement parameters are kept from the reference structures; this is not a structure refinement.',
+    );
+  else {
+    warnings.push(
+      'Structure refinement from a laboratory powder pattern is rarely well determined: check that the refined positions give sensible bond lengths, that occupancies and B stay physical, and that R_Bragg falls. Treat the values as estimates.',
+    );
+    if (noStructure.length > 0)
+      warnings.push(
+        `No atom positions are stored for ${noStructure.join(', ')}, so its structure was kept. Remove the phase and add it again from its CIF to refine it.`,
+      );
+    if (structureSkipped)
+      warnings.push(
+        'The basic refinement did not converge, so the structure was not refined. Improve the basic fit first.',
+      );
+    if (
+      choices.occupancy &&
+      !phases.some((phase) => phase.structure?.atoms.some((atom) => atom.occupancy0 < 1))
+    )
+      warnings.push(
+        'No site is partly filled in the reference files, so no occupancy was refined. Full sites stay at 1 because refining them together with the scale factor has no unique answer.',
+      );
+    if (choices.occupancy && choices.biso)
+      warnings.push(
+        'Occupancies and B were refined together; they are strongly correlated (both lower high-angle intensity), so look at their uncertainties.',
+      );
+    if (choices.aniso)
+      warnings.push(
+        'Anisotropic U_ij need very good data to high angle; a laboratory pattern rarely supports them. Every atom was made anisotropic, starting from its isotropic value, so atom B values were not refined.',
+      );
+    const notPositive = phaseResults.flatMap((r) =>
+      (r.atoms ?? []).filter((a) => !a.positiveDefinite).map((a) => `${r.name} ${a.label}`),
+    );
+    if (notPositive.length > 0)
+      warnings.push(
+        `The refined U_ij of ${notPositive.join(', ')} are not positive definite, which is physically impossible: refine them isotropically instead.`,
+      );
+    if (choices.biso && choices.overallB)
+      warnings.push('The overall B was kept fixed because the atoms’ own B values were refined.');
+  }
 
   return {
     ok: true,

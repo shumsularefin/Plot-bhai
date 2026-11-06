@@ -13,13 +13,15 @@ export const sign = (v: number, digits: number) =>
   `${v < 0 ? '−' : '+'}${Math.abs(v).toFixed(digits)}`;
 
 /** Columns of the fitted-peak table: value, and its uncertainty where the fit gives one. */
-export const PEAK_COLUMNS: {
+interface PeakColumn {
   key: keyof PeakRow;
   label: string;
   sigma?: keyof PeakRow;
   /** Plain fixed decimals for values without an uncertainty. */
   decimals?: number;
-}[] = [
+}
+
+const PEAK_COLUMNS: PeakColumn[] = [
   { key: 'twoTheta', label: '2θ (°)', sigma: 'twoThetaSigma' },
   { key: 'd', label: 'd (Å)', sigma: 'dSigma' },
   { key: 'fwhm', label: 'FWHM (°)', sigma: 'fwhmSigma' },
@@ -31,6 +33,26 @@ export const PEAK_COLUMNS: {
   { key: 'eta', label: 'η', sigma: 'etaSigma' },
 ];
 
+const SHAPE_COLUMNS: PeakColumn[] = [
+  { key: 'pearsonM', label: 'Pearson VII m', sigma: 'pearsonMSigma' },
+  { key: 'fwhmLeft', label: 'FWHM left (°)', sigma: 'fwhmLeftSigma' },
+  { key: 'fwhmRight', label: 'FWHM right (°)', sigma: 'fwhmRightSigma' },
+];
+
+/**
+ * Columns of the peak table: the shape columns only when some peak has them. With Pearson VII
+ * peaks the η column is the equivalent η (see profiles.ts).
+ */
+export function peakColumns(rows: readonly PeakRow[]): PeakColumn[] {
+  const pearson = rows.some((r) => Number.isFinite(r.pearsonM));
+  return [
+    ...PEAK_COLUMNS.map((c) =>
+      c.key === 'eta' && pearson ? { ...c, label: 'η (equivalent)' } : c,
+    ),
+    ...SHAPE_COLUMNS.filter((c) => rows.some((r) => Number.isFinite(r[c.key] as number))),
+  ];
+}
+
 /** The fitted peaks of one pattern, with uncertainties, region R² and the fit's notes. */
 export function peakFitTable(
   patternName: string,
@@ -40,7 +62,7 @@ export function peakFitTable(
   lambda: number,
 ): CsvTable {
   const columns: CsvColumn<PeakRow>[] = [
-    ...PEAK_COLUMNS.flatMap((c) => [
+    ...peakColumns(rows).flatMap((c) => [
       { header: c.label, value: (r: PeakRow) => r[c.key] },
       ...(c.sigma
         ? [{ header: `σ ${c.label}`, value: (r: PeakRow) => r[c.sigma as keyof PeakRow] }]

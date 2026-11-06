@@ -54,6 +54,11 @@ export interface ReferencePhase {
    * symmetry. Used for the cell mass in Rietveld weight fractions. Missing in old sessions.
    */
   cellContents?: Record<string, number>;
+  /**
+   * The structure itself (symmetry operators and the asymmetric unit, as in the CIF), for the
+   * structure viewer and structure refinement. Missing in old sessions.
+   */
+  structure?: StoredStructure;
   /** Peaks with d ≥ 0.8 Å, from the largest d. */
   peaks: ReferencePeak[];
 }
@@ -99,4 +104,24 @@ export interface ReferenceIndex {
   /** Wavelength (Å) used for the stored relative intensities. */
   intensityWavelength: number;
   families: ReferenceIndexEntry[];
+}
+
+/** One atom of the asymmetric unit, as the CIF gives it. */
+export interface StoredAtom {
+  label: string;
+  /** Element symbol, for example "Ti". */
+  element: string;
+  /** Fractional coordinates. */
+  x: [number, number, number];
+  occupancy: number;
+  /** Isotropic U (Å²), or null when the file gives none. */
+  uIso: number | null;
+  /** Anisotropic U11, U22, U33, U12, U13, U23 (Å²), or null. */
+  uAniso: [number, number, number, number, number, number] | null;
+}
+
+export interface StoredStructure {
+  /** Symmetry operators in CIF notation, for example "-x+1/2,y,z+1/4". */
+  ops: string[];
+  atoms: StoredAtom[];
 }

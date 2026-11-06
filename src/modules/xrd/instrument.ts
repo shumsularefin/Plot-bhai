@@ -5,6 +5,7 @@ import {
   type CurveFit,
   type InstrumentCurve,
 } from '../../core/xrd/instrument/curve';
+import { hasEtaChoice } from '../../core/xrd/peaks/fit';
 import type { CorrectionSettings } from '../../core/xrd/instrument/correction';
 import { DEFAULT_PROCESSING, type ProcessingSettings } from '../../core/xrd/process/pipeline';
 import type { RadiationSettings } from '../../core/xrd/radiation';
@@ -84,12 +85,15 @@ export function instrumentModel(
       }
       const options = standard.peaks.fitOptions;
       const meanEta = used.reduce((s, p) => s + p.eta, 0) / used.length;
+      // For Pearson VII the η of each peak is its breadth-matched equivalent (see profiles.ts).
       const eta =
         options.profile === 'gaussian'
           ? 0
           : options.profile === 'lorentzian'
             ? 1
-            : (options.fixedEta ?? meanEta);
+            : hasEtaChoice(options.profile)
+              ? (options.fixedEta ?? meanEta)
+              : meanEta;
       const angles = used.map((p) => p.twoTheta);
       return {
         model: {

@@ -6,7 +6,8 @@
  *
  * - b: background, Chebyshev polynomial Σ_n b_n T_n(t) with t = 2·(2θ − 2θ_min)/(2θ_max − 2θ_min) − 1.
  * - S: phase scale factor (dimensionless, absorbs the incident intensity and the volume fraction).
- * - M|F|²_k: Σ|F|² of reflection family k from the reference structure (electron units²).
+ * - M|F|²_k: Σ|F|² of reflection family k from the reference structure (electron units²), or
+ *   calculated from the refined atoms when the structure is refined (structure.ts).
  * - LP(θ) = (1 + cos²2θ)/(sin²θ cosθ): Lorentz-polarisation factor with no monochromator.
  * - P_k: March–Dollase preferred orientation, mean over the family's reflections of
  *   (r² cos²α + sin²α / r)^(−3/2), α the angle between the reflection's normal and the preferred
@@ -23,13 +24,34 @@
  *   Caglioti relation H² = U tan²θ + V tanθ + W (H in degrees 2θ, U, V, W in deg²). η is the
  *   Lorentzian fraction (0 to 1). Ω is cut off at ±25 H (the Lorentzian tails beyond hold about
  *   1.3 % of its area).
+ * - TCH profile (optional, GSAS-II's peak shape): the Gaussian width follows the Caglioti relation
+ *   above, H_G² = U tan²θ + V tanθ + W, the Lorentzian width H_L = X/cosθ + Y tanθ (degrees), and
+ *   H and η come from the Thompson–Cox–Hastings formulas (tch.ts) instead of a refined η.
+ * - Peak asymmetry (optional, off unless refined): Ω is multiplied by the Bérar–Baldinozzi
+ *   correction (J.-F. Bérar and G. Baldinozzi, J. Appl. Cryst. 26 (1993) 128–129), in the form of
+ *   the FullProf manual (eq. 3.29) with its 1/tan θ terms:
+ *     As(z) = 1 + [P1 Fa(z) + P2 Fb(z)] / tan θ_k,   z = (2θ_i − 2θ_k) / H,
+ *     Fa(z) = 2z exp(−z²),   Fb(z) = 2(2z² − 3) Fa(z),
+ *   θ_k the Bragg angle of the line. Fa and Fb are odd in z and Ω is even, so the correction moves
+ *   intensity from one side of the peak to the other without changing its area. The manual's
+ *   further 1/tan 2θ terms (P3, P4) are not used: they matter mainly at high angle, where lab
+ *   patterns show little asymmetry.
  *
- * Peak asymmetry, anisotropic broadening, absorption and surface roughness are not modelled.
+ * Anisotropic broadening, absorption and surface roughness are not modelled.
  */
 
 import { dSpacing, lorentzPolarisation, reciprocalMetric, type Cell } from '../reference/powder';
+import { tchEta, tchFwhm } from './tch';
 import { cellFromParameters, cellParameterNames, type CellKind } from './cell';
 import type { Hkl, RefinementReflection } from './reflections';
+import {
+  atomPosition,
+  atomTensor,
+  rotateTensor,
+  structureFactorSquared,
+  type AtomState,
+  type StructureModel,
+} from './structure';
 
 export interface PhaseModel {
   id: string;
@@ -40,6 +62,10 @@ export interface PhaseModel {
   reflections: RefinementReflection[];
   /** Preferred-orientation direction as a plane normal (h k l), or null for none. */
   orientation: Hkl | null;
+  /** Atoms, when the structure is refined: Σ|F|² is then calculated (structure.ts). */
+  structure?: StructureModel;
+  /** Thompson–Cox–Hastings profile (GSAS-II) instead of the single-width pseudo-Voigt. */
+  tch?: boolean;
 }
 
 export interface Wavelengths {
@@ -69,8 +95,15 @@ export interface PhaseLayout {
   v: number;
   w: number;
   eta: number;
+  /** TCH Lorentzian widths X, Y (degrees), used only with the TCH profile. */
+  lx: number;
+  ly: number;
   orientation: number;
   b: number;
+  /** Bérar–Baldinozzi asymmetry P1 and P2. */
+  asymmetry: [number, number];
+  /** Per atom of the structure (empty without one): free coordinate coefficients, occupancy, B. */
+  atoms: { coords: number[]; occupancy: number; b: number; aniso: number[] }[];
 }
 
 export function makeLayout(phases: readonly PhaseModel[], backgroundTerms: number): Layout {
@@ -86,8 +119,17 @@ export function makeLayout(phases: readonly PhaseModel[], backgroundTerms: numbe
     v: take(),
     w: take(),
     eta: take(),
+    lx: take(),
+    ly: take(),
     orientation: take(),
     b: take(),
+    asymmetry: [take(), take()] as [number, number],
+    atoms: (phase.structure?.atoms ?? []).map((atom) => ({
+      coords: atom.basis.map(take),
+      occupancy: take(),
+      b: take(),
+      aniso: atom.uBasis.map(take),
+    })),
   }));
   return { zero, displacement, background, phases: phaseLayouts, size: next };
 }
@@ -166,8 +208,16 @@ export interface PlacedPeak {
   area: number;
   fwhm: number;
   eta: number;
+  /** Coefficients of Fa(z) and Fb(z) in the asymmetry correction: P1 / tan θ and P2 / tan θ. */
+  asymmetry: [number, number];
   /** 0 for Kα1, 1 for Kα2. */
   line: 0 | 1;
+}
+
+/** Bérar–Baldinozzi correction As(z) = 1 + a·Fa(z) + b·Fb(z), Fa = 2z e^(−z²), Fb = 2(2z² − 3) Fa. */
+export function asymmetryFactor(z: number, a: number, b: number): number {
+  const fa = 2 * z * Math.exp(-z * z);
+  return 1 + a * fa + b * 2 * (2 * z * z - 3) * fa;
 }
 
 /** The cell of a phase for parameter vector p. */
@@ -177,6 +227,26 @@ export function phaseCell(phase: PhaseModel, layout: PhaseLayout, p: Float64Arra
     layout.cell.map((j) => p[j] as number),
     phase.cell,
   );
+}
+
+/** Positions, occupancies and B of a phase's atoms for parameter vector p. */
+export function atomStates(phase: PhaseModel, layout: PhaseLayout, p: Float64Array): AtomState[] {
+  return (phase.structure?.atoms ?? []).map((atom, a) => {
+    const al = layout.atoms[a] as PhaseLayout['atoms'][number];
+    const u = atomTensor(
+      atom,
+      al.aniso.map((j) => p[j] as number),
+    );
+    return {
+      x: atomPosition(
+        atom,
+        al.coords.map((j) => p[j] as number),
+      ),
+      occupancy: p[al.occupancy] as number,
+      b: p[al.b] as number,
+      ...(u && { uImages: atom.images.map((image) => rotateTensor(image.op.rot, u)) }),
+    };
+  });
 }
 
 /** Every peak of a phase for parameters p, within [lo, hi] degrees 2θ (with a margin). */
@@ -197,32 +267,53 @@ export function placePeaks(
   const v = p[pl.v] as number;
   const w = p[pl.w] as number;
   const eta = Math.min(1, Math.max(0, p[pl.eta] as number));
+  const lx = p[pl.lx] as number;
+  const ly = p[pl.ly] as number;
   const r = p[pl.orientation] as number;
   const b = p[pl.b] as number;
+  const p1 = p[pl.asymmetry[0]] as number;
+  const p2 = p[pl.asymmetry[1]] as number;
   const lines: [number, number][] = [[wavelengths.kAlpha1, 1]];
   if (wavelengths.ratio > 0) lines.push([wavelengths.kAlpha2, wavelengths.ratio]);
   const out: PlacedPeak[] = [];
+  const structure = phase.structure;
+  const states = structure ? atomStates(phase, pl, p) : [];
   phase.reflections.forEach((reflection, k) => {
     const [h, kk, l] = reflection.hkl;
     const d = dSpacing(gStar, h, kk, l);
+    const mf2 = structure
+      ? reflection.members.reduce(
+          (sum, m) => sum + structureFactorSquared(structure, states, m, d),
+          0,
+        )
+      : reflection.mf2;
     const orientation =
       phase.orientation && r !== 1
         ? marchDollase(gStar, reflection.members, phase.orientation, r)
         : 1;
-    const common = scale * reflection.mf2 * orientation * Math.exp(-b / (2 * d * d));
+    const common = scale * mf2 * orientation * Math.exp(-b / (2 * d * d));
     lines.forEach(([lambda, weight], line) => {
       const s = lambda / (2 * d);
       if (!(s < 1)) return;
       const theta = Math.asin(s);
       const tan = Math.tan(theta);
       const h2 = u * tan * tan + v * tan + w;
+      let fwhm = Math.sqrt(Math.max(h2, 1e-8));
+      let mix = eta;
+      if (phase.tch) {
+        const hl = Math.max(0, lx / Math.cos(theta) + ly * tan);
+        const hg = fwhm;
+        fwhm = tchFwhm(hg, hl);
+        mix = tchEta(hl / fwhm);
+      }
       out.push({
         phase: index,
         reflection: k,
         twoTheta: (2 * theta) / RAD + zero + displacement * Math.cos(theta),
         area: common * weight * lorentzPolarisation(theta),
-        fwhm: Math.sqrt(Math.max(h2, 1e-8)),
-        eta,
+        fwhm,
+        eta: mix,
+        asymmetry: [p1 / tan, p2 / tan],
         line: line as 0 | 1,
       });
     });
@@ -243,13 +334,15 @@ export function addProfiles(
     const inv = 1 / peak.fwhm;
     const gNorm = 2 * SQRT_LN2_PI * inv;
     const lNorm = (2 / Math.PI) * inv;
+    const [a, b] = peak.asymmetry;
+    const asymmetric = a !== 0 || b !== 0;
     for (let i = start; i < end; i++) {
       const t = ((x[i] as number) - peak.twoTheta) * inv;
       const t2 = 4 * t * t;
-      out[i] =
-        (out[i] as number) +
+      const value =
         peak.area *
-          ((peak.eta * lNorm) / (1 + t2) + (1 - peak.eta) * gNorm * Math.exp(-Math.LN2 * t2));
+        ((peak.eta * lNorm) / (1 + t2) + (1 - peak.eta) * gNorm * Math.exp(-Math.LN2 * t2));
+      out[i] = (out[i] as number) + (asymmetric ? value * asymmetryFactor(t, a, b) : value);
     }
   }
 }

@@ -1,30 +1,23 @@
-import {
-  indexPattern,
-  type IndexingSolution,
-  type IndexSystem,
-} from '../core/xrd/reference/indexing';
+import { indexPattern, type IndexOptions, type IndexSolution } from '../core/xrd/indexing/index';
 
 export interface IndexingRequest {
   id: number;
   positions: number[];
-  wavelength: number;
-  systems: IndexSystem[];
-  tolerance: number;
+  options: IndexOptions;
 }
 
-export type IndexingResponse = { id: number; solutions: IndexingSolution[] | null };
+export type IndexingResponse =
+  | { id: number; kind: 'progress'; fraction: number }
+  | { id: number; kind: 'done'; solutions: IndexSolution[] };
 
-/** Tries cells off the main thread: a two-parameter search takes a second or more. */
+/** Indexing tries hundreds of thousands of trial cells, so it runs off the main thread. */
 self.onmessage = ({ data }: MessageEvent<IndexingRequest>) => {
-  let solutions: IndexingSolution[] | null;
-  try {
-    solutions = indexPattern(data.positions, data.wavelength, data.systems, {
-      tolerance: data.tolerance,
-      minEdge: 2,
-      maxEdge: 25,
-    });
-  } catch {
-    solutions = null;
-  }
-  (self as unknown as Worker).postMessage({ id: data.id, solutions } satisfies IndexingResponse);
+  const post = (message: IndexingResponse) => (self as unknown as Worker).postMessage(message);
+  let last = 0;
+  const solutions = indexPattern(data.positions, data.options, (fraction) => {
+    if (fraction - last < 0.02) return;
+    last = fraction;
+    post({ id: data.id, kind: 'progress', fraction });
+  });
+  post({ id: data.id, kind: 'done', solutions });
 };

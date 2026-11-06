@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { importFile, importText } from '../src/core/xrd/import';
+import { importFile, importFileAsync, importText } from '../src/core/xrd/import';
 import type { ImportResult } from '../src/core/xrd/types';
 
 // Every good fixture holds the same synthetic curve (see tests/fixtures/xrd/README.md):
@@ -154,16 +154,23 @@ describe('friendly errors', () => {
     expect(expectError(load(name))).toContain(message);
   });
 
-  it('says a binary .raw file cannot be read and how to export instead', () => {
+  it('says an old Bruker .raw file cannot be read yet and how to export instead', () => {
     const bytes = new Uint8Array([0x52, 0x41, 0x57, 0x31, 0, 0, 0, 3, 1, 2, 0, 0]);
     const error = expectError(importFile('scan.raw', bytes));
-    expect(error).toContain('binary files');
+    expect(error).toContain('only version 4 is read');
+    expect(error).toContain('save it as .xy or .brml');
+  });
+
+  it('says a binary .raw file from another instrument cannot be read', () => {
+    const bytes = new Uint8Array([0x01, 0x02, 0, 0, 3, 1, 2, 0, 0]);
+    const error = expectError(importFile('scan.raw', bytes));
+    expect(error).toContain('not a Bruker version 4 file');
     expect(error).toContain('export the scan as .xy or .csv');
   });
 
-  it('recognises a .brml (zip) file', () => {
+  it('reports a cut-off .brml (zip) file as incomplete', async () => {
     const bytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x14, 0, 0, 0]);
-    expect(expectError(importFile('scan.brml', bytes))).toContain('Bruker .brml');
+    expect(expectError(await importFileAsync('scan.brml', bytes))).toContain('incomplete');
   });
 
   it('reads a .raw file that is actually text', () => {

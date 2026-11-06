@@ -215,7 +215,7 @@ export function Wizard<D>({ title, steps, store }: WizardProps<D>) {
               <button type="button" class="btn btn-quiet" onClick={startOver}>
                 Start over
               </button>
-              <ValidateButton tool={title} />
+              <ValidateButton tool={title} offer={status === 'ready' && index === last} />
             </div>
           </div>
 
