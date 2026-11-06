@@ -109,7 +109,7 @@ export function UploadStep({ data, update }: StepContext<XrdData>) {
         <>
           <DataSources imageHref="#/xrd/image">
             <FileDrop
-              formats=".xy, .xye, .dat, .txt, .csv, .xrdml (PANalytical) or .ras (Rigaku). Files stay on your device."
+              formats=".xy, .xye, .dat, .txt, .csv, .xrdml (PANalytical), .ras and .rasx (Rigaku), .brml and .raw (Bruker). Files stay on your device."
               onFiles={importFiles}
               disabled={full}
             />
@@ -196,7 +196,7 @@ export function UploadStep({ data, update }: StepContext<XrdData>) {
       {patterns.length > 0 && (
         <section class="add-more" aria-label="Add more data">
           <FileDrop
-            formats=".xy, .xye, .dat, .txt, .csv, .xrdml (PANalytical) or .ras (Rigaku). Files stay on your device."
+            formats=".xy, .xye, .dat, .txt, .csv, .xrdml (PANalytical), .ras and .rasx (Rigaku), .brml and .raw (Bruker). Files stay on your device."
             onFiles={importFiles}
             disabled={full}
             compact

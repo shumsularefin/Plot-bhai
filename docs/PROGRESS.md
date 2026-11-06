@@ -1,5 +1,28 @@
 # Progress
 
+## Stage 16a: Bruker .brml and .raw, Rigaku .rasx, .xy/.xye export (done)
+
+Branch `claude/loving-noether-y55l76`. No new dependencies: ZIP archives are unpacked with the
+browser's own DecompressionStream (src/core/text/unzip.ts, CRC-32 checked).
+
+- **Upload (step 1):** reads Rigaku .rasx (src/core/xrd/parsers/rasx.ts), Bruker .brml
+  (brml.ts, columns found from the file's DataViews, absorber-corrected intensities kept as
+  stored) and Bruker .raw version 4 (brukerRaw.ts, record size honoured). Each reads the Kα1
+  wavelength and scan settings into the record. Older .raw versions are refused with a plain
+  message. Packed files go through the import worker (`importFileAsync`).
+- **Export (step 9):** a "Pattern files" section with, per pattern, measured .xy, measured .xye
+  (σ from the file, or √counts, or √(cps·t)/t when the counting time is known; refused with the
+  reason otherwise) and processed .xy. Headers start with # and state the unit and how σ was
+  made; the site reads its own files back exactly.
+- **Validation:** six real files (FAIRmat, cheminfo, geddes; sources and licences in
+  tests/fixtures-real/README.md) matched point by point against geddes's reference values and an
+  independent Python extraction; details and open items in docs/validation.md.
+- **Checks:** lint, type check, 944 unit tests, build, bundle size and e2e (now uploads the
+  three real formats in Chromium and checks the .xye) all pass.
+- **Open:** .raw versions 1 to 3 need real files; Materials Project/AMCSD (16f) waits for the
+  owner's backend approval and API key.
+- **Next:** 16b, Pearson VII and split pseudo-Voigt in Fit peaks; Rietveld peak asymmetry.
+
 ## Particle size: ImageJ tools in the wizard, Shift-snapping of drawn lines (done)
 
 Branch `claude/loving-noether-y55l76`. No new dependencies. The owner asked for the most useful

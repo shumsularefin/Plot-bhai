@@ -13,6 +13,7 @@ import { processingFor, type XrdData } from './data';
 import { referenceLanesFor } from './figure';
 import { xrdLabels } from './labels';
 import { methodsFor } from './methodsText';
+import { PatternFilesSection } from './PatternFilesSection';
 import { parseSession, serialiseSession } from './session';
 import { allTables, combinedCsv } from './tables';
 import { useProcessed } from './useProcessed';
@@ -91,8 +92,8 @@ export function ExportStep({ data, update }: StepContext<XrdData>) {
     <div class="export-step">
       <p class="field-hint">
         Everything for your paper in one place: the figure, a methods paragraph, every results table
-        as CSV, a full record and the session file. To read or change the numbers, go back to
-        Results.
+        as CSV, the patterns as .xy and .xye, a full record and the session file. To read or change
+        the numbers, go back to Results.
       </p>
       {data.patterns.map((pattern) => (
         <ProcessedFeed key={pattern.id} pattern={pattern} data={data} onResult={onResult} />
@@ -127,6 +128,12 @@ export function ExportStep({ data, update }: StepContext<XrdData>) {
 
       <MethodsSection text={methods} />
       <TablesSection tables={tables} />
+      <PatternFilesSection
+        patterns={data.patterns}
+        processed={processed}
+        radiation={data.radiation}
+        normalised={(id) => processingFor(data, id).normalise.enabled}
+      />
       <RecordSection
         build={() => xrdRecord(data, phases ?? [])}
         stem={data.patterns[0]?.name ?? 'xrd'}

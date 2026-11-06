@@ -1,4 +1,4 @@
-import { importFile, importText } from '../core/xrd/import';
+import { importFileAsync, importText } from '../core/xrd/import';
 import type { ImportResult } from '../core/xrd/types';
 
 export type ImportRequest =
@@ -22,7 +22,7 @@ scope.onmessage = async ({ data: request }) => {
   try {
     result =
       request.kind === 'file'
-        ? importFile(request.file.name, new Uint8Array(await request.file.arrayBuffer()))
+        ? await importFileAsync(request.file.name, new Uint8Array(await request.file.arrayBuffer()))
         : importText(request.name, request.text);
   } catch {
     result = { ok: false, error: 'Something went wrong while reading this file.' };

@@ -217,6 +217,18 @@ try {
   assert.match(csv, /## .*-peaks/);
   step('9 Export: all tables in one CSV');
 
+  const [xyeDownload] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Measured .xye' }).first().click(),
+  ]);
+  const xye = readFileSync(await xyeDownload.path(), 'utf8');
+  assert.match(xye, /^# Pattern: /);
+  assert.match(xye, /# Uncertainty: sigma = sqrt\(counts\)/);
+  const row = xye.split('\n').find((line) => !line.startsWith('#') && line.trim() !== '');
+  const [, counts, sigma] = row.split(' ').map(Number);
+  assert.equal(sigma, counts > 0 ? Math.sqrt(counts) : 1);
+  step('9 Export: measured pattern as .xye with sigma = sqrt(counts)');
+
   const [sessionDownload] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: 'Download session (JSON)' }).click(),
@@ -255,6 +267,34 @@ try {
   });
   await page.getByText('This is not a Plot Bhai XRD session file.').waitFor();
   step('9 Export: a foreign JSON file is refused');
+
+  // Real instrument files: the packed (.rasx, .brml) and binary (.raw) readers in the worker.
+  await page.evaluate(() =>
+    indexedDB.databases().then((dbs) => dbs.forEach((d) => indexedDB.deleteDatabase(d.name))),
+  );
+  await page.goto(`http://localhost:${PORT}/#/xrd`);
+  await page.reload();
+  await heading().waitFor();
+  await page
+    .locator('input[type=file]')
+    .first()
+    .setInputFiles([
+      'tests/fixtures-real/rigaku_powder.rasx',
+      'tests/fixtures-real/bruker_absorber.brml',
+      'tests/fixtures-real/bruker4_v5converter.raw',
+    ]);
+  for (const [badge, points] of [
+    ['Rigaku RASX', '2,726'],
+    ['Bruker BRML', '2,001'],
+    ['Bruker RAW', '4,059'],
+  ]) {
+    const card = page
+      .locator('article, section, li')
+      .filter({ hasText: badge })
+      .filter({ hasText: points });
+    await card.first().waitFor({ timeout: 20_000 });
+  }
+  step('1 Upload: real .rasx, .brml and .raw files read in the browser');
 
   // UV-Vis: example data, blank subtraction, Tauc band gap, results, methods text.
   await page.goto(`http://localhost:${PORT}/#/uvvis`);

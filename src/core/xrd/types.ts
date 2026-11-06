@@ -11,7 +11,18 @@ export interface DataMessage {
 
 /** Format a file was read as. */
 export type SourceFormat =
-  'xy' | 'xye' | 'csv' | 'text' | 'xrdml' | 'ras' | 'pasted' | 'synthetic' | 'digitized';
+  | 'xy'
+  | 'xye'
+  | 'csv'
+  | 'text'
+  | 'xrdml'
+  | 'ras'
+  | 'rasx'
+  | 'brml'
+  | 'raw'
+  | 'pasted'
+  | 'synthetic'
+  | 'digitized';
 
 /** How a pattern read off a figure image was made. Its values are approximate. */
 export interface DigitizedInfo {

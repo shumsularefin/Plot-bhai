@@ -39,7 +39,7 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 14b       | About page, PWA, deploy, final status (items 5–8)            | done    |
 | 15        | Gemini (optional; only when asked)                           | skipped |
 | audit     | Research-readiness audit against the user's data             | done    |
-| 16a       | XRD formats (.brml, .rasx, .raw) and .xy/.xye export         | todo    |
+| 16a       | XRD formats (.brml, .rasx, .raw) and .xy/.xye export         | done    |
 | 16b       | Pearson VII, split pseudo-Voigt, Rietveld peak asymmetry     | todo    |
 | 16c       | 3D crystal structure viewer with distances and angles        | todo    |
 | 16d       | Indexing an unknown pattern (Web Worker)                     | todo    |

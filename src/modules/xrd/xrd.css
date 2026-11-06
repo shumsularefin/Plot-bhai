@@ -935,6 +935,20 @@
   list-style: none;
 }
 
+.pattern-files {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.pattern-files-name {
+  flex: 1 1 100%;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
 .export-step > section + section {
   margin-top: 2rem;
 }
