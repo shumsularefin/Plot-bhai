@@ -154,7 +154,7 @@ describe('Credits', () => {
     fireEvent.click(screen.getByRole('button', { name: 'About' }));
     const text = screen.getByRole('dialog').textContent ?? '';
     for (const part of [
-      'Fit',
+      'Shumsul Arefin',
       'graduate student',
       'Dr. MD Kamruzzaman',
       'Professor and Chairman',
@@ -162,6 +162,9 @@ describe('Credits', () => {
       'Lecturer',
     ])
       expect(text).toContain(part);
+    expect(screen.getByRole('link', { name: 'Shumsul Arefin' }).getAttribute('href')).toBe(
+      'https://shumsul-arefin.web.app',
+    );
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });

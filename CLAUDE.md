@@ -99,7 +99,7 @@ Thermal wizard order: 1 Upload and describe the run (atmosphere, heating rate, s
 
 Independent validation in CI (approved November 2026): `.github/workflows/validation.yml` builds GSAS-II from source and installs pymatgen on GitHub (they cannot be installed in the session container), runs `scripts/validation/`, and commits the reference fixtures to `tests/fixtures/validation/`; unit tests compare this site's results with them. Rerun it (Actions, "Validation", Run workflow) after changing the Rietveld model, the structure factor or the crystal geometry.
 
-Feedback and credits: when the last step of a tool is reached, the Validate pop-up opens once per analysis as a voluntary offer ("Not now" closes it); the Validate button stays for later. The home page has a small About button with the credits (designed and developed by Fit; supervisors Dr. MD Kamruzzaman and S. M. Fazle Rabbi, Department of Applied Chemistry and Chemical Engineering, GSTU), repeated on the About page.
+Feedback and credits: when the last step of a tool is reached, the Validate pop-up opens once per analysis as a voluntary offer ("Not now" closes it); the Validate button stays for later. The home page has a small About button with the credits (designed and developed by Shumsul Arefin, linked to shumsul-arefin.web.app; supervisors Dr. MD Kamruzzaman and S. M. Fazle Rabbi, Department of Applied Chemistry and Chemical Engineering, GSTU), repeated on the About page.
 
 ## 9. Out of scope
 

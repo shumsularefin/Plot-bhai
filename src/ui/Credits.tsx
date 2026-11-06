@@ -6,8 +6,12 @@ export function CreditsText() {
   return (
     <>
       <p>
-        Designed and developed by <strong>Fit</strong>, graduate student, Department of Applied
-        Chemistry and Chemical Engineering, Gopalganj Science and Technology University (GSTU).
+        Designed and developed by{' '}
+        <a href="https://shumsul-arefin.web.app" target="_blank" rel="noopener noreferrer">
+          <strong>Shumsul Arefin</strong>
+        </a>
+        , graduate student, Department of Applied Chemistry and Chemical Engineering, Gopalganj
+        Science and Technology University (GSTU).
       </p>
       <p>Supervised by:</p>
       <ul>

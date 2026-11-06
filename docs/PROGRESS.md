@@ -13,8 +13,8 @@ GitHub, in `.github/workflows/validation.yml`).
 - **Feedback:** the Validate pop-up opens once per analysis when the last step is reached, as a
   voluntary offer ("Not now").
 - **Home:** a small About button with the credits (also on the About page). The university is
-  written "Gopalganj Science and Technology University (GSTU)": the request said "Kopalganj"
-  but also "GSTU", so this is assumed to be a typo, to confirm.
+  written "Gopalganj Science and Technology University (GSTU)" (confirmed by the owner), and the
+  developer is Shumsul Arefin, linked to https://shumsul-arefin.web.app.
 - **Validation in CI:** GSAS-II (built from source) simulates and refines anatase (TCH, O z,
   U_iso) and rutile (U_ij); pymatgen gives distances and powder lines for four CIFs. The
   fixtures are committed by the workflow; tests compare against them (docs/validation.md, 16g).
