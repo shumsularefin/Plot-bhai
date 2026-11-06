@@ -1,7 +1,8 @@
 """Structure-refinement and TCH-profile check against GSAS-II (run by .github/workflows/validation.yml).
 
 Usage: python -I structure.py <work dir> <repo dir>
-Simulates two Cu Ka1/Ka2 patterns in GSAS-II with known answers and refines each in GSAS-II too:
+Simulates two Cu Ka1/Ka2 patterns in GSAS-II with known answers (no anomalous dispersion, no
+sample broadening, as in this site's model) and refines each in GSAS-II too:
   anatase-tch:  COD 9015929, Thompson-Cox-Hastings widths U, V, W, X, Y of cu.instprm, almost no
                 asymmetry (SH/L = 0.0001), O z raised by 0.003, U_iso(Ti) = 0.006, U_iso(O) = 0.012 A^2.
   rutile-aniso: COD 9007531, the same instrument, O x raised by 0.002, anisotropic U_ij allowed by
@@ -9,9 +10,17 @@ Simulates two Cu Ka1/Ka2 patterns in GSAS-II with known answers and refines each
 Each writes tests/fixtures/validation/<case>.xy (2theta, counts with Poisson noise, seed 11) and
 <case>.json (truth, GSAS-II refinement with esd, versions).
 """
-import json, os, subprocess, sys
+import json, os, sys
 import numpy as np
+import GSASII.GSASIIElem as G2el
 import GSASII.GSASIIscriptable as G
+
+# This site's structure factor has no anomalous dispersion (powder.ts), so f' and f'' are set to
+# zero in GSAS-II too (GSASIIstrIO.py always computes them with FPcalc for X-rays).
+G2el.FPcalc = lambda orbs, kev: (0.0, 0.0, 0.0)
+# GSAS-II adds sample broadening by default (isotropic size 1 um, microstrain 1000, both
+# Lorentzian: GSASIImath.SetDefaultDData). It is made negligible, so the profile is U, V, W, X, Y.
+SIZE_UM, MUSTRAIN = 1.0e5, 0.0
 
 work, repo = sys.argv[1], sys.argv[2]
 out = os.path.join(repo, 'tests', 'fixtures', 'validation')
@@ -28,6 +37,12 @@ def atoms_of(ph):
     return ph.data['Atoms'], cx, ct, cia
 
 
+def no_sample_broadening(ph):
+    for hap in ph.data['Histograms'].values():
+        hap['Size'][1][0] = SIZE_UM
+        hap['Mustrain'][1][0] = MUSTRAIN
+
+
 def describe(ph):
     atoms, cx, ct, cia = atoms_of(ph)
     return [{'label': a[ct - 1], 'element': a[ct], 'x': a[cx:cx + 3], 'occupancy': a[cx + 3],
@@ -39,6 +54,7 @@ def simulate(case, cif, change):
     ph = gpx.add_phase(os.path.join(repo, 'scripts', 'cif-cache', cif), phasename=case, fmthint='CIF')
     h = gpx.add_simulated_powder_histogram('sim', inst, 20.0, 130.0, Tstep=0.02, phases=[ph], scale=400.0)
     change(ph)
+    no_sample_broadening(ph)
     h.data['Background'][0] = ['chebyschev-1', True, 3, 200.0, -40.0, 10.0]
     gpx.data['Controls']['data']['max cyc'] = 0
     gpx.do_refinements([{}])
@@ -55,11 +71,11 @@ def refine(case, cif, aniso):
     h = gpx.add_powder_histogram(os.path.join(work, 'run', f'{case}.xy'), inst, fmthint='xye')
     ph = gpx.add_phase(os.path.join(repo, 'scripts', 'cif-cache', cif), phasename=case, fmthint='CIF', histograms=[h])
     atoms, cx, ct, cia = atoms_of(ph)
-    for a in atoms:
-        if aniso and a[cia] != 'A':
-            u = a[cia + 1]
-            a[cia] = 'A'
-            a[cia + 2:cia + 8] = [u, u, u, 0.0, 0.0, 0.0]
+    for a in atoms:  # start from an isotropic 0.01 A^2 (COD 9015929 lists its U_ij out of order)
+        a[cia] = 'A' if aniso else 'I'
+        a[cia + 1] = 0.01
+        a[cia + 2:cia + 8] = [0.01, 0.01, 0.01, 0.0, 0.0, 0.0]
+    no_sample_broadening(ph)
     h.data['Background'][0] = ['chebyschev-1', True, 6, 100.0, 0, 0, 0, 0, 0]
     gpx.data['Controls']['data']['max cyc'] = 30
     gpx.do_refinements([
@@ -110,6 +126,7 @@ for case, cif, change, aniso in (('anatase-tch', '9015929.cif', anatase, False),
         'cif': cif,
         'wavelengths': {'kAlpha1': ip0['Lam1'], 'kAlpha2': ip0['Lam2'], 'ratio': ip0['I(L2)/I(L1)']},
         'instrument': {k: ip0[k] for k in ('Zero', 'U', 'V', 'W', 'X', 'Y', 'SH/L', 'Polariz.')},
+        'sample': {'sizeMicrons': SIZE_UM, 'mustrain': MUSTRAIN, 'anomalousDispersion': False},
         'truth': truth,
         'ymax': ymax,
         'gsas2': refine(case, cif, aniso),
