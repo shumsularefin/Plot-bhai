@@ -217,6 +217,11 @@ async function walkToExport(log) {
   // 7 Results
   await page.getByText('Summary').first().waitFor({ timeout: 20_000 });
   note('8 Results shown');
+  await page.locator('.results-tabs label', { hasText: 'Phases, (hkl) and lattice' }).click();
+  await page.getByRole('heading', { name: /Index an unknown pattern/ }).waitFor();
+  for (const system of ['orthorhombic', 'monoclinic', 'triclinic'])
+    await page.getByLabel(system, { exact: true }).waitFor();
+  note('8 Results: the same cell search as step 3, with all six systems');
   await next('Export for your paper');
 }
 

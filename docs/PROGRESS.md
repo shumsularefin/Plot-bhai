@@ -1,5 +1,19 @@
 # Progress
 
+## One cell search (done, owner request November 2026)
+
+Branch `claude/loving-noether-y55l76`, after PR 57 (viewer) was merged and deployed.
+
+- The Results step's "Find the unit cell without a reference" (cubic, tetragonal and hexagonal
+  only) is replaced by the Choose material search, `IndexingPanel`: cubic, tetragonal, hexagonal,
+  orthorhombic, monoclinic and triclinic (trigonal cells are found as hexagonal), ranked by
+  M20 and F_N, with the same warnings and CSV. In Results it indexes the fitted peaks (the
+  lowest-angle 20) of the chosen pattern, or the detected peaks when none are fitted.
+- Removed with it: `IndexingSection.tsx`, `indexingFitClient.ts`, `indexingFit.worker.ts`,
+  `core/xrd/reference/indexing.ts` and `tests/xrdIndexing.test.ts` (no other code used them). The
+  engine that stays is `core/xrd/indexing/index.ts`, validated in docs/validation.md 16d and 16g.
+- Closes the "two cell searches" issue in stage 16g.
+
 ## Crystal structure viewer redrawn (done, owner request November 2026)
 
 Branch `claude/loving-noether-y55l76`. No new dependencies; still SVG, no 3D library.
@@ -37,8 +51,7 @@ GitHub, in `.github/workflows/validation.yml`).
   ImageJ tools (Adjust the image, Auto Threshold, Set Measurements, line profile) were ported into
   main's "Find the particles" step. Main's simpler cell search in the Results step (cubic,
   tetragonal, hexagonal, from fitted peaks) stays as it was, with its worker renamed
-  `indexingFit.worker.ts`; the Choose material search above is separate. Two cell searches exist
-  now; the owner may want to unify them.
+  `indexingFit.worker.ts`; the Choose material search above is separate. They have since been unified (see the top entry).
 - **Known issue:** COD 9015929 (anatase) has its U_ij columns out of order (docs/validation.md).
 - **Open:** no DICVOL/TREOR comparison for low-symmetry indexing.
 
