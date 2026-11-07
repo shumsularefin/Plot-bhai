@@ -91,8 +91,9 @@ export function GsasSection({ data, phases }: { data: XrdData; phases: Reference
         GSAS-II starting set
       </h3>
       <p class="field-hint">
-        To check or continue the refinement in GSAS-II: load the measured .xye above as the powder
-        data with this .instprm file, then add each phase from its CIF.{' '}
+        Optional. Your analysis is already finished on this site; these files are only for a
+        reviewer who wants it checked or continued in GSAS-II. Load the measured .xye above as the
+        powder data with this .instprm file, then add each phase from its CIF.{' '}
         <HelpTip term="GSAS-II starting set">
           <p>
             GSAS-II describes the peak shape with separate Gaussian (U, V, W) and Lorentzian (X, Y)

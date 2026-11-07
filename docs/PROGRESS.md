@@ -1,5 +1,20 @@
 # Progress
 
+## Crystal structure viewer redrawn (done, owner request November 2026)
+
+Branch `claude/loving-noether-y55l76`. No new dependencies; still SVG, no 3D library.
+
+- Shaded spheres (one radial gradient per element), two-coloured bonds, mild perspective, and
+  atoms, bonds and cell edges drawn back to front, so nearer objects cover farther ones; cell
+  edges behind the centre are dashed and stop at corner atoms.
+- Styles: ball and stick, space filling (full covalent radius), sticks. Buttons to look down a, b
+  or c (as in VESTA), Reset, optional atom labels, picked atoms numbered, an a, b, c axis triad.
+- Drag and pinch updates are applied once per animation frame, so rotation stays smooth on
+  phones. Distances and angles still come from the metric tensor (unchanged, docs/validation.md
+  16c); only the drawing changed.
+- Export step: the pattern files and the GSAS-II set are now labelled optional, since the
+  analysis itself is finished on the site.
+
 ## Stage 16g: owner additions (done)
 
 Branch `claude/loving-noether-y55l76`. No new dependencies (GSAS-II and pymatgen run only on
