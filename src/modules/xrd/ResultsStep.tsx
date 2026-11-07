@@ -1,5 +1,7 @@
-import { useState } from 'preact/hooks';
+import { useMemo, useState } from 'preact/hooks';
 import type { CorrectionMethod } from '../../core/xrd/instrument/correction';
+import { peakTable } from '../../core/xrd/peaks/table';
+import { ANODES } from '../../core/xrd/radiation';
 import type { Estimate } from '../../core/xrd/size/methods';
 import { formatWithSigma } from '../../ui/format';
 import { HelpTip } from '../../ui/HelpTip';
@@ -9,10 +11,10 @@ import { xrayDensity } from '../../core/xrd/analysis/density';
 import { PaperComparison } from './PaperComparison';
 import { assignmentFor } from './assignment';
 import { AssignmentSection } from './AssignmentSection';
-import { IndexingSection } from './IndexingSection';
+import { IndexingPanel } from './IndexingPanel';
 import { downloadTable } from './csv';
 import { ExtraAnalysisSection } from './ExtraAnalysisSection';
-import type { PatternChoices, ResultsSettings, XrdData } from './data';
+import { peaksFor, type PatternChoices, type ResultsSettings, type XrdData } from './data';
 import { NumberInput } from './NumberInput';
 import { CheckLog, LineDetails, ScherrerDetails, TableBox } from './MethodDetails';
 import { sizePeaksTable, sizeSummaryTable } from './tables';
@@ -57,6 +59,13 @@ export function ResultsStep({ data, update }: StepContext<XrdData>) {
   const [refineZeroShift, setRefineZeroShift] = useState(false);
   const { phases, failed } = useCandidatePhases(data.material);
   const [tab, setTab] = useState<Tab>('size');
+  // Fitted peak positions for the cell search; without a fit it uses the detected peaks.
+  const fit = pattern ? peaksFor(data, pattern.id).fit : undefined;
+  const lambda = ANODES[data.radiation.anode].kAlpha1;
+  const fittedPositions = useMemo(
+    () => (fit ? peakTable(fit.regions, lambda).map((r) => r.twoTheta) : undefined),
+    [fit, lambda],
+  );
 
   if (!pattern) return <p>No patterns are loaded. Go back to Upload to add one.</p>;
   const results = sizeResults(data, pattern.id);
@@ -312,7 +321,9 @@ export function ResultsStep({ data, update }: StepContext<XrdData>) {
           onRefineZeroShift={setRefineZeroShift}
         />
       )}
-      {tab === 'phases' && <IndexingSection data={data} patternId={pattern.id} />}
+      {tab === 'phases' && (
+        <IndexingPanel data={data} patternId={pattern.id} fitted={fittedPositions} />
+      )}
 
       {tab === 'more' && (
         <ExtraAnalysisSection

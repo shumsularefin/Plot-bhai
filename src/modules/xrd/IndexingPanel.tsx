@@ -43,9 +43,21 @@ const cellText = (s: IndexSolution) => {
   }
 };
 
-/** "Index an unknown pattern": suggests cells for the strongest detected peaks, in a worker. */
-export function IndexingPanel({ data }: { data: XrdData }) {
-  const [patternId, setPatternId] = useState(data.patterns[0]?.id);
+interface IndexingPanelProps {
+  data: XrdData;
+  /** Fixes the pattern (no selector). Without it the user picks one. */
+  patternId?: string;
+  /** Fitted peak positions (° 2θ) to index instead of the strongest detected peaks. */
+  fitted?: number[] | undefined;
+}
+
+/**
+ * "Index an unknown pattern": suggests cells for the strongest detected peaks, or for the fitted
+ * peaks when given, in a worker.
+ */
+export function IndexingPanel({ data, patternId: fixedId, fitted }: IndexingPanelProps) {
+  const [chosenId, setPatternId] = useState(data.patterns[0]?.id);
+  const patternId = fixedId ?? chosenId;
   const { pattern, detected } = useMeasured(data, patternId);
   const [tolerance, setTolerance] = useState(DEFAULT_INDEXING.tolerance);
   const [systems, setSystems] = useState<IndexSystem[]>(DEFAULT_INDEXING.systems);
@@ -54,12 +66,17 @@ export function IndexingPanel({ data }: { data: XrdData }) {
   const [failed, setFailed] = useState(false);
 
   // The strongest lines (by prominence), then in order of angle: weak lines are often noise.
-  const positions = (detected ?? [])
-    .slice()
-    .sort((a, b) => b.prominence - a.prominence)
-    .slice(0, MAX_LINES)
-    .map((p) => p.center)
-    .sort((a, b) => a - b);
+  const positions = fitted
+    ? fitted
+        .slice()
+        .sort((a, b) => a - b)
+        .slice(0, MAX_LINES)
+    : (detected ?? [])
+        .slice()
+        .sort((a, b) => b.prominence - a.prominence)
+        .slice(0, MAX_LINES)
+        .map((p) => p.center)
+        .sort((a, b) => a - b);
   const wavelength = ANODES[data.radiation.anode].kAlpha1;
   const hasKAlpha2 =
     pattern !== undefined &&
@@ -116,7 +133,8 @@ export function IndexingPanel({ data }: { data: XrdData }) {
             M20 (the position fit, divided by how many lines the cell could give) and Smith and
             Snyder&apos;s F_N (the same idea in degrees 2θ). Higher is better. Several cells can
             index the same lines, so compare the top suggestions, and confirm the cell, for example
-            with a structure of that cell or a refinement. Indexing does not solve the structure.
+            with a structure of that cell or a refinement. Trigonal cells are found as hexagonal
+            ones. Indexing does not solve the structure.
           </p>
         </HelpTip>
       </h4>
@@ -126,7 +144,7 @@ export function IndexingPanel({ data }: { data: XrdData }) {
         index the lines by chance; when two cells fit about equally, the one of higher symmetry is
         listed first.
       </p>
-      {data.patterns.length > 1 && (
+      {fixedId === undefined && data.patterns.length > 1 && (
         <label class="inline-field">
           Pattern
           <select value={pattern?.id} onChange={(e) => setPatternId(e.currentTarget.value)}>
@@ -145,8 +163,9 @@ export function IndexingPanel({ data }: { data: XrdData }) {
         </p>
       )}
       <p>
-        Using the {positions.length} strongest peaks found in the cleaned pattern (at most{' '}
-        {MAX_LINES}), wavelength {wavelength} Å.
+        Using the {positions.length} {fitted ? 'lowest-angle fitted' : 'strongest'} peaks{' '}
+        {fitted ? 'of the Fit peaks step' : 'found in the cleaned pattern'} (at most {MAX_LINES}),
+        wavelength {wavelength} Å.
       </p>
       <fieldset class="method-choice">
         <legend>Crystal systems to try</legend>
@@ -190,8 +209,8 @@ export function IndexingPanel({ data }: { data: XrdData }) {
       </label>
       {positions.length < MIN_LINES ? (
         <p class="message is-warning">
-          Indexing needs at least {MIN_LINES} peaks; {positions.length} were found. Lower the
-          detection threshold in Fit peaks, or measure a wider 2θ range.
+          Indexing needs at least {MIN_LINES} peaks; {positions.length} were found. Fit more peaks
+          (lower the detection threshold in Fit peaks), or measure a wider 2θ range.
         </p>
       ) : progress !== null ? (
         <p aria-busy="true">
