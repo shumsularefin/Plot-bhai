@@ -202,6 +202,34 @@
   justify-self: start;
 }
 
+.pattern-card > .summary-grid {
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+}
+
+.pattern-details {
+  font-size: var(--text-sm);
+}
+
+.pattern-details > summary {
+  min-height: var(--touch-target);
+  display: flex;
+  align-items: center;
+  color: var(--color-text-muted);
+}
+
+.pattern-details[open] {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.pattern-notes {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-5);
+  color: var(--color-text-muted);
+}
+
 .clean-step {
   display: grid;
   gap: var(--space-4);
@@ -545,17 +573,40 @@
 
 .method-stack {
   display: grid;
-  gap: var(--space-1);
+  gap: var(--space-2);
+  width: 100%;
 }
 
+.method-stack legend {
+  margin-bottom: var(--space-2);
+  color: var(--color-text-muted);
+}
+
+/* Each choice is a card: the whole card is the click target and the chosen one is outlined. */
 .method-option {
+  display: flex;
   align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.method-option:has(input:checked) {
+  border-color: var(--color-accent);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+
+/* Line the button up with the first line of the option's name. */
+.method-option > input {
+  margin-top: 0.2em;
 }
 
 .method-option > span {
   display: grid;
   gap: var(--space-1);
-  padding-block: var(--space-2);
+  min-width: 0;
 }
 
 .method-text {

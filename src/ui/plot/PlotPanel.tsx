@@ -1,5 +1,5 @@
 import type { ComponentChildren } from 'preact';
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useEffect, useId, useMemo, useRef, useState } from 'preact/hooks';
 import { Advanced } from '../Advanced';
 import { Dock } from '../Dock';
 import { HelpTip } from '../HelpTip';
@@ -23,10 +23,18 @@ import type { AxisLabels, Domain, PlotBand, PlotMarker } from './types';
 import { zoomDomain } from './view';
 import './plot.css';
 
+/**
+ * How several curves share the plot: on top of each other, lifted by a fixed step (a waterfall
+ * whose peaks may still cross), or stacked so that no two curves overlap.
+ */
+export type PlotLayout = 'overlap' | 'offset' | 'stack';
+
 export interface PlotSettings {
   normalise: boolean;
-  /** Vertical offset between overlaid patterns, percent of the tallest pattern. */
+  /** Vertical offset between overlaid patterns (or gap between stacked ones), percent of the tallest pattern. */
   offsetPercent: number;
+  /** Missing in sessions saved before the choice existed: then 'offset' when offsetPercent > 0. */
+  layout?: PlotLayout;
   export: ExportSettings;
   /** Figure styling per plot (keyed by the plot's export name), from the figure editor. */
   figures?: Record<string, Partial<FigureStyle>>;
@@ -76,15 +84,30 @@ const residualHeight = (width: number) => Math.round(Math.min(160, Math.max(90, 
 
 const round = (value: number) => Number(value.toFixed(3));
 
+const LAYOUTS: { id: PlotLayout; label: string }[] = [
+  { id: 'overlap', label: 'Overlap' },
+  { id: 'offset', label: 'Offset' },
+  { id: 'stack', label: 'Stack' },
+];
+
+/** The layout in use, reading sessions saved before the choice existed from their offset. */
+export function plotLayout(settings: PlotSettings): PlotLayout {
+  return settings.layout ?? (settings.offsetPercent > 0 ? 'offset' : 'overlap');
+}
+
 /** Plot with range controls, normalise and offset options, legend and figure export. */
 export function PlotPanel(props: PlotPanelProps) {
   const { sources, settings, onSettingsChange, labels, xName, xUnit, exportName } = props;
   const overlay = props.showOverlayOptions ?? true;
   const normalise = overlay && settings.normalise;
-  const offsetFraction = overlay && sources.length > 1 ? settings.offsetPercent / 100 : 0;
+  const layout = plotLayout(settings);
+  const layoutId = useId();
+  const several = overlay && sources.length > 1;
+  const offsetFraction = several && layout !== 'overlap' ? settings.offsetPercent / 100 : 0;
+  const stack = several && layout === 'stack';
   const series = useMemo(
-    () => prepareSeries(sources, { normalise, offsetFraction }),
-    [sources, normalise, offsetFraction],
+    () => prepareSeries(sources, { normalise, offsetFraction, stack }),
+    [sources, normalise, offsetFraction, stack],
   );
   const [lo, hi] = xExtent(series);
   const extent: Domain = useMemo(() => [lo, hi], [lo, hi]);
@@ -319,6 +342,41 @@ export function PlotPanel(props: PlotPanelProps) {
         )}
         {overlay && (
           <div class="plot-options">
+            {sources.length > 1 && (
+              <div class="plot-layout">
+                <span id={layoutId}>Several patterns</span>
+                <HelpTip term="overlap, offset and stack">
+                  <p>
+                    <strong>Overlap</strong> draws every pattern on the same baseline.{' '}
+                    <strong>Offset</strong> lifts each pattern by the same step, so tall peaks can
+                    still cross the pattern above. <strong>Stack</strong> places each pattern just
+                    above the one below it, so none overlap, like a stacked graph in Origin. The
+                    first pattern in the list is at the bottom. Only the drawing changes; the stored
+                    data and the values read from the plot stay the same.
+                  </p>
+                </HelpTip>
+                <div class="segmented" role="radiogroup" aria-labelledby={layoutId}>
+                  {LAYOUTS.map((l) => (
+                    <label key={l.id} class={layout === l.id ? 'is-selected' : undefined}>
+                      <input
+                        type="radio"
+                        name={layoutId}
+                        checked={layout === l.id}
+                        onChange={() =>
+                          onSettingsChange({
+                            layout: l.id,
+                            // A gap of 0 would make Offset look the same as Overlap.
+                            ...(l.id !== 'overlap' &&
+                              settings.offsetPercent === 0 && { offsetPercent: 20 }),
+                          })
+                        }
+                      />
+                      {l.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
             <label class="check">
               <input
                 type="checkbox"
@@ -334,9 +392,9 @@ export function PlotPanel(props: PlotPanelProps) {
                 differ. The stored data are not changed.
               </p>
             </HelpTip>
-            {sources.length > 1 && (
+            {sources.length > 1 && layout !== 'overlap' && (
               <label class="plot-offset">
-                Vertical offset
+                {layout === 'stack' ? 'Gap' : 'Step'}
                 <input
                   type="range"
                   min={0}

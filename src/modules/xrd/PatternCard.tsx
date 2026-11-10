@@ -29,7 +29,10 @@ interface PatternCardProps {
   onRemove: () => void;
 }
 
-/** Summary card for one loaded pattern, with its messages shown right where they apply. */
+/**
+ * Summary card for one loaded pattern: the essentials, any problem shown right where it applies,
+ * and the file's details and notes folded away until asked for.
+ */
 export function PatternCard({ pattern, onChange, onConvertRadians, onRemove }: PatternCardProps) {
   const summary = useMemo(
     () => summarise(pattern.twoTheta, pattern.intensity),
@@ -37,6 +40,9 @@ export function PatternCard({ pattern, onChange, onConvertRadians, onRemove }: P
   );
   const check = useMemo(() => checkPattern(pattern), [pattern]);
   const messages = [...pattern.notes, ...check.messages];
+  // Problems and checks stay in view; plain notes about the file wait under "More about this file".
+  const alerts = messages.filter((m) => m.level !== 'info');
+  const notes = messages.filter((m) => m.level === 'info');
   const unit = UNIT_NAMES[pattern.intensityUnit];
   const deg = (v: number) => `${formatNumber(v, 3)}°`;
   const id = `pattern-${pattern.id}`;
@@ -83,18 +89,6 @@ export function PatternCard({ pattern, onChange, onConvertRadians, onRemove }: P
           <dt>Points</dt>
           <dd>{summary.points.toLocaleString('en')}</dd>
         </div>
-        <div>
-          <dt>Max intensity</dt>
-          <dd>
-            {formatNumber(summary.maxIntensity, 3)} {unit} at {deg(summary.maxIntensityAt)}
-          </dd>
-        </div>
-        {pattern.countingTimeS !== undefined && (
-          <div>
-            <dt>Counting time</dt>
-            <dd>{formatNumber(pattern.countingTimeS)} s per point</dd>
-          </div>
-        )}
         {pattern.digitized && (
           <div>
             <dt>Read from</dt>
@@ -104,26 +98,7 @@ export function PatternCard({ pattern, onChange, onConvertRadians, onRemove }: P
             </dd>
           </div>
         )}
-        {pattern.wavelengthFromFileA !== undefined && (
-          <div>
-            <dt>Wavelength in file</dt>
-            <dd>{formatNumber(pattern.wavelengthFromFileA, 6)} Å (as written in the file)</dd>
-          </div>
-        )}
       </dl>
-      {pattern.metadata && pattern.metadata.length > 0 && (
-        <details class="pattern-metadata">
-          <summary>Measurement settings from the file header ({pattern.metadata.length})</summary>
-          <dl class="summary-grid">
-            {pattern.metadata.map((field, i) => (
-              <div key={i}>
-                <dt>{field.key}</dt>
-                <dd>{field.value}</dd>
-              </div>
-            ))}
-          </dl>
-        </details>
-      )}
 
       {!pattern.digitized && (
         <div class="pattern-unit">
@@ -151,9 +126,9 @@ export function PatternCard({ pattern, onChange, onConvertRadians, onRemove }: P
         </div>
       )}
 
-      {messages.length > 0 && (
+      {alerts.length > 0 && (
         <ul class="pattern-messages">
-          {messages.map((m, i) => (
+          {alerts.map((m, i) => (
             <li key={i} class={`message is-${m.level}`}>
               <strong>{LEVEL_LABELS[m.level]}:</strong> {m.text}
             </li>
@@ -165,6 +140,53 @@ export function PatternCard({ pattern, onChange, onConvertRadians, onRemove }: P
           Convert 2θ from radians to degrees
         </button>
       )}
+
+      <details class="pattern-details">
+        <summary>
+          More about this file
+          {notes.length > 0 && ` (${notes.length} ${notes.length === 1 ? 'note' : 'notes'})`}
+        </summary>
+        <dl class="summary-grid">
+          <div>
+            <dt>Max intensity</dt>
+            <dd>
+              {formatNumber(summary.maxIntensity, 3)} {unit} at {deg(summary.maxIntensityAt)}
+            </dd>
+          </div>
+          {pattern.countingTimeS !== undefined && (
+            <div>
+              <dt>Counting time</dt>
+              <dd>{formatNumber(pattern.countingTimeS)} s per point</dd>
+            </div>
+          )}
+          {pattern.wavelengthFromFileA !== undefined && (
+            <div>
+              <dt>Wavelength in file</dt>
+              <dd>{formatNumber(pattern.wavelengthFromFileA, 6)} Å (as written in the file)</dd>
+            </div>
+          )}
+        </dl>
+        {notes.length > 0 && (
+          <ul class="pattern-notes">
+            {notes.map((m, i) => (
+              <li key={i}>{m.text}</li>
+            ))}
+          </ul>
+        )}
+        {pattern.metadata && pattern.metadata.length > 0 && (
+          <details class="pattern-metadata">
+            <summary>Measurement settings from the file header ({pattern.metadata.length})</summary>
+            <dl class="summary-grid">
+              {pattern.metadata.map((field, i) => (
+                <div key={i}>
+                  <dt>{field.key}</dt>
+                  <dd>{field.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </details>
+        )}
+      </details>
     </article>
   );
 }

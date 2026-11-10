@@ -1,5 +1,20 @@
 # Progress
 
+## Upload card, correction method and stacked plots (done, owner request November 2026)
+
+Branch `claude/laughing-keller-tjba6r`. No new dependencies.
+
+- Upload: each pattern card shows only 2θ range, step, points, the intensity unit and any
+  problem or check. Maximum intensity, counting time, wavelength in the file, plain notes and
+  the header settings are folded under "More about this file".
+- Instrument correction: the three correction methods are shown as cards (the chosen one
+  outlined, the button lined up with its name) instead of faint radio buttons.
+- Plots with several patterns (every tool): "Several patterns" chooses Overlap, Offset (each
+  pattern lifted by the same step, as before; peaks may cross) or Stack (each pattern placed
+  just above the one below it, like a stacked graph in Origin), with a Step or Gap slider. The
+  export uses the same layout. Sessions saved before keep their look (Offset when their offset
+  was above 0, else Overlap). Stacking is checked in tests/plot.test.ts.
+
 ## One cell search (done, owner request November 2026)
 
 Branch `claude/loving-noether-y55l76`, after PR 57 (viewer) was merged and deployed.

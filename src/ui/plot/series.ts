@@ -15,14 +15,21 @@ export interface SeriesSource {
 export interface SeriesOptions {
   /** Divide each series by its own maximum so every series peaks at 1. */
   normalise: boolean;
-  /** Vertical gap between stacked series, as a fraction of the tallest series (0 to 1). */
+  /** Vertical gap between series, as a fraction of the tallest series (0 to 1). */
   offsetFraction: number;
+  /**
+   * Stack without overlap: each series is lifted so its lowest point sits the gap above the
+   * highest point of the series below it (like a stacked graph in Origin). Without it, series i
+   * is simply lifted by i gaps, so tall peaks can still cross the next pattern.
+   */
+  stack?: boolean;
 }
 
 /**
  * Prepares series for drawing. Normalising divides by each series' own maximum. Offsetting
  * lifts series i by i × offsetFraction × (largest maximum), so the first series stays at the
- * bottom.
+ * bottom. Stacking lifts series i to (top of series i − 1) + offsetFraction × (largest
+ * max − min span) − (its own minimum), so no two series overlap.
  */
 export function prepareSeries(
   sources: readonly SeriesSource[],
@@ -34,14 +41,17 @@ export function prepareSeries(
     return options.normalise && max > 0 ? s.y.map((v) => v / max) : s.y;
   });
   const tallest = options.normalise ? 1 : Math.max(...maxima);
-  const gap = options.offsetFraction * tallest;
+  const shifts = options.stack
+    ? stackShifts(scaled, options.offsetFraction)
+    : scaled.map((_, i) => i * options.offsetFraction * tallest);
   return sources.map((s, i) => {
     const y = scaled[i] as Float64Array;
+    const shift = shifts[i] as number;
     return {
       id: s.id,
       name: s.name,
       x: s.x,
-      y: gap === 0 || i === 0 ? y : y.map((v) => v + i * gap),
+      y: shift === 0 ? y : y.map((v) => v + shift),
       readoutY: s.y,
       readoutUnit: s.unit,
       colorIndex: s.colorIndex ?? i,
@@ -49,6 +59,29 @@ export function prepareSeries(
       ...(s.quiet && { quiet: true }),
     };
   });
+}
+
+/** Lift of each series so that none overlaps the one below it, with a gap between them. */
+function stackShifts(series: readonly Float64Array[], gapFraction: number): number[] {
+  const ranges = series.map((y) => {
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (const v of y) {
+      if (!Number.isFinite(v)) continue;
+      if (v < lo) lo = v;
+      if (v > hi) hi = v;
+    }
+    return lo <= hi ? { lo, hi } : { lo: 0, hi: 0 };
+  });
+  const gap = gapFraction * Math.max(0, ...ranges.map((r) => r.hi - r.lo));
+  const shifts: number[] = [];
+  let top = 0;
+  ranges.forEach((r, i) => {
+    const shift = i === 0 ? 0 : top + gap - r.lo;
+    shifts.push(shift);
+    top = r.hi + shift;
+  });
+  return shifts;
 }
 
 /** Overall x extent of all series. */
