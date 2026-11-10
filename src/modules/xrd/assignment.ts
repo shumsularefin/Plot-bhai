@@ -73,6 +73,54 @@ function candidateText(assignment: Assignment): string {
 }
 
 /**
+ * Aligns each chosen phase with the peak positions by its best zero shift (matchPhase), then
+ * gives each position the nearest reference line within the tolerance (assignPeaks).
+ */
+function assignPositions(
+  data: XrdData,
+  chosen: readonly ReferencePhase[],
+  positions: readonly number[],
+  range: readonly [number, number],
+) {
+  const lambda = ANODES[data.radiation.anode].kAlpha1;
+  const tolerance = data.material.toleranceDeg;
+  const prepared = chosen.map((phase) => {
+    const lines = referenceLines(phase, lambda);
+    const match = matchPhase(lines, positions, range, {
+      ...DEFAULT_MATCH,
+      toleranceDeg: tolerance,
+    });
+    return { phase, lines, shift: match.shift };
+  });
+  const assignments = assignPeaks(
+    positions,
+    prepared.map((p) => ({ id: p.phase.id, lines: p.lines, shift: p.shift })),
+    { toleranceDeg: tolerance, minIntensity: 1 },
+  );
+  return { prepared, assignments };
+}
+
+/**
+ * Tells which peak positions a chosen reference phase explains: a reference line within the
+ * matching tolerance, after that phase's zero shift. The same rule
+ * labels the peaks with (hkl) after the fit. Returns, per position, whether it is explained, or
+ * null when no phase is chosen.
+ *
+ * positions: peak positions, degrees 2θ. range: first and last 2θ of the data.
+ */
+export function matchedPositions(
+  data: XrdData,
+  phases: readonly ReferencePhase[],
+  positions: readonly number[],
+  range: readonly [number, number],
+): boolean[] | null {
+  const chosen = phases.filter((p) => data.material.phaseIds.includes(p.id));
+  if (chosen.length === 0) return null;
+  const { assignments } = assignPositions(data, chosen, positions, range);
+  return assignments.map((a) => a.phaseId !== null);
+}
+
+/**
  * Assigns the fitted peaks of a pattern to the chosen reference phases and refines each
  * phase's cell from its uniquely indexed peaks.
  *
@@ -98,21 +146,7 @@ export function assignmentFor(
     Math.min(...fit.regions.map((r) => r.start)),
     Math.max(...fit.regions.map((r) => r.end)),
   ] as const;
-  const tolerance = data.material.toleranceDeg;
-
-  const prepared = chosen.map((phase) => {
-    const lines = referenceLines(phase, lambda);
-    const match = matchPhase(lines, positions, range, {
-      ...DEFAULT_MATCH,
-      toleranceDeg: tolerance,
-    });
-    return { phase, lines, shift: match.shift };
-  });
-  const assignments = assignPeaks(
-    positions,
-    prepared.map((p) => ({ id: p.phase.id, lines: p.lines, shift: p.shift })),
-    { toleranceDeg: tolerance, minIntensity: 1 },
-  );
+  const { prepared, assignments } = assignPositions(data, chosen, positions, range);
 
   const peaks: AssignedPeak[] = rows.map((peak, index) => {
     const assignment = assignments[index] as Assignment;
