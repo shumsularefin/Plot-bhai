@@ -11,7 +11,7 @@ import type {
   ReferencePhase,
 } from '../src/core/xrd/reference/types';
 import { generatePattern } from '../src/core/xrd/synthetic';
-import { assignmentFor, peakLabelSet } from '../src/modules/xrd/assignment';
+import { assignmentFor, matchedPositions, peakLabelSet } from '../src/modules/xrd/assignment';
 import { DEFAULT_PEAK_STATE, initialXrdData, type XrdData } from '../src/modules/xrd/data';
 
 const dir = new URL('./fixtures/cod-reference/', import.meta.url);
@@ -102,5 +102,32 @@ describe('assignmentFor', () => {
     expect(
       assignmentFor({ ...data, material: { ...data.material, phaseIds: [] } }, 'p1', tio2, false),
     ).toBeNull();
+  });
+});
+
+describe('matchedPositions', () => {
+  const lines = referenceLines(anatase, CU).filter((l) => l.intensity >= 10 && l.twoTheta < 70);
+  // Every anatase line shifted by +0.04° (a zero shift), plus two peaks anatase has no line near.
+  const anataseAt = lines.map((l) => l.twoTheta + 0.04);
+  const strays = [21.5, 33.3];
+  const isStray = (x: number) => strays.includes(x);
+
+  it('keeps the peaks a chosen phase explains and flags the others', () => {
+    const positions = [...anataseAt, ...strays].sort((a, b) => a - b);
+    for (const stray of strays)
+      // A real check that the strays are far from every anatase line (beyond the 0.15° tolerance).
+      expect(Math.min(...lines.map((l) => Math.abs(l.twoTheta - stray)))).toBeGreaterThan(0.5);
+    const matched = matchedPositions(fittedData(['anatase']), tio2, positions, [15, 75]);
+    expect(matched).toEqual(positions.map((x) => !isStray(x)));
+  });
+
+  it('gives the same answer in any order of the peaks (invariance)', () => {
+    const positions = [...strays, ...anataseAt];
+    const matched = matchedPositions(fittedData(['anatase']), tio2, positions, [15, 75]);
+    expect(matched).toEqual(positions.map((x) => !isStray(x)));
+  });
+
+  it('returns null when no phase is chosen', () => {
+    expect(matchedPositions(fittedData([]), tio2, anataseAt, [15, 75])).toBeNull();
   });
 });

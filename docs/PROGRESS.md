@@ -1,5 +1,18 @@
 # Progress
 
+## Keep only reference peaks, visible radio buttons (done, owner request November 2026)
+
+Branch `claude/laughing-keller-tjba6r`. No new dependencies.
+
+- Fit peaks, Edit peaks: "Keep only reference peaks" removes the peaks that no line of the
+  phases ticked in step 4 explains (library, COD or uploaded CIF). It uses the same rule that
+  labels peaks with (hkl): each phase is aligned by its best zero shift (matchPhase), then a peak
+  is kept when a line lies within the matching tolerance (assignPeaks). One Undo step brings the
+  peaks back; the hint warns that a removed peak may be an impurity. Tested in
+  tests/assignment.test.ts (synthetic anatase lines plus two stray peaks, order invariance).
+- Every radio button and checkbox now has a solid outline (`--color-border-strong`) instead of a
+  16 % shadow, so unticked controls are visible (3:1 contrast for controls).
+
 ## Upload card, correction method and stacked plots (done, owner request November 2026)
 
 Branch `claude/laughing-keller-tjba6r`. No new dependencies.

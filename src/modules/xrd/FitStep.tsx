@@ -31,7 +31,7 @@ import {
 } from './data';
 import { xrdLabels } from './labels';
 import { PeaksClient } from './peaksClient';
-import { assignmentFor, peakLabelSet } from './assignment';
+import { assignmentFor, matchedPositions, peakLabelSet } from './assignment';
 import { useCandidatePhases } from './useReferencePhases';
 import type { PeakLabelSet } from '../../ui/plot/peakLabels';
 import { PeakTable } from './PeakTable';
@@ -230,6 +230,23 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
     setPreview(null);
   };
 
+  // Which peaks a line of the chosen phases explains, for "Keep only matching peaks".
+  const matched =
+    phases && x && x.length > 0
+      ? matchedPositions(
+          data,
+          phases,
+          state.guesses.map((g) => g.center),
+          [x[0] as number, x[x.length - 1] as number],
+        )
+      : null;
+  const unmatched = matched ? matched.filter((m) => !m).length : 0;
+  const phaseWord = data.material.phaseIds.length === 1 ? 'phase' : 'phases';
+  const keepMatched = () => {
+    if (!matched) return;
+    setGuesses(state.guesses.filter((_, i) => matched[i]));
+  };
+
   const missed =
     state.fit && !stale && x && y ? missedPeaks(x, y, state.fit.regions, state.detection) : [];
   // Miller indices on the fitted peaks, from the phases chosen in step 4.
@@ -418,6 +435,14 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
             </button>
             <button
               type="button"
+              class="btn"
+              onClick={keepMatched}
+              disabled={!matched || unmatched === 0 || fitting}
+            >
+              Keep only reference peaks
+            </button>
+            <button
+              type="button"
               class="btn btn-quiet"
               onClick={() => setGuesses([])}
               disabled={guesses.length === 0 || fitting}
@@ -429,6 +454,13 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
             "Find peaks automatically" replaces the peaks with those found by the settings above
             (Undo brings your edits back). After a fit, peaks the fit seems to miss are suggested
             under the plot.
+          </p>
+          <p class="field-hint">
+            {matched
+              ? unmatched === 0
+                ? `Every peak matches a line of the ${phaseWord} chosen in step 4.`
+                : `"Keep only reference peaks" removes the ${unmatched} of ${matched.length} peaks that no line of the ${phaseWord} chosen in step 4 explains (within ±${data.material.toleranceDeg}° 2θ). A removed peak may belong to an impurity or a second phase, so look at the plot first; Undo brings them back.`
+              : 'To keep only the peaks of your reference (library, COD or your own CIF), find it in step 3 and tick "Use this phase" in step 4.'}
           </p>
           <Advanced id="xrd-add-peak" title="Add a peak by its position">
             <form
