@@ -89,6 +89,22 @@ describe('prepareSeries', () => {
     expect([...(b?.y ?? [])]).toEqual([20, 30, 15]);
   });
 
+  it('stacks series so none overlaps the one below, with a gap of a fraction of the largest span', () => {
+    // Spans: A 1..4 (3), B 5..20 (15); gap = 0.2 × 15 = 3. B is lifted so its minimum 5 sits at 4 + 3 = 7.
+    const [a, b] = prepareSeries(sources, { normalise: false, offsetFraction: 0.2, stack: true });
+    expect([...(a?.y ?? [])]).toEqual([1, 4, 2]);
+    expect([...(b?.y ?? [])]).toEqual([12, 22, 7]);
+    expect([...(b?.readoutY ?? [])]).toEqual([10, 20, 5]);
+  });
+
+  it('stacks touching series when the gap is zero', () => {
+    const three = [...sources, { ...sources[0], id: 'c' }] as typeof sources;
+    const out = prepareSeries(three, { normalise: false, offsetFraction: 0, stack: true });
+    const [a, b, c] = out.map((s) => ({ lo: Math.min(...s.y), hi: Math.max(...s.y) }));
+    expect(b?.lo).toBe(a?.hi);
+    expect(c?.lo).toBe(b?.hi);
+  });
+
   it('reports the overall x extent', () => {
     expect(xExtent(prepareSeries(sources, { normalise: false, offsetFraction: 0 }))).toEqual([
       0, 3,
