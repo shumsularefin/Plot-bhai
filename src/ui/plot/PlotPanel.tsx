@@ -18,7 +18,7 @@ import type { ExportSettings, LowerAxis } from './export';
 import { InteractivePlot, type InteractivePlotProps, type PlotEditing } from './InteractivePlot';
 import type { PeakLabelSet } from './peakLabels';
 import { laneGuides, ReferenceLanes, type ReferenceLane } from './ReferenceLanes';
-import { prepareSeries, xExtent, type SeriesSource } from './series';
+import { prepareSeries, seriesTransforms, xExtent, type SeriesSource } from './series';
 import type { AxisLabels, Domain, PlotBand, PlotMarker } from './types';
 import { zoomDomain } from './view';
 import './plot.css';
@@ -109,6 +109,29 @@ export function PlotPanel(props: PlotPanelProps) {
     () => prepareSeries(sources, { normalise, offsetFraction, stack }),
     [sources, normalise, offsetFraction, stack],
   );
+  // Peak labels follow their curve when it is normalised, offset or stacked. A label without a
+  // curve id belongs to the only curve when there is one, and is left as given otherwise.
+  const rawLabels = props.peakLabels;
+  const peakLabels = useMemo(() => {
+    if (!rawLabels) return undefined;
+    const transforms = seriesTransforms(sources, { normalise, offsetFraction, stack });
+    const indexOf = new Map(sources.map((src, i) => [src.id, i]));
+    return {
+      ...rawLabels,
+      labels: rawLabels.labels.map((label) => {
+        const i =
+          label.seriesId !== undefined
+            ? indexOf.get(label.seriesId)
+            : sources.length === 1
+              ? 0
+              : undefined;
+        const t = i === undefined ? undefined : transforms[i];
+        return t && (t.scale !== 1 || t.shift !== 0)
+          ? { ...label, y: label.y * t.scale + t.shift }
+          : label;
+      }),
+    };
+  }, [rawLabels, sources, normalise, offsetFraction, stack]);
   const [lo, hi] = xExtent(series);
   const extent: Domain = useMemo(() => [lo, hi], [lo, hi]);
   const [domain, setDomain] = useState<Domain>(extent);
@@ -291,12 +314,12 @@ export function PlotPanel(props: PlotPanelProps) {
             formatX={(x) => `${xName} ${round(shown(x))}${xUnit}`}
             {...(props.points && { markers: props.points })}
             {...(props.bands && { bands: props.bands })}
-            {...(props.peakLabels && { peakLabels: props.peakLabels })}
+            {...(peakLabels && { peakLabels })}
             guides={guides}
             {...interaction}
             figure={dragged ?? figure}
             {...(editing && { editing })}
-            description={`Plot of intensity against ${xName}, ${series.length} pattern${series.length === 1 ? '' : 's'}.`}
+            description={`Plot of intensity against ${xName}, ${series.length} curve${series.length === 1 ? '' : 's'}.`}
           />
         </div>
         {selected && !placement ? (
@@ -304,11 +327,11 @@ export function PlotPanel(props: PlotPanelProps) {
             selected={selected}
             figure={figure}
             onChange={setFigure}
-            peakLabels={props.peakLabels}
+            peakLabels={peakLabels}
             onClose={() => setSelected(null)}
           />
         ) : (
-          (props.peakLabels || figure.annotations.length > 0) &&
+          (peakLabels || figure.annotations.length > 0) &&
           !placement && (
             <p class="field-hint plot-edit-hint">
               Click a label or annotation on the plot to edit it; drag it to move it.
@@ -344,15 +367,15 @@ export function PlotPanel(props: PlotPanelProps) {
           <div class="plot-options">
             {sources.length > 1 && (
               <div class="plot-layout">
-                <span id={layoutId}>Several patterns</span>
+                <span id={layoutId}>Several curves</span>
                 <HelpTip term="overlap, offset and stack">
                   <p>
-                    <strong>Overlap</strong> draws every pattern on the same baseline.{' '}
-                    <strong>Offset</strong> lifts each pattern by the same step, so tall peaks can
-                    still cross the pattern above. <strong>Stack</strong> places each pattern just
-                    above the one below it, so none overlap, like a stacked graph in Origin. The
-                    first pattern in the list is at the bottom. Only the drawing changes; the stored
-                    data and the values read from the plot stay the same.
+                    <strong>Overlap</strong> draws every curve on the same baseline.{' '}
+                    <strong>Offset</strong> lifts each curve by the same step, so tall peaks can
+                    still cross the curve above. <strong>Stack</strong> places each curve just above
+                    the one below it, so none overlap, like a stacked graph in Origin. The first
+                    curve in the list is at the bottom. Only the drawing changes; the stored data
+                    and the values read from the plot stay the same.
                   </p>
                 </HelpTip>
                 <div class="segmented" role="radiogroup" aria-labelledby={layoutId}>
@@ -421,7 +444,7 @@ export function PlotPanel(props: PlotPanelProps) {
           points={props.points}
           bands={props.bands}
           residual={residualSeries ?? undefined}
-          peakLabels={props.peakLabels}
+          peakLabels={peakLabels}
           lanes={props.lanes}
           lowerAxis={props.lowerAxis}
           figure={figure}
@@ -473,7 +496,7 @@ export function PlotPanel(props: PlotPanelProps) {
         figure={figure}
         onChange={setFigure}
         series={series}
-        peakLabels={props.peakLabels}
+        peakLabels={peakLabels}
         xName={xName}
         xUnit={xUnit}
         placement={placement}

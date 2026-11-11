@@ -1,5 +1,35 @@
 # Progress
 
+## FTIR stacked peak labels, FTIR fixes, journal figure styles (done, owner request November 2026)
+
+Branch `claude/laughing-keller-tjba6r`. No new dependencies.
+
+- Bug (found by a senior user): the FTIR Results figure with several spectra had no peak
+  wavenumbers, and labels in any plot did not follow their curve when it was normalised, offset
+  or stacked. Peak labels can now name their curve (`seriesId`); PlotPanel moves each such label
+  by the same scale and shift as its curve (`seriesTransforms`, checked against the drawn curves
+  in tests/plot.test.ts). FTIR Results labels every spectrum's peaks (switch "Label peaks with
+  their wavenumber"); the XRD Export figure's (hkl) labels now follow their pattern too. Label
+  edits are keyed per curve, so two spectra with a peak at the same place keep separate edits.
+- FTIR audit: the Results peak table now lists the highest wavenumber first within each sample
+  (as step 3 and FTIR convention); the layout control reads "Several curves" (it said
+  "patterns" in FTIR, UV-Vis and thermal plots); the cm⁻¹ superscript is drawn at 80 % of the
+  text size (was 70 %) so it meets the publishers' smallest script sizes. The rest of the FTIR
+  wizard (upload, processing, peaks, assignments, bands) was stepped through with the example
+  data at 1280 and 360 px with no errors.
+- Journal style (every figure export): Elsevier, Nature and Wiley set the width choices, font and
+  font size from each publisher's own figure page (src/ui/plot/journals.ts cites the pages, read
+  11 November 2026), list the rules on screen with a link, and warn in plain language when the
+  figure breaks one (width, height, text size, superscript size). Elsevier adds a PNG 1000 dpi
+  button for line art. Publishers set size, font, text size and resolution, not a graph look, and
+  a journal can ask for more, so the screen says to check the journal's guide. Tested in
+  tests/journals.test.ts. **For owner verification:** the values in journals.ts.
+- **TODO (owner):** ACS and RSC are not offered. Their figure pages (pubs.acs.org graphics_prep,
+  rsc.org figures-graphics-images) refuse automated reading (HTTP 403), and a web search found
+  only third-party summaries for ACS. A search engine's summary of the RSC page gives 8.3 cm
+  single and 17.1 cm double column, at most 23.3 cm high; please confirm on the RSC page before
+  it is added.
+
 ## Keep only reference peaks, visible radio buttons (done, owner request November 2026)
 
 Branch `claude/laughing-keller-tjba6r`. No new dependencies.

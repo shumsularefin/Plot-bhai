@@ -6,6 +6,11 @@ export interface PeakLabel {
   text: string;
   /** Drawn in bold (the strongest peak). */
   strong?: boolean;
+  /**
+   * Id of the curve the peak belongs to. The label then moves with that curve when the plot
+   * normalises, offsets or stacks several curves; without it, y is used as given.
+   */
+  seriesId?: string;
 }
 
 /** Peak labels plus the key that explains them, for example "Anatase, COD 9009086". */

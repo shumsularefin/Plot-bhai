@@ -60,7 +60,7 @@ export const ftirLabels =
     x: (
       <>
         Wavenumber (cm
-        <tspan dy="-0.45em" font-size="70%">
+        <tspan dy="-0.45em" font-size="80%">
           −1
         </tspan>
         <tspan dy="0.45em">)</tspan>
@@ -79,14 +79,20 @@ export const ftirLabels =
 
 /**
  * Wavenumber labels for picked peaks, placed at the band in the shown quantity: above an
- * absorbance maximum, below a transmittance minimum.
+ * absorbance maximum, below a transmittance minimum. `seriesId` ties each label to its curve so
+ * it moves with the curve when several spectra are normalised, offset or stacked.
  */
-export function peakLabelsFor(peaks: readonly FtirPeak[], quantity: FtirQuantity): PeakLabelSet {
+export function peakLabelsFor(
+  peaks: readonly FtirPeak[],
+  quantity: FtirQuantity,
+  seriesId?: string,
+): PeakLabelSet {
   return {
     labels: peaks.map((p) => ({
       x: -p.wavenumber,
       y: valueIn(quantity, p.height),
       text: String(Math.round(p.wavenumber)),
+      ...(seriesId !== undefined && { seriesId }),
     })),
     key: [],
     ...(quantity === 'transmittance' && { below: true }),

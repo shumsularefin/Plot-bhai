@@ -17,6 +17,7 @@ import {
   type LowerAxis,
 } from './export';
 import type { FigureStyle } from './figure';
+import { JOURNAL_STYLES, journalProblems, type JournalId, type JournalStyle } from './journals';
 import type { PeakLabelSet } from './peakLabels';
 import { svgToPdf } from './pdf';
 import type { ReferenceLane } from './ReferenceLanes';
@@ -80,6 +81,34 @@ export function ExportPanel({
     peakLabels: peakLabels !== undefined && (figure?.peakLabels.show ?? true),
   });
   const stem = fileStem(exportName);
+  const journalId = settings.journal;
+  const journal: JournalStyle | undefined = journalId ? JOURNAL_STYLES[journalId] : undefined;
+  const problems = journal
+    ? journalProblems(journal, { ...size, fontSizePt: settings.fontSizePt })
+    : [];
+  // A journal asking for more than 600 dpi (Elsevier line art) gets its own PNG button.
+  const extraDpi = journal?.lineArtDpi && journal.lineArtDpi > 600 ? journal.lineArtDpi : null;
+
+  const chooseJournal = (id: JournalId | '') => {
+    if (id === '') {
+      onChange({
+        journal: undefined,
+        preset: 'single',
+        heightMm: EXPORT_PRESETS.single.heightMm,
+      });
+      return;
+    }
+    const style: JournalStyle = JOURNAL_STYLES[id];
+    const first = style.widths[0]?.mm ?? EXPORT_PRESETS.custom.widthMm;
+    onChange({
+      journal: id,
+      preset: 'custom',
+      customWidthMm: first,
+      heightMm: Math.min(settings.heightMm, style.maxHeightMm ?? Infinity),
+      ...(style.font && { font: style.font }),
+      ...(style.fontSizePt !== undefined && { fontSizePt: style.fontSizePt }),
+    });
+  };
 
   const numberField = (
     key: 'heightMm' | 'fontSizePt' | 'lineWidthPt',
@@ -189,25 +218,65 @@ export function ExportPanel({
         <button type="button" class="btn" onClick={() => void exportPng(600)} title={px(600)}>
           PNG 600 dpi
         </button>
+        {extraDpi !== null && (
+          <button
+            type="button"
+            class="btn"
+            onClick={() => void exportPng(extraDpi)}
+            title={px(extraDpi)}
+          >
+            PNG {extraDpi} dpi
+          </button>
+        )}
         <button type="button" class="btn" onClick={() => void exportPdf()}>
           PDF
         </button>
         <label class="export-field export-width">
-          <span class="visually-hidden">Figure width</span>
+          <span class="visually-hidden">Journal style</span>
           <select
-            value={settings.preset}
-            onChange={(e) => {
-              const key = e.currentTarget.value as ExportPreset;
-              onChange({ preset: key, heightMm: EXPORT_PRESETS[key].heightMm });
-            }}
+            value={journalId ?? ''}
+            onChange={(e) => chooseJournal(e.currentTarget.value as JournalId | '')}
           >
-            {(Object.keys(EXPORT_PRESETS) as ExportPreset[]).map((key) => (
-              <option key={key} value={key}>
-                {EXPORT_PRESETS[key].label}
-                {key !== 'custom' && ` (${EXPORT_PRESETS[key].widthMm} mm)`}
+            <option value="">Any journal</option>
+            {(Object.keys(JOURNAL_STYLES) as JournalId[]).map((id) => (
+              <option key={id} value={id}>
+                {JOURNAL_STYLES[id].label} style
               </option>
             ))}
           </select>
+        </label>
+        <label class="export-field export-width">
+          <span class="visually-hidden">Figure width</span>
+          {journal ? (
+            <select
+              value={String(size.widthMm)}
+              onChange={(e) => onChange({ customWidthMm: Number(e.currentTarget.value) })}
+            >
+              {!journal.widths.some((w) => w.mm === size.widthMm) && (
+                <option value={String(size.widthMm)}>Your width ({size.widthMm} mm)</option>
+              )}
+              {journal.widths.map((w) => (
+                <option key={w.mm} value={String(w.mm)}>
+                  {w.label} ({w.mm} mm)
+                </option>
+              ))}
+            </select>
+          ) : (
+            <select
+              value={settings.preset}
+              onChange={(e) => {
+                const key = e.currentTarget.value as ExportPreset;
+                onChange({ preset: key, heightMm: EXPORT_PRESETS[key].heightMm });
+              }}
+            >
+              {(Object.keys(EXPORT_PRESETS) as ExportPreset[]).map((key) => (
+                <option key={key} value={key}>
+                  {EXPORT_PRESETS[key].label}
+                  {key !== 'custom' && ` (${EXPORT_PRESETS[key].widthMm} mm)`}
+                </option>
+              ))}
+            </select>
+          )}
         </label>
         <HelpTip term="the figure export">
           <p>
@@ -218,8 +287,36 @@ export function ExportPanel({
             any size. The PDF holds the figure as a 600 dpi image at its exact size; use SVG when
             you need editable lines and text.
           </p>
+          <p>
+            <strong>Journal style</strong> sets the width, font and font size from the
+            publisher&apos;s own figure rules (Elsevier, Nature, Wiley). Publishers mostly fix the
+            size, font, text size and resolution, not the look of the graph, and a single journal
+            can ask for more, so read its guide too. ACS and RSC are not offered yet because their
+            pages could not be checked.
+          </p>
         </HelpTip>
       </div>
+      {journal && (
+        <div class="journal-rules">
+          <p>
+            <strong>{journal.label} figure rules</strong> (from the{' '}
+            <a href={journal.source} target="_blank" rel="noopener noreferrer">
+              publisher&apos;s guide
+            </a>
+            ; your journal may ask for more):
+          </p>
+          <ul>
+            {journal.rules.map((rule) => (
+              <li key={rule}>{rule}</li>
+            ))}
+          </ul>
+          {problems.map((problem) => (
+            <p key={problem} class="message is-warning">
+              <strong>Check:</strong> {problem}
+            </p>
+          ))}
+        </div>
+      )}
       <p class={status?.error ? 'export-status is-error' : 'export-status'} role="status">
         {status?.text}
       </p>

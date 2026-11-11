@@ -35,18 +35,10 @@ export function prepareSeries(
   sources: readonly SeriesSource[],
   options: SeriesOptions,
 ): PlotSeries[] {
-  const maxima = sources.map((s) => s.y.reduce((m, v) => (v > m ? v : m), -Infinity));
-  const scaled = sources.map((s, i) => {
-    const max = maxima[i] as number;
-    return options.normalise && max > 0 ? s.y.map((v) => v / max) : s.y;
-  });
-  const tallest = options.normalise ? 1 : Math.max(...maxima);
-  const shifts = options.stack
-    ? stackShifts(scaled, options.offsetFraction)
-    : scaled.map((_, i) => i * options.offsetFraction * tallest);
+  const { scaled, transforms } = transformed(sources, options);
   return sources.map((s, i) => {
     const y = scaled[i] as Float64Array;
-    const shift = shifts[i] as number;
+    const { shift } = transforms[i] as SeriesTransform;
     return {
       id: s.id,
       name: s.name,
@@ -59,6 +51,38 @@ export function prepareSeries(
       ...(s.quiet && { quiet: true }),
     };
   });
+}
+
+/** How a series' y values are drawn: y_drawn = y × scale + shift. */
+export interface SeriesTransform {
+  scale: number;
+  shift: number;
+}
+
+function transformed(sources: readonly SeriesSource[], options: SeriesOptions) {
+  const maxima = sources.map((s) => s.y.reduce((m, v) => (v > m ? v : m), -Infinity));
+  const scales = maxima.map((max) => (options.normalise && max > 0 ? 1 / max : 1));
+  const scaled = sources.map((s, i) => {
+    const max = maxima[i] as number;
+    return scales[i] === 1 ? s.y : s.y.map((v) => v / max);
+  });
+  const tallest = options.normalise ? 1 : Math.max(...maxima);
+  const shifts = options.stack
+    ? stackShifts(scaled, options.offsetFraction)
+    : scaled.map((_, i) => i * options.offsetFraction * tallest);
+  const transforms = scales.map((scale, i) => ({ scale, shift: shifts[i] as number }));
+  return { scaled, transforms };
+}
+
+/**
+ * The transform prepareSeries applies to each source, so things drawn on a curve (such as peak
+ * labels) can follow it when the curves are normalised, offset or stacked.
+ */
+export function seriesTransforms(
+  sources: readonly SeriesSource[],
+  options: SeriesOptions,
+): SeriesTransform[] {
+  return transformed(sources, options).transforms;
 }
 
 /** Lift of each series so that none overlaps the one below it, with a gap between them. */

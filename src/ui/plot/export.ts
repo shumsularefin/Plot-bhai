@@ -1,5 +1,6 @@
 import { h, render } from 'preact';
 import type { FigureStyle } from './figure';
+import type { JournalId } from './journals';
 import type { PeakLabelSet } from './peakLabels';
 import { LANE_HEIGHT_EM, LanesSvg } from './LanesSvg';
 import { PlotSvg } from './PlotSvg';
@@ -32,6 +33,8 @@ export interface ExportSettings {
   lineWidthPt: number;
   /** Width used by the custom preset, mm. */
   customWidthMm?: number;
+  /** Publisher whose figure rules the size and font were set from (the width is then custom). */
+  journal?: JournalId | undefined;
 }
 
 export const DEFAULT_EXPORT_SETTINGS: ExportSettings = {
