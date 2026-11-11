@@ -559,7 +559,7 @@ export function PlotSvg(props: PlotSvgProps) {
         {placedLabels.length > 0 && (
           <g class={print ? undefined : 'plot-text'} {...text} text-anchor="middle">
             {placedLabels.map(({ label, placed: auto }, i) => {
-              const key = labelKey(label.x);
+              const key = labelKey(label);
               const ref: EditRef = `label:${key}`;
               const offset = figure?.peakLabels.offset?.[key];
               const placed = offset

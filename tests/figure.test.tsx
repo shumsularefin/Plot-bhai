@@ -71,7 +71,10 @@ describe('figure style helpers', () => {
     const f = figure({
       series: { fit: { hidden: true }, data: { label: 'Sample A' } },
       axes: { ...DEFAULT_FIGURE.axes, yTitle: 'Counts', yValues: 'show', yMin: 0, yMax: 500 },
-      peakLabels: { show: true, text: { [labelKey(25)]: '(101)*', [labelKey(26)]: '' } },
+      peakLabels: {
+        show: true,
+        text: { [labelKey({ x: 25 })]: '(101)*', [labelKey({ x: 26 })]: '' },
+      },
     });
     expect(styledSeries([data, fit], f).map((s) => s.name)).toEqual(['Sample A']);
     expect(styledLabels(labels, f)).toEqual({ x: '2θ (°)', y: 'Counts', yValues: true });
@@ -186,7 +189,7 @@ describe('exported figure with styling', () => {
   it('applies edited peak-label text in the export', () => {
     const peakLabels = { labels: [{ x: 25, y: 110, text: '(101)' }], key: [] };
     const svg = svgOf(
-      figure({ peakLabels: { show: true, text: { [labelKey(25)]: 'A(101)' } } }),
+      figure({ peakLabels: { show: true, text: { [labelKey({ x: 25 })]: 'A(101)' } } }),
       peakLabels,
     );
     expect(svg).toContain('>A(101)<');
@@ -199,7 +202,7 @@ describe('exported figure with styling', () => {
     const before = svgOf(figure({}), peakLabels);
     const moved = moveObject(
       figure({}),
-      `label:${labelKey(25)}`,
+      `label:${labelKey({ x: 25 })}`,
       { dxFraction: 0.1, dyFraction: 0, dx: 1, dy: 0 },
       false,
     );

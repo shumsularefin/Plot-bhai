@@ -39,7 +39,7 @@ export function uvvisLabels(view: ViewSettings, quantity: DisplayQuantity | null
 /** Superscript that survives SVG and PNG export: a smaller, raised span, then back down. */
 const Sup = ({ children }: { children: string }) => (
   <>
-    <tspan dy="-0.45em" font-size="70%">
+    <tspan dy="-0.45em" font-size="80%">
       {children}
     </tspan>
     <tspan dy="0.45em"> </tspan>

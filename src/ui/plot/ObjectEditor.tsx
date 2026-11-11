@@ -66,7 +66,7 @@ export function ObjectEditor({
 
   if (selected.startsWith('label:')) {
     const key = selected.slice(6);
-    const label = peakLabels?.labels.find((l) => labelKey(l.x) === key);
+    const label = peakLabels?.labels.find((l) => labelKey(l) === key);
     if (!label) return null;
     const moved = figure.peakLabels.offset?.[key] !== undefined;
     const setText = (text: string) =>

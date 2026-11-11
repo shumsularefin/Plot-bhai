@@ -186,7 +186,7 @@ export function FigureEditor(props: FigureEditorProps) {
             {figure.peakLabels.show && (
               <div class="figure-labels">
                 {peakLabels.labels.map((l) => {
-                  const key = labelKey(l.x);
+                  const key = labelKey(l);
                   return (
                     <label key={key} class="figure-field">
                       At {Number(Math.abs(l.x).toFixed(2))}

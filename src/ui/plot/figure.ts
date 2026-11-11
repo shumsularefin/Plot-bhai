@@ -153,7 +153,8 @@ export function resolveFigure(saved: Partial<FigureStyle> | undefined): FigureSt
 }
 
 /** Key of a peak label for edited text: its x position, rounded so tiny refits keep the edit. */
-export const labelKey = (x: number): string => x.toFixed(3);
+export const labelKey = (label: { x: number; seriesId?: string }): string =>
+  label.seriesId === undefined ? label.x.toFixed(3) : `${label.seriesId}:${label.x.toFixed(3)}`;
 
 /** SVG stroke-dasharray for a dash style and line width, or undefined for a solid line. */
 export function dashArray(dash: DashStyle | undefined, width: number): string | undefined {
@@ -282,7 +283,7 @@ export function styledPeakLabels<P extends { labels: readonly { x: number; text:
     ...set,
     labels: set.labels
       .map((l) => {
-        const edited = edits[labelKey(l.x)];
+        const edited = edits[labelKey(l)];
         return edited === undefined ? l : { ...l, text: edited };
       })
       .filter((l) => l.text.trim() !== ''),

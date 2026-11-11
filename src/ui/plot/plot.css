@@ -526,3 +526,17 @@
 .plot-edit-hint {
   margin-top: var(--space-1);
 }
+
+.journal-rules {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.journal-rules p {
+  margin: 0.25rem 0;
+}
+
+.journal-rules ul {
+  margin: 0.25rem 0 0.5rem;
+  padding-left: 1.25rem;
+}

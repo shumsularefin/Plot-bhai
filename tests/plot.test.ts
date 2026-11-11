@@ -11,7 +11,7 @@ import { placeLabels, type PlacedLabel } from '../src/ui/plot/peakLabels';
 import { wheelZooms } from '../src/ui/plot/InteractivePlot';
 import { PRINT_COLORS } from '../src/ui/plot/palette';
 import { crc32, setPngDpi } from '../src/ui/plot/png';
-import { prepareSeries, xExtent } from '../src/ui/plot/series';
+import { prepareSeries, seriesTransforms, xExtent } from '../src/ui/plot/series';
 import { clampDomain, zoomDomain } from '../src/ui/plot/view';
 import type { PlotSeries } from '../src/ui/plot/types';
 import tokens from '../src/ui/tokens.css?raw';
@@ -103,6 +103,25 @@ describe('prepareSeries', () => {
     const [a, b, c] = out.map((s) => ({ lo: Math.min(...s.y), hi: Math.max(...s.y) }));
     expect(b?.lo).toBe(a?.hi);
     expect(c?.lo).toBe(b?.hi);
+  });
+
+  it('gives the scale and shift that move a point of each series to where it is drawn', () => {
+    // A peak label at a point of the raw data must land on the drawn curve: y × scale + shift.
+    for (const options of [
+      { normalise: true, offsetFraction: 0.3 },
+      { normalise: false, offsetFraction: 0.5 },
+      { normalise: true, offsetFraction: 0.2, stack: true },
+      { normalise: false, offsetFraction: 0.2, stack: true },
+    ]) {
+      const drawn = prepareSeries(sources, options);
+      const transforms = seriesTransforms(sources, options);
+      sources.forEach((src, i) => {
+        const t = transforms[i];
+        src.y.forEach((v, j) => {
+          expect(v * (t?.scale ?? NaN) + (t?.shift ?? NaN)).toBeCloseTo(drawn[i]?.y[j] ?? NaN, 12);
+        });
+      });
+    }
   });
 
   it('reports the overall x extent', () => {

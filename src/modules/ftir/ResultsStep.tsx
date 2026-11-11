@@ -8,7 +8,8 @@ import type { StepContext } from '../../ui/wizard/types';
 import { downloadCsv } from '../xrd/csv';
 import { peakRows, processAll } from './analysis';
 import type { FtirData } from './data';
-import { curveOf, FtirPlot } from './FtirPlot';
+import { curveOf, FtirPlot, peakLabelsFor } from './FtirPlot';
+import type { PeakLabelSet } from '../../ui/plot/peakLabels';
 import { methodsText } from './methodsText';
 import { QuantityChoice } from './QuantityChoice';
 import { quantityHeading, shownQuantity, valueIn } from './quantity';
@@ -19,7 +20,16 @@ const RESULTS_STEP = 5;
 
 /** Wizard step 5: peak table with assignments, figure, processed data, methods text and session. */
 export function ResultsStep({ data, update }: StepContext<FtirData>) {
-  const rows = useMemo(() => peakRows(data), [data]);
+  // Highest wavenumber first within each sample, as FTIR tables and the plot axis read.
+  const rows = useMemo(
+    () =>
+      peakRows(data).sort(
+        (a, b) =>
+          data.spectra.indexOf(a.spectrum) - data.spectra.indexOf(b.spectrum) ||
+          b.peak.wavenumber - a.peak.wavenumber,
+      ),
+    [data],
+  );
   const methods = useMemo(() => methodsText(data), [data]);
   const processed = useMemo(
     () => processAll(data.spectra, data.processing),
@@ -34,10 +44,26 @@ export function ResultsStep({ data, update }: StepContext<FtirData>) {
     [data.spectra, processed],
   );
   const [copied, setCopied] = useState<string | null>(null);
-  if (data.spectra.length === 0) return <p>No spectra are loaded. Go back to Upload to add one.</p>;
-
+  const [showLabels, setShowLabels] = useState(true);
   const shown = shownQuantity(data, data.spectra);
   const quantity = shown.quantity;
+  const peakLabels = useMemo((): PeakLabelSet | undefined => {
+    if (!showLabels || rows.length === 0) return undefined;
+    const sets = data.spectra.map((s) =>
+      peakLabelsFor(
+        rows.filter((r) => r.spectrum.id === s.id).map((r) => r.peak),
+        quantity,
+        s.id,
+      ),
+    );
+    return {
+      labels: sets.flatMap((set) => set.labels),
+      key: [],
+      ...(quantity === 'transmittance' && { below: true }),
+    };
+  }, [showLabels, rows, data.spectra, quantity]);
+  if (data.spectra.length === 0) return <p>No spectra are loaded. Go back to Upload to add one.</p>;
+
   const percentT = quantity === 'transmittance';
   const copy = async () => {
     try {
@@ -172,15 +198,24 @@ export function ResultsStep({ data, update }: StepContext<FtirData>) {
           Figure
         </h3>
         <p class="field-hint">
-          All spectra together; use the vertical offset to stack them. For a figure with peak labels
-          of one spectrum, export the plot in step 3 or 4.
+          All spectra together. Choose Offset or Stack below the plot to separate them; the peak
+          wavenumbers picked in step 3 move with their spectrum.
         </p>
+        <label class="check">
+          <input
+            type="checkbox"
+            checked={showLabels}
+            onChange={(e) => setShowLabels(e.currentTarget.checked)}
+          />
+          Label peaks with their wavenumber
+        </label>
         <FtirPlot
           curves={curves}
           quantity={quantity}
           settings={data.plot}
           onSettingsChange={(plot) => update({ plot: { ...data.plot, ...plot } })}
           exportName="ftir-spectra"
+          {...(peakLabels && { peakLabels })}
         />
       </section>
 

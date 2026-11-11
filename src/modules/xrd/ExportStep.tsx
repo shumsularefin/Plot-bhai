@@ -78,10 +78,13 @@ export function ExportStep({ data, update }: StepContext<XrdData>) {
     () => (assignment ? referenceLanesFor(data, assignment.result) : []),
     [data, assignment],
   );
-  const peakLabels = useMemo(
-    () => (assignment ? peakLabelSet(assignment.result) : undefined),
-    [assignment],
-  );
+  const peakLabels = useMemo(() => {
+    if (!assignment) return undefined;
+    // Tie the labels to their pattern so they move with it when the figure offsets or stacks.
+    const set = peakLabelSet(assignment.result);
+    const seriesId = assignment.pattern.id;
+    return { ...set, labels: set.labels.map((l) => ({ ...l, seriesId })) };
+  }, [assignment]);
 
   const methods = methodsFor(data, phases ?? []);
   const tables = useMemo(() => allTables(data, phases ?? []), [data, phases]);
