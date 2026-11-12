@@ -19,6 +19,7 @@ const loadFtirImage = () => import('../modules/digitize/targets/ftir');
 const loadUvvisImage = () => import('../modules/digitize/targets/uvvis');
 const loadThermalImage = () => import('../modules/digitize/targets/thermal');
 const loadValidation = () => import('./Validation');
+const loadReport = () => import('../modules/report/SampleReport');
 
 export function App() {
   const path = useHashPath();
@@ -48,6 +49,8 @@ export function App() {
               <About />
             ) : path === '/validation' ? (
               <LazyTool load={loadValidation} />
+            ) : path === '/report' ? (
+              <LazyTool load={loadReport} />
             ) : path === '/xrd' ? (
               <LazyTool load={loadXrd} />
             ) : path === '/xrd/image' || path === '/xrd-screenshot' ? (

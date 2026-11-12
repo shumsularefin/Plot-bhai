@@ -120,6 +120,23 @@ export function Home() {
           ))}
           <li class="tool-card is-note">
             <svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 3h9l4 4v14H6zM9 11h7M9 15h7M9 7h3" />
+            </svg>
+            <h3 class="tool-name">
+              <a href="#/report" class="tool-link">
+                Sample report
+              </a>
+            </h3>
+            <p class="tool-description">
+              One sample, several techniques: the results of your XRD, FTIR, UV-Vis and thermal
+              analyses in one summary with a single methods section.
+            </p>
+            <span class="tool-cta" aria-hidden="true">
+              Combine →
+            </span>
+          </li>
+          <li class="tool-card is-note">
+            <svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M4 12.5l5 5L20 6.5" />
             </svg>
             <h3 class="tool-name">

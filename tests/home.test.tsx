@@ -13,6 +13,7 @@ describe('Home', () => {
       '#/uvvis',
       '#/thermal',
       '#/particles',
+      '#/report',
       '#/validation',
       '#/xrd',
       '#/about',
