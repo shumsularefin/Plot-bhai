@@ -20,7 +20,15 @@ import type { ReferenceLane } from '../../ui/plot/ReferenceLanes';
 import type { SeriesSource } from '../../ui/plot/series';
 import type { StepContext } from '../../ui/wizard/types';
 import { downloadCsv } from './csv';
-import { DEFAULT_RIETVELD, processingFor, type RietveldState, type XrdData } from './data';
+import {
+  DEFAULT_OPTICS,
+  DEFAULT_RIETVELD,
+  processingFor,
+  type RietveldState,
+  type XrdData,
+} from './data';
+import { RietveldSetup } from './RietveldSetup';
+import { parseRanges, polarisationOf } from './rietveldSettings';
 import { xrdLabels } from './labels';
 import { NumberInput } from './NumberInput';
 import { RietveldClient } from './rietveldClient';
@@ -56,9 +64,34 @@ const CHOICE_LABELS: [keyof RefineChoices, string, string][] = [
     'March–Dollase correction along the direction you type for each phase below.',
   ],
   [
+    'size',
+    'Crystallite size',
+    'Size broadening of each phase, as in GSAS-II: an extra Lorentzian width (180/π)·λ/(D cos θ), so D uses a Scherrer constant of 1 on the full width at half maximum. Fix the instrument profile from a standard (below) so that D is the sample’s own size.',
+  ],
+  [
+    'strain',
+    'Microstrain',
+    'Strain broadening of each phase, as in GSAS-II: an extra width (180/π)·10⁻⁶·μ·tan θ, with μ the microstrain in GSAS-II’s units (10⁻⁶).',
+  ],
+  [
+    'sampleMix',
+    'Lorentzian fractions of size and strain',
+    'How much of the size and strain broadening is Lorentzian (1, GSAS-II’s default) rather than Gaussian. Refine only with very good data.',
+  ],
+  [
+    'transparency',
+    'Sample transparency',
+    'Peaks shifted to low angle because the X-rays go deep into a weakly absorbing sample (organic materials, polymers, light oxides): Δ2θ = T·sin 2θ. Correlated with the zero shift and the sample displacement.',
+  ],
+  [
     'overallB',
     'Overall displacement factor B',
     'Thermal vibration on top of the values in the reference structures. Strongly correlated with the background; refine it last and only with good data to high angle.',
+  ],
+  [
+    'roughness',
+    'Surface roughness',
+    'Suortti correction (as in GSAS-II) for a rough or porous sample surface, which lowers the intensity at low angle. Without it a rough sample can give negative B values. Strongly correlated with B.',
   ],
 ];
 
@@ -116,6 +149,10 @@ const STRUCTURE_LABELS: [StructureChoice, string, string][] = [
 
 const num = (e: Estimate, fixed = 5) => withUncertainty(e.value, e.esd, fixed);
 
+/** Crystallite size in nm, or a plain note when no size broadening was found. */
+const sizeText = (e: Estimate | null) =>
+  !e ? '–' : Number.isFinite(e.value) ? withUncertainty(e.value, e.esd, 1) : 'too large to measure';
+
 /** Wizard step 5: basic Rietveld refinement of the candidate phases (optional). */
 export function RietveldStep({ data, update }: StepContext<XrdData>) {
   const settings = data.rietveld ?? DEFAULT_RIETVELD;
@@ -160,6 +197,15 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
       : data.radiation.kAlpha2Ratio;
   const orientationOf = (phase: ReferencePhase) =>
     parseDirection(settings.orientation[phase.id] ?? '');
+  const optics = settings.optics ?? DEFAULT_OPTICS;
+  const polarisation = polarisationOf(optics, lines.kAlpha1);
+  const ranges = parseRanges(settings.excludedRanges ?? '');
+  const leBail = settings.leBail ?? [];
+  const instrument = settings.instrument ?? null;
+  const standard = settings.standard ?? null;
+  const standardPhase = standard && included.find((p) => p.id === standard.phaseId);
+  // The TCH profile is needed for a fixed instrument and for size and strain broadening.
+  const tchForced = Boolean(instrument || settings.choices.size || settings.choices.strain);
   const key = JSON.stringify([
     pattern?.id,
     included.map((p) => [p.id, orientationOf(p)]),
@@ -169,6 +215,12 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
     settings.to,
     data.radiation,
     useCleaned && cleaning,
+    polarisation,
+    optics.variableSlit,
+    ranges,
+    instrument?.profile,
+    leBail.filter((id) => included.some((p) => p.id === id)),
+    standardPhase && standard?.percent,
   ]);
   const result: RietveldResult | null =
     settings.result?.outcome.ok === true ? settings.result.outcome : null;
@@ -187,6 +239,14 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
         ratio > 0
           ? `${data.radiation.anode} Kα1/Kα2 radiation (λ = ${lines.kAlpha1}, ${lines.kAlpha2} Å, intensity ratio ${ratio})`
           : `${data.radiation.anode} Kα1 radiation (λ = ${lines.kAlpha1} Å)`,
+      ...(optics.monochromator === 'graphite' && {
+        monochromator: 'a graphite (002) diffracted-beam monochromator',
+      }),
+      ...(optics.monochromator === 'germanium' && {
+        monochromator: 'a germanium (111) incident-beam monochromator',
+      }),
+      variableSlit: optics.variableSlit,
+      ...(instrument && { instrumentSource: instrument.source }),
     })} ${
       useCleaned && cleaningSteps.length > 0
         ? `The refinement was made on the cleaned data (${cleaningSteps.join(', ')}), so R_exp and χ² do not follow counting statistics exactly.`
@@ -204,7 +264,13 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
     const input: RietveldInput = {
       x: Float64Array.from(keep, (i) => measured.x[i] as number),
       y: Float64Array.from(keep, (i) => measured.y[i] as number),
-      wavelengths: { kAlpha1: lines.kAlpha1, kAlpha2: lines.kAlpha2, ratio },
+      wavelengths: {
+        kAlpha1: lines.kAlpha1,
+        kAlpha2: lines.kAlpha2,
+        ratio,
+        polarisation,
+        variableSlit: optics.variableSlit,
+      },
       phases: included.map((p) => ({
         id: p.id,
         name: p.name,
@@ -214,10 +280,17 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
         ...(p.cellContents && { cellContents: p.cellContents }),
         ...(p.structure && { structure: p.structure }),
         orientation: settings.choices.orientation ? orientationOf(p) : null,
+        ...(leBail.includes(p.id) && { leBail: true }),
       })),
       choices: settings.choices,
       backgroundTerms: settings.backgroundTerms,
       atomicWeights: ATOMIC_WEIGHTS,
+      ...(instrument && { instrument: instrument.profile }),
+      ...(ranges && ranges.length > 0 && { excluded: ranges }),
+      ...(standardPhase &&
+        standard?.percent != null && {
+          standard: { phaseId: standardPhase.id, fraction: standard.percent / 100 },
+        }),
     };
     setError(null);
     setStage('Starting');
@@ -409,6 +482,41 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
             {phase.name} <span class="field-hint">({phaseReference(phase)})</span>
           </label>
         ))}
+        {(phases ?? []).length > 0 && (
+          <Advanced id="rietveld-lebail" title="Le Bail fit (no structure)">
+            <p class="field-hint">
+              In a Le Bail fit the peak intensities are taken from your data instead of the
+              reference structure, so only the cell and the peak shape are refined. Use it for the
+              lattice parameters of a doped or substituted material whose intensities no longer
+              match the reference, or for a phase with no reliable structure. It gives no weight
+              fraction.{' '}
+              <HelpTip term="Le Bail fit">
+                <p>
+                  A. Le Bail, H. Duroy and J. L. Fourquet, Mat. Res. Bull. 23 (1988) 447. The
+                  intensities are extracted again after every refinement stage until R_wp stops
+                  falling. A good Le Bail fit shows that the cell and the peak positions agree with
+                  the data; it does not prove that the phase is right.
+                </p>
+              </HelpTip>
+            </p>
+            {included.map((phase) => (
+              <label key={phase.id} class="check">
+                <input
+                  type="checkbox"
+                  checked={leBail.includes(phase.id)}
+                  onChange={(e) =>
+                    set({
+                      leBail: e.currentTarget.checked
+                        ? [...leBail, phase.id]
+                        : leBail.filter((id) => id !== phase.id),
+                    })
+                  }
+                />
+                {phase.name}: Le Bail
+              </label>
+            ))}
+          </Advanced>
+        )}
       </fieldset>
 
       <div class="export-actions">
@@ -446,7 +554,12 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
             <label key={choice} class="check">
               <input
                 type="checkbox"
-                checked={settings.choices[choice] === true}
+                checked={settings.choices[choice] === true || (choice === 'tch' && tchForced)}
+                disabled={
+                  (choice === 'tch' && tchForced) ||
+                  (choice === 'sampleMix' && !settings.choices.size && !settings.choices.strain) ||
+                  (instrument !== null && (choice === 'width' || choice === 'widthSlope'))
+                }
                 onChange={(e) =>
                   set({ choices: { ...settings.choices, [choice]: e.currentTarget.checked } })
                 }
@@ -530,7 +643,23 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
         >
           Reset to defaults
         </button>
+        {tchForced && (
+          <p class="field-hint">
+            The GSAS-II peak shape (TCH) is used because a fixed instrument profile or size and
+            strain need its separate Gaussian and Lorentzian widths.
+            {instrument && ' The instrument widths are fixed, so W, η, U and V are not refined.'}
+          </p>
+        )}
       </Advanced>
+
+      <RietveldSetup
+        settings={settings}
+        set={set}
+        phases={included}
+        lambda={lines.kAlpha1}
+        result={result}
+        patternName={pattern.name}
+      />
 
       <PlotPanel
         sources={sources}
@@ -567,6 +696,11 @@ function Results({
   const { stats } = result;
   const [copied, setCopied] = useState('');
   const fractions = result.phases.some((p) => p.weightFraction) && result.phases.length > 1;
+  const sized = result.phases.some((p) => p.size);
+  const strained = result.phases.some((p) => p.microstrain);
+  // Results saved by older versions lack the newer fields.
+  const correlations = result.correlations ?? [];
+  const standard = result.standard ?? null;
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(methods);
@@ -627,6 +761,36 @@ function Results({
           <dt>Zero shift (° 2θ)</dt>
           <dd>{num(result.zero, 4)}</dd>
         </div>
+        {Number.isFinite(stats.durbinWatson) && (
+          <div>
+            <dt>
+              Durbin–Watson d{' '}
+              <HelpTip term="Durbin–Watson d">
+                <p>
+                  Tests whether neighbouring points of the difference curve go up and down together.
+                  About 2 means they are independent (the fit is down to the noise); well below 2
+                  means the peak shape or positions are systematically off, and the standard
+                  uncertainties are then too small (Hill and Flack, J. Appl. Cryst. 20 (1987) 356).
+                </p>
+              </HelpTip>
+            </dt>
+            <dd>{stats.durbinWatson.toFixed(2)}</dd>
+          </div>
+        )}
+        {result.transparency?.refined && (
+          <div>
+            <dt>Transparency T (° 2θ)</dt>
+            <dd>{num(result.transparency, 4)}</dd>
+          </div>
+        )}
+        {result.roughness?.[1].refined && (
+          <div>
+            <dt>Surface roughness A, B</dt>
+            <dd>
+              {num(result.roughness[0], 3)}, {num(result.roughness[1], 3)}
+            </dd>
+          </div>
+        )}
       </dl>
 
       {(stats.gof > 3 || stats.rwp > 0.25) && (
@@ -660,6 +824,8 @@ function Results({
               <th scope="col">γ (°)</th>
               <th scope="col">V (Å³)</th>
               {fractions && <th scope="col">Weight %</th>}
+              {sized && <th scope="col">Size (nm)</th>}
+              {strained && <th scope="col">Microstrain (10⁻⁶)</th>}
               <th scope="col">
                 R<sub>Bragg</sub> (%)
               </th>
@@ -677,7 +843,15 @@ function Results({
                 <td>{num(p.cell.gamma, 3)}</td>
                 <td>{num(p.volume, 3)}</td>
                 {fractions && <td>{pct(p.weightFraction)}</td>}
-                <td>{Number.isFinite(p.rBragg) ? (100 * p.rBragg).toFixed(2) : '–'}</td>
+                {sized && <td>{sizeText(p.size)}</td>}
+                {strained && <td>{p.microstrain ? num(p.microstrain, 0) : '–'}</td>}
+                <td>
+                  {p.leBail
+                    ? 'Le Bail'
+                    : Number.isFinite(p.rBragg)
+                      ? (100 * p.rBragg).toFixed(2)
+                      : '–'}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -686,7 +860,27 @@ function Results({
       <p class="field-hint">
         Numbers in brackets are standard uncertainties in the last digits. They come from the
         least-squares fit and usually underestimate the real uncertainty.
+        {(sized || strained) &&
+          ' Size and microstrain follow GSAS-II’s definitions (size with a Scherrer constant of 1 on the FWHM; microstrain as the FWHM of the 2θ broadening in radians divided by 10⁻⁶ tan θ).'}
       </p>
+      {standard && (
+        <p class="message is-info">
+          <strong>Amorphous and unidentified content (estimate):</strong>{' '}
+          {withUncertainty(100 * standard.amorphous.value, 100 * standard.amorphous.esd, 1)} wt% of
+          the original sample, from{' '}
+          {result.phases.find((p) => p.id === standard.phaseId)?.name ?? 'the standard'} weighed in
+          at {(100 * standard.fraction).toFixed(2)} wt%. Crystalline phases in the original sample:{' '}
+          {result.phases
+            .map((p, k) => ({ p, w: standard.phases[k] }))
+            .filter((r) => r.w)
+            .map(
+              ({ p, w }) =>
+                `${p.name} ${withUncertainty(100 * (w?.value ?? 0), 100 * (w?.esd ?? 0), 1)} wt%`,
+            )
+            .join(', ')}
+          . The uncertainty does not include the weighing or microabsorption.
+        </p>
+      )}
       {result.phases.some((p) => p.atoms) && <AtomsTable result={result} name={name} />}
 
       <Advanced id="rietveld-details" title="Peak shape, orientation and refinement stages">
@@ -737,6 +931,46 @@ function Results({
             </tbody>
           </table>
         </div>
+        {correlations.length > 0 && (
+          <>
+            <h4 class="export-title">Strongly correlated parameters (|r| ≥ 0.9)</h4>
+            <div
+              class="table-scroll"
+              tabIndex={0}
+              role="region"
+              aria-label="Correlated parameters, scrolls sideways"
+            >
+              <table class="peak-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Parameter</th>
+                    <th scope="col">Parameter</th>
+                    <th scope="col">r</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {correlations.map((c) => (
+                    <tr key={`${c.a}|${c.b}`}>
+                      <td>{c.a}</td>
+                      <td>{c.b}</td>
+                      <td>{c.r.toFixed(3)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p class="field-hint">
+              Pairs near ±1 cannot be told apart by the data; fixing one of them usually makes the
+              other better defined. Background terms among themselves are not listed.
+            </p>
+          </>
+        )}
+        <p>
+          Polarisation coefficient P: {(result.polarisation ?? 0.5).toFixed(4)}
+          {result.instrument && '; instrument profile fixed'}
+          {(result.excluded ?? []).length > 0 &&
+            `; left out: ${(result.excluded ?? []).map(([a, b]) => `${a}–${b}°`).join(', ')}`}
+        </p>
         <ol class="rietveld-stages">
           {result.stages.map((s) => (
             <li key={s.name}>
@@ -774,7 +1008,14 @@ function Results({
                 { header: 's.u. V', value: (p) => p.volume.esd },
                 { header: 'Weight fraction', value: (p) => p.weightFraction?.value ?? '' },
                 { header: 's.u. weight fraction', value: (p) => p.weightFraction?.esd ?? '' },
-                { header: 'R_Bragg', value: (p) => p.rBragg },
+                { header: 'R_Bragg', value: (p) => (p.leBail ? 'Le Bail' : p.rBragg) },
+                {
+                  header: 'Size (nm)',
+                  value: (p) => (p.size && Number.isFinite(p.size.value) ? p.size.value : ''),
+                },
+                { header: 's.u. size', value: (p) => p.size?.esd ?? '' },
+                { header: 'Microstrain (1e-6)', value: (p) => p.microstrain?.value ?? '' },
+                { header: 's.u. microstrain', value: (p) => p.microstrain?.esd ?? '' },
                 { header: 'U (deg^2)', value: (p) => p.u.value },
                 { header: 'V (deg^2)', value: (p) => p.v.value },
                 { header: 'W (deg^2)', value: (p) => p.w.value },
@@ -817,6 +1058,37 @@ function Results({
         >
           Download pattern CSV
         </button>
+        {result.phases.some((p) => p.reflections) && (
+          <button
+            type="button"
+            class="btn"
+            onClick={() => {
+              const rows = result.phases.flatMap((p) =>
+                (p.reflections ?? []).map((r) => ({ phase: p.name, leBail: p.leBail, r })),
+              );
+              downloadCsv(
+                `${name}-rietveld-reflections`,
+                'Rietveld refinement: reflections in the data range. I_obs is the observed intensity shared out in proportion to each calculated profile (Rietveld); intensities are integrated counts x degrees, Ka1 and Ka2 together. |F|^2 per reflection in electron units^2 (extracted from the data for Le Bail phases).',
+                rows,
+                [
+                  { header: 'Phase', value: (x) => x.phase },
+                  { header: 'h', value: (x) => x.r.hkl[0] },
+                  { header: 'k', value: (x) => x.r.hkl[1] },
+                  { header: 'l', value: (x) => x.r.hkl[2] },
+                  { header: 'Multiplicity', value: (x) => x.r.multiplicity },
+                  { header: 'd (A)', value: (x) => x.r.d },
+                  { header: '2theta Ka1 (deg)', value: (x) => x.r.twoTheta },
+                  { header: '|F|^2', value: (x) => x.r.f2 },
+                  { header: 'I_obs', value: (x) => x.r.iObs },
+                  { header: 'I_calc', value: (x) => x.r.iCalc },
+                  { header: 'Le Bail', value: (x) => (x.leBail ? 'yes' : 'no') },
+                ],
+              );
+            }}
+          >
+            Download reflections CSV
+          </button>
+        )}
       </div>
 
       <h4 class="export-title">Methods text</h4>

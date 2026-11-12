@@ -67,8 +67,16 @@ export function GsasSection({ data, phases }: { data: XrdData; phases: Reference
         kAlpha2: lines.kAlpha2,
         ratio,
         zero: result.zero.value,
+        polarisation: result.polarisation ?? 0.5,
         profile,
         comments: [
+          ...result.phases.flatMap((p) =>
+            p.size || p.microstrain
+              ? [
+                  `${p.name}: isotropic size ${p.size && Number.isFinite(p.size.value) ? (p.size.value / 1000).toPrecision(5) : 'not determined'} um, microstrain ${p.microstrain ? p.microstrain.value.toPrecision(5) : 0}, both refined here with LGmix ${p.sizeMix.value.toFixed(3)}, ${p.strainMix.value.toFixed(3)} (enter them in the phase's Data tab in GSAS-II).`,
+                ]
+              : [],
+          ),
           ...(first.tch
             ? [
                 `Profile of ${first.name} from the Rietveld step, refined with the same Thompson-Cox-Hastings shape (exact). SH/L is GSAS-II's default, not refined here.`,

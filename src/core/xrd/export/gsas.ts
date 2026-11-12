@@ -133,6 +133,8 @@ export interface InstprmInput {
   ratio: number;
   /** Zero shift, degrees 2θ. */
   zero: number;
+  /** GSAS-II polarisation coefficient; missing means 0.5 (no monochromator). */
+  polarisation?: number;
   profile: TchProfile;
   /** Header lines, written as comments. */
   comments: string[];
@@ -151,7 +153,7 @@ export function instprm(input: InstprmInput): string {
     '#GSAS-II instrument parameter file; written by Plot Bhai as a starting point',
     ...input.comments.map((c) => `# ${c}`),
     'Type:PXC;Bank:1',
-    `${wave};Zero:${n(input.zero)};Polariz.:0.5;Azimuth:0.0`,
+    `${wave};Zero:${n(input.zero)};Polariz.:${n(input.polarisation ?? 0.5)};Azimuth:0.0`,
     `U:${n(p.u)};V:${n(p.v)};W:${n(p.w)};X:${n(p.x)};Y:${n(p.y)};Z:0.0;SH/L:0.002`,
     'Diff-type:Bragg-Brentano',
     '',
@@ -222,4 +224,72 @@ export function phaseCif(input: CifPhaseInput): string {
       ...aniso.map((a) => [quote(a.label), ...(a.uAniso ?? []).map(f)].join(' ')),
     );
   return `${lines.join('\n')}\n`;
+}
+
+/** What an .instprm file gives this site: the TCH instrument profile in its own units. */
+export interface InstprmRead {
+  /** U, V, W (deg² of FWHM_G²) and X, Y (deg of FWHM_L), as in the Rietveld step. */
+  profile: { u: number; v: number; w: number; x: number; y: number };
+  polarisation: number;
+  kAlpha1: number | null;
+  kAlpha2: number | null;
+  ratio: number | null;
+  zero: number;
+  /** Plain-language notes on what could not be carried over. */
+  notes: string[];
+}
+
+/**
+ * Reads a GSAS-II .instprm file (laboratory constant-wavelength X-ray, Type PXC) and converts its
+ * profile to this site's units, the inverse of tchExact: H_G² = 8 ln 2 · σ² / 10⁴ (deg²) and
+ * H_L = γ / 100 (deg). Values are name:value pairs separated by new lines or ";"; # lines are
+ * comments. Returns an error message when the file is not a usable X-ray .instprm.
+ */
+export function readInstprm(text: string): InstprmRead | { error: string } {
+  const values = new Map<string, string>();
+  for (const line of text.split(/\r?\n/)) {
+    if (line.trim().startsWith('#')) continue;
+    for (const item of line.split(';')) {
+      const at = item.indexOf(':');
+      if (at > 0) values.set(item.slice(0, at).trim(), item.slice(at + 1).trim());
+    }
+  }
+  const type = values.get('Type') ?? '';
+  if (!type.startsWith('PX'))
+    return {
+      error:
+        type === ''
+          ? 'This does not look like a GSAS-II .instprm file (no Type line).'
+          : `This .instprm file is for ${type} data; only laboratory X-ray (PXC) files can be used here.`,
+    };
+  const number = (key: string) => {
+    const v = Number(values.get(key));
+    return values.has(key) && Number.isFinite(v) ? v : null;
+  };
+  const u = number('U');
+  const v = number('V');
+  const w = number('W');
+  const x = number('X');
+  const y = number('Y');
+  if (u === null || v === null || w === null || x === null || y === null)
+    return { error: 'The .instprm file lacks one of U, V, W, X, Y.' };
+  const notes: string[] = [];
+  const z = number('Z') ?? 0;
+  if (z !== 0)
+    notes.push(`Z = ${z} (a constant Lorentzian width) is not modelled here and was left out.`);
+  const shl = number('SH/L');
+  if (shl !== null && shl > 0)
+    notes.push(
+      `SH/L = ${shl} (GSAS-II's axial-divergence asymmetry) is a different model from the asymmetry here; refine "Peak asymmetry" if low-angle peaks are lopsided.`,
+    );
+  const g = LN2_8 / 1e4;
+  return {
+    profile: { u: u * g, v: v * g, w: w * g, x: x / 100, y: y / 100 },
+    polarisation: number('Polariz.') ?? 0.5,
+    kAlpha1: number('Lam1') ?? number('Lam'),
+    kAlpha2: number('Lam2'),
+    ratio: number('I(L2)/I(L1)'),
+    zero: number('Zero') ?? 0,
+    notes,
+  };
 }

@@ -79,12 +79,14 @@ def refine(name, le_bail):
     isotropic_zero(ph)
     set_sample(ph, 0.1, 500.0)
     h.data['Background'][0] = ['chebyschev-1', True, 6, 100.0, 0, 0, 0, 0, 0]
+    if le_bail:
+        # GSAS-II builds the reflection list in a zero-cycle calculation; Le Bail needs it first.
+        gpx.data['Controls']['data']['max cyc'] = 0
+        gpx.do_refinements([{}])
+        ph.set_refinements({'LeBail': True})
     gpx.data['Controls']['data']['max cyc'] = 30
     steps = [{'set': {'Background': {'no. coeffs': 6, 'refine': True}}}]
-    if le_bail:
-        ph.set_refinements({'LeBail': True})
-        steps[0]['set']['LeBail'] = True
-    else:
+    if not le_bail:
         steps[0]['set']['Sample Parameters'] = ['Scale']
     steps.append({'set': {'Cell': True}})
     steps.append({'set': {'Size': {'type': 'isotropic', 'refine': True},

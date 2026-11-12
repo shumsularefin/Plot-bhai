@@ -11,6 +11,7 @@ import {
   DEFAULT_CHOICES,
   type RefineChoices,
   type RietveldResult,
+  type InstrumentProfile,
 } from '../../core/xrd/rietveld/refine';
 import { DEFAULT_EXPORT_SETTINGS } from '../../ui/plot/export';
 import type { PlotSettings } from '../../ui/plot/PlotPanel';
@@ -86,12 +87,38 @@ export interface RietveldState {
   /** 2θ range refined, degrees; null means the whole pattern. */
   from: number | null;
   to: number | null;
+  /** Monochromator, custom polarisation coefficient and slit type; missing means none, fixed. */
+  optics?: RietveldOptics;
+  /** 2θ ranges left out, as typed (for example "38–39, 44.5–45"); missing means none. */
+  excludedRanges?: string;
+  /** Fixed instrument profile and where it came from; missing or null means refine the widths. */
+  instrument?: { profile: InstrumentProfile; source: string } | null;
+  /** Phase ids fitted in Le Bail mode (intensities from the data, no structure). */
+  leBail?: string[];
+  /** Internal standard for the amorphous content: phase id and its weighed weight %. */
+  standard?: { phaseId: string; percent: number | null } | null;
   /**
    * Last result, with a key of the settings it was made with (to tell when it is out of date) and
    * its methods sentences.
    */
   result: { key: string; outcome: RietveldResult; methods: string } | null;
 }
+
+export type MonochromatorChoice = 'none' | 'graphite' | 'germanium' | 'custom';
+
+export interface RietveldOptics {
+  monochromator: MonochromatorChoice;
+  /** GSAS-II polarisation coefficient P used with 'custom'. */
+  polarisation: number;
+  /** Automatic (variable) divergence slit. */
+  variableSlit: boolean;
+}
+
+export const DEFAULT_OPTICS: RietveldOptics = {
+  monochromator: 'none',
+  polarisation: 0.5,
+  variableSlit: false,
+};
 
 export const DEFAULT_RIETVELD: RietveldState = {
   excluded: [],

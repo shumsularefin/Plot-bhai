@@ -94,3 +94,13 @@ export function sampleWidths(
     gaussian2: ((1 - sizeMix) * hs) ** 2 + ((1 - strainMix) * hm) ** 2,
   };
 }
+
+/**
+ * Common laboratory monochromator reflections. Spacings flagged for the owner's verification:
+ * graphite (002) d = c/2 with c = 6.708 Å; germanium (111) d = a/√3 with a = 5.6579 Å.
+ * Pyrolytic graphite is a mosaic crystal; a Johansson germanium crystal is treated as perfect.
+ */
+export const MONOCHROMATORS = {
+  graphite: { d: 6.708 / 2, perfect: false },
+  germanium: { d: 5.6579 / Math.sqrt(3), perfect: true },
+} as const;
