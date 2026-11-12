@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   instprm,
+  readInstprm,
+  tchExact,
   phaseCif,
   tchEta,
   tchFromPseudoVoigt,
@@ -129,5 +131,52 @@ describe('CIF of each phase', () => {
       expect(p.d).toBeCloseTo(ref.peaks[i]?.d ?? 0, 4);
       expect(Math.abs(p.mf2 - (ref.peaks[i]?.mf2 ?? 0)) / p.mf2).toBeLessThan(1e-3);
     });
+  });
+});
+
+describe('Reading a GSAS-II .instprm file', () => {
+  it('reads the validation instrument file and converts it to this site’s units', () => {
+    const read = readInstprm(
+      readFileSync(join(process.cwd(), 'scripts/validation/rietveld/cu.instprm'), 'utf8'),
+    );
+    if ('error' in read) throw new Error(read.error);
+    // U, V, W are σ² in centideg²: FWHM² = 8 ln 2 σ² / 10⁴ deg²; X, Y in centideg.
+    expect(read.profile.u).toBeCloseTo((2.0 * 8 * Math.LN2) / 1e4, 14);
+    expect(read.profile.v).toBeCloseTo((-2.0 * 8 * Math.LN2) / 1e4, 14);
+    expect(read.profile.w).toBeCloseTo((5.0 * 8 * Math.LN2) / 1e4, 14);
+    expect(read.profile.x).toBeCloseTo(0.02, 14);
+    expect(read.profile.y).toBeCloseTo(0.03, 14);
+    expect(read.polarisation).toBe(0.5);
+    expect(read.kAlpha1).toBe(1.5405929);
+    expect(read.ratio).toBe(0.5);
+    // SH/L = 0.002 is reported as not carried over.
+    expect(read.notes.some((n) => n.includes('SH/L'))).toBe(true);
+  });
+
+  it('round-trips the file this site writes', () => {
+    const profile = { u: 0.0041, v: -0.0023, w: 0.0035, x: 0.021, y: 0.012 };
+    const text = instprm({
+      kAlpha1: 1.5405929,
+      kAlpha2: 1.5444274,
+      ratio: 0.5,
+      zero: 0.012,
+      polarisation: 0.5563,
+      profile: tchExact(profile),
+      comments: ['test'],
+    });
+    const read = readInstprm(text);
+    if ('error' in read) throw new Error(read.error);
+    for (const key of ['u', 'v', 'w', 'x', 'y'] as const)
+      expect(read.profile[key]).toBeCloseTo(profile[key], 9);
+    expect(read.polarisation).toBeCloseTo(0.5563, 12);
+    expect(read.zero).toBeCloseTo(0.012, 12);
+  });
+
+  it('refuses files that are not laboratory X-ray instrument files', () => {
+    expect(readInstprm('hello')).toEqual({
+      error: 'This does not look like a GSAS-II .instprm file (no Type line).',
+    });
+    expect('error' in readInstprm('#GSAS-II\nType:PNC\nU:1')).toBe(true);
+    expect('error' in readInstprm('#GSAS-II\nType:PXC\nU:1;V:1')).toBe(true);
   });
 });

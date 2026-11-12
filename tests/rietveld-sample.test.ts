@@ -35,6 +35,7 @@ import {
   strongCorrelations,
 } from '../src/core/xrd/rietveld/statistics';
 import { weightFractions } from '../src/core/xrd/rietveld/refine';
+import { rietveldMethods } from '../src/core/xrd/rietveld/report';
 
 const json = (path: string) =>
   JSON.parse(readFileSync(join(process.cwd(), path), 'utf8')) as unknown;
@@ -275,6 +276,34 @@ describe('Refinement with a fixed instrument profile: size, strain, transparency
   }, 60_000);
 });
 
+describe('Uncertainties against the scatter over repeated noise', () => {
+  it('six noise realisations scatter as the reported size uncertainty says', () => {
+    const beam = { ...CU, polarisation: monochromatorFraction(26.6, false) };
+    const z = [3, 7, 11, 19, 23, 31].map((seed) => {
+      const pattern = ceriaPattern({ transparency: -0.04, inverseSize: 1 / 80 }, beam, seed);
+      const r = refineRietveld({
+        x: pattern.x,
+        y: pattern.y,
+        wavelengths: beam,
+        phases: [ceriaInput()],
+        choices: { ...DEFAULT_CHOICES, zero: false, transparency: true, size: true },
+        backgroundTerms: 3,
+        atomicWeights,
+        instrument: INSTRUMENT,
+      });
+      if (!r.ok || !r.phases[0]?.size) throw new Error('no result');
+      return { dev: r.phases[0].size.value - 80, esd: r.phases[0].size.esd };
+    });
+    // Every uncertainty is of the same size (a finite-difference jump once gave one 13× too small).
+    const esds = z.map((v) => v.esd);
+    expect(Math.max(...esds) / Math.min(...esds)).toBeLessThan(1.2);
+    // The deviations from the truth are of the size of the uncertainty: RMS of dev/esd near 1.
+    const rms = Math.sqrt(z.reduce((sum, v) => sum + (v.dev / v.esd) ** 2, 0) / z.length);
+    expect(rms).toBeGreaterThan(0.2);
+    expect(rms).toBeLessThan(2);
+  }, 120_000);
+});
+
 describe('Excluded regions', () => {
   it('ignores a foreign peak inside an excluded range', () => {
     const pattern = ceriaPattern({ inverseSize: 1 / 50 });
@@ -437,5 +466,42 @@ describe('Statistics (statistics.ts)', () => {
     expect(result.stats.durbinWatson).toBeGreaterThan(1.8);
     expect(result.stats.durbinWatson).toBeLessThan(2.2);
     expect(result.correlations.every((c) => Math.abs(c.r) >= 0.9)).toBe(true);
+  }, 60_000);
+});
+
+describe('Methods text for the new settings', () => {
+  it('names the monochromator, fixed instrument, size and strain, excluded ranges and Le Bail', () => {
+    const beam = { ...CU, polarisation: monochromatorFraction(26.6, false) };
+    const pattern = ceriaPattern({ inverseSize: 1 / 40, microstrain: 500 }, beam);
+    const result = refineRietveld({
+      x: pattern.x,
+      y: pattern.y,
+      wavelengths: beam,
+      phases: [ceriaInput(true)],
+      choices: { ...DEFAULT_CHOICES, zero: false, size: true, strain: true },
+      backgroundTerms: 3,
+      atomicWeights,
+      instrument: INSTRUMENT,
+      excluded: [[100, 101]],
+    });
+    if (!result.ok) throw new Error(result.error);
+    const text = rietveldMethods({
+      result,
+      choices: { ...DEFAULT_CHOICES, zero: false, size: true, strain: true },
+      backgroundTerms: 3,
+      phases: [{ name: 'CeO2', reference: 'COD 9009008' }],
+      radiation: 'Cu Kα1/Kα2',
+      monochromator: 'a graphite (002) diffracted-beam monochromator',
+      instrumentSource: 'a refinement of LaB6',
+    });
+    expect(text).toContain('Thompson–Cox–Hastings');
+    expect(text).toContain(
+      'graphite (002) diffracted-beam monochromator (polarisation coefficient P = 0.5',
+    );
+    expect(text).toContain('was fixed from a refinement of LaB6');
+    expect(text).toContain('100–101°');
+    expect(text).toContain('Le Bail method');
+    expect(text).toMatch(/D = \d+(\.\d+)?\(\d+\) nm/);
+    expect(text).toContain('Durbin–Watson');
   }, 60_000);
 });

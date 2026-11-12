@@ -49,6 +49,7 @@ import type { ReferencePeak, StoredStructure } from '../reference/types';
 import { cellKind, cellParameterNames, cellVolume } from './cell';
 import {
   profileWindow,
+  peakWindows,
   asymmetryFactor,
   backgroundCurve,
   chebyshevBasis,
@@ -512,8 +513,11 @@ export function refineRietveld(
     });
   });
 
-  const curves = (params: Float64Array) =>
-    phases.map((_, k) => phaseCurve(x, phases, layout, k, params, wavelengths));
+  const curves = (params: Float64Array, windows?: Int32Array[]) =>
+    phases.map((_, k) => phaseCurve(x, phases, layout, k, params, wavelengths, windows?.[k]));
+  /** Windows of every phase's peaks for parameters p (see addProfiles). */
+  const windowsOf = (params: Float64Array) =>
+    phases.map((_, k) => peakWindows(x, placePeaks(phases, layout, k, params, wavelengths)));
   const phaseOf = new Int32Array(layout.size).fill(-1);
   layout.phases.forEach((pl, k) => {
     for (const j of [
@@ -557,7 +561,9 @@ export function refineRietveld(
   const rows = n + restraints(p).length;
   const evaluate = (params: Float64Array, model: Float64Array, jacobian: Float64Array | null) => {
     const bg = backgroundCurve(basis, layout, params, n);
-    const parts = curves(params);
+    // With derivatives, the shifted models use the same profile windows as this one.
+    const windows = jacobian ? windowsOf(params) : undefined;
+    const parts = curves(params, windows);
     for (let i = 0; i < n; i++) {
       let total = bg[i] as number;
       for (const part of parts) total += part[i] as number;
@@ -589,13 +595,13 @@ export function refineRietveld(
       shifted[j] = (params[j] as number) + h;
       const k = phaseOf[j] as number;
       if (k >= 0) {
-        const moved = phaseCurve(x, phases, layout, k, shifted, wavelengths);
+        const moved = phaseCurve(x, phases, layout, k, shifted, wavelengths, windows?.[k]);
         const base = parts[k] as Float64Array;
         for (let i = 0; i < n; i++)
           jacobian[i * m + j] =
             (((moved[i] as number) - (base[i] as number)) / h) * (sw[i] as number);
       } else {
-        const moved = curves(shifted);
+        const moved = curves(shifted, windows);
         for (let i = 0; i < n; i++) {
           let change = 0;
           for (let q = 0; q < moved.length; q++)

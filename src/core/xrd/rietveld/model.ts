@@ -26,8 +26,10 @@
  *   radius R, D = −(360/π)·s/R degrees) and T the sample transparency (sample.ts).
  * - Ω: pseudo-Voigt of unit area, Ω = η·L + (1 − η)·G, with full width at half maximum H from the
  *   Caglioti relation H² = U tan²θ + V tanθ + W (H in degrees 2θ, U, V, W in deg²). η is the
- *   Lorentzian fraction (0 to 1). Ω is cut off at ±25 H (the Lorentzian tails beyond hold about
- *   1.3 % of its area).
+ *   Lorentzian fraction (0 to 1). Ω is computed from 50 F below to 75 F above the peak (reversed
+ *   above 2θ = 90°), F = H_G + H_L with the TCH profile and F = H otherwise, as in GSAS-II
+ *   (GSASIIpwd.getWidthsCW); the Lorentzian tails beyond hold about 0.5 % of its area. A shorter
+ *   window biases the size and strain of Lorentzian peaks by about 1 % (found in the GSAS-II check).
  * - TCH profile (optional, GSAS-II's peak shape): the Gaussian width follows the Caglioti relation
  *   above, H_G² = U tan²θ + V tanθ + W, the Lorentzian width H_L = X/cosθ + Y tanθ (degrees), and
  *   H and η come from the Thompson–Cox–Hastings formulas (tch.ts) instead of a refined η.
@@ -182,7 +184,9 @@ export function makeLayout(phases: readonly PhaseModel[], backgroundTerms: numbe
 }
 
 const SQRT_LN2_PI = Math.sqrt(Math.LN2 / Math.PI);
-const CUT_OFF = 25;
+/** Profile window in units of F (see the header): low-angle and high-angle side. */
+const REACH_LOW = 50;
+const REACH_HIGH = 75;
 const RAD = Math.PI / 180;
 
 /** Chebyshev polynomials T_0 … T_(n−1) at every point (row-major, n per point). */
@@ -262,6 +266,17 @@ export interface PlacedPeak {
   /** d-spacing (Å) and Σ|F|² of the reflection family. */
   d: number;
   mf2: number;
+  /** Width F (degrees) that sets the profile window (see the header); missing means fwhm. */
+  reach?: number;
+}
+
+/** First and last 2θ (degrees) at which a peak's profile is computed. */
+function peakRange(peak: PlacedPeak): [number, number] {
+  const f = peak.reach ?? peak.fwhm;
+  // A pure Gaussian is below 10⁻³⁰ of its height beyond 8 H.
+  if (peak.eta === 0) return [peak.twoTheta - 8 * peak.fwhm, peak.twoTheta + 8 * peak.fwhm];
+  const [low, high] = peak.twoTheta > 90 ? [REACH_HIGH, REACH_LOW] : [REACH_LOW, REACH_HIGH];
+  return [peak.twoTheta - low * f, peak.twoTheta + high * f];
 }
 
 /** Bérar–Baldinozzi correction As(z) = 1 + a·Fa(z) + b·Fb(z), Fa = 2z e^(−z²), Fb = 2(2z² − 3) Fa. */
@@ -362,6 +377,7 @@ export function placePeaks(
       const h2 = u * tan * tan + v * tan + w;
       let fwhm = Math.sqrt(Math.max(h2, 1e-8));
       let mix = eta;
+      let reach = fwhm;
       if (tch) {
         let hl = Math.max(0, lx / Math.cos(theta) + ly * tan);
         let hg2 = Math.max(h2, 1e-8);
@@ -372,6 +388,7 @@ export function placePeaks(
         }
         fwhm = tchFwhm(Math.sqrt(hg2), hl);
         mix = tchEta(hl / fwhm);
+        reach = Math.sqrt(hg2) + hl;
       }
       let factor = weight * lorentzPolarisation(theta);
       if (pola !== 0.5) factor *= polarisation(pola, theta) / (1 + Math.cos(2 * theta) ** 2);
@@ -392,6 +409,7 @@ export function placePeaks(
         line: line as 0 | 1,
         d,
         mf2,
+        reach,
       });
     });
   });
@@ -403,24 +421,48 @@ export function profileWindow(
   x: Float64Array,
   peak: PlacedPeak,
 ): { start: number; values: Float64Array } {
-  const hw = CUT_OFF * peak.fwhm;
-  const start = lowerBound(x, peak.twoTheta - hw);
-  const end = lowerBound(x, peak.twoTheta + hw);
+  const [lo, hi] = peakRange(peak);
+  const start = lowerBound(x, lo);
+  const end = lowerBound(x, hi);
   const values = new Float64Array(end - start);
   addProfiles(x.subarray(start, end), [peak], values);
   return { start, values };
 }
 
-/** Adds the profiles of the peaks to `out` (same length as x). */
+/** Index range [start, end) of the points each peak's profile covers, two entries per peak. */
+export function peakWindows(x: Float64Array, peaks: readonly PlacedPeak[]): Int32Array {
+  const out = new Int32Array(2 * peaks.length);
+  peaks.forEach((peak, q) => {
+    const [lo, hi] = peakRange(peak);
+    out[2 * q] = lowerBound(x, lo);
+    out[2 * q + 1] = lowerBound(x, hi);
+  });
+  return out;
+}
+
+/**
+ * Adds the profiles of the peaks to `out` (same length as x). `windows` (from peakWindows) fixes
+ * the points each peak covers; finite-difference derivatives pass the windows of the unshifted
+ * parameters, because a window edge that crosses a point would add a jump to the derivative.
+ */
 export function addProfiles(
   x: Float64Array,
   peaks: readonly PlacedPeak[],
   out: Float64Array,
+  windows?: Int32Array,
 ): void {
-  for (const peak of peaks) {
-    const hw = CUT_OFF * peak.fwhm;
-    const start = lowerBound(x, peak.twoTheta - hw);
-    const end = lowerBound(x, peak.twoTheta + hw);
+  const fixed = windows !== undefined && windows.length === 2 * peaks.length;
+  peaks.forEach((peak, q) => {
+    let start: number;
+    let end: number;
+    if (fixed) {
+      start = windows[2 * q] as number;
+      end = windows[2 * q + 1] as number;
+    } else {
+      const [lo, hi] = peakRange(peak);
+      start = lowerBound(x, lo);
+      end = lowerBound(x, hi);
+    }
     const inv = 1 / peak.fwhm;
     const gNorm = 2 * SQRT_LN2_PI * inv;
     const lNorm = (2 / Math.PI) * inv;
@@ -429,12 +471,12 @@ export function addProfiles(
     for (let i = start; i < end; i++) {
       const t = ((x[i] as number) - peak.twoTheta) * inv;
       const t2 = 4 * t * t;
-      const value =
-        peak.area *
-        ((peak.eta * lNorm) / (1 + t2) + (1 - peak.eta) * gNorm * Math.exp(-Math.LN2 * t2));
+      // The Gaussian part is below 10⁻⁴⁰ of its height for t² > 135, so it is skipped there.
+      const gauss = t2 < 135 ? (1 - peak.eta) * gNorm * Math.exp(-Math.LN2 * t2) : 0;
+      const value = peak.area * ((peak.eta * lNorm) / (1 + t2) + gauss);
       out[i] = (out[i] as number) + (asymmetric ? value * asymmetryFactor(t, a, b) : value);
     }
-  }
+  });
 }
 
 /** Background at every point for parameters p. */
@@ -463,8 +505,9 @@ export function phaseCurve(
   index: number,
   p: Float64Array,
   wavelengths: Wavelengths,
+  windows?: Int32Array,
 ): Float64Array {
   const out = new Float64Array(x.length);
-  addProfiles(x, placePeaks(phases, layout, index, p, wavelengths), out);
+  addProfiles(x, placePeaks(phases, layout, index, p, wavelengths), out, windows);
   return out;
 }
