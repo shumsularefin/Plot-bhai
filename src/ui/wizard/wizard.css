@@ -30,6 +30,8 @@
 
 .wizard-sidebar {
   display: grid;
+  /* A column that may shrink, so the row of step numbers scrolls instead of widening the page. */
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--space-4);
 }
@@ -122,13 +124,18 @@
   transition: width var(--duration-fast);
 }
 
+/* One row of step numbers; with many steps the row scrolls sideways inside itself. */
 .stepper-jump {
   display: flex;
-  flex-wrap: wrap;
   gap: var(--space-1);
-  margin: var(--space-2) 0 0;
-  padding: 0;
+  margin: var(--space-2) calc(-1 * var(--space-1)) 0;
+  padding: var(--space-1);
+  overflow-x: auto;
   list-style: none;
+}
+
+.stepper-jump > li {
+  flex: none;
 }
 
 .stepper-jump-button {
@@ -477,8 +484,22 @@ html:has(.wizard-footer) {
   font-weight: var(--weight-bold);
 }
 
-.step-guide-show {
-  justify-self: start;
+/* The tips once they have been read: the first one only, with a button for the rest. */
+.step-guide-brief {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  max-width: none;
+  padding: var(--space-2) var(--space-4);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  background: var(--color-toolbar);
+}
+
+.step-guide-brief > span {
+  flex: 1 1 16rem;
+  max-width: var(--measure);
 }
 
 /*
@@ -584,67 +605,74 @@ html:has(.wizard-footer) {
   }
 }
 
-@container wizard (min-width: 46rem) {
-  .wizard-sidebar-toggle {
-    display: inline-block;
-    min-width: 0;
-  }
+/*
+ * Between 1100 and 1279 px the pinned plot sits beside the step and leaves too little room for
+ * step names, so the sidebar always shows numbers there, whether or not a plot is pinned. At
+ * every other width the pinned plot leaves the sidebar as it is, so the layout does not jump.
+ */
+@media not ((min-width: 1100px) and (max-width: 1279.98px)) {
+  @container wizard (min-width: 46rem) {
+    .wizard-sidebar-toggle {
+      display: inline-block;
+      min-width: 0;
+    }
 
-  .wizard:not(.is-rail) {
-    grid-template-columns: 13.5rem minmax(0, 1fr);
-    gap: var(--space-6);
-  }
+    .wizard:not(.is-rail) {
+      grid-template-columns: 13.5rem minmax(0, 1fr);
+      gap: var(--space-6);
+    }
 
-  .wizard:not(.is-rail) .wizard-sidebar {
-    padding: var(--space-4) var(--space-3);
-  }
+    .wizard:not(.is-rail) .wizard-sidebar {
+      padding: var(--space-4) var(--space-3);
+    }
 
-  .wizard:not(.is-rail) .wizard-sidebar-head {
-    grid-template-columns: minmax(0, 1fr) auto;
-    justify-items: stretch;
-    gap: var(--space-1);
-    padding: 0 0 0 var(--space-2);
-  }
+    .wizard:not(.is-rail) .wizard-sidebar-head {
+      grid-template-columns: minmax(0, 1fr) auto;
+      justify-items: stretch;
+      gap: var(--space-1);
+      padding: 0 0 0 var(--space-2);
+    }
 
-  .wizard:not(.is-rail) .wizard-sidebar-head > * {
-    display: block;
-    grid-column: 1;
-  }
+    .wizard:not(.is-rail) .wizard-sidebar-head > * {
+      display: block;
+      grid-column: 1;
+    }
 
-  .wizard:not(.is-rail) .wizard-sidebar-head > .wizard-saved {
-    display: flex;
-  }
+    .wizard:not(.is-rail) .wizard-sidebar-head > .wizard-saved {
+      display: flex;
+    }
 
-  .wizard:not(.is-rail) .wizard-sidebar-toggle {
-    display: inline-block;
-    grid-column: 2;
-    grid-row: 1;
-    justify-self: end;
-  }
+    .wizard:not(.is-rail) .wizard-sidebar-toggle {
+      display: inline-block;
+      grid-column: 2;
+      grid-row: 1;
+      justify-self: end;
+    }
 
-  .wizard:not(.is-rail) .wizard-tool {
-    font-size: var(--text-xl);
-  }
+    .wizard:not(.is-rail) .wizard-tool {
+      font-size: var(--text-xl);
+    }
 
-  .wizard:not(.is-rail) .stepper-target {
-    justify-content: flex-start;
-    padding: var(--space-3) var(--space-2);
-  }
+    .wizard:not(.is-rail) .stepper-target {
+      justify-content: flex-start;
+      padding: var(--space-3) var(--space-2);
+    }
 
-  .wizard:not(.is-rail) .stepper-text {
-    position: static;
-    width: auto;
-    height: auto;
-    overflow: visible;
-    clip-path: none;
-    white-space: normal;
-  }
+    .wizard:not(.is-rail) .stepper-text {
+      position: static;
+      width: auto;
+      height: auto;
+      overflow: visible;
+      clip-path: none;
+      white-space: normal;
+    }
 
-  .wizard:not(.is-rail) .stepper-item:not(:last-child)::after {
-    left: calc(var(--space-2) + 0.6875rem - 0.5px);
-  }
+    .wizard:not(.is-rail) .stepper-item:not(:last-child)::after {
+      left: calc(var(--space-2) + 0.6875rem - 0.5px);
+    }
 
-  .wizard:not(.is-rail) .wizard-rail-title {
-    display: none;
+    .wizard:not(.is-rail) .wizard-rail-title {
+      display: none;
+    }
   }
 }

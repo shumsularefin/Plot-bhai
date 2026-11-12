@@ -246,7 +246,9 @@ export function Wizard<D>({ title, steps, store }: WizardProps<D>) {
                 Step {index + 1} of {steps.length}
               </span>
             </header>
-            {step.guide && <StepGuide items={step.guide} />}
+            {step.guide && (
+              <StepGuide key={step.id} id={`${title}/${step.id}`} items={step.guide} />
+            )}
             <div class="wizard-content">{step.render({ data: state.data, update })}</div>
           </div>
 

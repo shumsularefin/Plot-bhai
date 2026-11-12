@@ -1,7 +1,7 @@
 /* A figure kept in view (src/ui/Dock.tsx): beside the page on wide screens, along the bottom on narrow ones. */
 
 :root {
-  --dock-width: clamp(380px, 38vw, 820px);
+  --dock-width: clamp(380px, 32vw, 820px);
 }
 
 .dock-slot {
@@ -63,12 +63,26 @@
   right: 0;
   bottom: 0;
   left: 0;
-  max-height: 55dvh;
+  /* The bar and a short plot: about a third of a phone screen, so the step keeps the rest. */
+  max-height: min(40dvh, 19rem);
   border-width: 1px 0 0;
 }
 
 .has-dock .shell {
   padding-bottom: var(--dock-height, 0px);
+}
+
+/* In the bottom panel the plot comes first; its switches and export buttons scroll below it. */
+@media (max-width: 1099px) {
+  .dock-frame .dock-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .dock-frame .dock-content > :is(.interactive-plot, :has(> .interactive-plot)) {
+    order: -1;
+  }
 }
 
 .dock-frame .image-viewer {

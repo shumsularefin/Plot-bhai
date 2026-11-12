@@ -37,6 +37,14 @@ p {
   margin: 0;
 }
 
+/*
+ * Running text keeps to about 70 characters a line, which is easier to read than a line that
+ * spans a wide screen. Zero specificity, so any layout that sets its own width still wins.
+ */
+:where(.wizard-content, .about, .home, .validation) :where(p, li, dd) {
+  max-width: var(--measure);
+}
+
 a {
   color: var(--color-accent);
   text-decoration-thickness: 1px;
