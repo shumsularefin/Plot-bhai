@@ -68,6 +68,7 @@ import {
   positiveDefinite,
   restraintResiduals,
   structureModel,
+  substitutedContents,
   type StructureModel,
   type Substitution,
 } from './structure';
@@ -942,15 +943,14 @@ export function refineRietveld(
     const pl = layout.phases[k] as (typeof layout.phases)[number];
     if (!phase.cellContents || !model?.atoms.some((a) => a.substitute))
       return cellMass(phase.cellContents, input.atomicWeights);
-    const contents: Record<string, number> = { ...phase.cellContents };
-    model.atoms.forEach((atom, a) => {
-      if (!atom.substitute) return;
-      const al = pl.atoms[a] as (typeof pl.atoms)[number];
-      const moved =
-        atom.images.length * (params[al.occupancy] as number) * (params[al.fraction] as number);
-      contents[atom.element] = (contents[atom.element] ?? 0) - moved;
-      contents[atom.substitute.element] = (contents[atom.substitute.element] ?? 0) + moved;
-    });
+    const contents = substitutedContents(
+      phase.cellContents,
+      model,
+      pl.atoms.map((al) => ({
+        occupancy: params[al.occupancy] as number,
+        fraction: params[al.fraction] as number,
+      })),
+    );
     return cellMass(contents, input.atomicWeights);
   });
   const volumes = phases.map((phase, k) =>

@@ -10,6 +10,9 @@
  * A family's Σ|F|² is the sum of |F|² over its members (all reflections equivalent under the
  * lattice symmetry), which replaces the reference value when the structure is refined.
  *
+ * Special positions: each atom is first moved onto the exact special position its coordinates
+ * stand for (specialPosition below; 0.3333 becomes 1/3), so its images coincide exactly.
+ *
  * Free coordinates: an atom on a special position x₀ is left unchanged by its stabiliser, the
  * operators (R, t) with R x₀ + t ≡ x₀ (mod 1). A shift δ keeps it there when R δ = δ for each of
  * them, so the allowed shifts are the null space of the stacked (R − I): x = x₀ + Σ c_i v_i with the
@@ -171,8 +174,31 @@ export function positiveDefinite(u: readonly number[]): boolean {
   return m1 > 0 && m2 > 0 && m3 > 0;
 }
 
-const EPS = 1e-4;
+/**
+ * Tolerance (fractional) for an operator to map an atom onto itself. CIF coordinates are often
+ * given to 3 decimals (0.333 for 1/3), and an image can then be off by up to 3 × 0.0005, so
+ * 0.002 (0.02 Å in a 10 Å cell).
+ */
+const EPS = 2e-3;
 const wrapDiff = (v: number) => v - Math.round(v);
+
+/**
+ * The exact special position near x: the mean of its images under the operators that map it onto
+ * itself within EPS, each image taken nearest to x. The images of a point under its stabiliser
+ * are permuted by every operator of it, so their mean is fixed by all of them (a CIF's 0.3333
+ * becomes 1/3, as in GSAS-II). A general position is returned unchanged.
+ */
+export function specialPosition(ops: readonly Symop[], x: Vec3): Vec3 {
+  const sum = [0, 0, 0];
+  let n = 0;
+  for (const g of ops) {
+    const shift = applySymop(g, x).map((v, i) => wrapDiff(v - (x[i] as number)));
+    if (!shift.every((v) => Math.abs(v) < EPS)) continue;
+    shift.forEach((v, i) => (sum[i] = (sum[i] as number) + (x[i] as number) + v));
+    n++;
+  }
+  return n > 0 ? (sum.map((v) => v / n) as Vec3) : x;
+}
 
 /** Null space of a stack of n-column rows (Gaussian elimination), as basis vectors. */
 export function nullSpace(rows: number[][], n = 3): number[][] {
@@ -225,7 +251,8 @@ export function structureModel(
   const ops = structure.ops.map(parseSymop);
   const gStar = reciprocalMetric(cell);
   const aStar = [Math.sqrt(gStar[0]), Math.sqrt(gStar[4]), Math.sqrt(gStar[8])];
-  const atoms: StructureAtom[] = structure.atoms.map((atom) => {
+  const atoms: StructureAtom[] = structure.atoms.map((given) => {
+    const atom = { ...given, x: specialPosition(ops, given.x) };
     const factor = factors[atom.element];
     if (!factor) throw new Error(`no scattering factor for ${atom.element}`);
     const sub = substitutions.find((q) => q.site === atom.label);
@@ -384,4 +411,25 @@ export function restraintResiduals(
     const xj = applySymop(r.op, (states[r.j] as AtomState).x, r.n);
     return (distance(cell, xi, xj) - r.d0) / RESTRAINT_SIGMA;
   });
+}
+
+/**
+ * Unit-cell contents with each dopant on its site: (site multiplicity) × occupancy × x atoms of
+ * the host element become the dopant. `atoms` gives, per atom of the model, its occupancy and
+ * dopant fraction x.
+ */
+export function substitutedContents(
+  contents: Readonly<Record<string, number>>,
+  model: StructureModel,
+  atoms: readonly { occupancy: number; fraction: number }[],
+): Record<string, number> {
+  const out: Record<string, number> = { ...contents };
+  model.atoms.forEach((atom, a) => {
+    if (!atom.substitute) return;
+    const state = atoms[a] as { occupancy: number; fraction: number };
+    const moved = atom.images.length * state.occupancy * state.fraction;
+    out[atom.element] = (out[atom.element] ?? 0) - moved;
+    out[atom.substitute.element] = (out[atom.substitute.element] ?? 0) + moved;
+  });
+  return out;
 }

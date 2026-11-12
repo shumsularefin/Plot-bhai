@@ -13,6 +13,7 @@ import {
   type RietveldResult,
   type InstrumentProfile,
 } from '../../core/xrd/rietveld/refine';
+import type { Substitution } from '../../core/xrd/rietveld/structure';
 import { DEFAULT_EXPORT_SETTINGS } from '../../ui/plot/export';
 import type { PlotSettings } from '../../ui/plot/PlotPanel';
 import type { WizardState } from '../../ui/wizard/types';
@@ -95,6 +96,8 @@ export interface RietveldState {
   instrument?: { profile: InstrumentProfile; source: string } | null;
   /** Phase ids fitted in Le Bail mode (intensities from the data, no structure). */
   leBail?: string[];
+  /** Dopants placed on sites, by phase id (shared-site substitution). */
+  substitutions?: Record<string, Substitution[]>;
   /** Internal standard for the amorphous content: phase id and its weighed weight %. */
   standard?: { phaseId: string; percent: number | null } | null;
   /**

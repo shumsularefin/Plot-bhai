@@ -167,6 +167,18 @@ export function rietveldMethods(input: RietveldMethodsInput): string {
     sentences.push(
       `Weight fractions were calculated with the method of Hill and Howard (J. Appl. Cryst. 20 (1987) 467): ${list(fractions.map((p) => `${p.name} ${withUncertainty(100 * (p.weightFraction?.value ?? 0), 100 * (p.weightFraction?.esd ?? 0), 1)} wt%`))}, relative to the crystalline phases refined.`,
     );
+  const dopants = result.phases.flatMap((p) =>
+    (p.atoms ?? []).flatMap((a) => (a.substitute ? [{ phase: p.name, atom: a }] : [])),
+  );
+  if (dopants.length > 0)
+    sentences.push(
+      `${list(
+        dopants.map(
+          ({ phase, atom }) =>
+            `${atom.substitute?.element} was placed on the ${atom.label} site of ${phase} with ${atom.substitute?.fraction.refined ? 'a refined' : 'a fixed'} fraction x = ${withUncertainty(atom.substitute?.fraction.value ?? 0, atom.substitute?.fraction.esd ?? 0, 3)}`,
+        ),
+      )}, sharing the site's position and displacement parameter (site scattering factor (1 − x) f_host + x f_dopant).`,
+    );
   const standard = result.standard;
   if (standard) {
     const name = result.phases.find((p) => p.id === standard.phaseId)?.name ?? 'the standard';

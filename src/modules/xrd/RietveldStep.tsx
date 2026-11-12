@@ -28,6 +28,7 @@ import {
   type XrdData,
 } from './data';
 import { RietveldSetup } from './RietveldSetup';
+import { SubstitutionPanel, validSubstitutions } from './SubstitutionPanel';
 import { parseRanges, polarisationOf } from './rietveldSettings';
 import { xrdLabels } from './labels';
 import { NumberInput } from './NumberInput';
@@ -221,6 +222,7 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
     instrument?.profile,
     leBail.filter((id) => included.some((p) => p.id === id)),
     standardPhase && standard?.percent,
+    included.map((p) => validSubstitutions(p, settings.substitutions?.[p.id])),
   ]);
   const result: RietveldResult | null =
     settings.result?.outcome.ok === true ? settings.result.outcome : null;
@@ -281,6 +283,9 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
         ...(p.structure && { structure: p.structure }),
         orientation: settings.choices.orientation ? orientationOf(p) : null,
         ...(leBail.includes(p.id) && { leBail: true }),
+        ...(!leBail.includes(p.id) && {
+          substitutions: validSubstitutions(p, settings.substitutions?.[p.id]),
+        }),
       })),
       choices: settings.choices,
       backgroundTerms: settings.backgroundTerms,
@@ -651,6 +656,8 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
           </p>
         )}
       </Advanced>
+
+      <SubstitutionPanel settings={settings} set={set} phases={included} />
 
       <RietveldSetup
         settings={settings}
@@ -1108,6 +1115,8 @@ function Results({
 /** Refined atoms of each phase (structure refinement), with a CSV download. */
 function AtomsTable({ result, name }: { result: RietveldResult; name: string }) {
   const hasU = result.phases.some((p) => p.atoms?.some((a) => a.u));
+  // Results saved before stage 17b have no substitute field.
+  const hasDopant = result.phases.some((p) => p.atoms?.some((a) => a.substitute));
   const rows = result.phases.flatMap((p) =>
     (p.atoms ?? []).map((atom) => ({ phase: p.name, atom })),
   );
@@ -1131,6 +1140,7 @@ function AtomsTable({ result, name }: { result: RietveldResult; name: string }) 
               <th scope="col">Occupancy</th>
               <th scope="col">B (Å²)</th>
               {hasU && <th scope="col">U11, U22, U33, U12, U13, U23 (Å²)</th>}
+              {hasDopant && <th scope="col">Dopant, fraction x</th>}
             </tr>
           </thead>
           <tbody>
@@ -1147,6 +1157,13 @@ function AtomsTable({ result, name }: { result: RietveldResult; name: string }) 
                   <td>
                     {atom.u ? atom.u.map((c) => num(c, 4)).join(', ') : '–'}
                     {!atom.positiveDefinite && ' (not positive definite)'}
+                  </td>
+                )}
+                {hasDopant && (
+                  <td>
+                    {atom.substitute
+                      ? `${atom.substitute.element} ${num(atom.substitute.fraction, 3)}`
+                      : '–'}
                   </td>
                 )}
               </tr>
@@ -1176,6 +1193,12 @@ function AtomsTable({ result, name }: { result: RietveldResult; name: string }) 
                   value: (r: (typeof rows)[number]) => r.atom.x[i]?.esd ?? '',
                 },
               ]),
+              { header: 'Dopant', value: (r) => r.atom.substitute?.element ?? '' },
+              {
+                header: 'Dopant fraction x',
+                value: (r) => r.atom.substitute?.fraction.value ?? '',
+              },
+              { header: 's.u. x', value: (r) => r.atom.substitute?.fraction.esd ?? '' },
               { header: 'Occupancy', value: (r) => r.atom.occupancy.value },
               { header: 's.u. occupancy', value: (r) => r.atom.occupancy.esd },
               {
