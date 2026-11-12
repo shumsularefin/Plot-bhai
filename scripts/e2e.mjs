@@ -182,6 +182,26 @@ async function walkToExport(log) {
   const rwp = await page.locator('.result-summary dd').first().textContent();
   assert.match(rwp ?? '', /^\d+\.\d\d %$/);
   note(`5 Rietveld: refined with peak asymmetry, Rwp ${rwp}`);
+  // Stage 17a: a monochromator, crystallite size and a left-out range, then refine again.
+  await page.getByLabel('Peak asymmetry').uncheck();
+  await page.getByLabel('Crystallite size').check();
+  const mono = page.getByLabel('Monochromator');
+  if (!(await mono.isVisible()))
+    await page.locator('summary', { hasText: 'Instrument, sample and quantification' }).click();
+  await page.getByLabel('Monochromator').selectOption('graphite');
+  await page.getByText(/^P = 0\.5\d+ \(monochromator angle/).waitFor();
+  await page.getByPlaceholder('for example 38–39, 44.5–45').fill('70-71');
+  await page.getByRole('button', { name: 'Refine again', exact: true }).click();
+  await page.getByRole('columnheader', { name: 'Size (nm)' }).waitFor({ timeout: 60_000 });
+  await page
+    .getByText(/graphite \(002\) diffracted-beam monochromator/)
+    .first()
+    .waitFor();
+  await page
+    .getByText(/70–71° were excluded/)
+    .first()
+    .waitFor();
+  note('5 Rietveld: monochromator, crystallite size and an excluded range refined');
   await next('Fit peaks');
 
   // 5 Fit peaks
@@ -301,7 +321,7 @@ try {
   const inst = readFileSync(await instDownload.path(), 'utf8');
   assert.match(inst.split('\n')[0] ?? '', /GSAS-II/);
   assert.match(inst, /\nType:PXC;Bank:1\n/);
-  assert.match(inst, /;Zero:[-\d.e]+;Polariz\.:0\.5;/);
+  assert.match(inst, /;Zero:[-\d.e]+;Polariz\.:0\.55\d+;/);
   const [cifDownload] = await Promise.all([
     page.waitForEvent('download'),
     page

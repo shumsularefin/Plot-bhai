@@ -46,6 +46,11 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 16e       | Rietveld structure refinement and GSAS-II export             | done    |
 | 16f       | Materials Project / AMCSD search through a backend           | skipped |
 | 16g       | Owner additions: TCH, U_ij, low-symmetry indexing, CI checks | done    |
+| 17a       | Rietveld: size/strain, optics, Le Bail, statistics           | done    |
+| 17b       | Rietveld: shared-site substitution, Le Bail of indexed cells | planned |
+| 17c       | Rietveld: anisotropic broadening, FCJ axial divergence       | planned |
+| 17d       | Rietveld: anomalous dispersion, capillary geometry           | planned |
+| 17e       | Rietveld: analytic derivatives (speed)                       | planned |
 
 ## The one prompt you paste in every new session
 
@@ -566,3 +571,23 @@ wizard step where it belongs (see CLAUDE.md section 8) and lists its checks in d
 - **16f** Skipped by the owner (November 2026): not possible on the free plan without a backend
   and an API key; CIF upload covers both databases. Original note: blocked until the owner approves a backend and holds a
   Materials Project API key; AMCSD's terms of use must be read first.
+
+## 15. Stage 17: the most competitive Rietveld refinement on the free plan (owner request, November 2026)
+
+The owner asked to push the Rietveld refinement as far as it can go within the Spark plan. All of
+it runs in the browser, so hosting is no limit; the audit, the capability table and the ranked
+list are in docs/rietveld-roadmap.md. Every sub-stage adds a GSAS-II case to
+`scripts/validation/gsas2/` (run by the Validation workflow) and its rows to docs/validation.md.
+
+- **17a (done)** Size and microstrain (GSAS-II definitions), fixed instrument profile (typed,
+  .instprm, or from a standard), monochromator polarisation, variable slit, transparency, surface
+  roughness, Le Bail mode, excluded ranges, internal-standard amorphous content, Durbin–Watson d,
+  correlations, reflection list.
+- **17b** A second element on a site with the total occupancy fixed and shared x and B (doped
+  materials); Le Bail of a cell from "Index an unknown pattern", reflections from its centring.
+- **17c** Stephens anisotropic microstrain and GSAS-II's uniaxial size; Finger–Cox–Jephcoat axial
+  divergence (SH/L) so .instprm files transfer exactly.
+- **17d** Anomalous dispersion f′, f″ from a table the owner approves; capillary geometry with
+  absorption.
+- **17e** Analytic derivatives, so structure refinements of low-symmetry phases and 50,000-point
+  scans stay fast.

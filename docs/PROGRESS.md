@@ -1,5 +1,45 @@
 # Progress
 
+## Stage 17a: competitive Rietveld refinement, first batch (done, owner request November 2026)
+
+Branch `claude/sleepy-turing-hb1ofu`. No new dependencies. The owner asked to push the Rietveld
+refinement as far as the free plan allows. The audit and the ranked list of what comes next are
+in docs/rietveld-roadmap.md; the checks are in docs/validation.md, 17a.
+
+- **Optics:** monochromator choice (graphite diffracted beam, germanium incident beam, or a typed
+  GSAS-II polarisation coefficient P) in the Lorentz–polarisation factor; automatic divergence slit
+  (intensities × sin θ).
+- **Sample:** isotropic crystallite size and microstrain per phase with GSAS-II's definitions
+  (refined as 1/D so a large size stays finite), optional Lorentzian fractions; sample
+  transparency; Suortti surface roughness.
+- **Instrument profile:** refine as before, or fix U, V, W, X, Y typed, loaded from a GSAS-II
+  .instprm file, or taken from the refinement of a standard (LaB₆, Si) with one button. Without a
+  fixed profile X and Y stay fixed when size and strain are refined, with a warning that the size
+  is then a lower limit.
+- **Le Bail mode** per phase: intensities extracted from the data after every stage; scale, weight
+  fraction and R_Bragg are not used for that phase.
+- **Excluded 2θ ranges**, **amorphous content from an internal standard** (and absolute weight
+  fractions), **Durbin–Watson d**, **strongly correlated parameter pairs** (with a warning at
+  |r| ≥ 0.95), **reflection list CSV** (hkl, d, 2θ, |F|², I_obs, I_calc).
+- **Methods text** names the monochromator, slit, fixed instrument, Le Bail phases, size and
+  strain with their definitions, excluded ranges, amorphous content and d. The .instprm export
+  carries P and notes the refined size and strain in GSAS-II units.
+- **Fixes found by the checks:** the profile window now matches GSAS-II (50 F below, 75 F above);
+  the old ±25 H window biased Lorentzian size and strain by about 1 %. Finite-difference
+  derivatives reuse the unshifted windows; a moving window edge could make one uncertainty 13×
+  too small.
+- **Validation:** GSAS-II on GitHub simulated and refined CeO2 with size, strain, polarisation,
+  roughness and transparency (`scripts/validation/gsas2/sample.py`, Rietveld and Le Bail); this
+  site recovers GSAS-II's size 40.04(6) nm against 40.05(6) and R_wp 1.858 % against 1.850 %.
+- **Session:** new optional fields in `RietveldState` (older sessions load unchanged); results
+  saved by older versions show without the new columns.
+- **Checks:** lint, type check, 1142 unit tests, build, bundle size and e2e (now also refines with
+  a monochromator, crystallite size and an excluded range) pass.
+- **Open:** surface roughness B is 1 % low against the GSAS-II truth; the Le Bail cells differ
+  from GSAS-II's by 6e-5 Å; monochromator spacings flagged for verification (docs/validation.md).
+- **Next:** 17b from docs/rietveld-roadmap.md (substitution on a shared site for doped materials,
+  Le Bail of an indexed cell), when the owner says so.
+
 ## FTIR stacked peak labels, FTIR fixes, journal figure styles (done, owner request November 2026)
 
 Branch `claude/laughing-keller-tjba6r`. No new dependencies.

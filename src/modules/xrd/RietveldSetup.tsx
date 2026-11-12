@@ -49,6 +49,21 @@ export function RietveldSetup({ settings, set, phases, lambda, result, patternNa
   const rangesOk = parseRanges(rangesText) !== null;
   const first = result?.phases[0];
 
+  /** The last refinement's TCH widths, when it had them and no sample broadening. */
+  const lastWidths = () =>
+    first?.tch && !first.size && !first.microstrain
+      ? {
+          profile: {
+            u: first.u.value,
+            v: first.v.value,
+            w: first.w.value,
+            x: first.x.value,
+            y: first.y.value,
+          },
+          source: `the refinement of ${first.name} in ${patternName}`,
+        }
+      : null;
+
   const loadInstprm = async (file: File) => {
     const read = readInstprm(await file.text());
     if ('error' in read) {
@@ -165,7 +180,11 @@ export function RietveldSetup({ settings, set, phases, lambda, result, patternNa
             checked={instrument !== null}
             onChange={() =>
               set({
-                instrument: instrument ?? { profile: ZERO_PROFILE, source: 'typed values' },
+                instrument: instrument ??
+                  lastWidths() ?? {
+                    profile: ZERO_PROFILE,
+                    source: 'typed values',
+                  },
               })
             }
           />
