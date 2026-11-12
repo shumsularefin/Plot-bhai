@@ -44,6 +44,12 @@ describe('a CIF loaded by the user', () => {
     expect(phase.formula).toBe('TiO2');
     expect(phase.peaks).toEqual(anatase.peaks);
     expect(phaseReference(phase)).toBe(`CIF file anatase.cif (COD ${anatase.codId})`);
+    // An entry downloaded by the COD lookup is stored under the name "COD <id>.cif".
+    const origin = phase.origin;
+    if (origin?.kind !== 'cif') throw new Error('expected a CIF origin');
+    expect(
+      phaseReference({ ...phase, origin: { ...origin, fileName: `COD ${anatase.codId}.cif` } }),
+    ).toBe(`COD ${anatase.codId}`);
   });
 
   it('warns about a negative displacement parameter (COD 9013437, monoclinic BiVO4)', () => {

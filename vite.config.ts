@@ -1,5 +1,6 @@
 /// <reference types="vitest/config" />
 import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 
 /** Commit and date of this build, recorded in methods texts and analysis records. */
@@ -18,7 +19,12 @@ function buildId(): string {
 // JSX is compiled by Vite's built-in transform using `jsxImportSource: "preact"`
 // from tsconfig.json, so no framework plugin is needed.
 export default defineConfig({
-  define: { __BUILD__: JSON.stringify(buildId()) },
+  define: {
+    __BUILD__: JSON.stringify(buildId()),
+    __VERSION__: JSON.stringify(
+      (JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version,
+    ),
+  },
   build: {
     target: 'es2022',
   },

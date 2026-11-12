@@ -9,8 +9,11 @@ authors:
 repository-code: 'https://github.com/shumsularefin/Plot-bhai'
 url: 'https://plot-bhai.web.app'
 license: MIT
-version: '0.1.0'
-date-released: '2026-10-29'
+version: '0.2.0'
+date-released: '2026-11-12'
+# TODO (owner): add the Zenodo DOI here once the first release is archived, as
+#   doi: 10.5281/zenodo.XXXXXXX
+# See docs/RELEASING.md.
 keywords:
   - X-ray diffraction
   - crystallite size
