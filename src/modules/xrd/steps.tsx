@@ -26,7 +26,7 @@ export const xrdSteps: readonly WizardStep<XrdData>[] = [
     render: (context) => <UploadStep {...context} />,
     validate: (data) =>
       data.patterns.length === 0
-        ? 'Load at least one pattern to continue. "Try with example data" loads a synthetic one.'
+        ? 'Load at least one pattern to continue. "Try with example data" loads a calculated one.'
         : null,
   },
   {

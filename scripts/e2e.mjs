@@ -103,8 +103,8 @@ async function walkToExport(log) {
   const note = log ? step : () => {};
   // 1 Upload
   await page.getByRole('button', { name: 'Try with example data' }).click();
-  await page.getByText('Synthetic example A').first().waitFor();
-  note('1 Upload: example data loaded');
+  await page.getByText('ZnO, calculated, 60 nm crystallites').first().waitFor();
+  note('1 Upload: example data (ZnO, calculated from COD 1577381) loaded');
   await next('Clean data');
 
   // 2 Clean data

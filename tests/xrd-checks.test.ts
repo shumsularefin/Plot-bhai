@@ -115,16 +115,23 @@ describe('synthetic data', () => {
     expect([a(), a(), a()]).toEqual([b(), b(), b()]);
   });
 
-  it('example data are two whole-count patterns from 10° to 80°', () => {
-    const examples = examplePatterns();
+  it('example data are two whole-count patterns with peaks where the lines are', () => {
+    const lines = [
+      { twoTheta: 31.8, intensity: 57 },
+      { twoTheta: 36.3, intensity: 100 },
+      { twoTheta: 56.6, intensity: 30 },
+      { twoTheta: 95, intensity: 10 },
+    ];
+    const examples = examplePatterns(lines, 'ZnO');
     expect(examples.map((e) => e.name)).toEqual([
-      'Synthetic example A (narrow peaks)',
-      'Synthetic example B (broad peaks)',
+      'ZnO, calculated, 60 nm crystallites',
+      'ZnO, calculated, 15 nm crystallites',
     ]);
     for (const e of examples) {
-      expect(e.twoTheta[0]).toBe(10);
+      expect(e.twoTheta[0]).toBe(20);
       expect(e.twoTheta[e.twoTheta.length - 1]).toBe(80);
       expect(e.intensity.every((v) => Number.isInteger(v) && v >= 0)).toBe(true);
+      expect(summarise(e.twoTheta, e.intensity).maxIntensityAt).toBeCloseTo(36.3, 1);
     }
   });
 });
