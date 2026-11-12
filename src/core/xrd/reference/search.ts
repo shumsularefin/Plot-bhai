@@ -63,6 +63,32 @@ export function hillFormula(counts: Record<string, number>): string {
     .join(' ');
 }
 
+/**
+ * Elements that usually form the anion or the molecular part of an inorganic formula, in the
+ * order they are written last (carbon ... fluorine). The order follows the element sequence of
+ * the IUPAC Red Book (Nomenclature of Inorganic Chemistry, 2005, Table VI) for these elements.
+ * Flagged for the owner's check.
+ */
+const WRITTEN_LAST = ['C', 'P', 'N', 'H', 'Te', 'Se', 'S', 'O', 'I', 'Br', 'Cl', 'F'];
+
+/**
+ * A formula written the way papers usually write it, for display only: "ZnO", not the Hill-order
+ * "OZn" that CIF files and COD store. Metals and metalloids keep their alphabetical (Hill) order
+ * and come first; the elements of WRITTEN_LAST follow in that order. A compound with both carbon
+ * and hydrogen keeps the Hill order (C, H, then alphabetical), which is the convention for
+ * organic compounds. This is a writing convention, not a statement about the structure: for
+ * example it gives "Al2MgO4" where papers write "MgAl2O4". A count of 1 is left out.
+ */
+export function displayFormula(counts: Record<string, number>): string {
+  const organic = counts['C'] !== undefined && counts['H'] !== undefined;
+  const rank = (e: string) =>
+    organic ? (e === 'C' ? 0 : e === 'H' ? 1 : 2) : 1 + WRITTEN_LAST.indexOf(e);
+  return Object.keys(counts)
+    .sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))
+    .map((e) => `${e}${counts[e] === 1 ? '' : Number((counts[e] as number).toFixed(3))}`)
+    .join('');
+}
+
 /** Atom fractions rounded to 3 decimals, as a key: equal for BiVO4 and Bi2V2O8, any order. */
 export function compositionKey(counts: Record<string, number>): string {
   const total = Object.values(counts).reduce((s, n) => s + n, 0);

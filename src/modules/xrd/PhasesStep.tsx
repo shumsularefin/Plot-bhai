@@ -296,7 +296,7 @@ export function PhasesStep({ data, update }: StepContext<XrdData>) {
       </div>
       <p class="field-hint">
         {detected
-          ? `${detected.length} peak${detected.length === 1 ? '' : 's'} found in your cleaned pattern (circles). The number depends on the settings of step 5.`
+          ? `${detected.length} peak${detected.length === 1 ? '' : 's'} found in your cleaned pattern (circles). The number depends on the settings of step 6.`
           : 'Finding peaks…'}{' '}
         Each phase is shifted by one zero-shift value (at most ±0.3°) that gives its best score.
       </p>

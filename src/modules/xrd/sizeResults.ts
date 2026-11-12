@@ -116,12 +116,12 @@ export function choicesFor(data: XrdData, patternId: string, fitKey: string): Pa
 export function sizeResults(data: XrdData, patternId: string): SizeResults {
   const fit = peaksFor(data, patternId).fit;
   if (!fit || fit.regions.every((r) => r.peaks.length === 0))
-    return { kind: 'none', reason: 'This pattern has no fitted peaks yet. Fit them in step 5.' };
+    return { kind: 'none', reason: 'This pattern has no fitted peaks yet. Fit them in step 6.' };
   const instrument = instrumentModel(data.instrument);
   if ('problem' in instrument)
     return {
       kind: 'none',
-      reason: `Instrument correction (step 6) is incomplete: ${instrument.problem}`,
+      reason: `Instrument correction (step 7) is incomplete: ${instrument.problem}`,
     };
   const skipped = 'skipped' in instrument;
 

@@ -24,7 +24,7 @@ describe('a CIF loaded by the user', () => {
   it('names a phase by formula when the file names only its crystal system (ZnO, COD 1577381)', () => {
     const result = phaseFromCif(text('scripts/cif-cache/1577381.cif'), 'zno.cif', factors, 'cif-z');
     if (!result.ok) throw new Error(result.error);
-    expect(result.phase.name).toBe('OZn (hexagonal)');
+    expect(result.phase.name).toBe('ZnO (hexagonal)');
   });
 
   it('gives exactly the library pattern for the same COD file (anatase)', () => {
@@ -41,7 +41,7 @@ describe('a CIF loaded by the user', () => {
     expect(phase.codId).toBe(anatase.codId);
     expect(phase.spaceGroup.number).toBe(141);
     expect(phase.crystalSystem).toBe('tetragonal');
-    expect(phase.formula).toBe('O2Ti');
+    expect(phase.formula).toBe('TiO2');
     expect(phase.peaks).toEqual(anatase.peaks);
     expect(phaseReference(phase)).toBe(`CIF file anatase.cif (COD ${anatase.codId})`);
   });

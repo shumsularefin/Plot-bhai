@@ -190,14 +190,14 @@ function TablesSection({ tables }: { tables: ReturnType<typeof allTables> }) {
       </h3>
       {tables.length === 0 ? (
         <p class="field-hint">
-          There are no tables yet. Fit peaks in step 5 to get the peak, assignment and size tables.
+          There are no tables yet. Fit peaks in step 6 to get the peak, assignment and size tables.
         </p>
       ) : (
         <>
           <p class="field-hint">
             One CSV file per table, or all of them in one file with a &quot;## name&quot; line
             before each. Texture, crystallinity and the per-method line fits can be downloaded from
-            their own sections in step 7.
+            their own sections in step 8.
           </p>
           <ul class="table-list">
             {tables.map((table) => (

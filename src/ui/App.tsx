@@ -69,7 +69,7 @@ export function App() {
       </main>
       <footer class="site-footer">
         <div class="container">
-          <p>© 2026 Shumsul Arefin. All rights reserved.</p>
+          <p>© 2026 Shumsul Arefin. Open source under the MIT licence.</p>
           <p>
             Free to use. Your data stays on your device.{' '}
             <a href="#/about">About, equations and limits</a>

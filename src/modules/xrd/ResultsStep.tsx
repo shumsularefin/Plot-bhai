@@ -81,7 +81,7 @@ export function ResultsStep({ data, update }: StepContext<XrdData>) {
       ? 'The reference lines could not be loaded. Reload the page to try again.'
       : !phases
         ? 'Loading the reference lines…'
-        : 'This pattern has no fitted peaks yet. Fit them in step 5 to assign (hkl).';
+        : 'This pattern has no fitted peaks yet. Fit them in step 6 to assign (hkl).';
   const setChoices = (fitKey: string, patch: Partial<PatternChoices>) =>
     setResults({
       patterns: {
@@ -99,7 +99,7 @@ export function ResultsStep({ data, update }: StepContext<XrdData>) {
     <div class="fit-step">
       {skipped && (
         <p class="message is-warning" role="note">
-          <strong>Check:</strong> instrument correction was skipped (step 6). Widths include the
+          <strong>Check:</strong> instrument correction was skipped (step 7). Widths include the
           instrument&apos;s own broadening, so every crystallite size in these results is smaller
           than reality.
         </p>
@@ -153,7 +153,12 @@ export function ResultsStep({ data, update }: StepContext<XrdData>) {
             <dt>Phases assigned</dt>
             <dd>
               {assignment?.phases.length
-                ? assignment.phases.map((a) => `${a.phase.name} (${a.assigned} peaks)`).join(', ')
+                ? assignment.phases
+                    .map(
+                      (a) =>
+                        `${a.phase.name} (${a.assigned} ${a.assigned === 1 ? 'peak' : 'peaks'})`,
+                    )
+                    .join(', ')
                 : 'none'}
             </dd>
           </div>
@@ -243,10 +248,10 @@ export function ResultsStep({ data, update }: StepContext<XrdData>) {
                 </p>
               )}
               {skipped ? (
-                <p class="field-hint">Instrument correction: skipped (change it in step 6).</p>
+                <p class="field-hint">Instrument correction: skipped (change it in step 7).</p>
               ) : (
                 <fieldset class="method-choice">
-                  <legend>Instrument correction (also set in step 6)</legend>
+                  <legend>Instrument correction (also set in step 7)</legend>
                   {(Object.keys(CORRECTION_LABELS) as CorrectionMethod[]).map((m) => (
                     <label key={m} class="check">
                       <input

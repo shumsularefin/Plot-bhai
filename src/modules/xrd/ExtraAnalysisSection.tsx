@@ -102,7 +102,7 @@ export function ExtraAnalysisSection({ data, update, patternId, assignment }: Ex
       </h3>
       <p class="field-hint">
         Extra analyses of the same pattern. All three are estimates that depend on your choices and
-        on how well the peaks were fitted in step 5.
+        on how well the peaks were fitted in step 6.
       </p>
 
       <TextureBlock
@@ -203,13 +203,13 @@ function TextureBlock({
       {needsAssignment || !textures ? (
         <p class="message is-info" role="note">
           <strong>Note:</strong> Texture coefficients need peaks assigned to a reference phase. Fit
-          the peaks (step 5) and choose a phase (steps 3 and 4).
+          the peaks (step 6) and choose a phase (steps 3 and 4).
         </p>
       ) : (
         <>
           <p class="field-hint">
             Reflections of the phase that are strong in the reference and inside the scanned range
-            but have no fitted peak count as intensity 0, so fit every visible peak in step 5 first.
+            but have no fitted peak count as intensity 0, so fit every visible peak in step 6 first.
             With few reflections the coefficients are only a rough guide.
           </p>
           <CheckLog
@@ -222,7 +222,7 @@ function TextureBlock({
                       Number.isFinite(row.expected?.signal?.ratio)
                         ? `${row.expected?.signal?.ratio.toFixed(1)} times the local noise`
                         : 'clearly above a noise-free baseline'
-                    } near ${row.expected?.twoTheta.toFixed(2)}° 2θ, where this reference line is expected, but no peak was fitted. It is counted as intensity 0, which lowers its TC and raises the others. Fit it in step 5 for a fair coefficient.`,
+                    } near ${row.expected?.twoTheta.toFixed(2)}° 2θ, where this reference line is expected, but no peak was fitted. It is counted as intensity 0, which lowers its TC and raises the others. Fit it in step 6 for a fair coefficient.`,
                   })),
             )}
           />
@@ -421,7 +421,7 @@ function CrystallinityBlock({
                 The hump height is fitted to the points that are not near a fitted peak
                 {peaksFitted
                   ? ` (${run?.excludedPeaks ?? 0} peaks in the range are left out).`
-                  : '. No peaks are fitted yet, so the whole pattern is used and the peaks inflate the hump; fit the peaks in step 5 first.'}
+                  : '. No peaks are fitted yet, so the whole pattern is used and the peaks inflate the hump; fit the peaks in step 6 first.'}
               </p>
             </>
           ) : (
@@ -496,8 +496,8 @@ function CharacterBlock({ hints }: { hints: readonly CharacterHint[] | null }) {
   if (hints === null)
     return (
       <p class="message is-info" role="note">
-        <strong>Note:</strong> Pattern hints need peaks assigned to a reference phase (steps 3 to
-        5).
+        <strong>Note:</strong> Pattern hints need peaks assigned to a reference phase (steps 3, 4
+        and 6).
       </p>
     );
   if (hints.length === 0)

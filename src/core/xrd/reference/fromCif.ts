@@ -14,6 +14,7 @@ import {
   reflections,
   type FormFactors,
 } from './powder.ts';
+import { displayFormula, parseFormula } from './search.ts';
 import { storeStructure } from '../structure/geometry.ts';
 import type { ReferencePhase } from './types.ts';
 import type { DataMessage } from '../types.ts';
@@ -53,18 +54,13 @@ const text = (block: CifBlock, ...tags: string[]): string | null => {
   return null;
 };
 
-/** "Bi O4 V" or "Bi1 O4 V1" → "BiO4V"; counts such as 1.00 lose their decimals. */
+/**
+ * "O Zn" or "O1 Zn1" → "ZnO": the CIF's Hill-order sum formula in the usual written order
+ * (displayFormula). Text that is not a plain list of elements and counts is kept as it is.
+ */
 function compactFormula(sum: string): string {
-  return sum
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((t) => {
-      const m = /^([A-Z][a-z]?)(\d*\.?\d*)$/.exec(t);
-      if (!m) return t;
-      const n = m[2] ? Number(m[2]) : 1;
-      return `${m[1]}${n === 1 ? '' : Number(n.toFixed(3))}`;
-    })
-    .join('');
+  const counts = parseFormula(sum);
+  return counts ? displayFormula(counts) : sum.replace(/\s+/g, '');
 }
 
 /** Formula from the cell contents divided by their greatest common count (2 decimals). */
@@ -78,13 +74,11 @@ function formulaFromCell(counts: Record<string, number>): string {
       break;
     }
   }
-  return Object.keys(counts)
-    .sort()
-    .map((el) => {
-      const n = Number(((counts[el] as number) / divisor).toFixed(2));
-      return `${el}${n === 1 ? '' : n}`;
-    })
-    .join('');
+  return displayFormula(
+    Object.fromEntries(
+      Object.entries(counts).map(([el, n]) => [el, Number((n / divisor).toFixed(2))]),
+    ),
+  );
 }
 
 /**

@@ -261,8 +261,12 @@ export interface StandardState {
   curve: CurveKind;
 }
 
+/**
+ * A new analysis starts with no correction, so a beginner without a standard is not stopped at
+ * this step; the step and the results then say plainly that the sizes are lower limits.
+ */
 export const DEFAULT_INSTRUMENT: InstrumentState = {
-  source: 'constant',
+  source: 'skip',
   constantFwhm: null,
   caglioti: { u: null, v: null, w: null, convention: 'fwhm' },
   eta: 0,
