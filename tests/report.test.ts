@@ -60,6 +60,27 @@ describe('methodsParagraph', () => {
     expect(text).toContain('within 0.15° 2θ');
   });
 
+  it('says a cell from indexing has no structure behind its lines', () => {
+    const text = methodsParagraph({
+      ...base,
+      phases: [
+        { name: 'Anatase', formula: 'TiO2', reference: 'COD 9009086' },
+        {
+          name: 'Indexed cell (cubic F, M20 = 50.0)',
+          formula: '',
+          reference: 'cell from indexing (cubic F, M20 = 50.0)',
+        },
+      ],
+    });
+    expect(text).toContain('structures in the Crystallography Open Database: Anatase (TiO2');
+    expect(text).not.toContain('Indexed cell (cubic F, M20 = 50.0) (');
+    expect(text).toContain(
+      'The lines of Indexed cell (cubic F, M20 = 50.0) were generated from a unit cell suggested by indexing',
+    );
+    expect(text).toContain('space group and the structure are not known');
+    expect(text.match(/Fitted peaks were assigned/g)).toHaveLength(1);
+  });
+
   it('leaves out steps that were not used and does not invent any', () => {
     const text = methodsParagraph(base);
     expect(text).toContain('not smoothed, background-corrected or otherwise processed');

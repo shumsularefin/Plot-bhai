@@ -5,13 +5,53 @@ import { describe, expect, it, vi } from 'vitest';
 import { phaseFromCif } from '../src/core/xrd/reference/fromCif';
 import type { FormFactors } from '../src/core/xrd/reference/powder';
 import { MaterialStep } from '../src/modules/xrd/MaterialStep';
-import { DEFAULT_MATERIAL, initialXrdData, type XrdData } from '../src/modules/xrd/data';
+import type { IndexSolution } from '../src/core/xrd/indexing/index';
+import {
+  DEFAULT_MATERIAL,
+  examplePatternRecords,
+  initialXrdData,
+  type XrdData,
+} from '../src/modules/xrd/data';
 
 // No network in these tests.
 vi.mock('../src/modules/xrd/codLookup', () => ({
   COD_API: '',
   searchCod: vi.fn(),
   fetchCodCif: vi.fn(),
+}));
+
+// The indexing worker is replaced by one suggestion: a cubic F cell (CeO2-like).
+const suggestion: IndexSolution = {
+  system: 'cubic',
+  centring: 'F',
+  a: 5.411,
+  b: 5.411,
+  c: 5.411,
+  alpha: 90,
+  beta: 90,
+  gamma: 90,
+  volume: 5.411 ** 3,
+  m20: 50,
+  fN: 100,
+  meanDelta: 0.005,
+  nPossible: 20,
+  n: 20,
+  lines: [],
+  unindexed: 0,
+};
+// No workers in jsdom: the measured pattern has the ten CeO2 lines below 2θ = 96° as detected peaks and nothing processed.
+vi.mock('../src/modules/xrd/useMeasured', () => ({
+  useMeasured: (data: XrdData) => ({
+    pattern: data.patterns[0],
+    processed: null,
+    detected: [28.55, 33.08, 47.48, 56.34, 59.09, 69.42, 76.7, 79.08, 88.43, 95.4].map(
+      (center) => ({ center, prominence: 1 }),
+    ),
+  }),
+}));
+vi.mock('../src/modules/xrd/indexingClient', () => ({
+  indexInWorker: vi.fn(() => Promise.resolve([suggestion])),
+  stopIndexing: vi.fn(),
 }));
 
 const text = (path: string) => readFileSync(join(process.cwd(), path), 'utf8');
@@ -79,5 +119,22 @@ describe('MaterialStep', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove them from the list' }));
     expect(store.get().material.candidates).toEqual([]);
     expect(store.get().material.phaseIds).toEqual([]);
+  });
+
+  it('adds an indexing suggestion as a candidate phase with its lattice reflections', async () => {
+    const store = setup({ patterns: examplePatternRecords() });
+    fireEvent.click(screen.getByRole('button', { name: /Index the pattern/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Suggest cells' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Use suggestion 1 as a phase' }));
+    const phase = store.get().material.userPhases[0];
+    expect(phase?.origin?.kind).toBe('indexed');
+    expect(phase?.peaks[0]?.hkl).toEqual([[1, 1, 1]]);
+    expect(store.get().material.candidates).toEqual([phase?.id]);
+    expect(
+      screen.getByText(/^Suggestion 1 \(cubic F\) is now one of your candidate phases/),
+    ).toBeTruthy();
+    const list = screen.getByRole('list', { name: 'Candidate phases' });
+    expect(within(list).getByText(/Indexed cell \(cubic F/)).toBeTruthy();
+    expect(within(list).getByText(/cell from indexing/)).toBeTruthy();
   });
 });

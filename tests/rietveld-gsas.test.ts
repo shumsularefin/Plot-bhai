@@ -103,5 +103,5 @@ describe('Rietveld refinement of a GSAS-II simulated mixture', () => {
     const rs = half.phases[1]?.weightFraction?.value ?? NaN;
     const ws = truth.rutile.wt / 2;
     expect(half.standard?.amorphous.value).toBeCloseTo((1 - ws / rs) / (1 - ws), 12);
-  });
+  }, 60_000);
 });

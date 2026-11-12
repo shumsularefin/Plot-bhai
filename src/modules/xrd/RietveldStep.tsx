@@ -201,7 +201,12 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
   const optics = settings.optics ?? DEFAULT_OPTICS;
   const polarisation = polarisationOf(optics, lines.kAlpha1);
   const ranges = parseRanges(settings.excludedRanges ?? '');
-  const leBail = settings.leBail ?? [];
+  // A cell from indexing has no structure and equal starting intensities: always Le Bail.
+  const isIndexed = (phase: ReferencePhase) => phase.origin?.kind === 'indexed';
+  const leBail = [
+    ...(settings.leBail ?? []).filter((id) => !included.some((p) => p.id === id && isIndexed(p))),
+    ...included.filter(isIndexed).map((p) => p.id),
+  ];
   const instrument = settings.instrument ?? null;
   const standard = settings.standard ?? null;
   const standardPhase = standard && included.find((p) => p.id === standard.phaseId);
@@ -509,15 +514,19 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
                 <input
                   type="checkbox"
                   checked={leBail.includes(phase.id)}
+                  disabled={isIndexed(phase)}
                   onChange={(e) =>
                     set({
                       leBail: e.currentTarget.checked
-                        ? [...leBail, phase.id]
-                        : leBail.filter((id) => id !== phase.id),
+                        ? [...(settings.leBail ?? []), phase.id]
+                        : (settings.leBail ?? []).filter((id) => id !== phase.id),
                     })
                   }
                 />
                 {phase.name}: Le Bail
+                {isIndexed(phase) && (
+                  <span class="field-hint"> (always, for a cell from indexing)</span>
+                )}
               </label>
             ))}
           </Advanced>

@@ -1,5 +1,6 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { indexedPhase } from '../../core/xrd/indexing/latticePhase';
 import { formatNumber } from '../../core/xrd/parsers/numbers';
 import { DEFAULT_MATCH, matchPhase, referenceLines } from '../../core/xrd/reference/match';
 import type { PhaseHit } from '../../core/xrd/reference/search';
@@ -192,7 +193,7 @@ export function MaterialStep({ data, update }: StepContext<XrdData>) {
           >
             Not in any database? Index the pattern (suggest a cell)
           </button>
-          {indexing && <IndexingPanel data={data} />}
+          {indexing && <IndexingPanel data={data} onUse={(s) => addCifPhases([indexedPhase(s)])} />}
         </section>
       )}
 

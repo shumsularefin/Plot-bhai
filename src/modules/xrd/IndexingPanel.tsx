@@ -49,13 +49,15 @@ interface IndexingPanelProps {
   patternId?: string;
   /** Fitted peak positions (° 2θ) to index instead of the strongest detected peaks. */
   fitted?: number[] | undefined;
+  /** Adds a suggested cell as a phase (step 3); without it the table has no Use buttons. */
+  onUse?: (solution: IndexSolution) => void;
 }
 
 /**
  * "Index an unknown pattern": suggests cells for the strongest detected peaks, or for the fitted
  * peaks when given, in a worker.
  */
-export function IndexingPanel({ data, patternId: fixedId, fitted }: IndexingPanelProps) {
+export function IndexingPanel({ data, patternId: fixedId, fitted, onUse }: IndexingPanelProps) {
   const [chosenId, setPatternId] = useState(data.patterns[0]?.id);
   const patternId = fixedId ?? chosenId;
   const { pattern, detected } = useMeasured(data, patternId);
@@ -64,6 +66,7 @@ export function IndexingPanel({ data, patternId: fixedId, fitted }: IndexingPane
   const [progress, setProgress] = useState<number | null>(null);
   const [solutions, setSolutions] = useState<IndexSolution[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [used, setUsed] = useState<string | null>(null);
 
   // The strongest lines (by prominence), then in order of angle: weak lines are often noise.
   const positions = fitted
@@ -84,6 +87,7 @@ export function IndexingPanel({ data, patternId: fixedId, fitted }: IndexingPane
 
   const run = async () => {
     setSolutions(null);
+    setUsed(null);
     setFailed(false);
     setProgress(0);
     const result = await indexInWorker(
@@ -256,6 +260,7 @@ export function IndexingPanel({ data, patternId: fixedId, fitted }: IndexingPane
                   <th scope="col">M{solutions[0]?.n}</th>
                   <th scope="col">F_N</th>
                   <th scope="col">Unindexed</th>
+                  {onUse && <th scope="col">Use</th>}
                 </tr>
               </thead>
               <tbody>
@@ -272,6 +277,23 @@ export function IndexingPanel({ data, patternId: fixedId, fitted }: IndexingPane
                       {formatNumber(s.fN, 3)} ({formatNumber(s.meanDelta, 2)}°, {s.nPossible})
                     </td>
                     <td>{s.unindexed}</td>
+                    {onUse && (
+                      <td>
+                        <button
+                          type="button"
+                          class="btn btn-quiet"
+                          aria-label={`Use suggestion ${i + 1} as a phase`}
+                          onClick={() => {
+                            onUse(s);
+                            setUsed(
+                              `Suggestion ${i + 1} (${s.system} ${s.centring}) is now one of your candidate phases. In step 5 it is refined by a Le Bail fit, which refines the cell against the whole pattern.`,
+                            );
+                          }}
+                        >
+                          Use as a phase
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -281,7 +303,14 @@ export function IndexingPanel({ data, patternId: fixedId, fitted }: IndexingPane
             F_N is followed by the mean |Δ2θ| and the number of possible lines. Centring is the
             lattice type (P primitive, I body-centred, F face-centred, C or A one face) that gives
             the best M{solutions[0]?.n}.
+            {onUse &&
+              ' “Use as a phase” adds the cell as a candidate with every reflection its centring allows; the space group stays unknown, so a reflection the true space group forbids is simply fitted with no intensity.'}
           </p>
+          {used && (
+            <p class="field-hint" role="status">
+              {used}
+            </p>
+          )}
           <details>
             <summary>Lines indexed by suggestion 1</summary>
             <div class="table-scroll">

@@ -1,5 +1,36 @@
 # Progress
 
+## Stage 17b: doping on a shared site, Le Bail of an indexed cell (done, owner request November 2026)
+
+Branch `claude/sleepy-turing-hb1ofu`. No new dependencies. Checks in docs/validation.md, 17b.
+
+- **Doping** (Rietveld step, Advanced, "Doping: a second element on a site"): choose the site a
+  dopant replaces, type the element and the nominal fraction x, and refine x or keep it fixed. The
+  site scatters as (1 − x)·f(host) + x·f(dopant) with shared position and displacement, as GSAS-II
+  does with two atoms on one site under a sum constraint. x is released only after the basic
+  refinement has converged; weight fractions use the refined composition. Warnings when the two
+  elements differ by three electrons or fewer (Co/Zn, Fe/Mn) and that X-rays cannot tell a dopant
+  from vacancies.
+- **Special positions:** CIF coordinates within 0.002 of a special position (ZnO's 0.3333) are moved
+  onto it, as GSAS-II does; this removed a 1.5e-3 error in |F|².
+- **Le Bail of an indexed cell:** "Use as a phase" next to each indexing suggestion in step 3 adds
+  the cell as a candidate phase with every reflection its lattice centring allows (space group
+  unknown); step 5 always fits it in Le Bail mode. The methods text says the lines come from a
+  cell suggested by indexing.
+- **Fix found by the checks:** a cell that starts with equal intensities (most reflections empty)
+  made the Le Bail cycles diverge; each starting-width trial now extracts the intensities against
+  the flat starting background first.
+- **Validation:** GSAS-II on GitHub simulated and refined Zn₀.₈₅Mg₀.₁₅O
+  (`scripts/validation/gsas2/substitution.py`): x 0.1530(43) here against 0.1533(43) in GSAS-II
+  (truth 0.15), |F|² of every reflection within 5e-5. The indexed F cell gives the library phase's
+  Le Bail fit and GSAS-II's cell; a P cell finds the same cell with the F-forbidden reflections
+  empty.
+- **Checks:** lint, type check, 1244 unit tests (including the step 3 button, with the indexing
+  worker mocked), build, bundle size and e2e pass. The e2e also adds an indexing suggestion as a
+  phase when the example pattern can be indexed; it has too few peaks today, so it skips that.
+- **Next:** 17c from docs/rietveld-roadmap.md (Stephens anisotropic microstrain, uniaxial size,
+  Finger–Cox–Jephcoat axial divergence), when the owner says so.
+
 ## Stage 17a: competitive Rietveld refinement, first batch (done, owner request November 2026)
 
 Branch `claude/sleepy-turing-hb1ofu`. No new dependencies. The owner asked to push the Rietveld
@@ -35,8 +66,9 @@ in docs/rietveld-roadmap.md; the checks are in docs/validation.md, 17a.
   saved by older versions show without the new columns.
 - **Checks:** lint, type check, 1142 unit tests, build, bundle size and e2e (now also refines with
   a monochromator, crystallite size and an excluded range) pass.
-- **Open:** surface roughness B is 1 % low against the GSAS-II truth; the Le Bail cells differ
-  from GSAS-II's by 6e-5 Å; monochromator spacings flagged for verification (docs/validation.md).
+- **Open items, resolved later in November 2026:** roughness B (GSAS-II's Kα1-angle convention),
+  the Le Bail cell (transparency left out in both fits), the monochromator spacings (now from COD)
+  and the Hill and Flack pages; see docs/validation.md, 17a.
 - **Next:** 17b from docs/rietveld-roadmap.md (substitution on a shared site for doped materials,
   Le Bail of an indexed cell), when the owner says so.
 

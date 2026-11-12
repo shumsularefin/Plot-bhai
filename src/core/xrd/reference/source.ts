@@ -1,10 +1,14 @@
 import type { ReferencePhase } from './types.ts';
 
+/** How phaseReference names a cell from indexing (it starts the reference). */
+export const INDEXED_REFERENCE = 'cell from indexing';
+
 /**
  * Where a reference phase comes from, for tables, figure keys and the methods text:
  * "COD 9013437" for a COD entry, "Langan et al., Biomacromolecules 2 (2001) 410" for a polymer
  * library phase transcribed from a paper, "CIF file name.cif (COD 9013437)" for a loaded file
- * that names its database entry, "CIF file name.cif" for one that does not.
+ * that names its database entry, "CIF file name.cif" for one that does not, "cell from indexing
+ * (cubic F, M20 = 50.0)" for a cell suggested by indexing.
  */
 export function phaseReference(
   phase: Pick<ReferencePhase, 'codId' | 'origin' | 'citation'>,
@@ -12,6 +16,8 @@ export function phaseReference(
   const origin = phase.origin;
   if (origin?.kind === 'cif')
     return `CIF file ${origin.fileName}${origin.database ? ` (${origin.database})` : ''}`;
+  if (origin?.kind === 'indexed')
+    return `${INDEXED_REFERENCE} (${origin.system} ${origin.centring}, M${origin.n} = ${origin.m20.toFixed(1)})`;
   if (phase.codId !== null) return `COD ${phase.codId}`;
   const c = phase.citation;
   if (!c?.journal) return 'no database entry';

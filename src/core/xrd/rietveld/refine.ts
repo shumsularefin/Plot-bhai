@@ -33,6 +33,9 @@
  * partition as for R_Bragg), and this is repeated until R_wp stops falling; only the cell, the
  * profile and the global parameters are refined (the scale factor is fixed, since it multiplies
  * the extracted intensities). Accidentally overlapping reflections keep the ratio they start with.
+ * Before the first stage, the intensities are extracted ten times against the flat starting
+ * background for each trial peak width, so a phase that starts with equal intensities (a cell
+ * from indexing, with every reflection its lattice allows) starts the refinement near the data.
  *
  * Fixed instrument profile (optional): U, V, W, X, Y of the TCH profile are set from a standard
  * (or a GSAS-II .instprm file) and not refined, so the crystallite size and microstrain refined
@@ -724,16 +727,34 @@ export function refineRietveld(
   const stages: { name: string; rwp: number }[] = [];
 
   // Starting width: the best of a few typical values, with only scale and background refined.
+  // Le Bail: each trial starts from the same intensities, which are first matched to the data
+  // with the flat starting background (from equal intensities, as for a cell from indexing, a
+  // free background would otherwise go negative under the many empty reflections).
   progress('Choosing the starting peak width');
-  let best: { ssr: number; params: Float64Array } = { ssr: Infinity, params: current };
+  const extracted = () =>
+    leBailPhases.map((k) => ((phases[k] as PhaseModel).leBail as Float64Array).slice());
+  const restore = (saved: Float64Array[]) =>
+    leBailPhases.forEach((k, i) =>
+      ((phases[k] as PhaseModel).leBail as Float64Array).set(saved[i] as Float64Array),
+    );
+  const startIntensities = extracted();
+  let best: { ssr: number; params: Float64Array; intensities: Float64Array[] } = {
+    ssr: Infinity,
+    params: current,
+    intensities: startIntensities,
+  };
   for (const fwhm of instrument ? [null] : TYPICAL_WIDTHS) {
     const trial = p.slice();
     if (fwhm !== null) layout.phases.forEach((pl) => (trial[pl.w] = fwhm * fwhm));
+    restore(startIntensities);
+    for (let c = 0; leBailPhases.length > 0 && c < 10; c++) extract(trial);
     current = trial;
-    const result = run([...mask], 30, 0);
-    if (result.ssr < best.ssr) best = { ssr: result.ssr, params: result.parameters };
+    const result = run([...mask], 30, leBailPhases.length > 0 ? 3 : 0);
+    if (result.ssr < best.ssr)
+      best = { ssr: result.ssr, params: result.parameters, intensities: extracted() };
   }
   current = best.params;
+  restore(best.intensities);
 
   // Line up each phase's cell with the data by small isotropic changes of its lengths.
   if (choices.cell) {

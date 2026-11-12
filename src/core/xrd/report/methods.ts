@@ -5,6 +5,7 @@
  */
 
 import type { FitProfileKind } from '../peaks/profiles';
+import { INDEXED_REFERENCE } from '../reference/source';
 
 export interface MethodsInput {
   software: string;
@@ -163,13 +164,25 @@ export function methodsParagraph(input: MethodsInput): string {
     );
   }
 
-  if (input.phases.length > 0) {
-    const named = input.phases.map((ph) => `${ph.name} (${ph.formula}, ${ph.reference})`);
-    const allCod = input.phases.every((ph) => ph.reference.startsWith('COD '));
+  const indexed = input.phases.filter((ph) => ph.reference.startsWith(INDEXED_REFERENCE));
+  const structures = input.phases.filter((ph) => !indexed.includes(ph));
+  if (structures.length > 0) {
+    const named = structures.map(
+      (ph) => `${ph.name} (${[ph.formula, ph.reference].filter(Boolean).join(', ')})`,
+    );
+    const allCod = structures.every((ph) => ph.reference.startsWith('COD '));
     sentences.push(
-      `${allCod ? 'Reference patterns were calculated from structures in the Crystallography Open Database' : 'Reference patterns were calculated from crystal structures (built-in entries from the Crystallography Open Database and CIF files supplied by the user, as named)'}: ${list(named)}. Fitted peaks were assigned to the nearest reference line within ${number(input.toleranceDeg)}° 2θ; these assignments are suggestions, not phase identifications.`,
+      `${allCod ? 'Reference patterns were calculated from structures in the Crystallography Open Database' : 'Reference patterns were calculated from crystal structures (built-in entries from the Crystallography Open Database and CIF files supplied by the user, as named)'}: ${list(named)}.`,
     );
   }
+  if (indexed.length > 0)
+    sentences.push(
+      `The lines of ${list(indexed.map((ph) => ph.name))} were generated from a unit cell suggested by indexing the pattern: every reflection its lattice centring allows, with equal intensities, since the space group and the structure are not known.`,
+    );
+  if (input.phases.length > 0)
+    sentences.push(
+      `Fitted peaks were assigned to the nearest reference line within ${number(input.toleranceDeg)}° 2θ; these assignments are suggestions, not phase identifications.`,
+    );
 
   sentences.push(`Analysis used ${input.software}.`);
   return sentences.join(' ');

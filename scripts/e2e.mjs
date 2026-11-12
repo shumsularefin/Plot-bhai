@@ -156,6 +156,15 @@ async function walkToExport(log) {
         ? (await table.locator('tbody tr').first().innerText()).replace(/\s+/g, ' ')
         : 'no cell';
       note(`3 Choose material: indexing in the worker, suggestion 1: ${first}`);
+      if (await table.isVisible()) {
+        // Stage 17b: a suggested cell becomes a candidate phase (Le Bail in step 5), then goes.
+        await page.getByRole('button', { name: 'Use suggestion 1 as a phase' }).click();
+        await page.getByText(/^Suggestion 1 .+ is now one of your candidate phases/).waitFor();
+        const added = page.getByRole('button', { name: /^Remove Indexed cell/ });
+        await added.waitFor();
+        await added.click();
+        note('3 Choose material: suggested cell added as a candidate phase, then removed');
+      }
     } else note('3 Choose material: indexing panel shown (too few peaks to index)');
     await indexToggle.click();
   }
