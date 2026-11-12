@@ -982,6 +982,56 @@
   list-style: none;
 }
 
+/* A row of small buttons that picks which peak, or which part of a long step, is shown. */
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  min-height: var(--touch-target);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.chip.is-assigned {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+}
+
+.chip[aria-current='true'] {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.assign-pager {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.assign-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+
+.process-step[hidden] {
+  display: none;
+}
+
 .assign-row,
 .step-card {
   display: grid;
@@ -1195,7 +1245,7 @@
 .periodic-cell.is-on {
   border-color: var(--color-accent);
   background: var(--color-accent);
-  color: var(--color-on-accent, #fff);
+  color: var(--color-on-accent);
   box-shadow: 0 0 0 1px var(--color-accent);
 }
 

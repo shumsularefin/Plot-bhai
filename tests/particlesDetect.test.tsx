@@ -207,6 +207,9 @@ describe('detect step', () => {
 
   it('shows the manual threshold slider and the adaptive settings for those methods', () => {
     setup();
+    // Only one part of the automatic detection is open at a time.
+    expect(screen.queryByRole('slider', { name: /Level/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Next part' }));
     fireEvent.click(screen.getByLabelText('Manual level'));
     expect(screen.getByRole('slider', { name: /Level/ })).toBeTruthy();
     fireEvent.click(screen.getByLabelText('Adaptive (uneven background)'));
@@ -216,6 +219,7 @@ describe('detect step', () => {
   it('offers clumps: a typical diameter (from the last line drawn), the outline share, and reports the estimate', async () => {
     const store = setup();
     expect(screen.queryByLabelText('Typical particle diameter (px)')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '3. Clean up and split' }));
     fireEvent.click(screen.getByLabelText('In clumps or overlapping (agglomerates)'));
     expect(store.get().detect.settings.split.method).toBe('clumps');
     expect(screen.getByText('Empty: estimated from the image when you detect.')).toBeTruthy();
