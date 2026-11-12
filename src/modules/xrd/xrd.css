@@ -1604,3 +1604,16 @@
   border-radius: 50%;
   vertical-align: middle;
 }
+
+/* A button that reads as a link, for choosing a row of a table. */
+.link-button {
+  min-height: var(--touch-target);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}

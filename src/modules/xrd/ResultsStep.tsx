@@ -11,6 +11,7 @@ import { xrayDensity } from '../../core/xrd/analysis/density';
 import { PaperComparison } from './PaperComparison';
 import { assignmentFor } from './assignment';
 import { AssignmentSection } from './AssignmentSection';
+import { ComparisonSection } from './ComparisonSection';
 import { IndexingPanel } from './IndexingPanel';
 import { downloadTable } from './csv';
 import { ExtraAnalysisSection } from './ExtraAnalysisSection';
@@ -110,6 +111,10 @@ export function ResultsStep({ data, update }: StepContext<XrdData>) {
         button; the next step, Export, collects the figure, methods text, every table and the
         session file for your paper.
       </p>
+
+      {patterns.length > 1 && (
+        <ComparisonSection data={data} phases={phases} onSelect={setSelectedId} />
+      )}
 
       {patterns.length > 1 && (
         <label class="inline-field">
