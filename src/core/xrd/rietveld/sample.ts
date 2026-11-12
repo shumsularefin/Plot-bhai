@@ -24,6 +24,10 @@ export function polarisation(fraction: number, theta: number): number {
  *   p(2θ) ∝ (1 + K cos²2θ) / (1 + K),  so  P = 1 / (1 + K),
  * with K = cos²2θ_m for a mosaic (ideally imperfect) crystal such as pyrolytic graphite and
  * K = |cos 2θ_m| for a perfect crystal such as germanium or silicon (the dynamical limit).
+ * Source: S. L. Morelhão et al., arXiv:1911.00396 (supporting information of J. Phys. Chem. C 123
+ * (2019) 24818), section S3: the π/σ ratio after one reflection is cos²2θ_m for kinematical
+ * diffraction and at most cos 2θ_m for a thick perfect crystal (0.675 against cos 2θ_m = 0.703 for
+ * Ge 220 and Cu Kα1 in their dynamical calculation), so K = |cos 2θ_m| is an upper limit there.
  */
 export function monochromatorFraction(twoThetaM: number, perfect: boolean): number {
   const c = Math.cos(twoThetaM / DEG);
@@ -96,11 +100,13 @@ export function sampleWidths(
 }
 
 /**
- * Common laboratory monochromator reflections. Spacings flagged for the owner's verification:
- * graphite (002) d = c/2 with c = 6.708 Å; germanium (111) d = a/√3 with a = 5.6579 Å.
- * Pyrolytic graphite is a mosaic crystal; a Johansson germanium crystal is treated as perfect.
+ * Common laboratory monochromator reflections, with cells from the Crystallography Open Database:
+ * graphite (002), d = c/2 with c = 6.711 Å (COD 9011577, hexagonal graphite, Nature 258 (1975)
+ * 136); germanium (111), d = a/√3 with a = 5.65754 Å (COD 9011050, "Precise lattice constants of
+ * germanium …", Acta Cryst. 1962). Pyrolytic graphite is a mosaic crystal; a Johansson germanium
+ * crystal is treated as perfect. A change of d by 0.005 Å moves P by less than 2 × 10⁻⁴ (tested).
  */
 export const MONOCHROMATORS = {
-  graphite: { d: 6.708 / 2, perfect: false },
-  germanium: { d: 5.6579 / Math.sqrt(3), perfect: true },
+  graphite: { d: 6.711 / 2, perfect: false },
+  germanium: { d: 5.65754 / Math.sqrt(3), perfect: true },
 } as const;

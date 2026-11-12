@@ -132,7 +132,7 @@ export function RietveldSetup({ settings, set, phases, lambda, result, patternNa
           P = {polarisationOf(optics, lambda).toFixed(4)}
           {angle !== null && ` (monochromator angle 2θ_m = ${angle.toFixed(2)}°)`}.
           {optics.monochromator === 'germanium' &&
-            ' A germanium incident-beam monochromator removes Kα2: tick “Kα1 only” in step 1.'}
+            ' A germanium incident-beam monochromator removes Kα2: tick “Kα1 only” in step 1. P assumes an ideally perfect crystal, an approximation (dynamical calculations give a slightly smaller polarisation); if your manufacturer gives a measured value, choose Other and type it.'}
         </p>
         <label class="check">
           <input

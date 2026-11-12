@@ -8,10 +8,13 @@ reference intensities), and with known
   polarisation coefficient Polariz. = 0.6 (a monochromator),
   Suortti surface roughness SurfRoughA = 0, SurfRoughB = 0.12,
   transparency 2.0 (GSAS-II units; Delta 2theta = -9 * Transparency * sin 2theta / (pi R), degrees).
-Then refines the same data in GSAS-II twice with the instrument fixed: a Rietveld refinement of
-scale, background, cell, size, microstrain, SurfRoughB and transparency, and a Le Bail fit of
-background, cell, size and microstrain. Writes tests/fixtures/validation/ceria-sample.xy
-(2theta, counts with Poisson noise, seed 23) and ceria-sample.json (truth, both GSAS-II results).
+Then refines the same data in GSAS-II with the instrument fixed: a Rietveld refinement of scale,
+background, cell, size, microstrain, SurfRoughB and transparency; a Le Bail fit of background,
+cell, size and microstrain; and the same Le Bail fit with the transparency refined too. It also
+writes GSAS-II's own |F|^2 of every reflection of the simulation (h, k, l, multiplicity, d,
+Fc^2 per reflection), so the scattering factors can be compared with this site's.
+Writes tests/fixtures/validation/ceria-sample.xy (2theta, counts with Poisson noise, seed 23) and
+ceria-sample.json (truth, reflections, the three GSAS-II results).
 """
 import json, os, sys
 import numpy as np
@@ -70,9 +73,12 @@ y = np.random.default_rng(23).poisson(ycalc).astype(float)
 np.savetxt(os.path.join(out, 'ceria-sample.xy'), np.c_[x, y], fmt='%.4f %.0f')
 np.savetxt(os.path.join(run, 'ceria-sample.xy'), np.c_[x, y], fmt='%.4f %.0f')
 cell_true = ph.get_cell()
+# Reflection list columns (GSASIIstrMath): 0-2 h k l, 3 multiplicity, 4 d, 9 Fc^2 per reflection.
+reflections = [[int(r[0]), int(r[1]), int(r[2]), int(r[3]), float(r[4]), float(r[9])]
+               for r in h.reflections()['ceria']['RefList']]
 
 
-def refine(name, le_bail):
+def refine(name, le_bail, transparency=False):
     gpx = G.G2Project(newgpx=os.path.join(run, f'{name}.gpx'))
     h = gpx.add_powder_histogram(os.path.join(run, 'ceria-sample.xy'), inst, fmthint='xye')
     ph = gpx.add_phase(CIF, phasename='ceria', fmthint='CIF', histograms=[h])
@@ -93,6 +99,8 @@ def refine(name, le_bail):
                           'Mustrain': {'type': 'isotropic', 'refine': True}}})
     if not le_bail:
         steps.append({'set': {'Sample Parameters': ['Transparency', 'SurfRoughB']}})
+    elif transparency:
+        steps.append({'set': {'Sample Parameters': ['Transparency']}})
     steps.append({})
     gpx.do_refinements(steps)
     cov = gpx['Covariance']['data']
@@ -122,6 +130,8 @@ result = {
     'ymax': float(ycalc.max()),
     'gsas2': refine('rietveld', False),
     'gsas2LeBail': refine('lebail', True),
+    'gsas2LeBailTransparency': refine('lebail-transparency', True, True),
+    'reflections': reflections,
     'python': sys.version.split()[0],
     'numpy': np.__version__,
 }

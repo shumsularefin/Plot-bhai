@@ -22,6 +22,7 @@ import {
 } from '../src/core/xrd/rietveld/refine';
 import {
   braggTwoTheta,
+  MONOCHROMATORS,
   monochromatorFraction,
   polarisation,
   sampleWidths,
@@ -170,12 +171,26 @@ describe('Instrument and sample corrections (sample.ts)', () => {
     }
     // 2θm = 0 is no polarisation by the monochromator (unpolarised result, P = 0.5).
     expect(monochromatorFraction(0, false)).toBe(0.5);
-    // Graphite 002 (d = 3.354 Å) for Cu Kα1: λ = 2d sin θ, about 26.6°.
-    expect(braggTwoTheta(ANODES.Cu.kAlpha1, 3.354)).toBeCloseTo(
-      (2 * Math.asin(ANODES.Cu.kAlpha1 / (2 * 3.354))) / RAD,
+    // Graphite 002 (COD 9011577, d = 3.3555 Å) for Cu Kα1: λ = 2d sin θ, 26.54°.
+    const graphite = MONOCHROMATORS.graphite.d;
+    expect(graphite).toBeCloseTo(3.3555, 12);
+    expect(braggTwoTheta(ANODES.Cu.kAlpha1, graphite)).toBeCloseTo(
+      (2 * Math.asin(ANODES.Cu.kAlpha1 / (2 * graphite))) / RAD,
       12,
     );
-    expect(braggTwoTheta(ANODES.Cu.kAlpha1, 3.354)).toBeCloseTo(26.6, 1);
+    expect(braggTwoTheta(ANODES.Cu.kAlpha1, graphite)).toBeCloseTo(26.54, 2);
+    // Germanium 111 (COD 9011050, a = 5.65754 Å): Cu Kα1 at about 27.3°.
+    expect(braggTwoTheta(ANODES.Cu.kAlpha1, MONOCHROMATORS.germanium.d)).toBeCloseTo(27.3, 1);
+    // P hardly depends on the exact spacing: ±0.005 Å moves it by less than 2 × 10⁻⁴.
+    for (const [m, perfect] of [
+      [MONOCHROMATORS.graphite.d, false],
+      [MONOCHROMATORS.germanium.d, true],
+    ] as const)
+      for (const delta of [-0.005, 0.005]) {
+        const p0 = monochromatorFraction(braggTwoTheta(ANODES.Cu.kAlpha1, m), perfect);
+        const p1 = monochromatorFraction(braggTwoTheta(ANODES.Cu.kAlpha1, m + delta), perfect);
+        expect(Math.abs(p1 - p0)).toBeLessThan(2e-4);
+      }
   });
 
   it('surface roughness: 1 at 2θ = 180°, 1 for a smooth surface, lower at low angle', () => {
