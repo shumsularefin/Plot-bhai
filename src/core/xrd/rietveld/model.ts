@@ -11,6 +11,9 @@
  * - LP(θ) = 2[P + (1 − P) cos²2θ]/(sin²θ cosθ): Lorentz-polarisation factor, P the polarisation
  *   coefficient of GSAS-II (0.5, the default, is no monochromator: LP = (1 + cos²2θ)/(sin²θ cosθ);
  *   sample.ts gives P for a monochromator).
+ * - All angle-dependent intensity factors are taken at each line's own Bragg angle. GSAS-II takes
+ *   them at the Kα1 angle for both lines (Wavelengths.correctionsAtKAlpha1 reproduces that); the
+ *   difference moved a refined roughness B by 0.6 % in the GSAS-II check.
  * - SR(θ): Suortti surface roughness (sample.ts), 1 unless refined; V(θ) = sin θ when the data were
  *   measured with an automatic (variable) divergence slit, otherwise 1 (sample.ts).
  * - P_k: March–Dollase preferred orientation, mean over the family's reflections of
@@ -101,6 +104,12 @@ export interface Wavelengths {
   polarisation?: number;
   /** Data measured with an automatic (variable) divergence slit (sample.ts). */
   variableSlit?: boolean;
+  /**
+   * Evaluate LP, polarisation, roughness and slit factors at the Kα1 angle for both lines, as
+   * GSAS-II does (GetIntensityCorr uses the Kα1 position), instead of at each line's own angle.
+   * Only for reproducing GSAS-II exactly in the validation; the default is the exact form.
+   */
+  correctionsAtKAlpha1?: boolean;
 }
 
 /** Where each parameter sits in the parameter vector. */
@@ -137,8 +146,11 @@ export interface PhaseLayout {
   microstrain: number;
   sizeMix: number;
   strainMix: number;
-  /** Per atom of the structure (empty without one): free coordinate coefficients, occupancy, B. */
-  atoms: { coords: number[]; occupancy: number; b: number; aniso: number[] }[];
+  /**
+   * Per atom of the structure (empty without one): free coordinate coefficients, occupancy, B,
+   * U_ij coefficients and the fraction of a substituting element (structure.ts).
+   */
+  atoms: { coords: number[]; occupancy: number; b: number; aniso: number[]; fraction: number }[];
 }
 
 export function makeLayout(phases: readonly PhaseModel[], backgroundTerms: number): Layout {
@@ -170,6 +182,7 @@ export function makeLayout(phases: readonly PhaseModel[], backgroundTerms: numbe
       occupancy: take(),
       b: take(),
       aniso: atom.uBasis.map(take),
+      fraction: take(),
     })),
   }));
   return {
@@ -309,6 +322,7 @@ export function atomStates(phase: PhaseModel, layout: PhaseLayout, p: Float64Arr
       ),
       occupancy: p[al.occupancy] as number,
       b: p[al.b] as number,
+      fraction: p[al.fraction] as number,
       ...(u && { uImages: atom.images.map((image) => rotateTensor(image.op.rot, u)) }),
     };
   });
@@ -390,10 +404,13 @@ export function placePeaks(
         mix = tchEta(hl / fwhm);
         reach = Math.sqrt(hg2) + hl;
       }
-      let factor = weight * lorentzPolarisation(theta);
-      if (pola !== 0.5) factor *= polarisation(pola, theta) / (1 + Math.cos(2 * theta) ** 2);
-      if (rough) factor *= surfaceRoughness(roughA, roughB, theta);
-      if (wavelengths.variableSlit) factor *= variableSlitFactor(theta);
+      const at = wavelengths.correctionsAtKAlpha1
+        ? Math.asin(wavelengths.kAlpha1 / (2 * d))
+        : theta;
+      let factor = weight * lorentzPolarisation(at);
+      if (pola !== 0.5) factor *= polarisation(pola, at) / (1 + Math.cos(2 * at) ** 2);
+      if (rough) factor *= surfaceRoughness(roughA, roughB, at);
+      if (wavelengths.variableSlit) factor *= variableSlitFactor(at);
       out.push({
         phase: index,
         reflection: k,

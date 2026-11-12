@@ -38,6 +38,9 @@ interface Fixture {
   };
   gsas2: Result;
   gsas2LeBail: Result;
+  gsas2LeBailTransparency: Result;
+  /** GSAS-II's reflections of the simulation: h, k, l, multiplicity, d (Å), |F|² per reflection. */
+  reflections: [number, number, number, number, number, number][];
 }
 const read = (path: string) => readFileSync(join(process.cwd(), path), 'utf8');
 const json = (path: string) => JSON.parse(read(path)) as unknown;
@@ -59,12 +62,16 @@ const ip = fixture.instrument;
 const instrument = { u: ip.U * G, v: ip.V * G, w: ip.W * G, x: ip.X / 100, y: ip.Y / 100 };
 const toT = (transparency: number) => (-9 * transparency) / (Math.PI * fixture.goniometerRadius);
 
-function refine(leBail: boolean) {
+function refine(leBail: boolean, options: { transparency?: boolean; gsas2Angles?: boolean } = {}) {
   if (!ceria) throw new Error('ceo2 missing');
   const result = refineRietveld({
     x: Float64Array.from(rows, (r) => r[0] as number),
     y: Float64Array.from(rows, (r) => r[1] as number),
-    wavelengths: { ...fixture.wavelengths, polarisation: ip['Polariz.'] },
+    wavelengths: {
+      ...fixture.wavelengths,
+      polarisation: ip['Polariz.'],
+      ...(options.gsas2Angles && { correctionsAtKAlpha1: true }),
+    },
     phases: [
       {
         id: ceria.id,
@@ -82,6 +89,7 @@ function refine(leBail: boolean) {
       size: true,
       strain: true,
       ...(!leBail && { transparency: true, roughness: true }),
+      ...(options.transparency && { transparency: true }),
     },
     backgroundTerms: 6,
     atomicWeights,
@@ -115,13 +123,65 @@ describe('Sample broadening and intensity corrections against GSAS-II (CeO2)', (
     expect(Math.abs(result.transparency.value - toT(t.Transparency))).toBeLessThan(
       3 * result.transparency.esd,
     );
-    // Surface roughness B within 1.5 % of the truth (open item: about 4 s.u. low, see
-    // docs/validation.md; GSAS-II itself is 0.3 % low).
+    // Surface roughness B within 1.5 % of the truth. GSAS-II made the data with LP, polarisation
+    // and roughness taken at the Kα1 angle for both lines; here each line uses its own angle,
+    // which moves B by 0.6 % (the GSAS-II convention is checked in the next test).
     expect(Math.abs(result.roughness[1].value - t.SurfRoughB) / t.SurfRoughB).toBeLessThan(0.015);
     // Cell within 3 s.u. of the truth; R_wp within 2 % (relative) of GSAS-II's.
     expect(Math.abs(fit.cell.a.value - t.cell.length_a)).toBeLessThan(3 * fit.cell.a.esd);
     expect(Math.abs(result.stats.rwp * 100 - g.Rwp) / g.Rwp).toBeLessThan(0.02);
     expect(result.stats.chi2).toBeLessThan(1.4);
+  }, 120_000);
+
+  it('has the same |F|² as GSAS-II for every reflection (scattering factors)', () => {
+    if (!ceria) throw new Error('ceo2 missing');
+    let compared = 0;
+    for (const peak of ceria.peaks) {
+      const gsas = fixture.reflections
+        .filter((r) => Math.abs(r[4] - peak.d) < 1e-3)
+        .reduce((sum, r) => sum + r[3] * r[5], 0);
+      if (gsas === 0) continue; // beyond GSAS-II's 2θ range
+      expect(Math.abs(peak.mf2 - gsas) / gsas).toBeLessThan(5e-5);
+      compared++;
+    }
+    expect(compared).toBeGreaterThanOrEqual(14);
+  });
+
+  it('with GSAS-II’s convention for the Kα2 corrections, roughness B equals GSAS-II’s', () => {
+    const result = refine(false, { gsas2Angles: true });
+    const g = fixture.gsas2;
+    const b = result.roughness[1];
+    expect(Math.abs(b.value - g.SurfRoughB)).toBeLessThan(
+      2 * Math.hypot(b.esd, g.esd[':0:SurfRoughB'] as number),
+    );
+    expect(Math.abs(result.transparency.value - toT(g.Transparency))).toBeLessThan(
+      2 * Math.hypot(result.transparency.esd, toT(g.esd[':0:Transparency'] as number)),
+    );
+    expect(Math.abs(result.stats.rwp * 100 - g.Rwp) / g.Rwp).toBeLessThan(0.005);
+  }, 120_000);
+
+  it('Le Bail with the transparency refined: cell, size and strain as GSAS-II’s, true cell', () => {
+    const result = refine(true, { transparency: true });
+    const fit = result.phases[0];
+    if (!fit?.size || !fit.microstrain) throw new Error('no size');
+    const g = fixture.gsas2LeBailTransparency;
+    // GSAS-II refines A0 = 1/a², so σ(a) = σ(A0) a³ / 2.
+    const esdA = ((g.esd['0::A0'] as number) * g.cell.length_a ** 3) / 2;
+    expect(Math.abs(fit.cell.a.value - g.cell.length_a)).toBeLessThan(
+      3 * Math.hypot(fit.cell.a.esd, esdA) + 2e-6,
+    );
+    expect(Math.abs(fit.cell.a.value - fixture.truth.cell.length_a)).toBeLessThan(
+      3 * fit.cell.a.esd,
+    );
+    expect(Math.abs(fit.size.value - 1000 * g.sizeMicrons)).toBeLessThan(
+      2 * Math.hypot(fit.size.esd, 1000 * (g.esd['0:0:Size;i'] as number)),
+    );
+    expect(Math.abs(fit.microstrain.value - g.mustrain)).toBeLessThan(
+      2 * Math.hypot(fit.microstrain.esd, g.esd['0:0:Mustrain;i'] as number),
+    );
+    expect(Math.abs(result.transparency.value - toT(g.Transparency))).toBeLessThan(
+      2 * Math.hypot(result.transparency.esd, toT(g.esd[':0:Transparency'] as number)),
+    );
   }, 120_000);
 
   it('Le Bail: the same cell, size and microstrain as GSAS-II’s Le Bail fit', () => {

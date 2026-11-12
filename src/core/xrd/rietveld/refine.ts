@@ -43,6 +43,7 @@
  * (Bérar and Lelann, J. Appl. Cryst. 24 (1991) 1–5).
  */
 
+import { ELEMENT_BY_SYMBOL } from '../../elements';
 import { levenbergMarquardt } from '../../math/levenbergMarquardt';
 import type { Cell, FormFactors } from '../reference/powder';
 import type { ReferencePeak, StoredStructure } from '../reference/types';
@@ -63,7 +64,13 @@ import {
   type Wavelengths,
 } from './model';
 import { refinementReflections, type Hkl } from './reflections';
-import { positiveDefinite, restraintResiduals, structureModel } from './structure';
+import {
+  positiveDefinite,
+  restraintResiduals,
+  structureModel,
+  type StructureModel,
+  type Substitution,
+} from './structure';
 import {
   durbinWatson,
   internalStandard,
@@ -87,6 +94,8 @@ export interface RietveldPhaseInput {
   structure?: StoredStructure;
   /** Le Bail mode: intensities extracted from the data, no structure (see the header). */
   leBail?: boolean;
+  /** Dopants placed on sites of the structure (structure.ts); needs the stored structure. */
+  substitutions?: Substitution[];
 }
 
 /** Instrument profile of the TCH shape, degrees 2θ (U, V, W in deg², X, Y in deg). */
@@ -183,6 +192,8 @@ export interface AtomResult {
   u: Estimate[] | null;
   /** False when the refined anisotropic U is not positive definite (physically impossible). */
   positiveDefinite: boolean;
+  /** The substituting element on this site and its fraction x, or null. */
+  substitute: { element: string; fraction: Estimate } | null;
 }
 
 export interface Estimate {
@@ -374,10 +385,12 @@ export function refineRietveld(
     choices.positions || choices.occupancy || choices.biso || choices.aniso,
   );
   const noStructure: string[] = [];
+  let setupError: string | null = null;
   const phases: PhaseModel[] = input.phases.map((phase) => {
     const kind = cellKind(phase.crystalSystem, phase.cell);
-    let structure;
-    if (wantsStructure && !phase.leBail) {
+    let structure: StructureModel | undefined;
+    const substitutions = phase.substitutions ?? [];
+    if ((wantsStructure || substitutions.length > 0) && !phase.leBail) {
       try {
         if (!phase.structure || !input.factors) throw new Error('no structure');
         structure = structureModel(
@@ -385,10 +398,13 @@ export function refineRietveld(
           phase.structure,
           input.factors,
           input.radii ?? {},
-          choices.aniso === true,
+          wantsStructure && choices.aniso === true,
+          substitutions,
         );
-      } catch {
-        noStructure.push(phase.name);
+      } catch (e) {
+        if (substitutions.length > 0)
+          setupError = `The substitution in ${phase.name} cannot be used: ${e instanceof Error ? e.message : 'no atom positions are stored'}.`;
+        else noStructure.push(phase.name);
       }
     }
     const reflections = refinementReflections(phase.peaks, phase.cell, kind, dMin);
@@ -405,6 +421,7 @@ export function refineRietveld(
       ...(phase.leBail && { leBail: Float64Array.from(reflections, (r) => r.mf2 || 1) }),
     };
   });
+  if (setupError) return { ok: false, error: setupError };
   const empty = phases.find((phase) => phase.reflections.length === 0);
   if (empty)
     return { ok: false, error: `${empty.name} has no reflections in the 2θ range of the data.` };
@@ -464,6 +481,7 @@ export function refineRietveld(
       bound(al.occupancy, 0, Math.max(1, atom.occupancy0), atom.occupancy0, 0.01);
       bound(al.b, Math.min(0, atom.b0), 20, atom.b0, 0.1);
       for (const j of al.aniso) bound(j, -0.05, 0.05, 0, 0.001);
+      bound(al.fraction, 0, 1, atom.substitute?.fraction0 ?? 0, 0.01);
     });
   });
 
@@ -510,6 +528,8 @@ export function refineRietveld(
       labels[al.occupancy] = `${phase.name}: ${atom.label} occupancy`;
       labels[al.b] = `${phase.name}: ${atom.label} B`;
       al.aniso.forEach((j, c) => (labels[j] = `${phase.name}: ${atom.label} U term ${c + 1}`));
+      labels[al.fraction] =
+        `${phase.name}: ${atom.substitute?.element ?? 'dopant'} fraction on ${atom.label}`;
     });
   });
 
@@ -536,7 +556,7 @@ export function refineRietveld(
       pl.microstrain,
       pl.sizeMix,
       pl.strainMix,
-      ...pl.atoms.flatMap((al) => [...al.coords, al.occupancy, al.b, ...al.aniso]),
+      ...pl.atoms.flatMap((al) => [...al.coords, al.occupancy, al.b, ...al.aniso, al.fraction]),
     ])
       phaseOf[j] = k;
   });
@@ -838,6 +858,12 @@ export function refineRietveld(
         'Atom positions' + (restrained ? ' (with bond restraints)' : ''),
         structured.flatMap(({ pl }) => pl.atoms.flatMap((al) => al.coords)),
       );
+    const fractions = structured.flatMap(({ phase, pl }) =>
+      pl.atoms.flatMap((al, a) =>
+        phase.structure?.atoms[a]?.substitute?.refine ? [al.fraction] : [],
+      ),
+    );
+    if (fractions.length > 0) stage('Substitution fractions on shared sites', fractions);
     if (choices.occupancy)
       stage(
         'Site occupancies',
@@ -909,7 +935,24 @@ export function refineRietveld(
   const m = layout.size;
   const covariance = final.covariance;
   const cov = (i: number, j: number) => covariance[i * m + j] as number;
-  const masses = input.phases.map((phase) => cellMass(phase.cellContents, input.atomicWeights));
+  // Cell contents with each dopant moved onto its site: n = (site multiplicity) × occupancy × x
+  // atoms of the host element become the dopant.
+  const masses = input.phases.map((phase, k) => {
+    const model = (phases[k] as PhaseModel).structure;
+    const pl = layout.phases[k] as (typeof layout.phases)[number];
+    if (!phase.cellContents || !model?.atoms.some((a) => a.substitute))
+      return cellMass(phase.cellContents, input.atomicWeights);
+    const contents: Record<string, number> = { ...phase.cellContents };
+    model.atoms.forEach((atom, a) => {
+      if (!atom.substitute) return;
+      const al = pl.atoms[a] as (typeof pl.atoms)[number];
+      const moved =
+        atom.images.length * (params[al.occupancy] as number) * (params[al.fraction] as number);
+      contents[atom.element] = (contents[atom.element] ?? 0) - moved;
+      contents[atom.substitute.element] = (contents[atom.substitute.element] ?? 0) + moved;
+    });
+    return cellMass(contents, input.atomicWeights);
+  });
   const volumes = phases.map((phase, k) =>
     cellVolume(phaseCell(phase, layout.phases[k] as (typeof layout.phases)[number], params)),
   );
@@ -1083,6 +1126,9 @@ export function refineRietveld(
                 })
               : null,
             positiveDefinite: state.uImages?.[0] ? positiveDefinite(state.uImages[0]) : true,
+            substitute: atom.substitute
+              ? { element: atom.substitute.element, fraction: estimate(al.fraction) }
+              : null,
           };
         })
       : null;
@@ -1251,6 +1297,26 @@ export function refineRietveld(
       );
     if (choices.biso && choices.overallB)
       warnings.push('The overall B was kept fixed because the atoms’ own B values were refined.');
+  }
+  const substituted = phaseResults.flatMap((r) =>
+    (r.atoms ?? []).flatMap((a) => (a.substitute ? [{ phase: r.name, atom: a }] : [])),
+  );
+  if (substituted.length > 0) {
+    warnings.push(
+      'The dopant fraction comes from how strongly the site scatters X-rays: it cannot tell a dopant from vacancies on the site, it is correlated with the site’s B and occupancy, and a dopant sitting elsewhere (another site, a grain boundary or a second phase) is not seen. Confirm the composition with another method, for example EDS or ICP.',
+    );
+    if (structureSkipped)
+      warnings.push(
+        'The basic refinement did not converge, so the dopant fractions were kept at their starting values.',
+      );
+    for (const { phase, atom } of substituted) {
+      const zHost = ELEMENT_BY_SYMBOL.get(atom.element)?.z;
+      const zDopant = ELEMENT_BY_SYMBOL.get(atom.substitute?.element ?? '')?.z;
+      if (zHost !== undefined && zDopant !== undefined && Math.abs(zHost - zDopant) <= 3)
+        warnings.push(
+          `${phase}: ${atom.substitute?.element} and ${atom.element} differ by only ${Math.abs(zHost - zDopant)} electron${Math.abs(zHost - zDopant) === 1 ? '' : 's'}, so X-rays can hardly tell them apart and the refined fraction on ${atom.label} is not reliable. Keep it fixed at the nominal composition instead.`,
+        );
+    }
   }
 
   return {

@@ -22,6 +22,14 @@
  * coefficients are in Å² of U. An isotropic atom made anisotropic starts from u = U_iso G*
  * (G* the reciprocal metric), which gives the same T = exp(−2π² U_iso / d²).
  *
+ * Substitution on a shared site (optional, for doped materials): a second element shares an
+ * atom's site, coordinates and displacement parameters, and the site's scattering factor becomes
+ *   f_site(s) = (1 − x) f_host(s) + x f_dopant(s)
+ * with x the refined fraction of the site taken by the dopant (0 to 1). The total occupancy of the
+ * site stays that of the file, so x is the composition on the site (for example x in
+ * Zn₁₋ₓCoₓO). This is GSAS-II's constraint of two atoms on one site with Frac₁ + Frac₂ fixed and
+ * equal positions and U, written as one atom.
+ *
  * Bond restraints (optional): each bond present at the start (0.5 Å < d ≤ r₁ + r₂ + 0.45 Å,
  * covalent radii) adds the pseudo-observation (d − d₀)/σ, σ = 0.02 Å, which keeps the bonds close
  * to their starting lengths while the pattern moves the atoms.
@@ -71,6 +79,18 @@ export interface StructureAtom {
   uCif0: number[] | null;
   images: Image[];
   factor: FormFactor;
+  /** A second element on the same site (doping), or undefined. */
+  substitute?: { element: string; factor: FormFactor; fraction0: number; refine: boolean };
+}
+
+/** A dopant placed on a site of the structure: the atom label, its element and the fraction x. */
+export interface Substitution {
+  site: string;
+  element: string;
+  /** Starting (or fixed) fraction of the site taken by the dopant, 0 to 1. */
+  fraction: number;
+  /** Refine x, or keep it at the given value. */
+  refine: boolean;
 }
 
 export interface Restraint {
@@ -93,6 +113,8 @@ export interface AtomState {
   x: Vec3;
   occupancy: number;
   b: number;
+  /** Fraction of the site taken by the substituting element (0 without one). */
+  fraction?: number;
   /** Dimensionless u of each image, in the order of StructureAtom.images (anisotropic atoms). */
   uImages?: Matrix3[];
 }
@@ -193,13 +215,20 @@ export function structureModel(
   factors: FormFactors,
   radii: Readonly<Record<string, number>>,
   allAnisotropic = false,
+  substitutions: readonly Substitution[] = [],
 ): StructureModel {
+  for (const sub of substitutions) {
+    if (!structure.atoms.some((a) => a.label === sub.site))
+      throw new Error(`no site labelled ${sub.site}`);
+    if (!factors[sub.element]) throw new Error(`no scattering factor for ${sub.element}`);
+  }
   const ops = structure.ops.map(parseSymop);
   const gStar = reciprocalMetric(cell);
   const aStar = [Math.sqrt(gStar[0]), Math.sqrt(gStar[4]), Math.sqrt(gStar[8])];
   const atoms: StructureAtom[] = structure.atoms.map((atom) => {
     const factor = factors[atom.element];
     if (!factor) throw new Error(`no scattering factor for ${atom.element}`);
+    const sub = substitutions.find((q) => q.site === atom.label);
     const sites = expandAtoms({ cell, ops, atoms: [atom] });
     const images: Image[] = sites.map((site) => {
       const op = ops.find((g) =>
@@ -259,6 +288,14 @@ export function structureModel(
       uCif0,
       images,
       factor,
+      ...(sub && {
+        substitute: {
+          element: sub.element,
+          factor: factors[sub.element] as FormFactor,
+          fraction0: Math.min(1, Math.max(0, sub.fraction)),
+          refine: sub.refine,
+        },
+      }),
     };
   });
 
@@ -311,7 +348,10 @@ export function structureFactorSquared(
   let im = 0;
   model.atoms.forEach((atom, a) => {
     const state = states[a] as AtomState;
-    const f = scatter(atom.factor, s2);
+    const x = atom.substitute ? (state.fraction ?? atom.substitute.fraction0) : 0;
+    const f = atom.substitute
+      ? (1 - x) * scatter(atom.factor, s2) + x * scatter(atom.substitute.factor, s2)
+      : scatter(atom.factor, s2);
     atom.images.forEach((image, m) => {
       let t: number;
       const u = state.uImages?.[m] ?? image.u;

@@ -232,15 +232,27 @@ Found and fixed by these checks:
   derivative; one seed reported a size s.u. 13× too small. Derivatives now reuse the unshifted
   windows.
 
-Open:
+Open items of 17a, resolved (November 2026):
 
-- Surface roughness B from the GSAS-II pattern is 1.0 % low (4 s.u.; GSAS-II's own refinement is
-  0.3 % low). The likely cause is the scattering factors (International Tables 4-Gaussian here,
-  GSAS-II's own table there), which change the intensity against angle as B does; not confirmed.
-- The Le Bail cells here and in GSAS-II differ by 6e-5 Å (6 s.u.); both leave the transparency
-  out, so both absorb its shift. GSAS-II's tiny axial-divergence term (SH/L = 0.0001) is not
-  modelled here and may explain it; not confirmed.
-- Monochromator spacings (graphite 002 d = 3.354 Å, germanium 111 d = 5.6579/√3 Å) and the
-  mosaic or perfect-crystal choice are flagged for the owner's verification.
-- Hill and Flack's Durbin–Watson paper is cited as J. Appl. Cryst. 20 (1987) 356; one IUCr issue
-  listing gives pages 362–365. To be checked against the journal page.
+- **Surface roughness B 1 % low against the GSAS-II truth.** First suspected cause, the scattering
+  factors, ruled out: GSAS-II's |F|² of every CeO2 reflection (now written to the fixture) equals
+  the site's within 5 × 10⁻⁵ (test). The cause is a convention: GSAS-II evaluates the Lorentz,
+  polarisation and roughness factors at the Kα1 angle for both lines (GetIntensityCorr uses the
+  Kα1 position); the site uses each line's own angle, which is physically exact. With GSAS-II's
+  convention switched on (`correctionsAtKAlpha1`, validation only), B = 0.11945(27) against
+  GSAS-II's 0.11967(17), transparency and R_wp also agree within 2 s.u. and 0.5 % (test). The
+  default stays exact; on GSAS-II-made data it gives B 0.6 % lower, within the 1.5 % test bound.
+- **Le Bail cell 6e-5 Å from GSAS-II's.** Both fits left the transparency out, so both absorbed its
+  2θ shift into the cell, each in its own way. GSAS-II now also runs a Le Bail fit with the
+  transparency refined: its cell is 5.410991 Å, and the site's agrees within 3 s.u. and with the
+  true 5.411 Å; size, strain and transparency agree within 2 s.u. (test).
+- **Monochromator spacings**, now from COD: graphite c = 6.711 Å (COD 9011577, so d(002) = 3.3555 Å,
+  not the 3.354 Å used before) and germanium a = 5.65754 Å (COD 9011050). A change of 0.005 Å
+  moves P by less than 2 × 10⁻⁴ (test). The polarisation formulas are now sourced: Morelhão et
+  al., arXiv:1911.00396 (supporting information of J. Phys. Chem. C 123 (2019) 24818), section S3:
+  cos²2θ_m for kinematical (mosaic) diffraction, at most cos 2θ_m for a thick perfect crystal
+  (0.675 against 0.703 for Ge 220 with Cu Kα1), so the germanium preset is an upper limit and the
+  app says so.
+- **Hill and Flack citation.** Crossref (DOI 10.1107/S0021889887086485) gives J. Appl. Cryst. 20
+  (1987) 356–361. The listing with pages 362–365 was the next paper in the issue (Stothart, DOI
+  10.1107/S0021889887086473).
