@@ -8,7 +8,11 @@
  * - S: phase scale factor (dimensionless, absorbs the incident intensity and the volume fraction).
  * - M|F|²_k: Σ|F|² of reflection family k from the reference structure (electron units²), or
  *   calculated from the refined atoms when the structure is refined (structure.ts).
- * - LP(θ) = (1 + cos²2θ)/(sin²θ cosθ): Lorentz-polarisation factor with no monochromator.
+ * - LP(θ) = 2[P + (1 − P) cos²2θ]/(sin²θ cosθ): Lorentz-polarisation factor, P the polarisation
+ *   coefficient of GSAS-II (0.5, the default, is no monochromator: LP = (1 + cos²2θ)/(sin²θ cosθ);
+ *   sample.ts gives P for a monochromator).
+ * - SR(θ): Suortti surface roughness (sample.ts), 1 unless refined; V(θ) = sin θ when the data were
+ *   measured with an automatic (variable) divergence slit, otherwise 1 (sample.ts).
  * - P_k: March–Dollase preferred orientation, mean over the family's reflections of
  *   (r² cos²α + sin²α / r)^(−3/2), α the angle between the reflection's normal and the preferred
  *   direction (also given as a plane normal h k l); r = 1 is a random powder (P = 1).
@@ -16,10 +20,10 @@
  *   the displacement parameters already in the reference structure.
  * - r_λ: relative intensity of the Kα1 line (1) and the Kα2 line (the Kα2/Kα1 ratio, or none
  *   with a monochromator); each line has its own Bragg angle from λ = 2d sinθ.
- * - Peak position: 2θ_k,λ = 2·asin(λ/2d)·180/π + Z + D·cosθ (degrees): Z is the zero shift (the
- *   measured 2θ minus the true one, as in the Clean data step) and D the sample displacement
- *   coefficient (for a sample surface a distance s above the focusing circle of radius R,
- *   D = −(360/π)·s/R degrees).
+ * - Peak position: 2θ_k,λ = 2·asin(λ/2d)·180/π + Z + D·cosθ + T·sin2θ (degrees): Z is the zero
+ *   shift (the measured 2θ minus the true one, as in the Clean data step), D the sample
+ *   displacement coefficient (for a sample surface a distance s above the focusing circle of
+ *   radius R, D = −(360/π)·s/R degrees) and T the sample transparency (sample.ts).
  * - Ω: pseudo-Voigt of unit area, Ω = η·L + (1 − η)·G, with full width at half maximum H from the
  *   Caglioti relation H² = U tan²θ + V tanθ + W (H in degrees 2θ, U, V, W in deg²). η is the
  *   Lorentzian fraction (0 to 1). Ω is cut off at ±25 H (the Lorentzian tails beyond hold about
@@ -27,6 +31,11 @@
  * - TCH profile (optional, GSAS-II's peak shape): the Gaussian width follows the Caglioti relation
  *   above, H_G² = U tan²θ + V tanθ + W, the Lorentzian width H_L = X/cosθ + Y tanθ (degrees), and
  *   H and η come from the Thompson–Cox–Hastings formulas (tch.ts) instead of a refined η.
+ * - Sample broadening (optional, always with the TCH profile): crystallite size and microstrain
+ *   add to H_L and H_G² as in GSAS-II (sample.ts), so U, V, W, X, Y can stay those of the
+ *   instrument (for example fixed from a standard) while size and strain are refined per phase.
+ * - Le Bail mode (optional, per phase): M|F|²_k are not calculated from a structure but extracted
+ *   from the data (refine.ts), so only the cell and the profile are fitted.
  * - Peak asymmetry (optional, off unless refined): Ω is multiplied by the Bérar–Baldinozzi
  *   correction (J.-F. Bérar and G. Baldinozzi, J. Appl. Cryst. 26 (1993) 128–129), in the form of
  *   the FullProf manual (eq. 3.29) with its 1/tan θ terms:
@@ -37,11 +46,18 @@
  *   further 1/tan 2θ terms (P3, P4) are not used: they matter mainly at high angle, where lab
  *   patterns show little asymmetry.
  *
- * Anisotropic broadening, absorption and surface roughness are not modelled.
+ * Anisotropic broadening and absorption (other than surface roughness) are not modelled.
  */
 
 import { dSpacing, lorentzPolarisation, reciprocalMetric, type Cell } from '../reference/powder';
 import { tchEta, tchFwhm } from './tch';
+import {
+  polarisation,
+  sampleWidths,
+  surfaceRoughness,
+  transparencyShift,
+  variableSlitFactor,
+} from './sample';
 import { cellFromParameters, cellParameterNames, type CellKind } from './cell';
 import type { Hkl, RefinementReflection } from './reflections';
 import {
@@ -66,6 +82,10 @@ export interface PhaseModel {
   structure?: StructureModel;
   /** Thompson–Cox–Hastings profile (GSAS-II) instead of the single-width pseudo-Voigt. */
   tch?: boolean;
+  /** Crystallite size and microstrain broadening (sample.ts); uses the TCH profile. */
+  sample?: boolean;
+  /** Le Bail mode: Σ|F|² of each reflection as extracted from the data (refine.ts). */
+  leBail?: Float64Array;
 }
 
 export interface Wavelengths {
@@ -75,12 +95,20 @@ export interface Wavelengths {
   kAlpha2: number;
   /** Kα2/Kα1 intensity ratio; 0 when a monochromator removed Kα2. */
   ratio: number;
+  /** GSAS-II polarisation coefficient P (sample.ts); missing means 0.5, no monochromator. */
+  polarisation?: number;
+  /** Data measured with an automatic (variable) divergence slit (sample.ts). */
+  variableSlit?: boolean;
 }
 
 /** Where each parameter sits in the parameter vector. */
 export interface Layout {
   zero: number;
   displacement: number;
+  /** Sample transparency T (degrees). */
+  transparency: number;
+  /** Suortti surface roughness A and B. */
+  roughness: [number, number];
   /** Background coefficients b_0 … b_(n−1). */
   background: number[];
   phases: PhaseLayout[];
@@ -102,6 +130,11 @@ export interface PhaseLayout {
   b: number;
   /** Bérar–Baldinozzi asymmetry P1 and P2. */
   asymmetry: [number, number];
+  /** Sample broadening: 1/size (nm⁻¹), microstrain (10⁻⁶) and their Lorentzian fractions. */
+  inverseSize: number;
+  microstrain: number;
+  sizeMix: number;
+  strainMix: number;
   /** Per atom of the structure (empty without one): free coordinate coefficients, occupancy, B. */
   atoms: { coords: number[]; occupancy: number; b: number; aniso: number[] }[];
 }
@@ -111,6 +144,8 @@ export function makeLayout(phases: readonly PhaseModel[], backgroundTerms: numbe
   const take = () => next++;
   const zero = take();
   const displacement = take();
+  const transparency = take();
+  const roughness: [number, number] = [take(), take()];
   const background = Array.from({ length: backgroundTerms }, take);
   const phaseLayouts = phases.map((phase) => ({
     scale: take(),
@@ -124,6 +159,10 @@ export function makeLayout(phases: readonly PhaseModel[], backgroundTerms: numbe
     orientation: take(),
     b: take(),
     asymmetry: [take(), take()] as [number, number],
+    inverseSize: take(),
+    microstrain: take(),
+    sizeMix: take(),
+    strainMix: take(),
     atoms: (phase.structure?.atoms ?? []).map((atom) => ({
       coords: atom.basis.map(take),
       occupancy: take(),
@@ -131,7 +170,15 @@ export function makeLayout(phases: readonly PhaseModel[], backgroundTerms: numbe
       aniso: atom.uBasis.map(take),
     })),
   }));
-  return { zero, displacement, background, phases: phaseLayouts, size: next };
+  return {
+    zero,
+    displacement,
+    transparency,
+    roughness,
+    background,
+    phases: phaseLayouts,
+    size: next,
+  };
 }
 
 const SQRT_LN2_PI = Math.sqrt(Math.LN2 / Math.PI);
@@ -212,6 +259,9 @@ export interface PlacedPeak {
   asymmetry: [number, number];
   /** 0 for Kα1, 1 for Kα2. */
   line: 0 | 1;
+  /** d-spacing (Å) and Σ|F|² of the reflection family. */
+  d: number;
+  mf2: number;
 }
 
 /** Bérar–Baldinozzi correction As(z) = 1 + a·Fa(z) + b·Fb(z), Fa = 2z e^(−z²), Fb = 2(2z² − 3) Fa. */
@@ -262,6 +312,11 @@ export function placePeaks(
   const gStar = reciprocalMetric(phaseCell(phase, pl, p));
   const zero = p[layout.zero] as number;
   const displacement = p[layout.displacement] as number;
+  const transparency = p[layout.transparency] as number;
+  const roughA = p[layout.roughness[0]] as number;
+  const roughB = p[layout.roughness[1]] as number;
+  const rough = roughA !== 1 && roughB !== 0;
+  const pola = wavelengths.polarisation ?? 0.5;
   const scale = p[pl.scale] as number;
   const u = p[pl.u] as number;
   const v = p[pl.v] as number;
@@ -273,6 +328,11 @@ export function placePeaks(
   const b = p[pl.b] as number;
   const p1 = p[pl.asymmetry[0]] as number;
   const p2 = p[pl.asymmetry[1]] as number;
+  const inverseSize = p[pl.inverseSize] as number;
+  const microstrain = p[pl.microstrain] as number;
+  const sizeMix = p[pl.sizeMix] as number;
+  const strainMix = p[pl.strainMix] as number;
+  const tch = phase.tch === true || phase.sample === true;
   const lines: [number, number][] = [[wavelengths.kAlpha1, 1]];
   if (wavelengths.ratio > 0) lines.push([wavelengths.kAlpha2, wavelengths.ratio]);
   const out: PlacedPeak[] = [];
@@ -281,12 +341,14 @@ export function placePeaks(
   phase.reflections.forEach((reflection, k) => {
     const [h, kk, l] = reflection.hkl;
     const d = dSpacing(gStar, h, kk, l);
-    const mf2 = structure
-      ? reflection.members.reduce(
-          (sum, m) => sum + structureFactorSquared(structure, states, m, d),
-          0,
-        )
-      : reflection.mf2;
+    const mf2 = phase.leBail
+      ? (phase.leBail[k] as number)
+      : structure
+        ? reflection.members.reduce(
+            (sum, m) => sum + structureFactorSquared(structure, states, m, d),
+            0,
+          )
+        : reflection.mf2;
     const orientation =
       phase.orientation && r !== 1
         ? marchDollase(gStar, reflection.members, phase.orientation, r)
@@ -300,25 +362,53 @@ export function placePeaks(
       const h2 = u * tan * tan + v * tan + w;
       let fwhm = Math.sqrt(Math.max(h2, 1e-8));
       let mix = eta;
-      if (phase.tch) {
-        const hl = Math.max(0, lx / Math.cos(theta) + ly * tan);
-        const hg = fwhm;
-        fwhm = tchFwhm(hg, hl);
+      if (tch) {
+        let hl = Math.max(0, lx / Math.cos(theta) + ly * tan);
+        let hg2 = Math.max(h2, 1e-8);
+        if (phase.sample) {
+          const extra = sampleWidths(inverseSize, microstrain, sizeMix, strainMix, lambda, theta);
+          hl += extra.lorentzian;
+          hg2 += extra.gaussian2;
+        }
+        fwhm = tchFwhm(Math.sqrt(hg2), hl);
         mix = tchEta(hl / fwhm);
       }
+      let factor = weight * lorentzPolarisation(theta);
+      if (pola !== 0.5) factor *= polarisation(pola, theta) / (1 + Math.cos(2 * theta) ** 2);
+      if (rough) factor *= surfaceRoughness(roughA, roughB, theta);
+      if (wavelengths.variableSlit) factor *= variableSlitFactor(theta);
       out.push({
         phase: index,
         reflection: k,
-        twoTheta: (2 * theta) / RAD + zero + displacement * Math.cos(theta),
-        area: common * weight * lorentzPolarisation(theta),
+        twoTheta:
+          (2 * theta) / RAD +
+          zero +
+          displacement * Math.cos(theta) +
+          transparencyShift(transparency, theta),
+        area: common * factor,
         fwhm,
         eta: mix,
         asymmetry: [p1 / tan, p2 / tan],
         line: line as 0 | 1,
+        d,
+        mf2,
       });
     });
   });
   return out;
+}
+
+/** One peak's profile on the points it reaches: values[q] belongs to x[start + q]. */
+export function profileWindow(
+  x: Float64Array,
+  peak: PlacedPeak,
+): { start: number; values: Float64Array } {
+  const hw = CUT_OFF * peak.fwhm;
+  const start = lowerBound(x, peak.twoTheta - hw);
+  const end = lowerBound(x, peak.twoTheta + hw);
+  const values = new Float64Array(end - start);
+  addProfiles(x.subarray(start, end), [peak], values);
+  return { start, values };
 }
 
 /** Adds the profiles of the peaks to `out` (same length as x). */

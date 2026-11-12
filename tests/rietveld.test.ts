@@ -327,6 +327,8 @@ describe('Bérar–Baldinozzi peak asymmetry', () => {
       eta: 0.4,
       asymmetry: [0, 0],
       line: 0,
+      d: 1,
+      mf2: 1,
     };
     const symmetric = new Float64Array(x.length);
     addProfiles(x, [base], symmetric);

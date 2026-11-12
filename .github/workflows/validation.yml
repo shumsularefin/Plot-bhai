@@ -38,6 +38,8 @@ jobs:
           python -m pip install "$RUNNER_TEMP/GSAS-II"
       - name: GSAS-II simulations and refinements
         run: python -I scripts/validation/gsas2/structure.py "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
+      - name: GSAS-II size, microstrain, polarisation, roughness, transparency and Le Bail
+        run: python -I scripts/validation/gsas2/sample.py "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
       - name: pymatgen distances and powder patterns
         run: python -I scripts/validation/pymatgen/check.py "$GITHUB_WORKSPACE"
       - name: Commit the fixtures

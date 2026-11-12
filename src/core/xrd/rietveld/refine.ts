@@ -27,6 +27,17 @@
  * with S the scale factor, ZM the mass of the unit cell contents (g/mol) and V the cell volume.
  * They are fractions of the crystalline phases included, with no microabsorption correction.
  *
+ * Le Bail mode (A. Le Bail, H. Duroy and J. L. Fourquet, Mat. Res. Bull. 23 (1988) 447–452), per
+ * phase: no structure is used. After each least-squares stage the Σ|F|² of every reflection is
+ * replaced by the share of the observed intensity that its calculated profile takes (the same
+ * partition as for R_Bragg), and this is repeated until R_wp stops falling; only the cell, the
+ * profile and the global parameters are refined (the scale factor is fixed, since it multiplies
+ * the extracted intensities). Accidentally overlapping reflections keep the ratio they start with.
+ *
+ * Fixed instrument profile (optional): U, V, W, X, Y of the TCH profile are set from a standard
+ * (or a GSAS-II .instprm file) and not refined, so the crystallite size and microstrain refined
+ * per phase (sample.ts) are the sample's own broadening.
+ *
  * Standard uncertainties are √(diagonal of s²(JᵀWJ)⁻¹), s² = Σ w(y_obs − y_calc)² / (N − P). They
  * ignore serial correlation of the residuals and so usually underestimate the real uncertainty
  * (Bérar and Lelann, J. Appl. Cryst. 24 (1991) 1–5).
@@ -37,7 +48,7 @@ import type { Cell, FormFactors } from '../reference/powder';
 import type { ReferencePeak, StoredStructure } from '../reference/types';
 import { cellKind, cellParameterNames, cellVolume } from './cell';
 import {
-  addProfiles,
+  profileWindow,
   asymmetryFactor,
   backgroundCurve,
   chebyshevBasis,
@@ -52,6 +63,13 @@ import {
 } from './model';
 import { refinementReflections, type Hkl } from './reflections';
 import { positiveDefinite, restraintResiduals, structureModel } from './structure';
+import {
+  durbinWatson,
+  internalStandard,
+  strongCorrelations,
+  type Correlation,
+  type StandardResult,
+} from './statistics';
 
 export interface RietveldPhaseInput {
   id: string;
@@ -66,6 +84,17 @@ export interface RietveldPhaseInput {
   orientation: Hkl | null;
   /** Symmetry operators and atoms, needed for structure refinement. */
   structure?: StoredStructure;
+  /** Le Bail mode: intensities extracted from the data, no structure (see the header). */
+  leBail?: boolean;
+}
+
+/** Instrument profile of the TCH shape, degrees 2θ (U, V, W in deg², X, Y in deg). */
+export interface InstrumentProfile {
+  u: number;
+  v: number;
+  w: number;
+  x: number;
+  y: number;
 }
 
 /** Which groups of parameters are refined. Scale factors and background always are. */
@@ -95,6 +124,16 @@ export interface RefineChoices {
   aniso?: boolean;
   /** Bond-length restraints to the starting structure while positions are refined. */
   restraints?: boolean;
+  /** Sample transparency T (Δ2θ = T sin 2θ), for weakly absorbing samples. */
+  transparency?: boolean;
+  /** Suortti surface roughness A and B (sample.ts). */
+  roughness?: boolean;
+  /** Crystallite size of every phase (sample broadening, uses the TCH profile). */
+  size?: boolean;
+  /** Microstrain of every phase (sample broadening, uses the TCH profile). */
+  strain?: boolean;
+  /** Lorentzian fractions of the size and strain broadening (otherwise 1, as in GSAS-II). */
+  sampleMix?: boolean;
 }
 
 export const DEFAULT_CHOICES: RefineChoices = {
@@ -123,6 +162,12 @@ export interface RietveldInput {
   /** Scattering factors and covalent radii (Å), needed only for structure refinement. */
   factors?: FormFactors;
   radii?: Readonly<Record<string, number>>;
+  /** Fixed instrument profile (TCH); when given, U, V, W, X, Y are not refined. */
+  instrument?: InstrumentProfile;
+  /** 2θ ranges (degrees) left out of the refinement, for example a sample-holder peak. */
+  excluded?: readonly (readonly [number, number])[];
+  /** Internal standard for the amorphous content: phase id and its weighed fraction (0 to 1). */
+  standard?: { phaseId: string; fraction: number };
 }
 
 export interface AtomResult {
@@ -174,8 +219,32 @@ export interface RietveldPhaseResult {
   rBragg: number;
   /** Refined atoms when the structure was refined, otherwise null. */
   atoms: AtomResult[] | null;
+  /** True when the phase was fitted in Le Bail mode (no structure; R_Bragg not meaningful). */
+  leBail: boolean;
+  /** Crystallite size (nm) and microstrain (10⁻⁶, GSAS-II definition), or null when not refined. */
+  size: Estimate | null;
+  microstrain: Estimate | null;
+  /** Lorentzian fractions of the size and strain broadening. */
+  sizeMix: Estimate;
+  strainMix: Estimate;
+  /** Reflection list in the data range, with observed (partitioned) and calculated intensities. */
+  reflections: ReflectionRow[];
   /** Kα1 positions (degrees 2θ) of the reflections inside the data range, with one (h k l) each. */
   ticks: { twoTheta: number; hkl: Hkl }[];
+}
+
+export interface ReflectionRow {
+  hkl: Hkl;
+  /** Number of reflections in the family. */
+  multiplicity: number;
+  /** d-spacing (Å) and Kα1 position (degrees 2θ) in the refined cell. */
+  d: number;
+  twoTheta: number;
+  /** |F|² per reflection (electron units², Σ|F|² / multiplicity); extracted in Le Bail mode. */
+  f2: number;
+  /** Integrated intensities (counts × degrees), Kα1 and Kα2 together. */
+  iObs: number;
+  iCalc: number;
 }
 
 export interface RietveldStats {
@@ -186,6 +255,8 @@ export interface RietveldStats {
   gof: number;
   points: number;
   parameters: number;
+  /** Durbin–Watson d of the weighted residuals (statistics.ts); about 2 is ideal. */
+  durbinWatson: number;
 }
 
 export interface RietveldResult {
@@ -198,7 +269,20 @@ export interface RietveldResult {
   phaseCurves: number[][];
   zero: Estimate;
   displacement: Estimate;
+  transparency: Estimate;
+  /** Suortti surface roughness A and B (A = 1, B = 0 and fixed unless refined). */
+  roughness: [Estimate, Estimate];
+  /** Polarisation coefficient P used (GSAS-II's Polariz.). */
+  polarisation: number;
+  /** The fixed instrument profile, when one was used. */
+  instrument: InstrumentProfile | null;
+  /** 2θ ranges left out. */
+  excluded: [number, number][];
   phases: RietveldPhaseResult[];
+  /** Pairs of refined parameters with |r| ≥ 0.9, strongest first (at most 20). */
+  correlations: Correlation[];
+  /** Amorphous content from an internal standard, or null. */
+  standard: (StandardResult & { phaseId: string; fraction: number }) | null;
   stats: RietveldStats;
   /** R_wp after each stage, to show how the refinement went. */
   stages: { name: string; rwp: number }[];
@@ -264,7 +348,19 @@ export function refineRietveld(
   input: RietveldInput,
   progress: (stage: string) => void = () => undefined,
 ): RietveldOutcome {
-  const { x, y, wavelengths, choices } = input;
+  const { wavelengths, choices } = input;
+  const excluded = (input.excluded ?? [])
+    .map(([a, b]) => [Math.min(a, b), Math.max(a, b)] as [number, number])
+    .filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b) && b > a);
+  const keep: number[] = [];
+  input.x.forEach((v, i) => {
+    if (Number.isFinite(input.y[i]) && !excluded.some(([a, b]) => v >= a && v <= b)) keep.push(i);
+  });
+  const x = Float64Array.from(keep, (i) => input.x[i] as number);
+  const y = Float64Array.from(keep, (i) => input.y[i] as number);
+  const instrument = input.instrument ?? null;
+  const sampleBroadening = Boolean(choices.size || choices.strain);
+  const tch = Boolean(choices.tch || instrument || sampleBroadening);
   const n = x.length;
   if (n < 50) return { ok: false, error: 'The pattern has too few points for a refinement.' };
   if (input.phases.length === 0)
@@ -280,7 +376,7 @@ export function refineRietveld(
   const phases: PhaseModel[] = input.phases.map((phase) => {
     const kind = cellKind(phase.crystalSystem, phase.cell);
     let structure;
-    if (wantsStructure) {
+    if (wantsStructure && !phase.leBail) {
       try {
         if (!phase.structure || !input.factors) throw new Error('no structure');
         structure = structureModel(
@@ -294,15 +390,18 @@ export function refineRietveld(
         noStructure.push(phase.name);
       }
     }
+    const reflections = refinementReflections(phase.peaks, phase.cell, kind, dMin);
     return {
       id: phase.id,
       name: phase.name,
       kind,
       cell: phase.cell,
-      reflections: refinementReflections(phase.peaks, phase.cell, kind, dMin),
+      reflections,
       orientation: phase.orientation,
       ...(structure && { structure }),
-      ...(choices.tch && { tch: true }),
+      ...(tch && { tch: true }),
+      ...(sampleBroadening && { sample: true }),
+      ...(phase.leBail && { leBail: Float64Array.from(reflections, (r) => r.mf2 || 1) }),
     };
   });
   const empty = phases.find((phase) => phase.reflections.length === 0);
@@ -329,6 +428,10 @@ export function refineRietveld(
   const yMax = y.reduce((m, v) => Math.max(m, v), 0);
   bound(layout.zero, -1, 1, 0, 0.1);
   bound(layout.displacement, -1, 1, 0, 0.1);
+  bound(layout.transparency, -1, 1, 0, 0.01);
+  // A = 0, B = 0 is a smooth surface (SR = 1); B is released first, then A (see the stages).
+  bound(layout.roughness[0], 0, 1, 0, 0.1);
+  bound(layout.roughness[1], 0, 2, 0, 0.01);
   layout.background.forEach((j, i) =>
     bound(j, -Infinity, Infinity, i === 0 ? percentile(y, 0.1) : 0, Math.max(yMax, 1) * 1e-3),
   );
@@ -341,12 +444,16 @@ export function refineRietveld(
       if (name === 'a' || name === 'b' || name === 'c') bound(j, v * 0.95, v * 1.05, v, v);
       else bound(j, v - 3, v + 3, v, 1);
     });
-    bound(pl.u, -1, 2, 0, 0.01);
-    bound(pl.v, -2, 2, 0, 0.01);
-    bound(pl.w, 1e-6, 2, 0.01, 0.01);
+    bound(pl.u, -1, 2, instrument?.u ?? 0, 0.01);
+    bound(pl.v, -2, 2, instrument?.v ?? 0, 0.01);
+    bound(pl.w, Math.min(1e-6, instrument?.w ?? 1), 2, instrument?.w ?? 0.01, 0.01);
     bound(pl.eta, 0, 1, 0.5, 0.1);
-    bound(pl.lx, 0, 2, choices.tch ? 0.02 : 0, 0.01);
-    bound(pl.ly, -1, 2, 0, 0.01);
+    bound(pl.lx, 0, 2, instrument?.x ?? (tch && !choices.size ? 0.02 : 0), 0.01);
+    bound(pl.ly, -1, 2, instrument?.y ?? 0, 0.01);
+    bound(pl.inverseSize, 0, 2, choices.size ? 0.002 : 0, 0.01);
+    bound(pl.microstrain, 0, 50000, choices.strain ? 100 : 0, 100);
+    bound(pl.sizeMix, 0, 1, 1, 0.1);
+    bound(pl.strainMix, 0, 1, 1, 0.1);
     bound(pl.orientation, 0.3, 3, 1, 1);
     bound(pl.b, -2, 10, 0, 1);
     for (const j of pl.asymmetry) bound(j, -1, 1, 0, 0.01);
@@ -372,6 +479,9 @@ export function refineRietveld(
   const labels = new Array<string>(layout.size).fill('');
   labels[layout.zero] = 'zero shift';
   labels[layout.displacement] = 'sample displacement';
+  labels[layout.transparency] = 'sample transparency';
+  labels[layout.roughness[0]] = 'surface roughness A';
+  labels[layout.roughness[1]] = 'surface roughness B';
   layout.background.forEach((j, i) => (labels[j] = `background term ${i}`));
   phases.forEach((phase, k) => {
     const pl = layout.phases[k] as (typeof layout.phases)[number];
@@ -389,6 +499,10 @@ export function refineRietveld(
     labels[pl.b] = `${phase.name}: B`;
     labels[pl.asymmetry[0]] = `${phase.name}: asymmetry P1`;
     labels[pl.asymmetry[1]] = `${phase.name}: asymmetry P2`;
+    labels[pl.inverseSize] = `${phase.name}: 1/size`;
+    labels[pl.microstrain] = `${phase.name}: microstrain`;
+    labels[pl.sizeMix] = `${phase.name}: size Lorentzian fraction`;
+    labels[pl.strainMix] = `${phase.name}: strain Lorentzian fraction`;
     phase.structure?.atoms.forEach((atom, a) => {
       const al = pl.atoms[a] as (typeof pl.atoms)[number];
       al.coords.forEach((j, c) => (labels[j] = `${phase.name}: ${atom.label} position ${c + 1}`));
@@ -414,6 +528,10 @@ export function refineRietveld(
       pl.orientation,
       pl.b,
       ...pl.asymmetry,
+      pl.inverseSize,
+      pl.microstrain,
+      pl.sizeMix,
+      pl.strainMix,
       ...pl.atoms.flatMap((al) => [...al.coords, al.occupancy, al.b, ...al.aniso]),
     ])
       phaseOf[j] = k;
@@ -493,18 +611,75 @@ export function refineRietveld(
   const goal = new Float64Array(rows);
   goal.set(target);
   let current: Float64Array = p;
-  const run = (freeNow: boolean[], maxIterations: number) => {
+  const leBailPhases = phases.flatMap((phase, k) => (phase.leBail ? [k] : []));
+  /** Observed (partitioned) and calculated integrated intensity of each reflection of phase k. */
+  const partition = (k: number, params: Float64Array, calc: Float64Array, bg: Float64Array) => {
+    const phase = phases[k] as PhaseModel;
+    const iCalc = new Float64Array(phase.reflections.length);
+    const iObs = new Float64Array(phase.reflections.length);
+    const xLo = x[0] as number;
+    const xHi = x[n - 1] as number;
+    for (const peak of placePeaks(phases, layout, k, params, wavelengths)) {
+      if (peak.twoTheta < xLo || peak.twoTheta > xHi) continue;
+      const { start, values } = profileWindow(x, peak);
+      // Both sums run over the data points, so they share units and cut-off.
+      for (let q = 0; q < values.length; q++) {
+        const share = values[q] as number;
+        if (share === 0) continue;
+        const i = start + q;
+        iCalc[peak.reflection] = (iCalc[peak.reflection] as number) + share;
+        const net = (calc[i] as number) - (bg[i] as number);
+        if (net <= 0) continue;
+        iObs[peak.reflection] =
+          (iObs[peak.reflection] as number) +
+          (share * ((y[i] as number) - (bg[i] as number))) / net;
+      }
+    }
+    return { iObs, iCalc };
+  };
+  const totals = (params: Float64Array) => {
+    const bg = backgroundCurve(basis, layout, params, n);
+    const calc = Float64Array.from(bg);
+    for (const part of curves(params))
+      for (let i = 0; i < n; i++) calc[i] = (calc[i] as number) + (part[i] as number);
+    return { bg, calc };
+  };
+  // Le Bail extraction: each reflection's Σ|F|² scaled by its observed / calculated intensity.
+  const extract = (params: Float64Array) => {
+    const { bg, calc } = totals(params);
+    for (const k of leBailPhases) {
+      const intensities = (phases[k] as PhaseModel).leBail as Float64Array;
+      const { iObs, iCalc } = partition(k, params, calc, bg);
+      for (let r = 0; r < intensities.length; r++) {
+        const ic = iCalc[r] as number;
+        if (ic > 0)
+          intensities[r] =
+            ((intensities[r] as number) * Math.max(iObs[r] as number, 1e-6 * ic)) / ic;
+      }
+    }
+  };
+  const run = (freeNow: boolean[], maxIterations: number, extractCycles = 4) => {
     free = freeNow;
-    const result = levenbergMarquardt({
-      y: goal,
-      initial: current,
-      lower,
-      upper,
-      free,
-      evaluate,
-      maxIterations,
-    });
-    current = result.parameters;
+    const once = () => {
+      const result = levenbergMarquardt({
+        y: goal,
+        initial: current,
+        lower,
+        upper,
+        free,
+        evaluate,
+        maxIterations,
+      });
+      current = result.parameters;
+      return result;
+    };
+    let result = once();
+    for (let c = 0; leBailPhases.length > 0 && c < extractCycles; c++) {
+      extract(current);
+      const before = result.ssr;
+      result = once();
+      if (before - result.ssr < 1e-4 * before) break;
+    }
     return result;
   };
   // R_wp of the data rows only (restraint rows excluded).
@@ -517,17 +692,18 @@ export function refineRietveld(
   const mask = new Array<boolean>(layout.size).fill(false);
   const release = (indices: number[]) => indices.forEach((j) => (mask[j] = true));
   release(layout.background);
-  release(layout.phases.map((pl) => pl.scale));
+  // A Le Bail phase's scale only multiplies its extracted intensities, so it stays fixed.
+  release(layout.phases.flatMap((pl, k) => ((phases[k] as PhaseModel).leBail ? [] : [pl.scale])));
   const stages: { name: string; rwp: number }[] = [];
 
   // Starting width: the best of a few typical values, with only scale and background refined.
   progress('Choosing the starting peak width');
   let best: { ssr: number; params: Float64Array } = { ssr: Infinity, params: current };
-  for (const fwhm of TYPICAL_WIDTHS) {
+  for (const fwhm of instrument ? [null] : TYPICAL_WIDTHS) {
     const trial = p.slice();
-    layout.phases.forEach((pl) => (trial[pl.w] = fwhm * fwhm));
+    if (fwhm !== null) layout.phases.forEach((pl) => (trial[pl.w] = fwhm * fwhm));
     current = trial;
-    const result = run([...mask], 30);
+    const result = run([...mask], 30, 0);
     if (result.ssr < best.ssr) best = { ssr: result.ssr, params: result.parameters };
   }
   current = best.params;
@@ -547,7 +723,7 @@ export function refineRietveld(
             trial[pl.cell[i] as number] = (start[pl.cell[i] as number] as number) * (1 + f);
         });
         current = trial;
-        const result = run([...mask], 10);
+        const result = run([...mask], 10, 0);
         if (result.ssr < bestFactor.ssr)
           bestFactor = { ssr: result.ssr, params: result.parameters };
       }
@@ -562,24 +738,62 @@ export function refineRietveld(
     release(indices);
     stages.push({ name, rwp: rwpOf(run([...mask], 100)) });
   };
-  stage('Zero shift' + (choices.displacement ? ' and sample displacement' : ''), [
-    ...(choices.zero ? [layout.zero] : []),
-    ...(choices.displacement ? [layout.displacement] : []),
-  ]);
+  stage(
+    [
+      'Zero shift',
+      ...(choices.displacement ? ['sample displacement'] : []),
+      ...(choices.transparency ? ['transparency'] : []),
+    ].join(', '),
+    [
+      ...(choices.zero ? [layout.zero] : []),
+      ...(choices.displacement ? [layout.displacement] : []),
+      ...(choices.transparency ? [layout.transparency] : []),
+    ],
+  );
   if (choices.cell)
     stage(
       'Unit cells',
       layout.phases.flatMap((pl) => pl.cell),
     );
-  if (choices.width)
+  // Without a fixed instrument, X (∝ 1/cos θ) cannot be told from the size and Y (∝ tan θ) from
+  // the microstrain, so each stays fixed when its sample term is refined.
+  const refineX = !choices.size;
+  const refineY = !choices.strain;
+  if (choices.width && !instrument)
     stage(
-      choices.tch ? 'Peak width (W) and Lorentzian width (X)' : 'Peak width (W) and shape (η)',
-      layout.phases.flatMap((pl) => [pl.w, choices.tch ? pl.lx : pl.eta]),
+      tch
+        ? refineX
+          ? 'Peak width (W) and Lorentzian width (X)'
+          : 'Peak width (W)'
+        : 'Peak width (W) and shape (η)',
+      layout.phases.flatMap((pl) => [pl.w, ...(tch ? (refineX ? [pl.lx] : []) : [pl.eta])]),
     );
-  if (choices.widthSlope)
+  if (choices.widthSlope && !instrument)
     stage(
-      choices.tch ? 'Width against angle (U, V, Y)' : 'Width against angle (U, V)',
-      layout.phases.flatMap((pl) => (choices.tch ? [pl.u, pl.v, pl.ly] : [pl.u, pl.v])),
+      tch
+        ? refineY
+          ? 'Width against angle (U, V, Y)'
+          : 'Width against angle (U, V)'
+        : 'Width against angle (U, V)',
+      layout.phases.flatMap((pl) => [pl.u, pl.v, ...(tch && refineY ? [pl.ly] : [])]),
+    );
+  if (sampleBroadening)
+    stage(
+      [choices.size && 'Crystallite size', choices.strain && 'microstrain']
+        .filter(Boolean)
+        .join(' and '),
+      layout.phases.flatMap((pl) => [
+        ...(choices.size ? [pl.inverseSize] : []),
+        ...(choices.strain ? [pl.microstrain] : []),
+      ]),
+    );
+  if (sampleBroadening && choices.sampleMix)
+    stage(
+      'Lorentzian fractions of size and strain',
+      layout.phases.flatMap((pl) => [
+        ...(choices.size ? [pl.sizeMix] : []),
+        ...(choices.strain ? [pl.strainMix] : []),
+      ]),
     );
   if (choices.asymmetry)
     stage(
@@ -596,8 +810,14 @@ export function refineRietveld(
   if (choices.overallB && !choices.biso)
     stage(
       'Overall displacement factor B',
-      layout.phases.map((pl) => pl.b),
+      layout.phases.flatMap((pl, k) => ((phases[k] as PhaseModel).leBail ? [] : [pl.b])),
     );
+  if (choices.roughness) {
+    stage('Surface roughness B', [layout.roughness[1]]);
+    // A changes nothing while B = 0 (a smooth surface), so it is released only after B moved.
+    if ((current[layout.roughness[1]] as number) > 1e-4)
+      stage('Surface roughness A', [layout.roughness[0]]);
+  }
   progress('Final cycles');
   let final = run([...mask], 200);
 
@@ -675,6 +895,9 @@ export function refineRietveld(
     gof: rwp / rexp,
     points: n,
     parameters: refinedCount,
+    durbinWatson: durbinWatson(
+      Float64Array.from(y, (v, i) => (v - (calc[i] as number)) * (sw[i] as number)),
+    ),
   };
 
   const m = layout.size;
@@ -685,13 +908,42 @@ export function refineRietveld(
     cellVolume(phaseCell(phase, layout.phases[k] as (typeof layout.phases)[number], params)),
   );
   const scaleIdx = layout.phases.map((pl) => pl.scale);
-  const fractions = masses.every((mass) => mass !== null)
-    ? weightFractions(
-        scaleIdx.map((j) => params[j] as number),
-        masses.map((mass, k) => (mass as number) * (volumes[k] as number)),
-        scaleIdx.flatMap((i) => scaleIdx.map((j) => cov(i, j))),
-      )
-    : null;
+  const anyLeBail = leBailPhases.length > 0;
+  const massVolume = masses.map((mass, k) => (mass ?? NaN) * (volumes[k] as number));
+  const scaleValues = scaleIdx.map((j) => params[j] as number);
+  const scaleCovariance = scaleIdx.flatMap((i) => scaleIdx.map((j) => cov(i, j)));
+  const fractions =
+    masses.every((mass) => mass !== null) && !anyLeBail
+      ? weightFractions(scaleValues, massVolume, scaleCovariance)
+      : null;
+  const standardIndex = input.standard
+    ? phases.findIndex((phase) => phase.id === input.standard?.phaseId)
+    : -1;
+  const standardFraction = input.standard?.fraction ?? NaN;
+  const standard =
+    fractions && standardIndex >= 0 && standardFraction > 0 && standardFraction < 1
+      ? {
+          ...internalStandard(
+            scaleValues,
+            massVolume,
+            scaleCovariance,
+            standardIndex,
+            standardFraction,
+          ),
+          phaseId: input.standard?.phaseId as string,
+          fraction: standardFraction,
+        }
+      : null;
+  const reported = mask.map((on, j) => on && !final.atBound[j]);
+  const correlations = final.covarianceOk
+    ? strongCorrelations(
+        covariance,
+        labels,
+        reported,
+        0.9,
+        (a, b) => backgroundIndex.has(a) && backgroundIndex.has(b),
+      ).slice(0, 20)
+    : [];
 
   const xLo = x[0] as number;
   const xHi = x[n - 1] as number;
@@ -739,25 +991,7 @@ export function refineRietveld(
 
     // R_Bragg: observed intensities shared out in proportion to each reflection's profile.
     const peaks = placePeaks(phases, layout, k, params, wavelengths);
-    const iCalc = new Float64Array(phase.reflections.length);
-    const iObs = new Float64Array(phase.reflections.length);
-    const profile = new Float64Array(n);
-    for (const peak of peaks) {
-      if (peak.twoTheta < xLo || peak.twoTheta > xHi) continue;
-      profile.fill(0);
-      addProfiles(x, [peak], profile);
-      // Both sums run over the data points, so they share units and cut-off.
-      for (let i = 0; i < n; i++) {
-        const share = profile[i] as number;
-        if (share === 0) continue;
-        iCalc[peak.reflection] = (iCalc[peak.reflection] as number) + share;
-        const net = (calc[i] as number) - (bg[i] as number);
-        if (net <= 0) continue;
-        iObs[peak.reflection] =
-          (iObs[peak.reflection] as number) +
-          (share * ((y[i] as number) - (bg[i] as number))) / net;
-      }
-    }
+    const { iObs, iCalc } = partition(k, params, calc, bg);
     let numerator = 0;
     let denominator = 0;
     for (let r = 0; r < iCalc.length; r++) {
@@ -767,6 +1001,31 @@ export function refineRietveld(
     }
 
     const fraction = fractions?.[k];
+    const reflections: ReflectionRow[] = peaks
+      .filter((peak) => peak.line === 0 && peak.twoTheta >= xLo && peak.twoTheta <= xHi)
+      .map((peak) => {
+        const family = phase.reflections[peak.reflection] as (typeof phase.reflections)[number];
+        return {
+          hkl: family.hkl,
+          multiplicity: family.members.length,
+          d: peak.d,
+          twoTheta: peak.twoTheta,
+          f2: peak.mf2 / family.members.length,
+          iObs: iObs[peak.reflection] as number,
+          iCalc: iCalc[peak.reflection] as number,
+        };
+      });
+    // Size from 1/D: σ(D) = σ(1/D) / (1/D)²; no size broadening found when 1/D is at 0.
+    const inverse = estimate(pl.inverseSize);
+    const size: Estimate | null = choices.size
+      ? inverse.value > 0
+        ? {
+            value: 1 / inverse.value,
+            esd: inverse.esd / inverse.value ** 2,
+            refined: true,
+          }
+        : { value: Infinity, esd: NaN, refined: true }
+      : null;
     const states = atomStates(phase, pl, params);
     const atoms: AtomResult[] | null = phase.structure
       ? phase.structure.atoms.map((atom, a) => {
@@ -835,16 +1094,22 @@ export function refineRietveld(
       u: estimate(pl.u),
       v: estimate(pl.v),
       w: estimate(pl.w),
-      eta: choices.tch ? { value: NaN, esd: 0, refined: false } : estimate(pl.eta),
+      eta: tch ? { value: NaN, esd: 0, refined: false } : estimate(pl.eta),
       x: estimate(pl.lx),
       y: estimate(pl.ly),
-      tch: choices.tch === true,
+      tch,
       orientation: phase.orientation ? estimate(pl.orientation) : null,
       orientationDirection: phase.orientation,
       overallB: estimate(pl.b),
       asymmetry: [estimate(pl.asymmetry[0]), estimate(pl.asymmetry[1])],
-      rBragg: denominator > 0 ? numerator / denominator : NaN,
+      rBragg: denominator > 0 && !phase.leBail ? numerator / denominator : NaN,
       atoms,
+      leBail: phase.leBail !== undefined,
+      size,
+      microstrain: choices.strain ? estimate(pl.microstrain) : null,
+      sizeMix: estimate(pl.sizeMix),
+      strainMix: estimate(pl.strainMix),
+      reflections,
       ticks: peaks
         .filter((peak) => peak.line === 0 && peak.twoTheta >= xLo && peak.twoTheta <= xHi)
         .map((peak) => ({
@@ -897,11 +1162,46 @@ export function refineRietveld(
         `${phase.name}: the scale factor is not determined by the data, so this phase may not be present.`,
       );
   });
+  if (anyLeBail)
+    warnings.push(
+      `Le Bail mode (${leBailPhases.map((k) => (phases[k] as PhaseModel).name).join(', ')}): the peak intensities were taken from the data, not from a structure, so this fit gives the cell and the peak shape only. It gives no weight fractions and no R_Bragg, and a good R_wp does not show that the phase is right.`,
+    );
+  if (sampleBroadening && !instrument)
+    warnings.push(
+      'The instrument profile was not fixed, so the crystallite size and microstrain include the instrument’s own broadening (the size is a lower limit, the strain an upper limit). Refine a standard such as LaB₆ or Si first and use its profile as the fixed instrument profile.',
+    );
+  if (choices.size)
+    phaseResults.forEach((phase) => {
+      if (phase.size && !Number.isFinite(phase.size.value))
+        warnings.push(
+          `${phase.name}: no size broadening was found; the crystallites are too large to measure from the peak widths (above about 1 µm).`,
+        );
+    });
+  if (standard) {
+    const a = standard.amorphous;
+    if (a.value < -2 * a.esd - 0.01)
+      warnings.push(
+        'The amorphous content came out clearly negative, which is not physical: check the weighed fraction of the standard, its reference structure, and preferred orientation or microabsorption of either phase.',
+      );
+  } else if (input.standard)
+    warnings.push(
+      'The amorphous content could not be calculated: it needs the internal standard among the phases refined, a weighed fraction between 0 and 1, the unit-cell contents of every phase and no phase in Le Bail mode.',
+    );
+  const strong = correlations.filter((c) => Math.abs(c.r) >= 0.95);
+  if (strong.length > 0)
+    warnings.push(
+      `Some refined parameters are strongly correlated (|r| ≥ 0.95): ${strong
+        .slice(0, 3)
+        .map((c) => `${c.a} and ${c.b} (r = ${c.r.toFixed(2)})`)
+        .join(
+          '; ',
+        )}. The data cannot tell them apart well, so their values and uncertainties are less reliable; fix one of each pair if it is not needed.`,
+    );
   if (fractions)
     warnings.push(
       'Weight fractions are of the crystalline phases you included only: amorphous content and missing phases are not counted, and microabsorption is not corrected.',
     );
-  else if (phases.length > 1)
+  else if (phases.length > 1 && !anyLeBail)
     warnings.push(
       'Weight fractions need the unit-cell contents of every phase; at least one phase does not have them (reload its CIF or reference to add them).',
     );
@@ -956,7 +1256,14 @@ export function refineRietveld(
     phaseCurves: parts.map((part) => Array.from(part)),
     zero: estimate(layout.zero),
     displacement: estimate(layout.displacement),
+    transparency: estimate(layout.transparency),
+    roughness: [estimate(layout.roughness[0]), estimate(layout.roughness[1])],
+    polarisation: wavelengths.polarisation ?? 0.5,
+    instrument,
+    excluded,
     phases: phaseResults,
+    correlations,
+    standard,
     stats,
     stages,
     converged: final.converged,

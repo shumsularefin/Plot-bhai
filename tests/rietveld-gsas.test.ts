@@ -77,5 +77,31 @@ describe('Rietveld refinement of a GSAS-II simulated mixture', () => {
     expect(Math.abs((anatase?.weightFraction?.value ?? 0) - truth.anatase.wt)).toBeLessThan(0.003);
     expect(result.stats.rwp).toBeLessThan(0.06);
     expect(result.stats.gof).toBeLessThan(1.2);
+
+    // Internal standard: with rutile declared as a standard weighed in at its true fraction, the
+    // simulated sample has no amorphous part, so A must be 0 within its uncertainty; declaring
+    // only half as much standard as is present must give the formula's value (1 − W_s/R_s)/(1 − W_s).
+    const withStandard = (fraction: number) => {
+      const r = refineRietveld({
+        x,
+        y,
+        wavelengths: { kAlpha1: ANODES.Cu.kAlpha1, kAlpha2: ANODES.Cu.kAlpha2, ratio: 0.5 },
+        phases,
+        choices: DEFAULT_CHOICES,
+        backgroundTerms: 6,
+        atomicWeights: Object.fromEntries(weights.elements.map((e) => [e.symbol, e.weight])),
+        standard: { phaseId: 'rutile', fraction },
+      });
+      if (!r.ok || !r.standard) throw new Error('no standard result');
+      return r;
+    };
+    const exact = withStandard(truth.rutile.wt);
+    const amorphous = exact.standard?.amorphous ?? { value: NaN, esd: NaN };
+    expect(Math.abs(amorphous.value)).toBeLessThan(3 * amorphous.esd + 0.005);
+    expect(exact.standard?.phases[0]?.value).toBeCloseTo(1 - amorphous.value, 12);
+    const half = withStandard(truth.rutile.wt / 2);
+    const rs = half.phases[1]?.weightFraction?.value ?? NaN;
+    const ws = truth.rutile.wt / 2;
+    expect(half.standard?.amorphous.value).toBeCloseTo((1 - ws / rs) / (1 - ws), 12);
   });
 });
