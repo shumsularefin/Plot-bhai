@@ -61,6 +61,7 @@ import {
   cosAngle,
 } from './broadening';
 import {
+  addProfiles,
   profileWindow,
   peakWindows,
   asymmetryFactor,
@@ -75,6 +76,7 @@ import {
   type PhaseModel,
   type Wavelengths,
 } from './model';
+import { fillJacobian } from './derivatives';
 import { refinementReflections, type Hkl } from './reflections';
 import {
   positiveDefinite,
@@ -629,9 +631,6 @@ export function refineRietveld(
 
   const curves = (params: Float64Array, windows?: Int32Array[]) =>
     phases.map((_, k) => phaseCurve(x, phases, layout, k, params, wavelengths, windows?.[k]));
-  /** Windows of every phase's peaks for parameters p (see addProfiles). */
-  const windowsOf = (params: Float64Array) =>
-    phases.map((_, k) => peakWindows(x, placePeaks(phases, layout, k, params, wavelengths)));
   const phaseOf = new Int32Array(layout.size).fill(-1);
   layout.phases.forEach((pl, k) => {
     for (const j of [
@@ -678,9 +677,14 @@ export function refineRietveld(
   const rows = n + restraints(p).length;
   const evaluate = (params: Float64Array, model: Float64Array, jacobian: Float64Array | null) => {
     const bg = backgroundCurve(basis, layout, params, n);
-    // With derivatives, the shifted models use the same profile windows as this one.
-    const windows = jacobian ? windowsOf(params) : undefined;
-    const parts = curves(params, windows);
+    // With derivatives, the shifted peaks use the same profile windows as these (addProfiles).
+    const peaks = phases.map((_, k) => placePeaks(phases, layout, k, params, wavelengths));
+    const windows = peaks.map((list) => peakWindows(x, list));
+    const parts = peaks.map((list, k) => {
+      const out = new Float64Array(n);
+      addProfiles(x, list, out, windows[k]);
+      return out;
+    });
     for (let i = 0; i < n; i++) {
       let total = bg[i] as number;
       for (const part of parts) total += part[i] as number;
@@ -691,10 +695,13 @@ export function refineRietveld(
     if (!jacobian) return;
     jacobian.fill(0);
     const m = layout.size;
+    const step = (j: number) =>
+      1e-6 * Math.max(Math.abs(params[j] as number), typical[j] as number);
+    const columns: number[] = [];
     for (let j = 0; j < m; j++) {
       if (!free[j]) continue;
       if (r0.length > 0 && phaseOf[j] !== -1) {
-        const h = 1e-6 * Math.max(Math.abs(params[j] as number), typical[j] as number);
+        const h = step(j);
         const shifted = params.slice();
         shifted[j] = (params[j] as number) + h;
         restraints(shifted).forEach(
@@ -702,30 +709,38 @@ export function refineRietveld(
         );
       }
       const bgTerm = backgroundIndex.get(j);
-      if (bgTerm !== undefined) {
+      if (bgTerm === undefined) columns.push(j);
+      else
         for (let i = 0; i < n; i++)
           jacobian[i * m + j] = (basis[i * terms + bgTerm] as number) * (sw[i] as number);
-        continue;
-      }
-      const h = 1e-6 * Math.max(Math.abs(params[j] as number), typical[j] as number);
+    }
+    const fallback = fillJacobian({
+      x,
+      sw,
+      phases,
+      layout,
+      wavelengths,
+      params,
+      peaks,
+      windows,
+      columns,
+      phaseOf,
+      step,
+      jacobian,
+      m,
+    });
+    // A peak appeared or vanished with the step: difference of the whole pattern instead.
+    for (const j of fallback) {
+      const h = step(j);
       const shifted = params.slice();
       shifted[j] = (params[j] as number) + h;
-      const k = phaseOf[j] as number;
-      if (k >= 0) {
-        const moved = phaseCurve(x, phases, layout, k, shifted, wavelengths, windows?.[k]);
-        const base = parts[k] as Float64Array;
-        for (let i = 0; i < n; i++)
-          jacobian[i * m + j] =
-            (((moved[i] as number) - (base[i] as number)) / h) * (sw[i] as number);
-      } else {
-        const moved = curves(shifted, windows);
-        for (let i = 0; i < n; i++) {
-          let change = 0;
-          for (let q = 0; q < moved.length; q++)
-            change +=
-              ((moved[q] as Float64Array)[i] as number) - ((parts[q] as Float64Array)[i] as number);
-          jacobian[i * m + j] = (change / h) * (sw[i] as number);
-        }
+      const moved = curves(shifted, windows);
+      for (let i = 0; i < n; i++) {
+        let change = 0;
+        for (let q = 0; q < moved.length; q++)
+          change +=
+            ((moved[q] as Float64Array)[i] as number) - ((parts[q] as Float64Array)[i] as number);
+        jacobian[i * m + j] = (change / h) * (sw[i] as number);
       }
     }
   };

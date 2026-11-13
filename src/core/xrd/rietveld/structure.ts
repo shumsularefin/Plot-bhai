@@ -448,6 +448,140 @@ export function structureFactorSquared(
   return re * re + im * im + re2 * re2 + im2 * im2;
 }
 
+/** Number of refinable quantities of an atom, in the order of the layout (see gradient below). */
+export const atomParameterCount = (atom: StructureAtom): number =>
+  atom.basis.length + 3 + atom.uBasis.length;
+
+const rotatedBases = new WeakMap<StructureAtom, Matrix3[][]>();
+/** R uBasis_k Rᵀ for every image m and basis tensor k of an anisotropic atom ([m][k]). */
+function imageBases(atom: StructureAtom): Matrix3[][] {
+  let cached = rotatedBases.get(atom);
+  if (!cached) {
+    cached = atom.images.map((image) => atom.uBasis.map((v) => rotateTensor(image.op.rot, v)));
+    rotatedBases.set(atom, cached);
+  }
+  return cached;
+}
+
+/**
+ * Σ_members |F|² of a reflection family and its exact gradient with respect to every atom's
+ * refinable quantities (d in Å). With A, B, A″, B″ as in the header, |F|² = A² + B² + A″² + B″²
+ * and ∂|F|²/∂p = 2(A ∂A/∂p + B ∂B/∂p + A″ ∂A″/∂p + B″ ∂B″/∂p), where for one image term
+ * w f cos φ (w = o T, φ = 2π h·x', x' = R(x₀ + Σ c_k v_k) + t):
+ *   ∂φ/∂c_k = 2π h·(R v_k)                      (free coordinate coefficient c_k)
+ *   ∂w/∂o = T                                    (occupancy)
+ *   ∂T/∂B = −s² T                                (isotropic atoms; B has no effect on anisotropic ones)
+ *   ∂T/∂c_k = −2π² hᵀ(R u_k Rᵀ)h T               (U_ij coefficient c_k, u_k its basis tensor)
+ *   ∂f/∂x = (f_d + f′_d) − (f_h + f′_h),  ∂f″/∂x = f″_d − f″_h   (dopant fraction x)
+ * The gradient is per atom in the order of the layout: coordinate coefficients, occupancy, B,
+ * U_ij coefficients, dopant fraction (atomParameterCount entries per atom).
+ */
+export function structureFactorGradient(
+  model: StructureModel,
+  states: readonly AtomState[],
+  members: readonly Hkl[],
+  d: number,
+): { value: number; gradient: Float64Array } {
+  const s2 = 1 / (4 * d * d);
+  const size = model.atoms.reduce((n, atom) => n + atomParameterCount(atom), 0);
+  const gradient = new Float64Array(size);
+  const dRe = new Float64Array(size);
+  const dIm = new Float64Array(size);
+  const dRe2 = new Float64Array(size);
+  const dIm2 = new Float64Array(size);
+  const TWO_PI = 2 * Math.PI;
+  let value = 0;
+  for (const [h, k, l] of members) {
+    let re = 0;
+    let im = 0;
+    let re2 = 0;
+    let im2 = 0;
+    dRe.fill(0);
+    dIm.fill(0);
+    dRe2.fill(0);
+    dIm2.fill(0);
+    let offset = 0;
+    model.atoms.forEach((atom, a) => {
+      const state = states[a] as AtomState;
+      const sub = atom.substitute;
+      const x = sub ? (state.fraction ?? sub.fraction0) : 0;
+      const host = scatter(atom.factor, s2) + atom.dispersion[0];
+      const dopant = sub ? scatter(sub.factor, s2) + sub.dispersion[0] : 0;
+      const f = sub ? (1 - x) * host + x * dopant : host;
+      const fpp = sub ? (1 - x) * atom.dispersion[1] + x * sub.dispersion[1] : atom.dispersion[1];
+      const df = sub ? dopant - host : 0;
+      const dfpp = sub ? sub.dispersion[1] - atom.dispersion[1] : 0;
+      const nc = atom.basis.length;
+      const iOcc = offset + nc;
+      const iB = iOcc + 1;
+      const iU = iB + 1;
+      const iX = iU + atom.uBasis.length;
+      const bases = atom.uBasis.length > 0 ? imageBases(atom) : null;
+      atom.images.forEach((image, m) => {
+        const u = state.uImages?.[m] ?? image.u;
+        const quad = (t: readonly number[]) =>
+          h * h * (t[0] as number) +
+          k * k * (t[4] as number) +
+          l * l * (t[8] as number) +
+          2 * (h * k * (t[1] as number) + h * l * (t[2] as number) + k * l * (t[5] as number));
+        const t = u ? Math.exp(-2 * Math.PI ** 2 * quad(u)) : Math.exp(-state.b * s2);
+        const xi = applySymop(image.op, state.x);
+        const phase = TWO_PI * (h * xi[0] + k * xi[1] + l * xi[2]);
+        const c = Math.cos(phase);
+        const sn = Math.sin(phase);
+        const w = state.occupancy * t;
+        re += w * f * c;
+        im += w * f * sn;
+        re2 += w * fpp * c;
+        im2 += w * fpp * sn;
+        const r = image.op.rot;
+        atom.basis.forEach((v, q) => {
+          const rv = (i: number) =>
+            (r[i * 3] as number) * (v[0] as number) +
+            (r[i * 3 + 1] as number) * (v[1] as number) +
+            (r[i * 3 + 2] as number) * (v[2] as number);
+          const dPhase = TWO_PI * (h * rv(0) + k * rv(1) + l * rv(2));
+          const j = offset + q;
+          dRe[j] = (dRe[j] as number) - w * f * sn * dPhase;
+          dIm[j] = (dIm[j] as number) + w * f * c * dPhase;
+          dRe2[j] = (dRe2[j] as number) - w * fpp * sn * dPhase;
+          dIm2[j] = (dIm2[j] as number) + w * fpp * c * dPhase;
+        });
+        /** Adds g·(f cos φ, f sin φ, f″ cos φ, f″ sin φ) to the derivatives of entry j. */
+        const add = (j: number, g: number) => {
+          dRe[j] = (dRe[j] as number) + g * f * c;
+          dIm[j] = (dIm[j] as number) + g * f * sn;
+          dRe2[j] = (dRe2[j] as number) + g * fpp * c;
+          dIm2[j] = (dIm2[j] as number) + g * fpp * sn;
+        };
+        add(iOcc, t);
+        if (!u) add(iB, -s2 * w);
+        if (bases)
+          (bases[m] as Matrix3[]).forEach((basis, q) =>
+            add(iU + q, -2 * Math.PI ** 2 * quad(basis) * w),
+          );
+        if (sub) {
+          dRe[iX] = (dRe[iX] as number) + w * df * c;
+          dIm[iX] = (dIm[iX] as number) + w * df * sn;
+          dRe2[iX] = (dRe2[iX] as number) + w * dfpp * c;
+          dIm2[iX] = (dIm2[iX] as number) + w * dfpp * sn;
+        }
+      });
+      offset = iX + 1;
+    });
+    value += re * re + im * im + re2 * re2 + im2 * im2;
+    for (let j = 0; j < size; j++)
+      gradient[j] =
+        (gradient[j] as number) +
+        2 *
+          (re * (dRe[j] as number) +
+            im * (dIm[j] as number) +
+            re2 * (dRe2[j] as number) +
+            im2 * (dIm2[j] as number));
+  }
+  return { value, gradient };
+}
+
 /** Restraint residuals (d − d₀)/σ for the current atom positions. */
 export function restraintResiduals(
   cell: Cell,

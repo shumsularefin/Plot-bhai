@@ -323,6 +323,7 @@ describe('Bérar–Baldinozzi peak asymmetry', () => {
       reflection: 0,
       twoTheta: 30.0123,
       area: 1000,
+      areaPerMf2: 1000,
       fwhm: 0.2,
       eta: 0.4,
       asymmetry: [0, 0],

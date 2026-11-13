@@ -327,6 +327,8 @@ export interface PlacedPeak {
   twoTheta: number;
   /** Integrated intensity (counts × degrees). */
   area: number;
+  /** area / Σ|F|²: every intensity factor except Σ|F|² (for the structure derivatives). */
+  areaPerMf2: number;
   fwhm: number;
   eta: number;
   /** Coefficients of Fa(z) and Fb(z) in the asymmetry correction: P1 / tan θ and P2 / tan θ. */
@@ -391,13 +393,17 @@ export function atomStates(phase: PhaseModel, layout: PhaseLayout, p: Float64Arr
   });
 }
 
-/** Every peak of a phase for parameters p, within [lo, hi] degrees 2θ (with a margin). */
+/**
+ * Every peak of a phase for parameters p. `mf2`, when given, holds each reflection's Σ|F|²
+ * already calculated for the same cell and atoms (derivatives.ts), so it is not calculated again.
+ */
 export function placePeaks(
   phases: readonly PhaseModel[],
   layout: Layout,
   index: number,
   p: Float64Array,
   wavelengths: Wavelengths,
+  mf2Known?: Float64Array,
 ): PlacedPeak[] {
   const phase = phases[index] as PhaseModel;
   const pl = layout.phases[index] as PhaseLayout;
@@ -458,19 +464,21 @@ export function placePeaks(
   phase.reflections.forEach((reflection, k) => {
     const [h, kk, l] = reflection.hkl;
     const d = dSpacing(gStar, h, kk, l);
-    const mf2 = phase.leBail
-      ? (phase.leBail[k] as number)
-      : structure
-        ? reflection.members.reduce(
-            (sum, m) => sum + structureFactorSquared(structure, states, m, d),
-            0,
-          )
-        : reflection.mf2;
+    const mf2 = mf2Known
+      ? (mf2Known[k] as number)
+      : phase.leBail
+        ? (phase.leBail[k] as number)
+        : structure
+          ? reflection.members.reduce(
+              (sum, m) => sum + structureFactorSquared(structure, states, m, d),
+              0,
+            )
+          : reflection.mf2;
     const orientation =
       phase.orientation && r !== 1
         ? marchDollase(gStar, reflection.members, phase.orientation, r)
         : 1;
-    const common = scale * mf2 * orientation * Math.exp(-b / (2 * d * d));
+    const common = scale * orientation * Math.exp(-b / (2 * d * d));
     // Reflections of the family with the same sample broadening share a peak (see the header).
     const groups: { share: number; sample: [number, number] }[] = [];
     if (anisotropic) {
@@ -529,7 +537,8 @@ export function placePeaks(
           phase: index,
           reflection: k,
           twoTheta,
-          area: common * factor * group.share,
+          area: common * factor * group.share * mf2,
+          areaPerMf2: common * factor * group.share,
           fwhm,
           eta: mix,
           asymmetry: [p1 / tan, p2 / tan],

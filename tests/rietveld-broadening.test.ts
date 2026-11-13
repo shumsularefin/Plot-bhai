@@ -48,6 +48,7 @@ const profile = (twoTheta: number, shl: number, fwhm = 0.08, eta = 0.5) => {
     reflection: 0,
     twoTheta,
     area: 1,
+    areaPerMf2: 1,
     fwhm,
     eta,
     asymmetry: [0, 0],
