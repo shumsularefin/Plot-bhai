@@ -426,6 +426,49 @@ Open:
   profile for the shape terms.
 - The 10–50× speed-up in the roadmap was not reached (2.5× at 5,501 points, 1.4× at 50,001).
 
+## 17f: spherical-harmonic texture
+
+Formulas: src/core/xrd/rietveld/texture.ts (header comment: GSAS-II's cylindrical
+preferred-orientation correction A(h) = 1 + Σ C(l,n) · 4π/(2l+1) · K_l^n(φ,β) · k_l(ψ), with ψ = 90°
+for a flat plate and ψ = θ for a capillary; R. B. Von Dreele, J. Appl. Cryst. 30 (1997) 517),
+model.ts (the correction applied per reflection), refine.ts (coefficients refined in the
+"Preferred orientation" stage, texture index J). Tests: tests/texture.test.ts,
+tests/validation-gsas2-texture.test.ts. GSAS-II fixture: scripts/validation/gsas2/texture.py →
+tests/fixtures/validation/texture.json and zno-texture.xy (Validation workflow run 43471101291).
+
+| Method                        | Check                                                                                                                                                                                                              | Source                              | Tolerance                                                                    | Result |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------- | ---------------------------------------------------------------------------- | ------ |
+| Normalised Legendre functions | P̄_l^m of the Fourier series against an independent recurrence (l ≤ 16); P̄_l^0(0) = √((2l+1)/2); normalised over 0…π                                                                                                | synthetic (known answer)            | 5e-5                                                                         | pass   |
+| Same functions as GSAS-II     | PLMPSI (152 values), sample harmonics k_l(ψ), normalisation, coefficient names for 20 Laue-class and order cases                                                                                                   | GSAS-II (CI)                        | 2e-5 (GSAS-II's Fortran is single precision), names exact                    | pass   |
+| Crystal harmonics             | K_l^n at GSAS-II's angles for every Laue class, orders up to 16 (cubic up to 12), except the deliberate differences below                                                                                          | GSAS-II (CI)                        | 3e-5                                                                         | pass   |
+| Correction per reflection     | the orientation factor of every reflection of ZnO (flat plate and capillary), CeO₂, corundum, MoO₃, rutile and WO₃ with chosen coefficients                                                                        | GSAS-II reflection list (Prfo) (CI) | 2e-5; WO₃ 1e-2 (monoclinic azimuth, difference 4 below)                      | pass   |
+| Equivalent reflections        | every symmetry-equivalent hkl gives the same correction, ten cells (space groups 225, 206, 186, 167 in hexagonal axes, 166 in rhombohedral axes, 162 (P-31m), 136, 88, 62, and 14 with β = 90.9°)                  | invariance                          | 5e-9                                                                         | pass   |
+| Average over directions       | the correction averages to 1 over all directions (m3m and 6/mmm)                                                                                                                                                   | invariance (normalisation)          | 5e-3 (grid average)                                                          | pass   |
+| Refinement                    | ZnO simulated by GSAS-II with C(2,0) = 0.45, C(4,0) = −0.2 (order 4) and counting noise, refined by both programs: GSAS-II 0.44767(344), −0.19389(518), R_wp 4.421 %; this site 0.44770(345), −0.1930(52), 4.425 % | GSAS-II (CI) and the known truth    | within 3 combined s.u. of GSAS-II, truth within 3 s.u., s.u. ratio 0.75–1.25 | pass   |
+| Texture index                 | J = 1 + Σ C²/(2l+1), 1.04426 in GSAS-II for the refined ZnO                                                                                                                                                        | GSAS-II (CI)                        | same formula; reported with its s.u.                                         | pass   |
+
+Deliberate differences from GSAS-II, each found by the invariance check (equivalent reflections
+gave different corrections in GSAS-II's form):
+
+1. Laue class 31m, terms with n mod 6 = 3: cosine, not sine. GSAS-II uses the sine, which changes
+   sign under the mirror (h,k,l) → (k,h,l) of that class.
+2. Rhombohedral axes, class 3mR: treated with the mirror classes (sine for n mod 6 = 3, cosine
+   otherwise). GSAS-II's list of mirror classes spells it 'R3mR', so 3mR fell to cosine plus sine.
+3. Rhombohedral axes: polar axis [111]. GSAS-II tests for space-group names 'R3' and 'R3m' that
+   never occur, so it falls back to c*.
+4. Monoclinic and triclinic: the azimuth β is measured exactly in the plane perpendicular to the
+   polar axis (Gram–Schmidt in the reciprocal metric). GSAS-II's formula is not linear in hkl when
+   the cell angles are not 90°; this is why WO₃ agrees only to 1e-2.
+
+Open:
+
+- Only cylindrical sample symmetry ('0'), as GSAS-II's powder default; no orthorhombic or
+  monoclinic sample symmetry.
+- The four differences above are not confirmed by the GSAS-II authors; they are reported here so
+  a reader can check them. For hexagonal (except 31m), tetragonal, orthorhombic and cubic classes
+  in the hexagonal setting the site agrees with GSAS-II exactly.
+- No refinement comparison with a measured textured sample; the GSAS-II simulation stands in.
+
 ## Step 6: fit improved until the regions fit (owner request, November 2026)
 
 Code: src/core/xrd/peaks/improve.ts (improveFit, fitScore, proposeChanges), run in the peaks

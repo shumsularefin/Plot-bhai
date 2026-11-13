@@ -228,6 +228,22 @@ async function walkToExport(log) {
     .first()
     .waitFor();
   note('5 Rietveld: capillary geometry (μR 1) with anomalous dispersion refined');
+  // Stage 17f: spherical-harmonic texture (order 4) instead of March–Dollase.
+  await page.getByRole('checkbox', { name: /^Preferred orientation/ }).check();
+  await page
+    .getByRole('combobox', { name: /: orientation model/ })
+    .first()
+    .selectOption('4');
+  await page.getByRole('button', { name: 'Refine again', exact: true }).click();
+  await page
+    .getByText(/spherical-harmonic texture of order 4 \(Laue class/)
+    .first()
+    .waitFor({ timeout: 60_000 });
+  await page
+    .getByText(/Von Dreele, J\. Appl\. Cryst\. 30 \(1997\) 517/)
+    .first()
+    .waitFor();
+  note('5 Rietveld: spherical-harmonic texture of order 4 refined, texture index reported');
   await next('Fit peaks');
 
   // 5 Fit peaks

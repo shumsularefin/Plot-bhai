@@ -151,6 +151,7 @@ describe('Axial divergence (FCJ) against GSAS-II’s getFCJVoigt3', () => {
         twoTheta: c.pos,
         area: 1,
         areaPerMf2: 1,
+        orientation: 1,
         fwhm,
         eta: tchEta(hl / fwhm),
         asymmetry: [0, 0],

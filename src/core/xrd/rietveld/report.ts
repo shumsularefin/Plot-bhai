@@ -79,6 +79,9 @@ export function rietveldMethods(input: RietveldMethodsInput): string {
     ...(choices.orientation && result.phases.some((p) => p.orientation)
       ? ['March–Dollase preferred orientation']
       : []),
+    ...(choices.orientation && result.phases.some((p) => p.texture)
+      ? ['the spherical-harmonic texture coefficients']
+      : []),
     ...(choices.transparency
       ? [
           result.absorption
@@ -198,6 +201,16 @@ export function rietveldMethods(input: RietveldMethodsInput): string {
             .join('; '),
         ),
       )}${result.instrument ? '' : ' (the instrument profile was not fixed, so the sizes are lower limits)'}.`,
+    );
+  const textured = result.phases.filter((p) => p.texture);
+  if (textured.length > 0)
+    sentences.push(
+      `Preferred orientation was described by GSAS-II's spherical-harmonic model with cylindrical sample symmetry (R. B. Von Dreele, J. Appl. Cryst. 30 (1997) 517): ${list(
+        textured.map((p) => {
+          const t = p.texture as NonNullable<typeof p.texture>;
+          return `${p.name} to order ${t.order} (Laue class ${t.laue}) with ${list(t.coefficients.map((c) => `${c.name} = ${withUncertainty(c.value.value, c.value.esd, 3)}`))}, texture index J = ${withUncertainty(t.index.value, t.index.esd, 3)} (1 for a random powder) and corrections of ${t.range[0].toFixed(2)}–${t.range[1].toFixed(2)} over the reflections`;
+        }),
+      )}.`,
     );
   const isotropic = sized.filter((p) => !anisotropic.includes(p));
   if (isotropic.length > 0)

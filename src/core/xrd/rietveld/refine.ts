@@ -79,6 +79,14 @@ import {
 import { fillJacobian } from './derivatives';
 import { refinementReflections, type Hkl } from './reflections';
 import {
+  MAX_TEXTURE_ORDER,
+  textureIndex,
+  textureName,
+  textureSymmetry,
+  textureTerms,
+  type TextureLaue,
+} from './texture';
+import {
   positiveDefinite,
   restraintResiduals,
   structureModel,
@@ -106,6 +114,11 @@ export interface RietveldPhaseInput {
   cellContents?: Readonly<Record<string, number>>;
   /** Preferred-orientation direction (h k l), or null. */
   orientation: Hkl | null;
+  /**
+   * Even order (2 to 16) of GSAS-II's spherical-harmonic texture (texture.ts), which then
+   * replaces March–Dollase for this phase; missing or 0 means March–Dollase (or none).
+   */
+  textureOrder?: number;
   /** Symmetry operators and atoms, needed for structure refinement. */
   structure?: StoredStructure;
   /** Le Bail mode: intensities extracted from the data, no structure (see the header). */
@@ -263,6 +276,8 @@ export interface RietveldPhaseResult {
   /** March–Dollase r, or null when the phase has no preferred direction. */
   orientation: Estimate | null;
   orientationDirection: Hkl | null;
+  /** Spherical-harmonic texture, when that model was used (texture.ts). */
+  texture: TextureResult | null;
   overallB: Estimate;
   /** Bérar–Baldinozzi P1 and P2 (0 and fixed unless asymmetry was refined). */
   asymmetry: [Estimate, Estimate];
@@ -297,6 +312,18 @@ export interface RietveldPhaseResult {
   ticks: { twoTheta: number; hkl: Hkl }[];
 }
 
+export interface TextureResult {
+  order: number;
+  /** GSAS-II's Laue class of the phase. */
+  laue: TextureLaue;
+  /** C(l,n) in GSAS-II's order and naming. */
+  coefficients: { name: string; value: Estimate }[];
+  /** Texture index J = 1 + Σ C²/(2l+1): 1 for a random powder. */
+  index: { value: number; esd: number };
+  /** Smallest and largest correction over the reflections in the data range. */
+  range: [number, number];
+}
+
 export interface ReflectionRow {
   hkl: Hkl;
   /** Number of reflections in the family. */
@@ -309,6 +336,8 @@ export interface ReflectionRow {
   /** Integrated intensities (counts × degrees), Kα1 and Kα2 together. */
   iObs: number;
   iCalc: number;
+  /** Preferred-orientation factor of the reflection (1 for a random powder). */
+  orientation: number;
 }
 
 export interface RietveldStats {
@@ -452,6 +481,7 @@ export function refineRietveld(
   );
   const noStructure: string[] = [];
   const anomalousSkipped: string[] = [];
+  const textureTooLow: string[] = [];
   const dispersion = input.dispersion;
   let setupError: string | null = null;
   const phases: PhaseModel[] = input.phases.map((phase) => {
@@ -478,6 +508,12 @@ export function refineRietveld(
       }
     }
     const reflections = refinementReflections(phase.peaks, phase.cell, kind, dMin);
+    // Spherical-harmonic texture (not in Le Bail mode, where intensities are free anyway).
+    const order = phase.leBail ? 0 : Math.min(MAX_TEXTURE_ORDER, phase.textureOrder ?? 0);
+    const symmetry = textureSymmetry(kind, phase.spaceGroupNumber);
+    const terms = order >= 2 ? textureTerms(symmetry.laue, order) : [];
+    if (order >= 2 && terms.length === 0) textureTooLow.push(phase.name);
+    const texture = terms.length > 0 ? { symmetry, terms } : undefined;
     return {
       id: phase.id,
       name: phase.name,
@@ -485,6 +521,7 @@ export function refineRietveld(
       cell: phase.cell,
       reflections,
       orientation: phase.orientation,
+      ...(texture && { texture }),
       ...(structure && { structure }),
       ...(tch && { tch: true }),
       ...(sampleBroadening && { sample: true }),
@@ -561,6 +598,7 @@ export function refineRietveld(
     bound(pl.sizeMix, 0, 1, 1, 0.1);
     bound(pl.strainMix, 0, 1, 1, 0.1);
     bound(pl.orientation, 0.3, 3, 1, 1);
+    for (const j of pl.texture) bound(j, -Infinity, Infinity, 0, 0.1);
     bound(pl.b, -2, 10, 0, 1);
     for (const j of pl.asymmetry) bound(j, -1, 1, 0, 0.01);
     phase.structure?.atoms.forEach((atom, a) => {
@@ -605,6 +643,10 @@ export function refineRietveld(
     labels[pl.lx] = `${phase.name}: X`;
     labels[pl.ly] = `${phase.name}: Y`;
     labels[pl.orientation] = `${phase.name}: March–Dollase r`;
+    phase.texture?.terms.forEach(
+      (term, i) =>
+        (labels[pl.texture[i] as number] = `${phase.name}: texture ${textureName(term)}`),
+    );
     labels[pl.b] = `${phase.name}: B`;
     labels[pl.asymmetry[0]] = `${phase.name}: asymmetry P1`;
     labels[pl.asymmetry[1]] = `${phase.name}: asymmetry P2`;
@@ -643,6 +685,7 @@ export function refineRietveld(
       pl.lx,
       pl.ly,
       pl.orientation,
+      ...pl.texture,
       pl.b,
       ...pl.asymmetry,
       pl.inverseSize,
@@ -1017,7 +1060,11 @@ export function refineRietveld(
     stage(
       'Preferred orientation',
       layout.phases.flatMap((pl, k) =>
-        (phases[k] as PhaseModel).orientation ? [pl.orientation] : [],
+        (phases[k] as PhaseModel).texture
+          ? pl.texture
+          : (phases[k] as PhaseModel).orientation
+            ? [pl.orientation]
+            : [],
       ),
     );
   if (choices.overallB && !choices.biso)
@@ -1250,6 +1297,7 @@ export function refineRietveld(
           f2: peak.mf2 / family.members.length,
           iObs: iObs[peak.reflection] as number,
           iCalc: iCalc[peak.reflection] as number,
+          orientation: peak.orientation,
         };
       });
     // Size from 1/D: σ(D) = σ(1/D) / (1/D)²; no size broadening found when 1/D is at 0.
@@ -1379,8 +1427,27 @@ export function refineRietveld(
       x: estimate(pl.lx),
       y: estimate(pl.ly),
       tch,
-      orientation: phase.orientation ? estimate(pl.orientation) : null,
-      orientationDirection: phase.orientation,
+      orientation: phase.orientation && !phase.texture ? estimate(pl.orientation) : null,
+      orientationDirection: phase.texture ? null : phase.orientation,
+      texture: phase.texture
+        ? {
+            order: Math.max(...phase.texture.terms.map(([l]) => l)),
+            laue: phase.texture.symmetry.laue,
+            coefficients: phase.texture.terms.map((term, i) => ({
+              name: textureName(term),
+              value: estimate(pl.texture[i] as number),
+            })),
+            index: textureIndex(
+              phase.texture.terms,
+              pl.texture.map((j) => params[j] as number),
+              pl.texture.map((j) => (mask[j] ? (errors[j] as number) : 0)),
+            ),
+            range: [
+              Math.min(...inRange.map((peak) => peak.orientation)),
+              Math.max(...inRange.map((peak) => peak.orientation)),
+            ],
+          }
+        : null,
       overallB: estimate(pl.b),
       asymmetry: [estimate(pl.asymmetry[0]), estimate(pl.asymmetry[1])],
       rBragg: denominator > 0 && !phase.leBail ? numerator / denominator : NaN,
@@ -1439,6 +1506,16 @@ export function refineRietveld(
     warnings.push(
       `Anomalous dispersion could not be applied to ${anomalousSkipped.join(', ')}: no atom positions are stored, so the reference intensities were used. Add the phase again from its CIF to include it.`,
     );
+  if (textureTooLow.length > 0)
+    warnings.push(
+      `The texture of ${textureTooLow.join(', ')} has no terms at order 2: cubic symmetry allows the first ones at order 4, so no preferred orientation was refined. Choose order 4 or higher.`,
+    );
+  for (const r of phaseResults) {
+    if (r.texture && r.texture.range[0] <= 0)
+      warnings.push(
+        `The texture of ${r.name} makes some reflections negative (smallest correction ${r.texture.range[0].toFixed(2)}), which is not physical. Use a lower order, or refine fewer terms.`,
+      );
+  }
   if (!final.covarianceOk)
     warnings.push(
       'Uncertainties could not be calculated: some refined parameters cannot be told apart. Fix some of them (for example U and V) and refine again.',

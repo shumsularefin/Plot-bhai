@@ -78,6 +78,11 @@ export interface RietveldState {
   excluded: string[];
   /** Preferred-orientation direction typed per phase id, for example "0 0 1"; empty means none. */
   orientation: Record<string, string>;
+  /**
+   * Even order (2 to 16) of the spherical-harmonic texture chosen per phase id; missing or 0 means
+   * March–Dollase along the typed direction.
+   */
+  texture?: Record<string, number>;
   /** Axis (h k l) of the uniaxial size and microstrain models typed per phase id; empty is 0 0 1. */
   axes?: Record<string, string>;
   choices: RefineChoices;

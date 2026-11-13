@@ -51,6 +51,7 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 17c       | Rietveld: anisotropic broadening, FCJ axial divergence       | done    |
 | 17d       | Rietveld: anomalous dispersion, capillary geometry           | done    |
 | 17e       | Rietveld: analytic derivatives (speed)                       | done    |
+| 17f       | Rietveld: spherical-harmonic texture                         | done    |
 
 ## The one prompt you paste in every new session
 
@@ -591,3 +592,5 @@ list are in docs/rietveld-roadmap.md. Every sub-stage adds a GSAS-II case to
   capillary geometry with absorption.
 - **17e (done)** Analytic derivatives, so structure refinements of low-symmetry phases and 50,000-point
   scans stay fast.
+- **17f (done)** Spherical-harmonic texture (GSAS-II's cylindrical model, orders 2–16, every Laue class),
+  as an alternative to March–Dollase, checked against GSAS-II in the Validation workflow.

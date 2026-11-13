@@ -18,7 +18,10 @@
  *   measured with an automatic (variable) divergence slit, otherwise 1 (sample.ts).
  * - P_k: March–Dollase preferred orientation, mean over the family's reflections of
  *   (r² cos²α + sin²α / r)^(−3/2), α the angle between the reflection's normal and the preferred
- *   direction (also given as a plane normal h k l); r = 1 is a random powder (P = 1).
+ *   direction (also given as a plane normal h k l); r = 1 is a random powder (P = 1). With
+ *   PhaseModel.texture, P_k is instead GSAS-II's spherical-harmonic correction (texture.ts) of the
+ *   family's representative reflection, A(h) = 1 + Σ C_l^n (4π/(2l+1)) k_l^n(φ, β) k_l^0(ψ), with
+ *   ψ = 90° on a flat plate (Bragg–Brentano) and ψ = θ of the Kα1 peak in a capillary.
  * - exp(−B/(2d²)) = exp(−2B sin²θ/λ²): an overall displacement factor B (Å²) applied on top of
  *   the displacement parameters already in the reference structure.
  * - r_λ: relative intensity of the Kα1 line (1) and the Kα2 line (the Kα2/Kα1 ratio, or none
@@ -72,6 +75,7 @@
  * same at every angle); surface roughness is its only absorption-related correction here.
  */
 
+import { textureBasis, textureCorrection, type TextureSymmetry } from './texture';
 import { dSpacing, lorentzPolarisation, reciprocalMetric, type Cell } from '../reference/powder';
 import {
   cosAngle,
@@ -112,6 +116,11 @@ export interface PhaseModel {
   reflections: RefinementReflection[];
   /** Preferred-orientation direction as a plane normal (h k l), or null for none. */
   orientation: Hkl | null;
+  /**
+   * Spherical-harmonic texture (texture.ts) instead of March–Dollase: the Laue class and the
+   * coefficients C_l^n refined, in GSAS-II's order.
+   */
+  texture?: { symmetry: TextureSymmetry; terms: [number, number][] };
   /** Atoms, when the structure is refined: Σ|F|² is then calculated (structure.ts). */
   structure?: StructureModel;
   /** Thompson–Cox–Hastings profile (GSAS-II) instead of the single-width pseudo-Voigt. */
@@ -181,6 +190,8 @@ export interface PhaseLayout {
   lx: number;
   ly: number;
   orientation: number;
+  /** Spherical-harmonic coefficients, one per PhaseModel.texture term (none without it). */
+  texture: number[];
   b: number;
   /** Bérar–Baldinozzi asymmetry P1 and P2. */
   asymmetry: [number, number];
@@ -223,6 +234,7 @@ export function makeLayout(phases: readonly PhaseModel[], backgroundTerms: numbe
     lx: take(),
     ly: take(),
     orientation: take(),
+    texture: (phase.texture?.terms ?? []).map(take),
     b: take(),
     asymmetry: [take(), take()] as [number, number],
     inverseSize: take(),
@@ -329,6 +341,8 @@ export interface PlacedPeak {
   area: number;
   /** area / Σ|F|²: every intensity factor except Σ|F|² (for the structure derivatives). */
   areaPerMf2: number;
+  /** Preferred-orientation factor P_k of the reflection (1 for a random powder). */
+  orientation: number;
   fwhm: number;
   eta: number;
   /** Coefficients of Fa(z) and Fb(z) in the asymmetry correction: P1 / tan θ and P2 / tan θ. */
@@ -407,7 +421,8 @@ export function placePeaks(
 ): PlacedPeak[] {
   const phase = phases[index] as PhaseModel;
   const pl = layout.phases[index] as PhaseLayout;
-  const gStar = reciprocalMetric(phaseCell(phase, pl, p));
+  const cell = phaseCell(phase, pl, p);
+  const gStar = reciprocalMetric(cell);
   const zero = p[layout.zero] as number;
   const displacement = p[layout.displacement] as number;
   const transparency = p[layout.transparency] as number;
@@ -425,6 +440,8 @@ export function placePeaks(
   const lx = p[pl.lx] as number;
   const ly = p[pl.ly] as number;
   const r = p[pl.orientation] as number;
+  const texture = phase.texture;
+  const shCoefficients = pl.texture.map((j) => p[j] as number);
   const b = p[pl.b] as number;
   const p1 = p[pl.asymmetry[0]] as number;
   const p2 = p[pl.asymmetry[1]] as number;
@@ -471,10 +488,21 @@ export function placePeaks(
         : structure
           ? familyStructureFactor(structure, states, reflection.members, d)
           : reflection.mf2;
-    const orientation =
-      phase.orientation && r !== 1
-        ? marchDollase(gStar, reflection.members, phase.orientation, r)
-        : 1;
+    let orientation = 1;
+    if (texture && shCoefficients.some((c) => c !== 0)) {
+      // ψ: 90° for every reflection on a flat plate; θ of the Kα1 peak (with its shifts) in a
+      // capillary, as GSAS-II's SHPOcal takes it from the reflection's position.
+      let psi = 90;
+      if (capillary) {
+        const theta1 = Math.asin(Math.min(1, wavelengths.kAlpha1 / (2 * d)));
+        psi = theta1 / RAD + (zero + capillaryShift(displacement, transparency, theta1)) / 2;
+      }
+      orientation = textureCorrection(
+        shCoefficients,
+        textureBasis(texture.terms, reflection.hkl, cell, texture.symmetry, psi),
+      );
+    } else if (phase.orientation && r !== 1)
+      orientation = marchDollase(gStar, reflection.members, phase.orientation, r);
     const common = scale * orientation * Math.exp(-b / (2 * d * d));
     // Reflections of the family with the same sample broadening share a peak (see the header).
     const groups: { share: number; sample: [number, number] }[] = [];
@@ -536,6 +564,7 @@ export function placePeaks(
           twoTheta,
           area: common * factor * group.share * mf2,
           areaPerMf2: common * factor * group.share,
+          orientation,
           fwhm,
           eta: mix,
           asymmetry: [p1 / tan, p2 / tan],

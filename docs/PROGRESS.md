@@ -1,5 +1,30 @@
 # Progress
 
+## Stage 17f: spherical-harmonic texture (done, roadmap item 7)
+
+Branch `claude/sleepy-turing-hb1ofu`. No new packages or data. Checks in docs/validation.md, 17f.
+
+- **Model** (src/core/xrd/rietveld/texture.ts): GSAS-II's cylindrical spherical-harmonic
+  preferred orientation (Von Dreele, J. Appl. Cryst. 30 (1997) 517), orders 2–16, coefficient
+  lists for every Laue class, flat plate (ψ = 90°) and capillary (ψ = θ). Texture index J reported
+  with its s.u.
+- **Step 5 UI:** with "Preferred orientation" ticked, each phase has an "orientation model" choice:
+  March–Dollase (as before) or spherical harmonics of order 2…16. Results show the coefficients, J
+  and the range of corrections; the reflection CSV has an orientation-factor column; the Methods
+  text names the model, order, Laue class, coefficients and J.
+- **Validation:** GSAS-II (new Validation workflow step, scripts/validation/gsas2/texture.py) gives
+  the Legendre functions, crystal and sample harmonics, the per-reflection corrections of seven
+  phases and a refinement of a textured ZnO pattern; the site matches all of them (refined C(2,0)
+  0.44770(345) against GSAS-II's 0.44767(344)).
+- **Four differences from GSAS-II**, kept on purpose because GSAS-II's form gives different
+  corrections to equivalent reflections: 31m sine/cosine terms, the 3mR class name, the
+  rhombohedral polar axis, and the monoclinic/triclinic azimuth. Listed in docs/validation.md.
+- **Known issues:** only cylindrical sample symmetry. Some existing step 5 fields (for example
+  "Size model") put a help button inside the label, so the label names the button rather than the
+  select; the new orientation select has its own aria-label, the older fields are still to fix.
+- **Next:** roadmap items 8 (sequential refinement), 10 (bond lengths with uncertainties,
+  bond-valence sums), 11 (Bérar–Lelann).
+
 ## Step 6 fit: improved automatically until the regions fit (owner request, November 2026)
 
 The owner saw regions flagged "Misses structure" after a Gaussian fit and asked for the fit to

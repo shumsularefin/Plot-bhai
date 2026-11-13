@@ -173,8 +173,20 @@ export function qlmn(l: number, mm: number, nn: number): number {
   return q;
 }
 
-/** a_l^{ms}, the Fourier coefficients of P̄_l^m (GSAS-II's APLMS). */
+const aplmsCache = new Map<number, number>();
+
+/** a_l^{ms}, the Fourier coefficients of P̄_l^m (GSAS-II's APLMS), cached (|m|, s ≤ l ≤ 98). */
 function aplms(l: number, m: number, s: number): number {
+  const key = (l * 199 + m + 99) * 100 + s;
+  let value = aplmsCache.get(key);
+  if (value === undefined) {
+    value = aplmsUncached(l, m, s);
+    aplmsCache.set(key, value);
+  }
+  return value;
+}
+
+function aplmsUncached(l: number, m: number, s: number): number {
   const norm = Math.sqrt((2 * l + 1) / 2);
   const product = qlmn(l, m, s) * qlmn(l, 0, s);
   const am = Math.abs(m);

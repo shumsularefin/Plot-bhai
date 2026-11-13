@@ -206,8 +206,10 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
     data.radiation.kAlpha1Only || (useCleaned && cleaning?.kAlpha2.enabled)
       ? 0
       : data.radiation.kAlpha2Ratio;
+  const textureOf = (phase: ReferencePhase) =>
+    settings.choices.orientation ? (settings.texture?.[phase.id] ?? 0) : 0;
   const orientationOf = (phase: ReferencePhase) =>
-    parseDirection(settings.orientation[phase.id] ?? '');
+    textureOf(phase) > 0 ? null : parseDirection(settings.orientation[phase.id] ?? '');
   const axisOf = (phase: ReferencePhase): Hkl =>
     parseDirection(settings.axes?.[phase.id] ?? '') ?? [0, 0, 1];
   const uniaxial = Boolean(
@@ -232,7 +234,7 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
   const tchForced = Boolean(instrument || settings.choices.size || settings.choices.strain);
   const key = JSON.stringify([
     pattern?.id,
-    included.map((p) => [p.id, orientationOf(p), uniaxial && axisOf(p)]),
+    included.map((p) => [p.id, orientationOf(p), textureOf(p), uniaxial && axisOf(p)]),
     settings.choices,
     settings.backgroundTerms,
     settings.from,
@@ -310,6 +312,7 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
         ...(p.cellContents && { cellContents: p.cellContents }),
         ...(p.structure && { structure: p.structure }),
         orientation: settings.choices.orientation ? orientationOf(p) : null,
+        ...(textureOf(p) > 0 && { textureOrder: textureOf(p) }),
         spaceGroupNumber: p.spaceGroup.number,
         sizeAxis: axisOf(p),
         strainAxis: axisOf(p),
@@ -722,21 +725,55 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
         </fieldset>
         {settings.choices.orientation &&
           included.map((phase) => (
-            <label key={phase.id} class="inline-field">
-              {phase.name}: preferred direction (h k l)
-              <input
-                value={settings.orientation[phase.id] ?? ''}
-                placeholder="for example 0 0 1; empty for none"
-                aria-invalid={
-                  (settings.orientation[phase.id] ?? '').trim() !== '' && !orientationOf(phase)
-                }
-                onInput={(e) =>
-                  set({
-                    orientation: { ...settings.orientation, [phase.id]: e.currentTarget.value },
-                  })
-                }
-              />
-            </label>
+            <div key={phase.id} class="radiation-fields">
+              <label class="inline-field">
+                {phase.name}: orientation model{' '}
+                <HelpTip term="preferred orientation model">
+                  <p>
+                    March–Dollase needs one direction (h k l) along which the crystallites line up,
+                    for example 0 0 1 for platelets of a hexagonal phase. Spherical harmonics
+                    (GSAS-II's model, cylindrical sample symmetry) needs no direction: it fits a
+                    smooth correction over all directions the crystal symmetry allows. A higher
+                    order follows a stronger texture with more coefficients; start at 4 and go up
+                    only if the fit improves clearly. A lab pattern rarely supports more than order
+                    8.
+                  </p>
+                </HelpTip>
+                <select
+                  aria-label={`${phase.name}: orientation model`}
+                  value={String(settings.texture?.[phase.id] ?? 0)}
+                  onChange={(e) =>
+                    set({
+                      texture: { ...settings.texture, [phase.id]: Number(e.currentTarget.value) },
+                    })
+                  }
+                >
+                  <option value="0">March–Dollase</option>
+                  {[2, 4, 6, 8, 10, 12, 14, 16].map((order) => (
+                    <option key={order} value={String(order)}>
+                      Spherical harmonics, order {order}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {textureOf(phase) === 0 && (
+                <label class="inline-field">
+                  {phase.name}: preferred direction (h k l)
+                  <input
+                    value={settings.orientation[phase.id] ?? ''}
+                    placeholder="for example 0 0 1; empty for none"
+                    aria-invalid={
+                      (settings.orientation[phase.id] ?? '').trim() !== '' && !orientationOf(phase)
+                    }
+                    onInput={(e) =>
+                      set({
+                        orientation: { ...settings.orientation, [phase.id]: e.currentTarget.value },
+                      })
+                    }
+                  />
+                </label>
+              )}
+            </div>
           ))}
         <div class="radiation-fields">
           <NumberInput
@@ -1037,6 +1074,27 @@ function Results({
               .join(', ')}
           </p>
         ))}
+      {result.phases.map((p) => {
+        const t = p.texture;
+        if (!t) return null;
+        return (
+          <p key={`texture-${p.id}`} class="field-hint">
+            {p.name}, spherical-harmonic texture of order {t.order} (Laue class {t.laue}):{' '}
+            {t.coefficients
+              .map((c) => `${c.name} = ${withUncertainty(c.value.value, c.value.esd, 3)}`)
+              .join(', ')}
+            . Texture index J = {withUncertainty(t.index.value, t.index.esd, 3)}{' '}
+            <HelpTip term="texture index">
+              <p>
+                J = 1 + Σ C²/(2l + 1) is 1 for a random powder and grows with the strength of the
+                texture. The correction multiplies each reflection's intensity; here it runs from{' '}
+                {t.range[0].toFixed(2)} to {t.range[1].toFixed(2)}. It is an estimate from one
+                pattern: a lab scan sees each crystal direction only at one sample angle.
+              </p>
+            </HelpTip>
+          </p>
+        );
+      })}
       {standard && (
         <p class="message is-info">
           <strong>Amorphous and unidentified content (estimate):</strong>{' '}
@@ -1073,7 +1131,7 @@ function Results({
                 <th scope="col">W (deg²)</th>
                 <th scope="col">η</th>
                 <th scope="col">X, Y (deg)</th>
-                <th scope="col">March–Dollase r</th>
+                <th scope="col">Preferred orientation</th>
                 <th scope="col">B (Å²)</th>
                 <th scope="col">Asymmetry P1, P2</th>
                 <th scope="col">Scale</th>
@@ -1091,7 +1149,9 @@ function Results({
                   <td>
                     {p.orientation && p.orientationDirection
                       ? `${num(p.orientation, 3)} along ${formatHkl([p.orientationDirection])}`
-                      : '–'}
+                      : p.texture
+                        ? `spherical harmonics, J = ${withUncertainty(p.texture.index.value, p.texture.index.esd, 3)}`
+                        : '–'}
                   </td>
                   <td>{num(p.overallB, 3)}</td>
                   <td>
@@ -1227,6 +1287,17 @@ function Results({
                 { header: 'TCH X (deg)', value: (p) => (p.tch ? p.x.value : '') },
                 { header: 'TCH Y (deg)', value: (p) => (p.tch ? p.y.value : '') },
                 { header: 'March-Dollase r', value: (p) => p.orientation?.value ?? '' },
+                {
+                  header: 'Texture (spherical harmonics)',
+                  value: (p) =>
+                    p.texture
+                      ? `order ${p.texture.order} ${p.texture.laue}: ${p.texture.coefficients
+                          .map((c) => `${c.name}=${c.value.value}(${c.value.esd})`)
+                          .join('; ')}`
+                      : '',
+                },
+                { header: 'Texture index J', value: (p) => p.texture?.index.value ?? '' },
+                { header: 's.u. J', value: (p) => p.texture?.index.esd ?? '' },
                 { header: 'B (A^2)', value: (p) => p.overallB.value },
                 { header: 'Asymmetry P1', value: (p) => p.asymmetry[0].value },
                 { header: 's.u. P1', value: (p) => p.asymmetry[0].esd },
@@ -1285,6 +1356,7 @@ function Results({
                   { header: '|F|^2', value: (x) => x.r.f2 },
                   { header: 'I_obs', value: (x) => x.r.iObs },
                   { header: 'I_calc', value: (x) => x.r.iCalc },
+                  { header: 'Orientation factor', value: (x) => x.r.orientation },
                   { header: 'Le Bail', value: (x) => (x.leBail ? 'yes' : 'no') },
                 ],
               );
