@@ -54,9 +54,9 @@ tests/rietveld.test.ts.
 
 Open:
 
-- No fit of the same data by another program (Fityk or FullProf) has been compared: installing
-  Fityk was not allowed in this environment. The formulas are checked against the documented
-  forms and numerical integration instead. A comparison on a real pattern would close this.
+- The peak fit is now compared with lmfit on the same data (section 17). Fityk and FullProf
+  themselves could not be installed, and the data are synthetic: a comparison on a real measured
+  pattern is still open.
 - The full reference of the Pearson VII paper ("The approximation of symmetric X-ray peaks by
   Pearson type VII distributions", Hall et al., J. Appl. Cryst. 1977) could not be opened to
   confirm the volume and pages, so the code cites it by title, authors and year only.
@@ -83,7 +83,8 @@ Open:
 - Symmetry codes with a three-digit operator number (GSAS numbering) and negative codes
   (SHELX style) in CIF geometry tables are skipped by the test, since the CIF dictionary does not
   define them; 250 rows remain.
-- No comparison with pymatgen or VESTA (not installable here); the CIF tables stand in for it.
+- Distances are compared with pymatgen in section 16g. No comparison with VESTA (a desktop
+  program that cannot be run here).
 
 ## 16d: indexing an unknown pattern
 
@@ -144,9 +145,9 @@ not the same.
 
 Open:
 
-- No comparison with GSAS-II refining the same pattern (structure and profile), and the files
-  have not been loaded into GSAS-II itself: it cannot be installed here. Loading the exported
-  .xye, .instprm and CIF into GSAS-II and refining would close both.
+- GSAS-II refining the same pattern is compared in section 16g. The files written by the Export
+  step (.xye, .instprm, CIF) have not been loaded into GSAS-II itself; doing that once by hand
+  would close it.
 - The synthetic patterns are made with this site's own model, so the recovery checks test the
   least squares, not the model; the model's Σ|F|² is checked against the independent library
   route above.
@@ -194,3 +195,31 @@ Open:
   the owner should decide whether to correct it. Both GSAS-II and this site read it literally.
 - No comparison with DICVOL, TREOR or McMaille for monoclinic and triclinic cells.
 - Triclinic indexing needs the first lines of the pattern; it can give spurious cells.
+
+## 17: review fixes (calculated example, peak labels, sample comparison, sample report)
+
+Code: src/core/xrd/synthetic.ts (example patterns), src/modules/xrd/data.ts (lines of the example
+phase), src/core/xrd/reference/symmetry.ts (which member of a family of planes is printed),
+src/modules/xrd/comparison.ts, src/ui/report/sampleReport.ts. Tests: tests/xrd-checks.test.ts,
+tests/reference-cif.test.ts, tests/comparison.test.ts, tests/sampleReport.test.ts,
+tests/validation-lmfit.test.ts. The lmfit fixtures are made by
+scripts/validation/lmfit/make_peakfit.py (lmfit 1.3.4, scipy 1.18.1, numpy 2.5.4).
+
+| Method                 | Check                                                                                                                                                                                                                                                                       | Source                                                   | Tolerance                                 | Result |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ----------------------------------------- | ------ |
+| Peak fit against lmfit | two overlapping pseudo-Voigt peaks on a sloped background, and one Pearson VII peak, with counting noise, fitted by lmfit's built-in models and by this site: centres agree to 2e-7°, FWHM to 1e-7°, η to 7e-6, m, heights and areas to 4e-6 relative                       | independent implementation (lmfit, SciPy least squares)  | 2e-5°; 1e-4°; η and m 2e-3; 1e-3 relative | pass   |
+| Calculated example     | one line of the example at 36.3°, built for 60 nm and for 15 nm: the Kα1 + Kα2 fit, corrected for the example instrument width in quadrature, gives the size back through L = Kλ/(β cos θ); line positions of the bundled example come from COD 1577381 through Bragg's law | synthetic data with a known answer                       | 5 % of the size                           | pass   |
+| Sample comparison      | each row equals the per-pattern summary (same functions); doubling every width halves the Scherrer size                                                                                                                                                                     | invariance (D ∝ 1/β); same result by two routes          | exact; 1e-10                              | pass   |
+| Sample report          | result lines and methods paragraphs are passed through unchanged; example data are named in a warning                                                                                                                                                                       | round trip                                               | exact                                     | pass   |
+| Printed (hkl)          | of a family of equivalent planes the member with the fewest negative indices, then the largest h, k, l is printed: (110), not (2 -1 0), for wurtzite                                                                                                                        | convention only; positions and intensities are untouched | exact                                     | pass   |
+
+Open:
+
+- The example data of every tool are calculated or generated, and labelled so. No measured
+  standard (LaB6 or Si) is bundled: the owner must supply one, with its source, before a measured
+  example can be shown.
+- The sample comparison and the sample report add no numerical method; they collect results that
+  are validated above.
+- Real instrument files, a real measured pattern fitted by Fityk or FullProf, an unknown pattern
+  indexed by DICVOL or TREOR, and a structure opened in VESTA are still needed for the open items
+  of sections 16a to 16d.

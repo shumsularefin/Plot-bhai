@@ -14,38 +14,39 @@ Checked on 2026-10-23 in a cloud session.
 The next sub-stage is the first row that is not `done`. At the end of every session, the session
 sets its row to `done` (or `blocked: reason`) in the same PR.
 
-| Sub-stage | What                                                         | Status  |
-| --------- | ------------------------------------------------------------ | ------- |
-| 0–5       | Foundation, import, cleaning, peaks, instrument, size/strain | done    |
-| 5.9       | Catch-up fixes                                               | done    |
-| 6a        | Reference library build (COD + cross-check)                  | done    |
-| 6b        | Choose material, compare phases                              | done    |
-| 6c        | hkl labels, combined table, lattice refinement               | done    |
-| 7a        | Texture, crystallinity, pattern character                    | done    |
-| 6a-fix    | Library entry screening, WK cross-check, 7a corrections      | done    |
-| 7b        | Figure builder, methods text, export, e2e                    | done    |
-| 8a        | UV-Vis import, conversions, cleaning                         | done    |
-| 8b        | Tauc, Urbach, results                                        | done    |
-| 9         | FTIR                                                         | done    |
-| 10a       | Particles: image, scale, manual                              | done    |
-| 10b       | Particles: automatic detection                               | done    |
-| 10c       | Particles: distribution, export                              | done    |
-| 11a       | TGA: import to step detection (Stage 11 items 1–5)           | done    |
-| 11b       | TGA: events, theory, calcination (items 6–9)                 | done    |
-| 12a       | DSC (Stage 12 items 1–6)                                     | done    |
-| 12b       | Combined TGA-DSC (items 7–8)                                 | done    |
-| 13        | Kinetics (optional; skip unless asked)                       | done    |
-| 14a       | Polish: responsive, Lighthouse, a11y, states (items 1–4)     | done    |
-| 14b       | About page, PWA, deploy, final status (items 5–8)            | done    |
-| 15        | Gemini (optional; only when asked)                           | skipped |
-| audit     | Research-readiness audit against the user's data             | done    |
-| 16a       | XRD formats (.brml, .rasx, .raw) and .xy/.xye export         | done    |
-| 16b       | Pearson VII, split pseudo-Voigt, Rietveld peak asymmetry     | done    |
-| 16c       | 3D crystal structure viewer with distances and angles        | done    |
-| 16d       | Indexing an unknown pattern (Web Worker)                     | done    |
-| 16e       | Rietveld structure refinement and GSAS-II export             | done    |
-| 16f       | Materials Project / AMCSD search through a backend           | skipped |
-| 16g       | Owner additions: TCH, U_ij, low-symmetry indexing, CI checks | done    |
+| Sub-stage | What                                                             | Status  |
+| --------- | ---------------------------------------------------------------- | ------- |
+| 0–5       | Foundation, import, cleaning, peaks, instrument, size/strain     | done    |
+| 5.9       | Catch-up fixes                                                   | done    |
+| 6a        | Reference library build (COD + cross-check)                      | done    |
+| 6b        | Choose material, compare phases                                  | done    |
+| 6c        | hkl labels, combined table, lattice refinement                   | done    |
+| 7a        | Texture, crystallinity, pattern character                        | done    |
+| 6a-fix    | Library entry screening, WK cross-check, 7a corrections          | done    |
+| 7b        | Figure builder, methods text, export, e2e                        | done    |
+| 8a        | UV-Vis import, conversions, cleaning                             | done    |
+| 8b        | Tauc, Urbach, results                                            | done    |
+| 9         | FTIR                                                             | done    |
+| 10a       | Particles: image, scale, manual                                  | done    |
+| 10b       | Particles: automatic detection                                   | done    |
+| 10c       | Particles: distribution, export                                  | done    |
+| 11a       | TGA: import to step detection (Stage 11 items 1–5)               | done    |
+| 11b       | TGA: events, theory, calcination (items 6–9)                     | done    |
+| 12a       | DSC (Stage 12 items 1–6)                                         | done    |
+| 12b       | Combined TGA-DSC (items 7–8)                                     | done    |
+| 13        | Kinetics (optional; skip unless asked)                           | done    |
+| 14a       | Polish: responsive, Lighthouse, a11y, states (items 1–4)         | done    |
+| 14b       | About page, PWA, deploy, final status (items 5–8)                | done    |
+| 15        | Gemini (optional; only when asked)                               | skipped |
+| audit     | Research-readiness audit against the user's data                 | done    |
+| 16a       | XRD formats (.brml, .rasx, .raw) and .xy/.xye export             | done    |
+| 16b       | Pearson VII, split pseudo-Voigt, Rietveld peak asymmetry         | done    |
+| 16c       | 3D crystal structure viewer with distances and angles            | done    |
+| 16d       | Indexing an unknown pattern (Web Worker)                         | done    |
+| 16e       | Rietveld structure refinement and GSAS-II export                 | done    |
+| 16f       | Materials Project / AMCSD search through a backend               | skipped |
+| 16g       | Owner additions: TCH, U_ij, low-symmetry indexing, CI checks     | done    |
+| 17        | Review fixes: example data, readability, validation page, report | done    |
 
 ## The one prompt you paste in every new session
 

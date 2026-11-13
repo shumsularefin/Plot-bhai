@@ -1,5 +1,65 @@
 # Progress
 
+## Review fixes: bugs, readability, example data, validation page, comparison, sample report (done, owner request November 2026)
+
+Branch `claude/trusting-faraday-1pfp92`. Version 0.2.0. No new dependencies. The owner asked for
+every point of the site review to be fixed.
+
+Built:
+
+- Bugs: wrong step numbers in the XRD text; "OZn" is now ZnO (`displayFormula`); "1 peaks";
+  the footer states the MIT licence; instrument correction starts on "skip" so Next is not
+  blocked; on a phone the docked plot takes at most 40 % of the screen height.
+- XRD example data are calculated from a real structure (ZnO, COD 1577381), labelled "Calculated,
+  not measured", with widths for 60 nm and 15 nm crystallites. The Rietveld step now fits the
+  example (R_wp 6.67 %, GOF 1.19 in the browser).
+- Readability: body text 15 to 16 px, smallest text 13 px, line height 1.55, lines at most about
+  70 characters; step tips collapse to one sentence after the first visit; the sidebar keeps its
+  full form next to a pinned plot.
+- Long steps: FTIR "Assign groups" shows one peak at a time (chips, Previous and Next peak);
+  Particles "Find the particles" shows one of its three parts at a time.
+- Home: the stray About button and the empty grid cell are gone; a real exported figure, a
+  "How this is validated" card and a "Sample report" card were added.
+- The Validate pop-up is now a banner in the page ("Give feedback" / "Not now").
+- Public validation page (`#/validation`), built from docs/validation.md.
+- Version number in the footer and in every record; CITATION.cff; docs/RELEASING.md lists the
+  steps for a Zenodo DOI.
+- XRD results: "Compare your samples", one row per pattern (Scherrer, Williamson–Hall UDM, cell),
+  with CSV and a bar chart; also first in "all tables".
+- Sample report (`#/report`): the results and methods paragraphs of the XRD, FTIR, UV-Vis and TGA
+  analyses saved in this browser, in one document (.md), with a warning for example data.
+- Validation: the peak fit is compared with lmfit (independent implementation,
+  tests/validation-lmfit.test.ts); the example generator has a known-answer test; stale open
+  items in docs/validation.md now point to the pymatgen and GSAS-II checks of 16g.
+
+Decisions:
+
+- The home page's About button was removed because the header already links to About
+  (CLAUDE.md section 8 updated).
+- `useCandidatePhases` returns the same array until its inputs change (it returned a new one on
+  every render, which made the report page loop).
+- Printed (hkl): the family member with the fewest negative indices, so (110), not (2 -1 0).
+- The sample report reads each tool's saved session; it cannot know that the files belong to one
+  sample, and says so.
+- lmfit, scipy and numpy are used only by scripts/validation/lmfit/make_peakfit.py to make test
+  fixtures; they are not dependencies of the site.
+
+Known issues and TODO (owner):
+
+- **Zenodo DOI:** needs the owner's GitHub and Zenodo accounts (docs/RELEASING.md). CITATION.cff
+  has a TODO for it.
+- **Measured example data:** no LaB6 or Si standard, and no measured FTIR, UV-Vis, TGA or SEM
+  example, is bundled. They must come from the owner (own measurement, or an openly licensed data
+  set with its citation). The examples of FTIR, UV-Vis, thermal and particles stay generated and
+  labelled as such.
+- **Still open in docs/validation.md:** Fityk or FullProf on a real pattern; DICVOL, TREOR or
+  McMaille on an unknown pattern; VESTA; the exported GSAS-II files loaded into GSAS-II by hand;
+  real Bruker .raw version 1 to 3 files and multi-scan .rasx/.brml files.
+- DSC results and the particle size distribution are not part of the sample report yet.
+- "Use the empty space under the docked plot" was not done: the plot panel keeps its own height.
+
+Next stage: none in the tracker; waiting for the owner.
+
 ## FTIR stacked peak labels, FTIR fixes, journal figure styles (done, owner request November 2026)
 
 Branch `claude/laughing-keller-tjba6r`. No new dependencies.
