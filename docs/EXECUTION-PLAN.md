@@ -49,7 +49,7 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 17a       | Rietveld: size/strain, optics, Le Bail, statistics           | done    |
 | 17b       | Rietveld: shared-site substitution, Le Bail of indexed cells | done    |
 | 17c       | Rietveld: anisotropic broadening, FCJ axial divergence       | done    |
-| 17d       | Rietveld: anomalous dispersion, capillary geometry           | planned |
+| 17d       | Rietveld: anomalous dispersion, capillary geometry           | done    |
 | 17e       | Rietveld: analytic derivatives (speed)                       | planned |
 
 ## The one prompt you paste in every new session
@@ -587,7 +587,7 @@ list are in docs/rietveld-roadmap.md. Every sub-stage adds a GSAS-II case to
   materials); Le Bail of a cell from "Index an unknown pattern", reflections from its centring.
 - **17c (done)** Stephens anisotropic microstrain and GSAS-II's uniaxial size; Finger–Cox–Jephcoat axial
   divergence (SH/L) so .instprm files transfer exactly.
-- **17d** Anomalous dispersion f′, f″ from a table the owner approves; capillary geometry with
-  absorption.
+- **17d (done)** Anomalous dispersion f′, f″ (GSAS-II's Cromer–Liberman table, chosen by the owner);
+  capillary geometry with absorption.
 - **17e** Analytic derivatives, so structure refinements of low-symmetry phases and 50,000-point
   scans stay fast.

@@ -211,6 +211,23 @@ async function walkToExport(log) {
     .first()
     .waitFor();
   note('5 Rietveld: monochromator, crystallite size and an excluded range refined');
+  // Stage 17d: capillary geometry with a typed μR, and f′, f″ in the structure factors.
+  await page.getByLabel('Capillary (Debye–Scherrer)').check();
+  const muR = page.getByLabel('μR (absorption × radius)');
+  await muR.fill('1');
+  await muR.blur();
+  await page.getByLabel('Include f′ and f″ in the structure factors').check();
+  await page.getByRole('button', { name: 'Refine again', exact: true }).click();
+  await page.getByText('Capillary μR (fixed)').waitFor({ timeout: 60_000 });
+  await page
+    .getByText(/capillary in Debye–Scherrer geometry/)
+    .first()
+    .waitFor();
+  await page
+    .getByText(/Cromer–Liberman/)
+    .first()
+    .waitFor();
+  note('5 Rietveld: capillary geometry (μR 1) with anomalous dispersion refined');
   await next('Fit peaks');
 
   // 5 Fit peaks

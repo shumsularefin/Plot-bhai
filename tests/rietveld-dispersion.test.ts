@@ -53,7 +53,7 @@ function complexF(m: StructureModel, [h, k, l]: Hkl, d: number): [number, number
   const s2 = 1 / (4 * d * d);
   const f0 = (f: FormFactor) => {
     let v = f[8];
-    for (let i = 0; i < 4; i++) v += f[i] * Math.exp(-f[i + 4] * s2);
+    for (let i = 0; i < 4; i++) v += (f[i] as number) * Math.exp(-(f[i + 4] as number) * s2);
     return v;
   };
   let re = 0;
@@ -147,7 +147,7 @@ describe('Anomalous dispersion in |F|²', () => {
   });
 
   it('refuses an element with no values rather than using zero silently', () => {
-    const { Zn: _, ...withoutZn } = cu;
+    const withoutZn = Object.fromEntries(Object.entries(cu).filter(([el]) => el !== 'Zn'));
     expect(() => model(zno, withoutZn)).toThrow(/Zn/);
   });
 });

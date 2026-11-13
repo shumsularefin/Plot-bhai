@@ -112,7 +112,8 @@ function complexF(m: StructureModel, [h, k, l]: Hkl, d: number): [number, number
   let im = 0;
   for (const atom of m.atoms) {
     let f0 = atom.factor[8];
-    for (let i = 0; i < 4; i++) f0 += atom.factor[i] * Math.exp(-atom.factor[i + 4] * s2);
+    for (let i = 0; i < 4; i++)
+      f0 += (atom.factor[i] as number) * Math.exp(-(atom.factor[i + 4] as number) * s2);
     const fr = f0 + atom.dispersion[0];
     const fi = atom.dispersion[1];
     for (const image of atom.images) {
@@ -253,9 +254,11 @@ describe('Capillary refinement against GSAS-II', () => {
     expect(result.phases[0]?.cell.a.value).toBeCloseTo(g.cell.length_a, 4);
   });
 
-  it('reaches the same R_wp (within 0.05 %) and reports μR and f′, f″ in the methods', () => {
+  it('fits to the noise (R_wp within 2 % of R_exp, not above GSAS-II’s) and reports μR, f′, f″', () => {
+    // GSAS-II's own refit ends at R_wp 3.06 % against R_exp 2.88 %; the cause is open (validation.md).
     expect(result.converged).toBe(true);
-    expect(Math.abs(100 * result.stats.rwp - g.Rwp)).toBeLessThan(0.05);
+    expect(Math.abs(result.stats.rwp / result.stats.rexp - 1)).toBeLessThan(0.02);
+    expect(100 * result.stats.rwp).toBeLessThan(g.Rwp + 0.05);
     expect(result.anomalous).toBe(true);
     const text = rietveldMethods({
       result,

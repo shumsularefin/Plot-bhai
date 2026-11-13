@@ -1,5 +1,43 @@
 # Progress
 
+## Stage 17d: anomalous dispersion and capillary geometry (done, owner request November 2026)
+
+Branch `claude/sleepy-turing-hb1ofu`. No new packages. One new data file,
+`data/reference/anomalous-dispersion.json` (27 KB, loaded only by the Rietveld worker): f′ and f″
+for every element at each anode's Kα1 energy, computed by GSAS-II's Cromer–Liberman routine in the
+Validation workflow (the source the owner chose), with its source and commit inside. Checks in
+docs/validation.md, 17d.
+
+- **Anomalous dispersion** (Rietveld step, setup, "Anomalous dispersion"): when ticked, every phase
+  with a stored structure gets |F|² from f + f′ and f″ for the chosen anode, as the mean of
+  |F(h)|² and |F(−h)|² (h and −h overlap in a powder). A dopant's f′, f″ mix with its fraction.
+  Phases whose elements are missing from the table are listed in a warning and keep the stored
+  intensities. The methods text cites Cromer & Liberman (1970).
+- **Capillary geometry** (setup, "Sample geometry": flat plate or capillary): GSAS-II's
+  Debye–Scherrer model. Absorption A(μR, θ) from GSAS-II's Absorb('Cylinder'), with μR typed and
+  optionally refined (a new choice, after the basic refinement, with a warning that it correlates
+  with B); the displacement and transparency slots become the capillary displacements Dx cos 2θ
+  and Dy sin 2θ, reported in degrees. Surface roughness and the variable-slit
+  correction are ignored for a capillary, with a note.
+- **Validation:** GSAS-II on GitHub (`scripts/validation/gsas2/dispersion.py`):
+  - The table agrees with the independent Henke tables within 0.04 e (f′) and 2 % (f″), Ce worst
+    (f″ 4.3 %).
+  - |F|² of every ZnS and CoFe₂O₄ reflection matches GSAS-II to 2e-4; Absorb('Cylinder') matches on
+    77 points to 1e-12.
+  - A simulated CoFe₂O₄ capillary pattern refines to μR 1.4982(21) (GSAS-II 1.5001(14), truth 1.5),
+    Dx 30.03 µm (30.11(20)), Dy −20.31 µm (−20.54(34)).
+- **Decisions:**
+  - The site places Kα2 at its exact Bragg angle; GSAS-II uses a first-order step from the shifted
+    Kα1 position. They differ by 3.4e-3° at 130°; recorded, not copied.
+  - The site's |F|² is the Friedel mean, where GSAS-II's list holds |F(h)|² of the listed h. They
+    are equal for centrosymmetric structures.
+  - The validation script loads neutral-atom copies of CIFs that give oxidation states.
+- **Open:**
+  - GSAS-II's own capillary refit ends 6 % above R_exp; the cause was not found.
+  - The original paper behind GSAS-II's cylinder absorption fit (Lobanov & Alte da Veiga) could not
+    be checked.
+- **Next:** 17e (analytic derivatives, for speed), when the owner says so.
+
 ## Stage 17c: anisotropic broadening and axial divergence (done, owner request November 2026)
 
 Branch `claude/sleepy-turing-hb1ofu`. No new dependencies. Checks in docs/validation.md, 17c.
