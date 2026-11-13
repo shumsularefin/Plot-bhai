@@ -1,5 +1,41 @@
 # Progress
 
+## Stage 17c: anisotropic broadening and axial divergence (done, owner request November 2026)
+
+Branch `claude/sleepy-turing-hb1ofu`. No new dependencies. Checks in docs/validation.md, 17c.
+
+- **Axial divergence (SH/L):** the Finger–Cox–Jephcoat profile exactly as GSAS-II computes it
+  (PSVFCJO with S/L = H/L = SH/L/2, its Gauss–Legendre node counts), as a choice in the Rietveld
+  step. It is read from and written to .instprm files, and taken from a standard with the rest of
+  the instrument profile, so profiles transfer between the two programs. A fixed instrument with
+  SH/L > 0 keeps it fixed. GSAS-II's minimum of 0.002 is applied when a file gives less, with a
+  note.
+- **Uniaxial crystallite size and microstrain** (GSAS-II's): one value along an axis typed per
+  phase (default 0 0 1) and one across it; each reflection gets the value for its direction.
+- **Generalized microstrain** (Stephens 1999, GSAS-II's terms and names for every Laue class,
+  −31m told from −3m1 by the space group): started from the isotropic result. The table shows the
+  range of μ over the reflections and lists S_hkl; a warning appears when the coefficients give a
+  negative strain variance.
+- Members of a reflection family whose widths differ under an anisotropic model are placed as
+  separate peaks (GSAS-II uses one representative). The two agree when the axis is a symmetry
+  axis.
+- **Results:** the table, CSV, methods text and GSAS-II export carry the models, axes, axial
+  values, S_hkl and SH/L. The methods text no longer lists U, V, W as refined when the instrument
+  was fixed (a 17a slip), and it describes an anisotropic phase once.
+- **Validation:** GSAS-II on GitHub (`scripts/validation/gsas2/anisotropic.py`):
+  - The FCJ profile matches point by point in 24 cases.
+  - The Stephens terms match exactly in all 11 Laue classes.
+  - Every ZnO reflection width matches to 1e-6 under uniaxial and generalized models.
+  - The refinement of a simulated ZnO pattern agrees with GSAS-II's:
+    - SH/L 0.02962(23) against 0.02973(24).
+    - Size 50.07(32) and 116.1(26) nm against 49.98(32) and 116.0(26) nm.
+    - S400, S004, S202 within 0.2 s.u.
+    - R_wp 4.344 % against 4.340 %.
+- **Open:** no GSAS-II case with a uniaxial axis off a lattice symmetry direction, where the two
+  programs' treatment of a family differs slightly.
+- **Next:** 17d (anomalous dispersion f′, f″ from a table the owner approves; capillary geometry),
+  when the owner says so.
+
 ## Stage 17b: doping on a shared site, Le Bail of an indexed cell (done, owner request November 2026)
 
 Branch `claude/sleepy-turing-hb1ofu`. No new dependencies. Checks in docs/validation.md, 17b.

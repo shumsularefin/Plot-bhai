@@ -136,13 +136,19 @@ export interface InstprmInput {
   /** GSAS-II polarisation coefficient; missing means 0.5 (no monochromator). */
   polarisation?: number;
   profile: TchProfile;
+  /** Axial divergence SH/L refined here; missing or 0 writes GSAS-II's default 0.002. */
+  shl?: number;
   /** Header lines, written as comments. */
   comments: string[];
 }
 
 const n = (v: number) => Number(v.toPrecision(8)).toString();
 
-/** The .instprm text (Bragg–Brentano lab data, SH/L left at GSAS-II's default 0.002). */
+/**
+ * The .instprm text (Bragg–Brentano lab data). SH/L is the value refined here, or GSAS-II's default
+ * 0.002 when none was: GSAS-II never computes a profile with less (GSASIIstrMath.getPowderProfile
+ * takes max(SH/L, 0.002)), so a smaller value would not change its pattern.
+ */
 export function instprm(input: InstprmInput): string {
   const { profile: p } = input;
   const wave =
@@ -154,7 +160,7 @@ export function instprm(input: InstprmInput): string {
     ...input.comments.map((c) => `# ${c}`),
     'Type:PXC;Bank:1',
     `${wave};Zero:${n(input.zero)};Polariz.:${n(input.polarisation ?? 0.5)};Azimuth:0.0`,
-    `U:${n(p.u)};V:${n(p.v)};W:${n(p.w)};X:${n(p.x)};Y:${n(p.y)};Z:0.0;SH/L:0.002`,
+    `U:${n(p.u)};V:${n(p.v)};W:${n(p.w)};X:${n(p.x)};Y:${n(p.y)};Z:0.0;SH/L:${n(input.shl && input.shl > 0 ? input.shl : 0.002)}`,
     'Diff-type:Bragg-Brentano',
     '',
   ].join('\n');
@@ -229,7 +235,7 @@ export function phaseCif(input: CifPhaseInput): string {
 /** What an .instprm file gives this site: the TCH instrument profile in its own units. */
 export interface InstprmRead {
   /** U, V, W (deg² of FWHM_G²) and X, Y (deg of FWHM_L), as in the Rietveld step. */
-  profile: { u: number; v: number; w: number; x: number; y: number };
+  profile: { u: number; v: number; w: number; x: number; y: number; shl: number };
   polarisation: number;
   kAlpha1: number | null;
   kAlpha2: number | null;
@@ -242,7 +248,7 @@ export interface InstprmRead {
 /**
  * Reads a GSAS-II .instprm file (laboratory constant-wavelength X-ray, Type PXC) and converts its
  * profile to this site's units, the inverse of tchExact: H_G² = 8 ln 2 · σ² / 10⁴ (deg²) and
- * H_L = γ / 100 (deg). Values are name:value pairs separated by new lines or ";"; # lines are
+ * H_L = γ / 100 (deg), and SH/L (axial divergence, fcj.ts) as it is. Values are name:value pairs separated by new lines or ";"; # lines are
  * comments. Returns an error message when the file is not a usable X-ray .instprm.
  */
 export function readInstprm(text: string): InstprmRead | { error: string } {
@@ -277,14 +283,16 @@ export function readInstprm(text: string): InstprmRead | { error: string } {
   const z = number('Z') ?? 0;
   if (z !== 0)
     notes.push(`Z = ${z} (a constant Lorentzian width) is not modelled here and was left out.`);
-  const shl = number('SH/L');
-  if (shl !== null && shl > 0)
+  // GSAS-II computes every laboratory profile with SH/L of at least 0.002 (see instprm above).
+  const given = number('SH/L') ?? 0.002;
+  const shl = Math.max(given, 0.002);
+  if (given < 0.002)
     notes.push(
-      `SH/L = ${shl} (GSAS-II's axial-divergence asymmetry) is a different model from the asymmetry here; refine "Peak asymmetry" if low-angle peaks are lopsided.`,
+      `SH/L = ${given} was raised to 0.002, the smallest value GSAS-II uses, so the profile is the one GSAS-II calculates.`,
     );
   const g = LN2_8 / 1e4;
   return {
-    profile: { u: u * g, v: v * g, w: w * g, x: x / 100, y: y / 100 },
+    profile: { u: u * g, v: v * g, w: w * g, x: x / 100, y: y / 100, shl },
     polarisation: number('Polariz.') ?? 0.5,
     kAlpha1: number('Lam1') ?? number('Lam'),
     kAlpha2: number('Lam2'),

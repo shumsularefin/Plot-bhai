@@ -21,6 +21,7 @@ const PROFILE_KEYS: [keyof InstrumentProfile, string][] = [
   ['w', 'W (deg²)'],
   ['x', 'X (deg)'],
   ['y', 'Y (deg)'],
+  ['shl', 'SH/L (axial divergence)'],
 ];
 
 const ZERO_PROFILE: InstrumentProfile = { u: 0, v: 0, w: 0.001, x: 0, y: 0 };
@@ -59,6 +60,7 @@ export function RietveldSetup({ settings, set, phases, lambda, result, patternNa
             w: first.w.value,
             x: first.x.value,
             y: first.y.value,
+            shl: result?.axial?.value ?? 0,
           },
           source: `the refinement of ${first.name} in ${patternName}`,
         }
@@ -78,7 +80,7 @@ export function RietveldSetup({ settings, set, phases, lambda, result, patternNa
     });
     setFileNote(
       [
-        `Loaded U, V, W, X, Y${read.polarisation !== 0.5 ? ` and the polarisation coefficient ${read.polarisation}` : ''} from ${file.name}.`,
+        `Loaded U, V, W, X, Y, SH/L${read.polarisation !== 0.5 ? ` and the polarisation coefficient ${read.polarisation}` : ''} from ${file.name}.`,
         ...(read.kAlpha1 !== null && Math.abs(read.kAlpha1 - lambda) > 1e-4
           ? [
               `Its wavelength (${read.kAlpha1} Å) is not the one set for this pattern (${lambda} Å); check the radiation in step 1.`,
@@ -197,7 +199,7 @@ export function RietveldSetup({ settings, set, phases, lambda, result, patternNa
                 <NumberInput
                   key={key}
                   label={label}
-                  value={instrument.profile[key]}
+                  value={instrument.profile[key] ?? 0}
                   onChange={(v) =>
                     v !== null &&
                     set({

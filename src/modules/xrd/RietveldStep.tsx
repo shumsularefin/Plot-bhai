@@ -60,6 +60,11 @@ const CHOICE_LABELS: [keyof RefineChoices, string, string][] = [
     'Lopsided peaks at low angles, from the beam spreading along the sample axis (Bérar–Baldinozzi P1 and P2). Turn it on only when the difference curve shows a wave under each low-angle peak.',
   ],
   [
+    'axialDivergence',
+    'Axial divergence (SH/L)',
+    'The same low-angle asymmetry described physically, as in GSAS-II: the Finger–Cox–Jephcoat profile with one parameter SH/L, the sum of the sample and detector heights over the goniometer radius. It is an instrument property: refine it on a standard and keep it in the fixed instrument profile. Choose this or Peak asymmetry, not both.',
+  ],
+  [
     'orientation',
     'Preferred orientation',
     'March–Dollase correction along the direction you type for each phase below.',
@@ -198,6 +203,12 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
       : data.radiation.kAlpha2Ratio;
   const orientationOf = (phase: ReferencePhase) =>
     parseDirection(settings.orientation[phase.id] ?? '');
+  const axisOf = (phase: ReferencePhase): Hkl =>
+    parseDirection(settings.axes?.[phase.id] ?? '') ?? [0, 0, 1];
+  const uniaxial = Boolean(
+    (settings.choices.size && settings.choices.sizeModel === 'uniaxial') ||
+    (settings.choices.strain && settings.choices.strainModel === 'uniaxial'),
+  );
   const optics = settings.optics ?? DEFAULT_OPTICS;
   const polarisation = polarisationOf(optics, lines.kAlpha1);
   const ranges = parseRanges(settings.excludedRanges ?? '');
@@ -214,7 +225,7 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
   const tchForced = Boolean(instrument || settings.choices.size || settings.choices.strain);
   const key = JSON.stringify([
     pattern?.id,
-    included.map((p) => [p.id, orientationOf(p)]),
+    included.map((p) => [p.id, orientationOf(p), uniaxial && axisOf(p)]),
     settings.choices,
     settings.backgroundTerms,
     settings.from,
@@ -287,6 +298,9 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
         ...(p.cellContents && { cellContents: p.cellContents }),
         ...(p.structure && { structure: p.structure }),
         orientation: settings.choices.orientation ? orientationOf(p) : null,
+        spaceGroupNumber: p.spaceGroup.number,
+        sizeAxis: axisOf(p),
+        strainAxis: axisOf(p),
         ...(leBail.includes(p.id) && { leBail: true }),
         ...(!leBail.includes(p.id) && {
           substitutions: validSubstitutions(p, settings.substitutions?.[p.id]),
@@ -572,6 +586,7 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
                 disabled={
                   (choice === 'tch' && tchForced) ||
                   (choice === 'sampleMix' && !settings.choices.size && !settings.choices.strain) ||
+                  (choice === 'axialDivergence' && (instrument?.profile.shl ?? 0) > 0) ||
                   (instrument !== null && (choice === 'width' || choice === 'widthSlope'))
                 }
                 onChange={(e) =>
@@ -585,6 +600,84 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
             </label>
           ))}
         </div>
+        {(settings.choices.size || settings.choices.strain) && (
+          <div class="radiation-fields">
+            {settings.choices.size && (
+              <label class="inline-field">
+                Size model{' '}
+                <HelpTip term="uniaxial size">
+                  <p>
+                    Isotropic: one crystallite size for every direction. Uniaxial (GSAS-II’s): one
+                    size along an axis you choose (for example 0 0 1 for platelets or needles of a
+                    hexagonal phase) and one across it; each reflection gets the size for its
+                    direction.
+                  </p>
+                </HelpTip>
+                <select
+                  value={settings.choices.sizeModel ?? 'isotropic'}
+                  onChange={(e) =>
+                    set({
+                      choices: {
+                        ...settings.choices,
+                        sizeModel: e.currentTarget.value as 'isotropic' | 'uniaxial',
+                      },
+                    })
+                  }
+                >
+                  <option value="isotropic">Isotropic</option>
+                  <option value="uniaxial">Uniaxial (along an axis)</option>
+                </select>
+              </label>
+            )}
+            {settings.choices.strain && (
+              <label class="inline-field">
+                Microstrain model{' '}
+                <HelpTip term="generalized microstrain">
+                  <p>
+                    Isotropic: one microstrain. Uniaxial: one along an axis, one across it.
+                    Generalized (Stephens, as in GSAS-II): the strain may differ in every direction
+                    the crystal symmetry allows, with 2 (cubic) to 15 (triclinic) coefficients
+                    S_hkl. It starts from the isotropic result. Use it only when the difference
+                    curve shows widths that do not follow 2θ smoothly, and with good data.
+                  </p>
+                </HelpTip>
+                <select
+                  value={settings.choices.strainModel ?? 'isotropic'}
+                  onChange={(e) =>
+                    set({
+                      choices: {
+                        ...settings.choices,
+                        strainModel: e.currentTarget.value as
+                          'isotropic' | 'uniaxial' | 'generalized',
+                      },
+                    })
+                  }
+                >
+                  <option value="isotropic">Isotropic</option>
+                  <option value="uniaxial">Uniaxial (along an axis)</option>
+                  <option value="generalized">Generalized (Stephens)</option>
+                </select>
+              </label>
+            )}
+          </div>
+        )}
+        {uniaxial &&
+          included.map((phase) => (
+            <label key={phase.id} class="inline-field">
+              {phase.name}: axis of the uniaxial model (h k l)
+              <input
+                value={settings.axes?.[phase.id] ?? ''}
+                placeholder="0 0 1"
+                aria-invalid={
+                  (settings.axes?.[phase.id] ?? '').trim() !== '' &&
+                  !parseDirection(settings.axes?.[phase.id] ?? '')
+                }
+                onInput={(e) =>
+                  set({ axes: { ...settings.axes, [phase.id]: e.currentTarget.value } })
+                }
+              />
+            </label>
+          ))}
         <fieldset class="method-choice">
           <legend>Structure refinement (advanced)</legend>
           <p class="message is-warning">
@@ -713,7 +806,10 @@ function Results({
   const [copied, setCopied] = useState('');
   const fractions = result.phases.some((p) => p.weightFraction) && result.phases.length > 1;
   const sized = result.phases.some((p) => p.size);
-  const strained = result.phases.some((p) => p.microstrain);
+  const strained = result.phases.some((p) => p.microstrain || p.stephens);
+  const sizeAxial = result.phases.some((p) => p.sizeAxial);
+  const strainAxial = result.phases.some((p) => p.microstrainAxial);
+  const hklText = (h: Hkl | null) => (h ? `[${h.join(' ')}]` : '');
   // Results saved by older versions lack the newer fields.
   const correlations = result.correlations ?? [];
   const standard = result.standard ?? null;
@@ -840,8 +936,12 @@ function Results({
               <th scope="col">γ (°)</th>
               <th scope="col">V (Å³)</th>
               {fractions && <th scope="col">Weight %</th>}
-              {sized && <th scope="col">Size (nm)</th>}
-              {strained && <th scope="col">Microstrain (10⁻⁶)</th>}
+              {sized && <th scope="col">Size (nm){sizeAxial && ', across the axis'}</th>}
+              {sizeAxial && <th scope="col">Size along the axis (nm)</th>}
+              {strained && (
+                <th scope="col">Microstrain (10⁻⁶){strainAxial && ', across the axis'}</th>
+              )}
+              {strainAxial && <th scope="col">Microstrain along the axis (10⁻⁶)</th>}
               <th scope="col">
                 R<sub>Bragg</sub> (%)
               </th>
@@ -860,7 +960,25 @@ function Results({
                 <td>{num(p.volume, 3)}</td>
                 {fractions && <td>{pct(p.weightFraction)}</td>}
                 {sized && <td>{sizeText(p.size)}</td>}
-                {strained && <td>{p.microstrain ? num(p.microstrain, 0) : '–'}</td>}
+                {sizeAxial && (
+                  <td>{p.sizeAxial ? `${sizeText(p.sizeAxial)} ${hklText(p.sizeAxis)}` : '–'}</td>
+                )}
+                {strained && (
+                  <td>
+                    {p.microstrain
+                      ? num(p.microstrain, 0)
+                      : p.strainRange
+                        ? `${p.strainRange[0].toFixed(0)}–${p.strainRange[1].toFixed(0)} (Stephens)`
+                        : '–'}
+                  </td>
+                )}
+                {strainAxial && (
+                  <td>
+                    {p.microstrainAxial
+                      ? `${num(p.microstrainAxial, 0)} ${hklText(p.strainAxis)}`
+                      : '–'}
+                  </td>
+                )}
                 <td>
                   {p.leBail
                     ? 'Le Bail'
@@ -878,7 +996,21 @@ function Results({
         least-squares fit and usually underestimate the real uncertainty.
         {(sized || strained) &&
           ' Size and microstrain follow GSAS-II’s definitions (size with a Scherrer constant of 1 on the FWHM; microstrain as the FWHM of the 2θ broadening in radians divided by 10⁻⁶ tan θ).'}
+        {result.phases.some((p) => p.stephens) &&
+          ' For the generalized (Stephens) model the table shows the range of the microstrain over the reflections; the coefficients are listed below.'}
+        {result.axial?.refined &&
+          ` Axial divergence SH/L = ${withUncertainty(result.axial.value, result.axial.esd, 4)} (Finger–Cox–Jephcoat, as in GSAS-II).`}
       </p>
+      {result.phases
+        .filter((p) => p.stephens)
+        .map((p) => (
+          <p key={p.id} class="field-hint">
+            {p.name}, Stephens coefficients S<sub>hkl</sub> (GSAS-II units):{' '}
+            {(p.stephens ?? [])
+              .map((s) => `${s.name} = ${withUncertainty(s.value.value, s.value.esd, 3)}`)
+              .join(', ')}
+          </p>
+        ))}
       {standard && (
         <p class="message is-info">
           <strong>Amorphous and unidentified content (estimate):</strong>{' '}
@@ -1032,6 +1164,31 @@ function Results({
                 { header: 's.u. size', value: (p) => p.size?.esd ?? '' },
                 { header: 'Microstrain (1e-6)', value: (p) => p.microstrain?.value ?? '' },
                 { header: 's.u. microstrain', value: (p) => p.microstrain?.esd ?? '' },
+                { header: 'Size model', value: (p) => p.sizeModel ?? 'isotropic' },
+                { header: 'Size along axis (nm)', value: (p) => p.sizeAxial?.value ?? '' },
+                { header: 's.u. size along axis', value: (p) => p.sizeAxial?.esd ?? '' },
+                { header: 'Size axis', value: (p) => hklText(p.sizeAxis ?? null) },
+                { header: 'Microstrain model', value: (p) => p.strainModel ?? 'isotropic' },
+                {
+                  header: 'Microstrain along axis (1e-6)',
+                  value: (p) => p.microstrainAxial?.value ?? '',
+                },
+                {
+                  header: 's.u. microstrain along axis',
+                  value: (p) => p.microstrainAxial?.esd ?? '',
+                },
+                { header: 'Microstrain axis', value: (p) => hklText(p.strainAxis ?? null) },
+                {
+                  header: 'Stephens S_hkl',
+                  value: (p) =>
+                    (p.stephens ?? [])
+                      .map((s) => `${s.name}=${s.value.value}(${s.value.esd})`)
+                      .join('; '),
+                },
+                {
+                  header: 'Microstrain range (1e-6)',
+                  value: (p) => (p.strainRange ? p.strainRange.join(' to ') : ''),
+                },
                 { header: 'U (deg^2)', value: (p) => p.u.value },
                 { header: 'V (deg^2)', value: (p) => p.v.value },
                 { header: 'W (deg^2)', value: (p) => p.w.value },

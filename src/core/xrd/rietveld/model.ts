@@ -51,10 +51,29 @@
  *   further 1/tan 2θ terms (P3, P4) are not used: they matter mainly at high angle, where lab
  *   patterns show little asymmetry.
  *
- * Anisotropic broadening and absorption (other than surface roughness) are not modelled.
+ * - Anisotropic sample broadening (optional, per phase, broadening.ts): uniaxial crystallite size,
+ *   uniaxial microstrain or Stephens' generalized microstrain, as in GSAS-II. The width then
+ *   depends on the direction of each reflection, so the reflections of a family that are not
+ *   equivalent for it (for example (1 0 0) and (0 1 0) of a hexagonal cell with the size axis
+ *   along [1 0 0]) are placed as separate peaks, each with its share of Σ|F|². GSAS-II uses one
+ *   representative reflection; the two agree whenever the axis is a symmetry axis of the lattice.
+ * - Axial divergence (optional, fcj.ts): the Finger–Cox–Jephcoat profile of GSAS-II with one
+ *   parameter SH/L, which replaces the symmetric pseudo-Voigt; its low-angle side (the high-angle
+ *   side above 90°) is then computed 50 · SH/L · |cos 2θ| further out, as in GSAS-II.
+ *
+ * Absorption (other than surface roughness) is not modelled.
  */
 
 import { dSpacing, lorentzPolarisation, reciprocalMetric, type Cell } from '../reference/powder';
+import {
+  cosAngle,
+  stephensNames,
+  stephensStrain,
+  uniaxialInverseSize,
+  uniaxialStrain,
+  type LaueClass,
+} from './broadening';
+import { fcjNodes, type FcjNodes } from './fcj';
 import { tchEta, tchFwhm } from './tch';
 import {
   polarisation,
@@ -91,6 +110,14 @@ export interface PhaseModel {
   sample?: boolean;
   /** Le Bail mode: Σ|F|² of each reflection as extracted from the data (refine.ts). */
   leBail?: Float64Array;
+  /** Laue class of the generalized microstrain terms (broadening.ts); needed for that model. */
+  laue?: LaueClass;
+  /** Crystallite-size model (isotropic unless given) and its axis as a plane normal. */
+  sizeModel?: 'isotropic' | 'uniaxial';
+  sizeAxis?: Hkl;
+  /** Microstrain model (isotropic unless given) and the axis of the uniaxial one. */
+  strainModel?: 'isotropic' | 'uniaxial' | 'generalized';
+  strainAxis?: Hkl;
 }
 
 export interface Wavelengths {
@@ -120,6 +147,8 @@ export interface Layout {
   transparency: number;
   /** Suortti surface roughness A and B. */
   roughness: [number, number];
+  /** Axial divergence SH/L (fcj.ts); 0 is a symmetric profile. */
+  axial: number;
   /** Background coefficients b_0 … b_(n−1). */
   background: number[];
   phases: PhaseLayout[];
@@ -141,9 +170,16 @@ export interface PhaseLayout {
   b: number;
   /** Bérar–Baldinozzi asymmetry P1 and P2. */
   asymmetry: [number, number];
-  /** Sample broadening: 1/size (nm⁻¹), microstrain (10⁻⁶) and their Lorentzian fractions. */
+  /**
+   * Sample broadening: 1/size (nm⁻¹), microstrain (10⁻⁶) and their Lorentzian fractions. With the
+   * uniaxial models these are the equatorial values and the axial ones follow; `stephens` holds
+   * the generalized microstrain coefficients S_hkl (one per term of the Laue class).
+   */
   inverseSize: number;
+  inverseSizeAxial: number;
   microstrain: number;
+  microstrainAxial: number;
+  stephens: number[];
   sizeMix: number;
   strainMix: number;
   /**
@@ -160,6 +196,7 @@ export function makeLayout(phases: readonly PhaseModel[], backgroundTerms: numbe
   const displacement = take();
   const transparency = take();
   const roughness: [number, number] = [take(), take()];
+  const axial = take();
   const background = Array.from({ length: backgroundTerms }, take);
   const phaseLayouts = phases.map((phase) => ({
     scale: take(),
@@ -174,7 +211,10 @@ export function makeLayout(phases: readonly PhaseModel[], backgroundTerms: numbe
     b: take(),
     asymmetry: [take(), take()] as [number, number],
     inverseSize: take(),
+    inverseSizeAxial: take(),
     microstrain: take(),
+    microstrainAxial: take(),
+    stephens: (phase.laue ? stephensNames(phase.laue) : []).map(take),
     sizeMix: take(),
     strainMix: take(),
     atoms: (phase.structure?.atoms ?? []).map((atom) => ({
@@ -190,6 +230,7 @@ export function makeLayout(phases: readonly PhaseModel[], backgroundTerms: numbe
     displacement,
     transparency,
     roughness,
+    axial,
     background,
     phases: phaseLayouts,
     size: next,
@@ -281,15 +322,21 @@ export interface PlacedPeak {
   mf2: number;
   /** Width F (degrees) that sets the profile window (see the header); missing means fwhm. */
   reach?: number;
+  /** Axial-divergence profile (fcj.ts) and how much further its asymmetric side reaches. */
+  fcj?: FcjNodes;
+  fcjReach?: number;
 }
 
 /** First and last 2θ (degrees) at which a peak's profile is computed. */
 function peakRange(peak: PlacedPeak): [number, number] {
   const f = peak.reach ?? peak.fwhm;
+  const extra = peak.fcjReach ?? 0;
   // A pure Gaussian is below 10⁻³⁰ of its height beyond 8 H.
-  if (peak.eta === 0) return [peak.twoTheta - 8 * peak.fwhm, peak.twoTheta + 8 * peak.fwhm];
-  const [low, high] = peak.twoTheta > 90 ? [REACH_HIGH, REACH_LOW] : [REACH_LOW, REACH_HIGH];
-  return [peak.twoTheta - low * f, peak.twoTheta + high * f];
+  if (peak.eta === 0 && !peak.fcj)
+    return [peak.twoTheta - 8 * peak.fwhm, peak.twoTheta + 8 * peak.fwhm];
+  return peak.twoTheta > 90
+    ? [peak.twoTheta - REACH_HIGH * f, peak.twoTheta + REACH_LOW * (f + extra)]
+    : [peak.twoTheta - REACH_LOW * (f + extra), peak.twoTheta + REACH_HIGH * f];
 }
 
 /** Bérar–Baldinozzi correction As(z) = 1 + a·Fa(z) + b·Fb(z), Fa = 2z e^(−z²), Fb = 2(2z² − 3) Fa. */
@@ -358,10 +405,33 @@ export function placePeaks(
   const p1 = p[pl.asymmetry[0]] as number;
   const p2 = p[pl.asymmetry[1]] as number;
   const inverseSize = p[pl.inverseSize] as number;
+  const inverseSizeAxial = p[pl.inverseSizeAxial] as number;
   const microstrain = p[pl.microstrain] as number;
+  const microstrainAxial = p[pl.microstrainAxial] as number;
+  const stephens = pl.stephens.map((j) => p[j] as number);
   const sizeMix = p[pl.sizeMix] as number;
   const strainMix = p[pl.strainMix] as number;
+  const shl = Math.max(0, p[layout.axial] as number);
   const tch = phase.tch === true || phase.sample === true;
+  const sizeAxis = phase.sample && phase.sizeModel === 'uniaxial' ? phase.sizeAxis : undefined;
+  const strainModel = phase.sample ? (phase.strainModel ?? 'isotropic') : 'isotropic';
+  const strainAxis = strainModel === 'uniaxial' ? phase.strainAxis : undefined;
+  const laue = phase.laue;
+  const anisotropic =
+    sizeAxis !== undefined ||
+    strainAxis !== undefined ||
+    (strainModel === 'generalized' && laue !== undefined);
+  /** Inverse size and microstrain of one reflection (h k l) of spacing d (broadening.ts). */
+  const sampleOf = (hkl: Hkl, d: number): [number, number] => [
+    sizeAxis
+      ? uniaxialInverseSize(inverseSize, inverseSizeAxial, cosAngle(gStar, hkl, sizeAxis))
+      : inverseSize,
+    strainAxis
+      ? uniaxialStrain(microstrain, microstrainAxial, cosAngle(gStar, hkl, strainAxis))
+      : strainModel === 'generalized' && laue
+        ? stephensStrain(laue, stephens, hkl, d)
+        : microstrain,
+  ];
   const lines: [number, number][] = [[wavelengths.kAlpha1, 1]];
   if (wavelengths.ratio > 0) lines.push([wavelengths.kAlpha2, wavelengths.ratio]);
   const out: PlacedPeak[] = [];
@@ -383,52 +453,73 @@ export function placePeaks(
         ? marchDollase(gStar, reflection.members, phase.orientation, r)
         : 1;
     const common = scale * mf2 * orientation * Math.exp(-b / (2 * d * d));
-    lines.forEach(([lambda, weight], line) => {
-      const s = lambda / (2 * d);
-      if (!(s < 1)) return;
-      const theta = Math.asin(s);
-      const tan = Math.tan(theta);
-      const h2 = u * tan * tan + v * tan + w;
-      let fwhm = Math.sqrt(Math.max(h2, 1e-8));
-      let mix = eta;
-      let reach = fwhm;
-      if (tch) {
-        let hl = Math.max(0, lx / Math.cos(theta) + ly * tan);
-        let hg2 = Math.max(h2, 1e-8);
-        if (phase.sample) {
-          const extra = sampleWidths(inverseSize, microstrain, sizeMix, strainMix, lambda, theta);
-          hl += extra.lorentzian;
-          hg2 += extra.gaussian2;
-        }
-        fwhm = tchFwhm(Math.sqrt(hg2), hl);
-        mix = tchEta(hl / fwhm);
-        reach = Math.sqrt(hg2) + hl;
+    // Reflections of the family with the same sample broadening share a peak (see the header).
+    const groups: { share: number; sample: [number, number] }[] = [];
+    if (anisotropic) {
+      const byWidth = new Map<string, { share: number; sample: [number, number] }>();
+      const share = 1 / reflection.members.length;
+      for (const member of reflection.members) {
+        const sample = sampleOf(member, d);
+        const key = `${sample[0].toPrecision(12)}:${sample[1].toPrecision(12)}`;
+        const group = byWidth.get(key);
+        if (group) group.share += share;
+        else byWidth.set(key, { share, sample });
       }
-      const at = wavelengths.correctionsAtKAlpha1
-        ? Math.asin(wavelengths.kAlpha1 / (2 * d))
-        : theta;
-      let factor = weight * lorentzPolarisation(at);
-      if (pola !== 0.5) factor *= polarisation(pola, at) / (1 + Math.cos(2 * at) ** 2);
-      if (rough) factor *= surfaceRoughness(roughA, roughB, at);
-      if (wavelengths.variableSlit) factor *= variableSlitFactor(at);
-      out.push({
-        phase: index,
-        reflection: k,
-        twoTheta:
+      groups.push(...byWidth.values());
+    } else groups.push({ share: 1, sample: [inverseSize, microstrain] });
+    for (const group of groups)
+      lines.forEach(([lambda, weight], line) => {
+        const s = lambda / (2 * d);
+        if (!(s < 1)) return;
+        const theta = Math.asin(s);
+        const tan = Math.tan(theta);
+        const h2 = u * tan * tan + v * tan + w;
+        let fwhm = Math.sqrt(Math.max(h2, 1e-8));
+        let mix = eta;
+        let reach = fwhm;
+        let lorentzian = 0;
+        if (tch) {
+          let hl = Math.max(0, lx / Math.cos(theta) + ly * tan);
+          let hg2 = Math.max(h2, 1e-8);
+          if (phase.sample) {
+            const [size, strain] = group.sample;
+            const extra = sampleWidths(size, strain, sizeMix, strainMix, lambda, theta);
+            hl += extra.lorentzian;
+            hg2 += extra.gaussian2;
+          }
+          fwhm = tchFwhm(Math.sqrt(hg2), hl);
+          mix = tchEta(hl / fwhm);
+          reach = Math.sqrt(hg2) + hl;
+          lorentzian = hl;
+        }
+        const at = wavelengths.correctionsAtKAlpha1
+          ? Math.asin(wavelengths.kAlpha1 / (2 * d))
+          : theta;
+        let factor = weight * lorentzPolarisation(at);
+        if (pola !== 0.5) factor *= polarisation(pola, at) / (1 + Math.cos(2 * at) ** 2);
+        if (rough) factor *= surfaceRoughness(roughA, roughB, at);
+        if (wavelengths.variableSlit) factor *= variableSlitFactor(at);
+        const twoTheta =
           (2 * theta) / RAD +
           zero +
           displacement * Math.cos(theta) +
-          transparencyShift(transparency, theta),
-        area: common * factor,
-        fwhm,
-        eta: mix,
-        asymmetry: [p1 / tan, p2 / tan],
-        line: line as 0 | 1,
-        d,
-        mf2,
-        reach,
+          transparencyShift(transparency, theta);
+        const fcj = shl > 0 ? fcjNodes(twoTheta, shl, tch ? lorentzian : mix * fwhm) : null;
+        out.push({
+          phase: index,
+          reflection: k,
+          twoTheta,
+          area: common * factor * group.share,
+          fwhm,
+          eta: mix,
+          asymmetry: [p1 / tan, p2 / tan],
+          line: line as 0 | 1,
+          d,
+          mf2,
+          reach,
+          ...(fcj && { fcj, fcjReach: shl * Math.abs(Math.cos(twoTheta * RAD)) }),
+        });
       });
-    });
   });
   return out;
 }
@@ -485,12 +576,26 @@ export function addProfiles(
     const lNorm = (2 / Math.PI) * inv;
     const [a, b] = peak.asymmetry;
     const asymmetric = a !== 0 || b !== 0;
-    for (let i = start; i < end; i++) {
-      const t = ((x[i] as number) - peak.twoTheta) * inv;
-      const t2 = 4 * t * t;
+    const lorentz = peak.eta * lNorm;
+    const gaussian = (1 - peak.eta) * gNorm;
+    /** Pseudo-Voigt of unit area centred at 0, at u (degrees) from the centre. */
+    const voigt = (u: number) => {
+      const t2 = 4 * u * u * inv * inv;
       // The Gaussian part is below 10⁻⁴⁰ of its height for t² > 135, so it is skipped there.
-      const gauss = t2 < 135 ? (1 - peak.eta) * gNorm * Math.exp(-Math.LN2 * t2) : 0;
-      const value = peak.area * ((peak.eta * lNorm) / (1 + t2) + gauss);
+      return lorentz / (1 + t2) + (t2 < 135 ? gaussian * Math.exp(-Math.LN2 * t2) : 0);
+    };
+    const fcj = peak.fcj;
+    for (let i = start; i < end; i++) {
+      const xi = x[i] as number;
+      let shape: number;
+      if (fcj) {
+        shape = 0;
+        const { centres, weights } = fcj;
+        for (let j = 0; j < centres.length; j++)
+          shape += (weights[j] as number) * voigt(xi - (centres[j] as number));
+      } else shape = voigt(xi - peak.twoTheta);
+      const value = peak.area * shape;
+      const t = (xi - peak.twoTheta) * inv;
       out[i] = (out[i] as number) + (asymmetric ? value * asymmetryFactor(t, a, b) : value);
     }
   });

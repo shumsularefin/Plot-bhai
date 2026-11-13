@@ -14,7 +14,7 @@ Writes tests/fixtures/validation/zno-anisotropic.json with
                 size along [001] and generalized (Stephens) microstrain, with Poisson noise (seed 41),
                 refined in GSAS-II with U, V, W, X, Y fixed (scale, background, cell, SH/L, size,
                 microstrain). The pattern goes to zno-anisotropic.xy.
-No anomalous dispersion and U_iso = 0, as this site's stored reference intensities.
+No anomalous dispersion and U_iso = 0 for both atoms (the test computes |F|^2 with the same).
 """
 import json, os, sys
 import numpy as np

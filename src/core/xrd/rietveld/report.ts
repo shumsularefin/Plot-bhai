@@ -54,14 +54,14 @@ export function rietveldMethods(input: RietveldMethodsInput): string {
     ...(choices.zero ? ['the zero shift'] : []),
     ...(choices.displacement ? ['the sample displacement'] : []),
     ...(choices.cell ? ['the unit cell parameters'] : []),
-    ...(choices.width
+    ...(choices.width && !result.instrument
       ? [
           choices.tch
             ? 'the Gaussian W and Lorentzian X widths'
             : 'the Caglioti W parameter and the pseudo-Voigt mixing parameter η',
         ]
       : []),
-    ...(choices.widthSlope
+    ...(choices.widthSlope && !result.instrument
       ? [
           choices.tch
             ? 'the Gaussian U, V and Lorentzian Y widths'
@@ -80,6 +80,11 @@ export function rietveldMethods(input: RietveldMethodsInput): string {
     ...(choices.overallB ? ['an overall displacement factor B'] : []),
     ...(choices.roughness
       ? ['the Suortti surface-roughness correction (J. Appl. Cryst. 5 (1972) 325)']
+      : []),
+    ...(choices.axialDivergence && result.axial?.refined
+      ? [
+          'the axial divergence SH/L of the Finger–Cox–Jephcoat asymmetry (J. Appl. Cryst. 27 (1994) 892), in the form used by GSAS-II',
+        ]
       : []),
     ...(choices.asymmetry
       ? [
@@ -142,11 +147,40 @@ export function rietveldMethods(input: RietveldMethodsInput): string {
     sentences.push(
       `${list(leBail.map((p) => p.name))} ${leBail.length > 1 ? 'were' : 'was'} fitted by the Le Bail method (A. Le Bail, H. Duroy and J. L. Fourquet, Mat. Res. Bull. 23 (1988) 447), with intensities extracted from the data instead of calculated from a structure.`,
     );
-  const sized = result.phases.filter((p) => p.size || p.microstrain);
-  if (sized.length > 0)
+  if (!result.axial?.refined && (result.axial?.value ?? 0) > 0)
+    sentences.push(
+      `Axial-divergence asymmetry was described by the Finger–Cox–Jephcoat function (J. Appl. Cryst. 27 (1994) 892) with SH/L = ${result.axial.value.toFixed(4)}, fixed.`,
+    );
+  const sized = result.phases.filter((p) => p.size || p.microstrain || p.stephens);
+  const anisotropic = sized.filter(
+    (p) => p.sizeModel === 'uniaxial' || (p.strainModel ?? 'isotropic') !== 'isotropic',
+  );
+  const axis = (h: readonly number[] | null) => (h ? `[${h.join(' ')}]` : '');
+  if (anisotropic.length > 0)
+    sentences.push(
+      `Anisotropic broadening was modelled with GSAS-II's definitions: ${list(
+        anisotropic.map((p) =>
+          [
+            p.sizeModel === 'uniaxial' && p.size && p.sizeAxial
+              ? `${p.name} uniaxial crystallite size ${withUncertainty(p.size.value, p.size.esd, 1)} nm across and ${withUncertainty(p.sizeAxial.value, p.sizeAxial.esd, 1)} nm along ${axis(p.sizeAxis)}`
+              : '',
+            p.strainModel === 'uniaxial' && p.microstrain && p.microstrainAxial
+              ? `${p.sizeModel === 'uniaxial' ? '' : `${p.name} `}uniaxial microstrain ${withUncertainty(p.microstrain.value, p.microstrain.esd, 0)} × 10⁻⁶ across and ${withUncertainty(p.microstrainAxial.value, p.microstrainAxial.esd, 0)} × 10⁻⁶ along ${axis(p.strainAxis)}`
+              : '',
+            p.strainModel === 'generalized' && p.stephens
+              ? `${p.sizeModel === 'uniaxial' ? '' : `${p.name} `}generalized microstrain (P. W. Stephens, J. Appl. Cryst. 32 (1999) 281) with ${list(p.stephens.map((t) => `${t.name} = ${withUncertainty(t.value.value, t.value.esd, 3)}`))}${p.strainRange ? `, giving μ = ${p.strainRange[0].toFixed(0)}–${p.strainRange[1].toFixed(0)} × 10⁻⁶ over the reflections` : ''}`
+              : '',
+          ]
+            .filter(Boolean)
+            .join('; '),
+        ),
+      )}${result.instrument ? '' : ' (the instrument profile was not fixed, so the sizes are lower limits)'}.`,
+    );
+  const isotropic = sized.filter((p) => !anisotropic.includes(p));
+  if (isotropic.length > 0)
     sentences.push(
       `Isotropic sample broadening was modelled as in GSAS-II, with Lorentzian size broadening (180/π)λ/(D cos θ) and strain broadening (180/π)·10⁻⁶·μ·tan θ (degrees 2θ): ${list(
-        sized.map((p) =>
+        isotropic.map((p) =>
           [
             p.size && Number.isFinite(p.size.value)
               ? `${p.name} D = ${withUncertainty(p.size.value, p.size.esd, 1)} nm`

@@ -88,6 +88,8 @@ describe('Thompson–Cox–Hastings conversion for GSAS-II', () => {
       expect(items).toHaveProperty([key]);
     expect(items['Type']).toBe('PXC');
     expect(Number(items['Zero'])).toBe(0.012);
+    // No axial divergence given: GSAS-II's minimum 0.002.
+    expect(Number(items['SH/L'])).toBe(0.002);
     expect(
       instprm({
         kAlpha1: 0.7093171,
@@ -149,8 +151,19 @@ describe('Reading a GSAS-II .instprm file', () => {
     expect(read.polarisation).toBe(0.5);
     expect(read.kAlpha1).toBe(1.5405929);
     expect(read.ratio).toBe(0.5);
-    // SH/L = 0.002 is reported as not carried over.
-    expect(read.notes.some((n) => n.includes('SH/L'))).toBe(true);
+    // SH/L (axial divergence, fcj.ts) is carried over exactly.
+    expect(read.profile.shl).toBe(0.002);
+    expect(read.notes.some((n) => n.includes('SH/L'))).toBe(false);
+    // Below GSAS-II's minimum it is raised to 0.002 (getPowderProfile), with a note.
+    const small = readInstprm(
+      readFileSync(join(process.cwd(), 'scripts/validation/rietveld/cu.instprm'), 'utf8').replace(
+        'SH/L:0.002',
+        'SH/L:0.0001',
+      ),
+    );
+    if ('error' in small) throw new Error(small.error);
+    expect(small.profile.shl).toBe(0.002);
+    expect(small.notes.some((n) => n.includes('SH/L'))).toBe(true);
   });
 
   it('round-trips the file this site writes', () => {
@@ -162,10 +175,12 @@ describe('Reading a GSAS-II .instprm file', () => {
       zero: 0.012,
       polarisation: 0.5563,
       profile: tchExact(profile),
+      shl: 0.0273,
       comments: ['test'],
     });
     const read = readInstprm(text);
     if ('error' in read) throw new Error(read.error);
+    expect(read.profile.shl).toBeCloseTo(0.0273, 12);
     for (const key of ['u', 'v', 'w', 'x', 'y'] as const)
       expect(read.profile[key]).toBeCloseTo(profile[key], 9);
     expect(read.polarisation).toBeCloseTo(0.5563, 12);

@@ -48,7 +48,7 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 16g       | Owner additions: TCH, U_ij, low-symmetry indexing, CI checks | done    |
 | 17a       | Rietveld: size/strain, optics, Le Bail, statistics           | done    |
 | 17b       | Rietveld: shared-site substitution, Le Bail of indexed cells | done    |
-| 17c       | Rietveld: anisotropic broadening, FCJ axial divergence       | planned |
+| 17c       | Rietveld: anisotropic broadening, FCJ axial divergence       | done    |
 | 17d       | Rietveld: anomalous dispersion, capillary geometry           | planned |
 | 17e       | Rietveld: analytic derivatives (speed)                       | planned |
 
@@ -585,7 +585,7 @@ list are in docs/rietveld-roadmap.md. Every sub-stage adds a GSAS-II case to
   correlations, reflection list.
 - **17b (done)** A second element on a site with the total occupancy fixed and shared x and B (doped
   materials); Le Bail of a cell from "Index an unknown pattern", reflections from its centring.
-- **17c** Stephens anisotropic microstrain and GSAS-II's uniaxial size; Finger–Cox–Jephcoat axial
+- **17c (done)** Stephens anisotropic microstrain and GSAS-II's uniaxial size; Finger–Cox–Jephcoat axial
   divergence (SH/L) so .instprm files transfer exactly.
 - **17d** Anomalous dispersion f′, f″ from a table the owner approves; capillary geometry with
   absorption.

@@ -48,9 +48,18 @@
 
 import { ELEMENT_BY_SYMBOL } from '../../elements';
 import { levenbergMarquardt } from '../../math/levenbergMarquardt';
-import type { Cell, FormFactors } from '../reference/powder';
+import { reciprocalMetric, type Cell, type FormFactors } from '../reference/powder';
 import type { ReferencePeak, StoredStructure } from '../reference/types';
 import { cellKind, cellParameterNames, cellVolume } from './cell';
+import {
+  laueClass,
+  stephensFromIsotropic,
+  stephensNames,
+  stephensStrain,
+  stephensSum,
+  uniaxialStrain,
+  cosAngle,
+} from './broadening';
 import {
   profileWindow,
   peakWindows,
@@ -100,6 +109,11 @@ export interface RietveldPhaseInput {
   leBail?: boolean;
   /** Dopants placed on sites of the structure (structure.ts); needs the stored structure. */
   substitutions?: Substitution[];
+  /** Space-group number, when known: it tells −31m from −3m1 for the Stephens terms. */
+  spaceGroupNumber?: number;
+  /** Axes (plane normals) of the uniaxial size and microstrain models; [0 0 1] if missing. */
+  sizeAxis?: Hkl;
+  strainAxis?: Hkl;
 }
 
 /** Instrument profile of the TCH shape, degrees 2θ (U, V, W in deg², X, Y in deg). */
@@ -109,6 +123,8 @@ export interface InstrumentProfile {
   w: number;
   x: number;
   y: number;
+  /** Axial divergence SH/L (fcj.ts); missing means 0, a symmetric profile. */
+  shl?: number;
 }
 
 /** Which groups of parameters are refined. Scale factors and background always are. */
@@ -148,6 +164,12 @@ export interface RefineChoices {
   strain?: boolean;
   /** Lorentzian fractions of the size and strain broadening (otherwise 1, as in GSAS-II). */
   sampleMix?: boolean;
+  /** Crystallite-size model with `size` (broadening.ts); isotropic if missing. */
+  sizeModel?: 'isotropic' | 'uniaxial';
+  /** Microstrain model with `strain` (broadening.ts); isotropic if missing. */
+  strainModel?: 'isotropic' | 'uniaxial' | 'generalized';
+  /** Axial divergence SH/L (Finger–Cox–Jephcoat asymmetry, fcj.ts), when no instrument is fixed. */
+  axialDivergence?: boolean;
 }
 
 export const DEFAULT_CHOICES: RefineChoices = {
@@ -243,6 +265,20 @@ export interface RietveldPhaseResult {
   /** Lorentzian fractions of the size and strain broadening. */
   sizeMix: Estimate;
   strainMix: Estimate;
+  /**
+   * Anisotropic broadening (broadening.ts). Uniaxial: `size` and `microstrain` above are the
+   * equatorial values (across the axis), these the axial ones (along it). Generalized: the
+   * Stephens coefficients S_hkl in GSAS-II's units, and the range of μ_hkl over the reflections in
+   * the data range (`microstrain` is then null).
+   */
+  sizeModel: 'isotropic' | 'uniaxial';
+  sizeAxis: Hkl | null;
+  sizeAxial: Estimate | null;
+  strainModel: 'isotropic' | 'uniaxial' | 'generalized';
+  strainAxis: Hkl | null;
+  microstrainAxial: Estimate | null;
+  stephens: { name: string; value: Estimate }[] | null;
+  strainRange: [number, number] | null;
   /** Reflection list in the data range, with observed (partitioned) and calculated intensities. */
   reflections: ReflectionRow[];
   /** Kα1 positions (degrees 2θ) of the reflections inside the data range, with one (h k l) each. */
@@ -288,6 +324,8 @@ export interface RietveldResult {
   transparency: Estimate;
   /** Suortti surface roughness A and B (A = 1, B = 0 and fixed unless refined). */
   roughness: [Estimate, Estimate];
+  /** Axial divergence SH/L (0 and fixed unless refined or given by the fixed instrument). */
+  axial: Estimate;
   /** Polarisation coefficient P used (GSAS-II's Polariz.). */
   polarisation: number;
   /** The fixed instrument profile, when one was used. */
@@ -376,6 +414,10 @@ export function refineRietveld(
   const y = Float64Array.from(keep, (i) => input.y[i] as number);
   const instrument = input.instrument ?? null;
   const sampleBroadening = Boolean(choices.size || choices.strain);
+  const sizeModel = choices.size ? (choices.sizeModel ?? 'isotropic') : 'isotropic';
+  const strainModel = choices.strain ? (choices.strainModel ?? 'isotropic') : 'isotropic';
+  // SH/L is refined when chosen, unless the fixed instrument profile already gives it.
+  const refineAxial = Boolean(choices.axialDivergence && !((instrument?.shl ?? 0) > 0));
   const tch = Boolean(choices.tch || instrument || sampleBroadening);
   const n = x.length;
   if (n < 50) return { ok: false, error: 'The pattern has too few points for a refinement.' };
@@ -423,6 +465,12 @@ export function refineRietveld(
       ...(tch && { tch: true }),
       ...(sampleBroadening && { sample: true }),
       ...(phase.leBail && { leBail: Float64Array.from(reflections, (r) => r.mf2 || 1) }),
+      // The anisotropic models start isotropic and are switched on in their own stage.
+      ...(strainModel === 'generalized' && {
+        laue: laueClass(kind, phase.spaceGroupNumber),
+      }),
+      sizeAxis: phase.sizeAxis ?? [0, 0, 1],
+      strainAxis: phase.strainAxis ?? [0, 0, 1],
     };
   });
   if (setupError) return { ok: false, error: setupError };
@@ -454,6 +502,13 @@ export function refineRietveld(
   // A = 0, B = 0 is a smooth surface (SR = 1); B is released first, then A (see the stages).
   bound(layout.roughness[0], 0, 1, 0, 0.1);
   bound(layout.roughness[1], 0, 2, 0, 0.01);
+  bound(
+    layout.axial,
+    0,
+    0.2,
+    refineAxial ? instrument?.shl || 0.01 : (instrument?.shl ?? 0),
+    0.001,
+  );
   layout.background.forEach((j, i) =>
     bound(j, -Infinity, Infinity, i === 0 ? percentile(y, 0.1) : 0, Math.max(yMax, 1) * 1e-3),
   );
@@ -474,6 +529,9 @@ export function refineRietveld(
     bound(pl.ly, -1, 2, instrument?.y ?? 0, 0.01);
     bound(pl.inverseSize, 0, 2, choices.size ? 0.002 : 0, 0.01);
     bound(pl.microstrain, 0, 50000, choices.strain ? 100 : 0, 100);
+    bound(pl.inverseSizeAxial, 0, 2, 0, 0.01);
+    bound(pl.microstrainAxial, 0, 50000, 0, 100);
+    for (const j of pl.stephens) bound(j, -Infinity, Infinity, 0, 1);
     bound(pl.sizeMix, 0, 1, 1, 0.1);
     bound(pl.strainMix, 0, 1, 1, 0.1);
     bound(pl.orientation, 0.3, 3, 1, 1);
@@ -505,6 +563,7 @@ export function refineRietveld(
   labels[layout.transparency] = 'sample transparency';
   labels[layout.roughness[0]] = 'surface roughness A';
   labels[layout.roughness[1]] = 'surface roughness B';
+  labels[layout.axial] = 'axial divergence SH/L';
   layout.background.forEach((j, i) => (labels[j] = `background term ${i}`));
   phases.forEach((phase, k) => {
     const pl = layout.phases[k] as (typeof layout.phases)[number];
@@ -524,6 +583,12 @@ export function refineRietveld(
     labels[pl.asymmetry[1]] = `${phase.name}: asymmetry P2`;
     labels[pl.inverseSize] = `${phase.name}: 1/size`;
     labels[pl.microstrain] = `${phase.name}: microstrain`;
+    labels[pl.inverseSizeAxial] = `${phase.name}: 1/size along the axis`;
+    labels[pl.microstrainAxial] = `${phase.name}: microstrain along the axis`;
+    if (phase.laue)
+      stephensNames(phase.laue).forEach(
+        (name, i) => (labels[pl.stephens[i] as number] = `${phase.name}: ${name}`),
+      );
     labels[pl.sizeMix] = `${phase.name}: size Lorentzian fraction`;
     labels[pl.strainMix] = `${phase.name}: strain Lorentzian fraction`;
     phase.structure?.atoms.forEach((atom, a) => {
@@ -557,7 +622,10 @@ export function refineRietveld(
       pl.b,
       ...pl.asymmetry,
       pl.inverseSize,
+      pl.inverseSizeAxial,
       pl.microstrain,
+      pl.microstrainAxial,
+      ...pl.stephens,
       pl.sizeMix,
       pl.strainMix,
       ...pl.atoms.flatMap((al) => [...al.coords, al.occupancy, al.b, ...al.aniso, al.fraction]),
@@ -803,6 +871,9 @@ export function refineRietveld(
       'Unit cells',
       layout.phases.flatMap((pl) => pl.cell),
     );
+  // The axial asymmetry is a property of the instrument, released before the sample widths so
+  // that they do not start by absorbing it.
+  if (refineAxial) stage('Axial divergence (SH/L)', [layout.axial]);
   // Without a fixed instrument, X (∝ 1/cos θ) cannot be told from the size and Y (∝ tan θ) from
   // the microstrain, so each stays fixed when its sample term is refined.
   const refineX = !choices.size;
@@ -835,6 +906,58 @@ export function refineRietveld(
         ...(choices.strain ? [pl.microstrain] : []),
       ]),
     );
+  if (sizeModel === 'uniaxial' || strainModel !== 'isotropic') {
+    // From the isotropic result: the axial values equal the equatorial ones, and the Stephens
+    // coefficients give the refined microstrain in every direction (broadening.ts). An isotropic
+    // microstrain of about 0 (when the anisotropic widths cancel on average) is raised to 100 × 10⁻⁶:
+    // at 0 the uniaxial and Stephens strains are singular (μ = d²√ΣS·T has no derivative there)
+    // and every S_hkl would start at 0 with no scale for its steps.
+    phases.forEach((phase, k) => {
+      const pl = layout.phases[k] as (typeof layout.phases)[number];
+      if (strainModel !== 'isotropic')
+        current[pl.microstrain] = Math.max(current[pl.microstrain] as number, 100);
+      if (sizeModel === 'uniaxial') {
+        phase.sizeModel = 'uniaxial';
+        current[pl.inverseSizeAxial] = current[pl.inverseSize] as number;
+      }
+      if (strainModel === 'uniaxial') {
+        phase.strainModel = 'uniaxial';
+        current[pl.microstrainAxial] = current[pl.microstrain] as number;
+      }
+      if (strainModel === 'generalized' && phase.laue) {
+        phase.strainModel = 'generalized';
+        const gStar = reciprocalMetric(phaseCell(phase, pl, current));
+        const start = stephensFromIsotropic(
+          phase.laue,
+          current[pl.microstrain] as number,
+          gStar,
+          phase.reflections.flatMap((r) => r.members),
+        );
+        const size = Math.max(...start.map(Math.abs), 1e-12);
+        start.forEach((v, i) => {
+          const j = pl.stephens[i] as number;
+          current[j] = v;
+          typical[j] = Math.max(Math.abs(v), 1e-3 * size);
+        });
+      }
+    });
+    // The isotropic microstrain is replaced by the Stephens coefficients, not refined with them.
+    if (strainModel === 'generalized') for (const pl of layout.phases) mask[pl.microstrain] = false;
+    stage(
+      [
+        sizeModel === 'uniaxial' && 'Crystallite size along the axis',
+        strainModel === 'uniaxial' && 'microstrain along the axis',
+        strainModel === 'generalized' && 'generalized (Stephens) microstrain',
+      ]
+        .filter(Boolean)
+        .join(' and '),
+      layout.phases.flatMap((pl) => [
+        ...(sizeModel === 'uniaxial' ? [pl.inverseSizeAxial] : []),
+        ...(strainModel === 'uniaxial' ? [pl.microstrainAxial] : []),
+        ...(strainModel === 'generalized' ? pl.stephens : []),
+      ]),
+    );
+  }
   if (sampleBroadening && choices.sampleMix)
     stage(
       'Lorentzian fractions of size and strain',
@@ -1017,6 +1140,7 @@ export function refineRietveld(
 
   const xLo = x[0] as number;
   const xHi = x[n - 1] as number;
+  const negativeStrain: string[] = [];
   const phaseResults: RietveldPhaseResult[] = phases.map((phase, k) => {
     const pl = layout.phases[k] as (typeof layout.phases)[number];
     const names = cellParameterNames(phase.kind);
@@ -1086,16 +1210,54 @@ export function refineRietveld(
         };
       });
     // Size from 1/D: σ(D) = σ(1/D) / (1/D)²; no size broadening found when 1/D is at 0.
-    const inverse = estimate(pl.inverseSize);
-    const size: Estimate | null = choices.size
-      ? inverse.value > 0
-        ? {
-            value: 1 / inverse.value,
-            esd: inverse.esd / inverse.value ** 2,
-            refined: true,
-          }
-        : { value: Infinity, esd: NaN, refined: true }
-      : null;
+    const sizeOf = (j: number): Estimate => {
+      const inverse = estimate(j);
+      return inverse.value > 0
+        ? { value: 1 / inverse.value, esd: inverse.esd / inverse.value ** 2, refined: true }
+        : { value: Infinity, esd: NaN, refined: true };
+    };
+    const size: Estimate | null = choices.size ? sizeOf(pl.inverseSize) : null;
+    const uniaxialSize = phase.sizeModel === 'uniaxial';
+    const phaseStrain = phase.strainModel ?? 'isotropic';
+    // μ_hkl of every reflection in the data range, for the anisotropic microstrain models.
+    const gStar = reciprocalMetric(phaseCell(phase, pl, params));
+    const inRange = peaks.filter(
+      (peak) => peak.line === 0 && peak.twoTheta >= xLo && peak.twoTheta <= xHi,
+    );
+    const strains =
+      phaseStrain === 'isotropic'
+        ? []
+        : inRange.flatMap((peak) =>
+            (phase.reflections[peak.reflection] as (typeof phase.reflections)[number]).members.map(
+              (member) =>
+                phaseStrain === 'generalized' && phase.laue
+                  ? stephensStrain(
+                      phase.laue,
+                      pl.stephens.map((j) => params[j] as number),
+                      member,
+                      peak.d,
+                    )
+                  : uniaxialStrain(
+                      params[pl.microstrain] as number,
+                      params[pl.microstrainAxial] as number,
+                      cosAngle(gStar, member, phase.strainAxis ?? [0, 0, 1]),
+                    ),
+            ),
+          );
+    const negative =
+      phaseStrain === 'generalized' && phase.laue
+        ? inRange.some((peak) =>
+            (phase.reflections[peak.reflection] as (typeof phase.reflections)[number]).members.some(
+              (member) =>
+                stephensSum(
+                  phase.laue as NonNullable<typeof phase.laue>,
+                  pl.stephens.map((j) => params[j] as number),
+                  member,
+                ) < 0,
+            ),
+          )
+        : false;
+    if (negative) negativeStrain.push(phase.name);
     const states = atomStates(phase, pl, params);
     const atoms: AtomResult[] | null = phase.structure
       ? phase.structure.atoms.map((atom, a) => {
@@ -1179,9 +1341,24 @@ export function refineRietveld(
       atoms,
       leBail: phase.leBail !== undefined,
       size,
-      microstrain: choices.strain ? estimate(pl.microstrain) : null,
+      microstrain:
+        choices.strain && phaseStrain !== 'generalized' ? estimate(pl.microstrain) : null,
       sizeMix: estimate(pl.sizeMix),
       strainMix: estimate(pl.strainMix),
+      sizeModel: uniaxialSize ? 'uniaxial' : 'isotropic',
+      sizeAxis: uniaxialSize ? (phase.sizeAxis ?? [0, 0, 1]) : null,
+      sizeAxial: uniaxialSize ? sizeOf(pl.inverseSizeAxial) : null,
+      strainModel: phaseStrain,
+      strainAxis: phaseStrain === 'uniaxial' ? (phase.strainAxis ?? [0, 0, 1]) : null,
+      microstrainAxial: phaseStrain === 'uniaxial' ? estimate(pl.microstrainAxial) : null,
+      stephens:
+        phaseStrain === 'generalized' && phase.laue
+          ? stephensNames(phase.laue).map((name, i) => ({
+              name,
+              value: estimate(pl.stephens[i] as number),
+            }))
+          : null,
+      strainRange: strains.length > 0 ? [Math.min(...strains), Math.max(...strains)] : null,
       reflections,
       ticks: peaks
         .filter((peak) => peak.line === 0 && peak.twoTheta >= xLo && peak.twoTheta <= xHi)
@@ -1242,6 +1419,10 @@ export function refineRietveld(
   if (sampleBroadening && !instrument)
     warnings.push(
       'The instrument profile was not fixed, so the crystallite size and microstrain include the instrument’s own broadening (the size is a lower limit, the strain an upper limit). Refine a standard such as LaB₆ or Si first and use its profile as the fixed instrument profile.',
+    );
+  if (negativeStrain.length > 0)
+    warnings.push(
+      `${negativeStrain.join(', ')}: the refined Stephens coefficients give a negative strain variance for some reflections, which is not physical (their strain broadening is taken as zero). Refine the isotropic or uniaxial microstrain instead, or fix some of the coefficients.`,
     );
   if (choices.size)
     phaseResults.forEach((phase) => {
@@ -1351,6 +1532,7 @@ export function refineRietveld(
     displacement: estimate(layout.displacement),
     transparency: estimate(layout.transparency),
     roughness: [estimate(layout.roughness[0]), estimate(layout.roughness[1])],
+    axial: estimate(layout.axial),
     polarisation: wavelengths.polarisation ?? 0.5,
     instrument,
     excluded,
