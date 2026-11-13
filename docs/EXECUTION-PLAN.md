@@ -52,6 +52,7 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 17d       | Rietveld: anomalous dispersion, capillary geometry           | done    |
 | 17e       | Rietveld: analytic derivatives (speed)                       | done    |
 | 17f       | Rietveld: spherical-harmonic texture                         | done    |
+| 17g       | Rietveld: sequential refinement of a series                  | done    |
 
 ## The one prompt you paste in every new session
 
@@ -594,3 +595,7 @@ list are in docs/rietveld-roadmap.md. Every sub-stage adds a GSAS-II case to
   scans stay fast.
 - **17f (done)** Spherical-harmonic texture (GSAS-II's cylindrical model, orders 2–16, every Laue class),
   as an alternative to March–Dollase, checked against GSAS-II in the Validation workflow.
+- **17g (done)** Sequential refinement of a series (temperature, composition, time): every loaded
+  pattern refined in order of its value, each starting from the previous refined cells, with a
+  table, a plot of any refined quantity and a weighted straight line (thermal expansion, Vegard's
+  law); checked against GSAS-II one by one and GSAS-II's own sequential refinement.

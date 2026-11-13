@@ -13,6 +13,7 @@ import {
   type RietveldResult,
   type InstrumentProfile,
 } from '../../core/xrd/rietveld/refine';
+import type { SeriesPoint } from '../../core/xrd/rietveld/sequential';
 import type { Substitution } from '../../core/xrd/rietveld/structure';
 import { DEFAULT_EXPORT_SETTINGS } from '../../ui/plot/export';
 import type { PlotSettings } from '../../ui/plot/PlotPanel';
@@ -112,6 +113,24 @@ export interface RietveldState {
    * its methods sentences.
    */
   result: { key: string; outcome: RietveldResult; methods: string } | null;
+  /** Sequential refinement of the loaded patterns as a series; missing means not set up. */
+  series?: SeriesSettings;
+}
+
+/** A sequential refinement: every loaded pattern refined with the settings above, in order. */
+export interface SeriesSettings {
+  /** What the series value is, with its unit in brackets, for example "Temperature (°C)". */
+  label: string;
+  /** Series value typed per pattern id; missing means the suggestion from the file name. */
+  values: Record<string, number | null>;
+  /** Pattern ids left out of the series. */
+  excluded: string[];
+  /** Start each pattern from the cells refined on the previous one (GSAS-II's "copy forward"). */
+  copyForward: boolean;
+  /** Key of the quantity plotted and fitted with a line (see seriesQuantities). */
+  quantity?: string;
+  /** Last series result, with a key of the settings it was made with. */
+  result: { key: string; points: SeriesPoint[] } | null;
 }
 
 export type MonochromatorChoice = 'none' | 'graphite' | 'germanium' | 'custom';

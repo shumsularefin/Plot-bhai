@@ -28,6 +28,8 @@ import {
   type XrdData,
 } from './data';
 import { RietveldSetup } from './RietveldSetup';
+import { SeriesSection } from './SeriesSection';
+import type { SeriesPattern, SeriesRequest } from '../../workers/rietveld.worker';
 import { SubstitutionPanel, validSubstitutions } from './SubstitutionPanel';
 import { parseRanges, polarisationOf } from './rietveldSettings';
 import { xrdLabels } from './labels';
@@ -232,15 +234,13 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
   const standardPhase = standard && included.find((p) => p.id === standard.phaseId);
   // The TCH profile is needed for a fixed instrument and for size and strain broadening.
   const tchForced = Boolean(instrument || settings.choices.size || settings.choices.strain);
-  const key = JSON.stringify([
-    pattern?.id,
+  const sharedParts = [
     included.map((p) => [p.id, orientationOf(p), textureOf(p), uniaxial && axisOf(p)]),
     settings.choices,
     settings.backgroundTerms,
     settings.from,
     settings.to,
     data.radiation,
-    useCleaned && cleaning,
     polarisation,
     optics.variableSlit,
     capillary && optics.muR,
@@ -250,6 +250,18 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
     leBail.filter((id) => included.some((p) => p.id === id)),
     standardPhase && standard?.percent,
     included.map((p) => validSubstitutions(p, settings.substitutions?.[p.id])),
+  ];
+  // The single refinement's key keeps its order from before the series existed (saved results).
+  const key = JSON.stringify([
+    pattern?.id,
+    ...sharedParts.slice(0, 6),
+    useCleaned && cleaning,
+    ...sharedParts.slice(6),
+  ]);
+  const seriesKey = JSON.stringify([
+    sharedParts,
+    useCleaned,
+    data.patterns.map((p) => useCleaned && processingFor(data, p.id)),
   ]);
   const result: RietveldResult | null =
     settings.result?.outcome.ok === true ? settings.result.outcome : null;
@@ -283,6 +295,74 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
         : 'The refinement was made on the unprocessed data.'
     }`;
 
+  /** Everything but the data: the same for the single refinement and every pattern of a series. */
+  const sharedInput = (): Omit<RietveldInput, 'x' | 'y'> => ({
+    wavelengths: {
+      kAlpha1: lines.kAlpha1,
+      kAlpha2: lines.kAlpha2,
+      ratio,
+      polarisation,
+      variableSlit: optics.variableSlit,
+      ...(capillary && { capillary: true }),
+    },
+    ...(capillary && { muR: optics.muR ?? 0 }),
+    phases: included.map((p) => ({
+      id: p.id,
+      name: p.name,
+      crystalSystem: p.crystalSystem,
+      cell: p.cell,
+      peaks: p.peaks,
+      ...(p.cellContents && { cellContents: p.cellContents }),
+      ...(p.structure && { structure: p.structure }),
+      orientation: settings.choices.orientation ? orientationOf(p) : null,
+      ...(textureOf(p) > 0 && { textureOrder: textureOf(p) }),
+      spaceGroupNumber: p.spaceGroup.number,
+      sizeAxis: axisOf(p),
+      strainAxis: axisOf(p),
+      ...(leBail.includes(p.id) && { leBail: true }),
+      ...(!leBail.includes(p.id) && {
+        substitutions: validSubstitutions(p, settings.substitutions?.[p.id]),
+      }),
+    })),
+    choices: settings.choices,
+    backgroundTerms: settings.backgroundTerms,
+    atomicWeights: ATOMIC_WEIGHTS,
+    ...(instrument && { instrument: instrument.profile }),
+    ...(ranges && ranges.length > 0 && { excluded: ranges }),
+    ...(standardPhase &&
+      standard?.percent != null && {
+        standard: { phaseId: standardPhase.id, fraction: standard.percent / 100 },
+      }),
+  });
+
+  /** One pattern of a series, with its own cleaning and the Kα2 ratio that goes with it. */
+  const seriesPattern = (id: string, value: number): SeriesPattern | null => {
+    const p = data.patterns.find((q) => q.id === id);
+    if (!p) return null;
+    const own = processingFor(data, id);
+    const stripped = useCleaned && own.kAlpha2.enabled;
+    return {
+      id,
+      name: p.name,
+      value,
+      twoTheta: p.twoTheta,
+      intensity: p.intensity,
+      cleaning: useCleaned ? { ...own, normalise: { ...own.normalise, enabled: false } } : null,
+      ratio: data.radiation.kAlpha1Only || stripped ? 0 : data.radiation.kAlpha2Ratio,
+    };
+  };
+  const seriesRequest = (patterns: SeriesPattern[], copyForward: boolean): SeriesRequest | null =>
+    included.length === 0
+      ? null
+      : {
+          base: sharedInput(),
+          patterns,
+          radiation: data.radiation,
+          from: settings.from ?? -Infinity,
+          to: settings.to ?? Infinity,
+          copyForward,
+        };
+
   const run = async () => {
     if (!measured || included.length === 0 || !client.current) return;
     const lo = settings.from ?? -Infinity;
@@ -294,42 +374,7 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
     const input: RietveldInput = {
       x: Float64Array.from(keep, (i) => measured.x[i] as number),
       y: Float64Array.from(keep, (i) => measured.y[i] as number),
-      wavelengths: {
-        kAlpha1: lines.kAlpha1,
-        kAlpha2: lines.kAlpha2,
-        ratio,
-        polarisation,
-        variableSlit: optics.variableSlit,
-        ...(capillary && { capillary: true }),
-      },
-      ...(capillary && { muR: optics.muR ?? 0 }),
-      phases: included.map((p) => ({
-        id: p.id,
-        name: p.name,
-        crystalSystem: p.crystalSystem,
-        cell: p.cell,
-        peaks: p.peaks,
-        ...(p.cellContents && { cellContents: p.cellContents }),
-        ...(p.structure && { structure: p.structure }),
-        orientation: settings.choices.orientation ? orientationOf(p) : null,
-        ...(textureOf(p) > 0 && { textureOrder: textureOf(p) }),
-        spaceGroupNumber: p.spaceGroup.number,
-        sizeAxis: axisOf(p),
-        strainAxis: axisOf(p),
-        ...(leBail.includes(p.id) && { leBail: true }),
-        ...(!leBail.includes(p.id) && {
-          substitutions: validSubstitutions(p, settings.substitutions?.[p.id]),
-        }),
-      })),
-      choices: settings.choices,
-      backgroundTerms: settings.backgroundTerms,
-      atomicWeights: ATOMIC_WEIGHTS,
-      ...(instrument && { instrument: instrument.profile }),
-      ...(ranges && ranges.length > 0 && { excluded: ranges }),
-      ...(standardPhase &&
-        standard?.percent != null && {
-          standard: { phaseId: standardPhase.id, fraction: standard.percent / 100 },
-        }),
+      ...sharedInput(),
     };
     setError(null);
     setStage('Starting');
@@ -843,6 +888,20 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
 
       {result && (
         <Results result={result} methods={settings.result?.methods ?? ''} name={pattern.name} />
+      )}
+
+      {data.patterns.length > 1 && (
+        <SeriesSection
+          data={data}
+          update={update}
+          settings={settings}
+          set={set}
+          client={client.current}
+          request={seriesRequest}
+          pattern={seriesPattern}
+          settingsKey={seriesKey}
+          {...(anomalous && { anomalous: data.radiation.anode })}
+        />
       )}
     </div>
   );

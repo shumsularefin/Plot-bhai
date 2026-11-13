@@ -9,14 +9,16 @@
  * The results keep only what the series table and plot need (cells, volume, weight fractions,
  * size, microstrain, R values), not the calculated patterns, so long series stay small.
  */
+import type { WeightedLinearFit } from '../../math/linearFit';
 import type { Cell } from '../reference/powder';
-import {
+// Types only, so the page can use the helpers below without loading the refinement itself.
+import type {
+  Estimate,
   refineRietveld,
-  type Estimate,
-  type RietveldInput,
-  type RietveldOutcome,
-  type RietveldResult,
-  type RietveldStats,
+  RietveldInput,
+  RietveldOutcome,
+  RietveldResult,
+  RietveldStats,
 } from './refine';
 
 export interface SeriesItem {
@@ -105,14 +107,14 @@ export const seriesOrder = <T extends { value: number }>(items: readonly T[]): T
 /**
  * Refines every pattern in order of value. With `copyForward`, each phase starts from the cell
  * refined on the previous pattern that succeeded (matched by phase id); otherwise every pattern
- * starts from the input cells. `progress` is told which pattern is running and its stage.
- * `refine` is the single refinement (the default; replaceable for tests).
+ * starts from the input cells. `refine` is the single refinement (refineRietveld, or a stand-in
+ * in tests); `progress` is told which pattern is running and its stage.
  */
 export function refineSeries(
   items: readonly SeriesItem[],
   copyForward: boolean,
+  refine: typeof refineRietveld,
   progress: (index: number, total: number, stage: string) => void = () => {},
-  refine: typeof refineRietveld = refineRietveld,
 ): SeriesPoint[] {
   const ordered = seriesOrder(items);
   const points: SeriesPoint[] = [];
@@ -263,4 +265,96 @@ export function seriesQuantities(points: readonly SeriesPoint[]): SeriesQuantity
       values: points.map((p) => p.zero ?? null),
     });
   return out;
+}
+
+/** The unit in brackets at the end of a series label, "°C" from "Temperature (°C)"; "" if none. */
+export function labelUnit(label: string): string {
+  return label.match(/\(([^()]*)\)\s*$/)?.[1]?.trim() ?? '';
+}
+
+/** A straight line through one quantity of the series, for the methods text. */
+export interface SeriesTrend {
+  label: string;
+  unit: string;
+  fit: WeightedLinearFit;
+  /** The fitted value at the lowest series value, for the relative slope. */
+  start: number;
+}
+
+/**
+ * The relative change per unit of the series value, (1/y₀)·dy/dx with y₀ the fitted value at the
+ * lowest x: for a lattice parameter against temperature this is the linear thermal expansion
+ * coefficient. Its uncertainty is σ(slope)/y₀ (the uncertainty of y₀ is far smaller here).
+ */
+export const relativeSlope = (trend: Pick<SeriesTrend, 'fit' | 'start'>) => ({
+  value: trend.fit.slope / trend.start,
+  sigma: trend.fit.slopeSigma / Math.abs(trend.start),
+});
+
+/** Number ± uncertainty, rounded to the uncertainty's first two significant digits. */
+const withSigma = (value: number, sigma: number) => {
+  if (!(sigma > 0) || !Number.isFinite(sigma)) return value.toPrecision(4);
+  const digits = Math.max(0, 1 - Math.floor(Math.log10(sigma)));
+  return `${value.toFixed(digits)} ± ${sigma.toFixed(digits)}`;
+};
+const SUPERSCRIPT: Record<string, string> = {
+  '-': '⁻',
+  0: '⁰',
+  1: '¹',
+  2: '²',
+  3: '³',
+  4: '⁴',
+  5: '⁵',
+  6: '⁶',
+  7: '⁷',
+  8: '⁸',
+  9: '⁹',
+};
+/** "(1.95 ± 0.26) × 10⁻⁵": value and uncertainty with the value's power of ten taken out. */
+export function scientificText(value: number, sigma: number): string {
+  const power = Math.floor(Math.log10(Math.abs(value) || Math.abs(sigma) || 1));
+  const scale = 10 ** power;
+  if (power === 0) return withSigma(value, sigma);
+  const exponent = [...String(power)].map((c) => SUPERSCRIPT[c]).join('');
+  return `(${withSigma(value / scale, sigma / scale)}) × 10${exponent}`;
+}
+
+/**
+ * Methods sentences for a sequential refinement: what was refined in which order, how each
+ * pattern started, and the straight line through the chosen quantity when there is one.
+ */
+export function seriesMethods(options: {
+  label: string;
+  points: readonly SeriesPoint[];
+  copyForward: boolean;
+  trend: SeriesTrend | null;
+}): string {
+  const { label, points, copyForward, trend } = options;
+  const good = points.filter((p) => !p.error);
+  const values = points.map((p) => p.value);
+  const name = label.replace(/\s*\([^()]*\)\s*$/, '').trim() || 'series value';
+  const unit = labelUnit(label);
+  const range = `${name.toLowerCase()} ${Math.min(...values)} to ${Math.max(...values)}${unit ? ` ${unit}` : ''}`;
+  const parts = [
+    `The ${points.length} patterns of the series (${range}) were refined sequentially with the same model and settings, in order of increasing ${name.toLowerCase()}, ${
+      copyForward
+        ? 'each starting from the unit cells refined on the previous pattern'
+        : 'each starting from the reference unit cells'
+    }; the other parameters were released in the same stages from the same starting values for every pattern.`,
+  ];
+  const failed = points.length - good.length;
+  if (failed > 0)
+    parts.push(
+      failed === 1
+        ? '1 pattern could not be refined and is left out of the trend.'
+        : `${failed} patterns could not be refined and are left out of the trend.`,
+    );
+  if (trend) {
+    const per = unit ? `${trend.unit ? `${trend.unit} ` : ''}per ${unit}` : trend.unit;
+    const rel = relativeSlope(trend);
+    parts.push(
+      `A weighted straight line (weights 1/s.u.², ${Number.isFinite(trend.fit.reducedChi2) ? `uncertainties scaled by the scatter about the line, χ²_ν = ${trend.fit.reducedChi2.toFixed(2)}` : 'through two points, so without an uncertainty'}) through ${trend.label} against ${name.toLowerCase()} over ${trend.fit.n} patterns gives a slope of ${scientificText(trend.fit.slope, trend.fit.slopeSigma)} ${per}, a relative change (1/y₀)·dy/dx of ${scientificText(rel.value, rel.sigma)}${unit ? ` per ${unit}` : ''} (y₀ the fitted value at the lowest ${name.toLowerCase()})${trend.fit.n > 2 ? `, R² = ${trend.fit.rSquared.toFixed(4)}` : ''}.`,
+    );
+  }
+  return parts.join(' ');
 }

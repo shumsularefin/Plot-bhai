@@ -8,7 +8,11 @@ import {
   type RietveldResult,
 } from '../src/core/xrd/rietveld/refine';
 import {
+  labelUnit,
   refineSeries,
+  relativeSlope,
+  scientificText,
+  seriesMethods,
   seriesOrder,
   seriesQuantities,
   valueFromName,
@@ -155,12 +159,7 @@ describe('sequential refinement (order, copying forward, failures)', () => {
 
   it('refines in order of value and starts each pattern from the previous refined cell', () => {
     seen.length = 0;
-    const points = refineSeries(
-      [item('t3', 300), item('t1', 100), item('t2', 200)],
-      true,
-      () => {},
-      fake,
-    );
+    const points = refineSeries([item('t3', 300), item('t1', 100), item('t2', 200)], true, fake);
     expect(points.map((p) => p.id)).toEqual(['t1', 't2', 't3']);
     expect(seen.map((s) => s.a)).toEqual([4, 4.01, 4.02].map((v) => expect.closeTo(v, 12)));
     expect(points.map((p) => p.phases[0]?.cell.a.value)).toEqual(
@@ -170,7 +169,7 @@ describe('sequential refinement (order, copying forward, failures)', () => {
 
   it('starts every pattern from the input cell without copying forward', () => {
     seen.length = 0;
-    refineSeries([item('t1', 100), item('t2', 200)], false, () => {}, fake);
+    refineSeries([item('t1', 100), item('t2', 200)], false, fake);
     expect(seen.map((s) => s.a)).toEqual([4, 4]);
   });
 
@@ -179,24 +178,19 @@ describe('sequential refinement (order, copying forward, failures)', () => {
     // First in the series, so it starts from its own (failing) cell rather than a copied one.
     const failing = item('x', 50);
     failing.input = { phases: [{ id: 'p', name: 'P', cell: bad }] } as unknown as RietveldInput;
-    const points = refineSeries([item('t1', 100), failing, item('t2', 200)], true, () => {}, fake);
+    const points = refineSeries([item('t1', 100), failing, item('t2', 200)], true, fake);
     expect(points.map((p) => p.error)).toEqual(['no fit', null, null]);
     expect(seen.map((s) => s.a)).toEqual([4, 4, 4.01]);
   });
 
   it('lists a, c and V for a hexagonal cell (b follows a), then R_wp and χ²', () => {
-    const points = refineSeries(
-      [item('t1', 100), item('t2', 200)],
-      true,
-      () => {},
-      (input) => {
-        const result = fake(input) as RietveldResult;
-        const phase = result.phases[0] as RietveldResult['phases'][number];
-        // b follows a exactly, as refine.ts reports it.
-        phase.cell.b = { ...phase.cell.a };
-        return result;
-      },
-    );
+    const points = refineSeries([item('t1', 100), item('t2', 200)], true, (input) => {
+      const result = fake(input) as RietveldResult;
+      const phase = result.phases[0] as RietveldResult['phases'][number];
+      // b follows a exactly, as refine.ts reports it.
+      phase.cell.b = { ...phase.cell.a };
+      return result;
+    });
     expect(seriesQuantities(points).map((q) => q.label)).toEqual([
       'P: a',
       'P: c',
@@ -204,5 +198,62 @@ describe('sequential refinement (order, copying forward, failures)', () => {
       'R_wp',
       'χ²',
     ]);
+  });
+});
+
+describe('series methods text', () => {
+  const point = (value: number, error: string | null = null) =>
+    ({ id: String(value), name: `${value}.xy`, value, error, phases: [] }) as unknown as Parameters<
+      typeof seriesMethods
+    >[0]['points'][number];
+
+  it('reads the unit from the label and writes powers of ten', () => {
+    expect(labelUnit('Temperature (°C)')).toBe('°C');
+    expect(labelUnit('Composition x')).toBe('');
+    expect(scientificText(1.951552e-5, 2.6408e-7)).toBe('(1.952 ± 0.026) × 10⁻⁵');
+    expect(scientificText(3.2493, 0.00007)).toBe('3.249300 ± 0.000070');
+  });
+
+  it('gives the relative slope (1/y₀)·dy/dx: a thermal expansion coefficient', () => {
+    // a = 3.25 (1 + 6e-6 (T − 25)): slope 1.95e-5 Å/°C, y₀ = 3.25 Å at 25 °C → 6e-6 per °C.
+    const fit = weightedLinearFit(
+      [25, 125, 225],
+      [25, 125, 225].map((t) => 3.25 * (1 + 6e-6 * (t - 25))),
+      [1e-5, 1e-5, 1e-5],
+    );
+    if (!fit) throw new Error('no fit');
+    expect(relativeSlope({ fit, start: fit.intercept + fit.slope * 25 }).value).toBeCloseTo(
+      6e-6,
+      15,
+    );
+  });
+
+  it('says how the patterns started, which failed, and the line', () => {
+    const fit = weightedLinearFit([25, 125, 225], [3.25, 3.2521, 3.2539], [1e-4, 1e-4, 1e-4]);
+    if (!fit) throw new Error('no fit');
+    const text = seriesMethods({
+      label: 'Temperature (°C)',
+      points: [point(25), point(125), point(225), point(325, 'no fit')],
+      copyForward: true,
+      trend: { label: 'ZnO: a', unit: 'Å', fit, start: 3.25 },
+    });
+    expect(text).toContain('The 4 patterns of the series (temperature 25 to 325 °C)');
+    expect(text).toContain('each starting from the unit cells refined on the previous pattern');
+    expect(text).toContain('1 pattern could not be refined and is left out');
+    // Slope by hand: Σ(x − x̄)(y − ȳ) / Σ(x − x̄)² = 0.39 / 20000 = 1.95e-5 Å per °C.
+    expect(text).toContain('slope of (1.950 ± 0.087) × 10⁻⁵ Å per °C');
+    expect(
+      seriesMethods({ label: 'x', points: [point(1)], copyForward: false, trend: null }),
+    ).toContain('each starting from the reference unit cells');
+    const two = weightedLinearFit([1, 2], [3.25, 3.26], [1e-4, 1e-4]);
+    if (!two) throw new Error('no fit');
+    const short = seriesMethods({
+      label: 'x',
+      points: [point(1), point(2)],
+      copyForward: true,
+      trend: { label: 'P: a', unit: 'Å', fit: two, start: 3.25 },
+    });
+    expect(short).toContain('through two points, so without an uncertainty');
+    expect(short).not.toContain('NaN');
   });
 });

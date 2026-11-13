@@ -1,5 +1,38 @@
 # Progress
 
+## Stage 17g: sequential refinement of a series (done, roadmap item 8)
+
+Branch `claude/sleepy-turing-hb1ofu`. No new packages or data. Checks in docs/validation.md, 17g.
+
+- **Core** (src/core/xrd/rietveld/sequential.ts): refines the patterns in order of a series value
+  with the same settings; with "Start from the previous result" each pattern starts from the cells
+  refined on the one before (GSAS-II's "copy results to next histogram"). A failed pattern is
+  reported and the series goes on. Results keep only cells, volume, weight %, size, microstrain,
+  R values and zero shift, so long series stay small in the saved session.
+- **Weighted straight line** (src/core/math/linearFit.ts, weightedLinearFit): weights 1/s.u.²,
+  s.u. scaled by the scatter about the line (as numpy.polyfit cov=True), the unscaled ones kept
+  too; the relative slope (1/y₀)·dy/dx gives a thermal expansion coefficient directly.
+- **Step 5 UI** (src/modules/xrd/SeriesSection.tsx, Advanced, shown with two or more patterns):
+  series label with unit, a value per pattern (suggested from the last number in the file name),
+  include boxes, copy-forward choice, progress and cancel (worker), a results table with CSV, a
+  quantity to follow with plot and fitted line, slope, intercept, relative slope, R², χ²_ν of the
+  line, and a methods paragraph (also added to the session methods text in Export).
+- **Validation:** new GSAS-II script scripts/validation/gsas2/sequential.py (five simulated ZnO
+  patterns, refined one by one and by GSAS-II's sequential refinement, numpy lines). The site's
+  cells agree within 3 combined s.u. with both, the slope of a is (1.9494 ± 0.0024) × 10⁻⁵ against
+  GSAS-II's (1.9505 ± 0.0025) × 10⁻⁵ and the true 1.9506 × 10⁻⁵ Å per unit. A Monte Carlo shows
+  the site's s.u. of a match the real scatter, while GSAS-II's reported s.u. of the hexagonal a is
+  about twice the scatter (cause not known, listed as open).
+- **Refactor:** RietveldStep builds the shared refinement input once (sharedInput) for the single
+  refinement and the series; the single refinement's settings key is unchanged, so saved results
+  stay current. refineSeries takes the refinement function as an argument, so the page bundle does
+  not load the refinement code (it stays in the worker).
+- **Known issues:** only the cells are copied forward; no measured series has been compared; the
+  series plot has no error bars (s.u. in the table and CSV). The label-wrapping help buttons noted
+  in 17f are still to fix.
+- **Next:** roadmap items 10 (bond lengths with uncertainties, bond-valence sums) and 11
+  (Bérar–Lelann).
+
 ## Stage 17f: spherical-harmonic texture (done, roadmap item 7)
 
 Branch `claude/sleepy-turing-hb1ofu`. No new packages or data. Checks in docs/validation.md, 17f.

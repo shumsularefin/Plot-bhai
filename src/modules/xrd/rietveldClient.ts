@@ -1,15 +1,22 @@
 import type { RietveldInput, RietveldOutcome } from '../../core/xrd/rietveld/refine';
+import type { SeriesPoint } from '../../core/xrd/rietveld/sequential';
 import type { Anode } from '../../core/xrd/radiation';
-import type { RietveldRequest, RietveldResponse } from '../../workers/rietveld.worker';
+import type {
+  RietveldRequest,
+  RietveldResponse,
+  SeriesRequest,
+} from '../../workers/rietveld.worker';
+
+type Finished = RietveldOutcome | SeriesPoint[];
 
 /**
- * Runs a Rietveld refinement in a web worker. Cancelling stops the worker at once; a new one
- * starts with the next refinement.
+ * Runs a Rietveld refinement, or a sequential refinement of a series, in a web worker.
+ * Cancelling stops the worker at once; a new one starts with the next refinement.
  */
 export class RietveldClient {
   private worker: Worker | undefined;
   private nextId = 1;
-  private running: { id: number; resolve: (outcome: RietveldOutcome | null) => void } | null = null;
+  private running: { id: number; resolve: (result: Finished | null) => void } | null = null;
 
   /**
    * Resolves with the outcome, or null when cancelled or the worker failed. `anomalous` names the
@@ -20,21 +27,16 @@ export class RietveldClient {
     progress: (stage: string) => void,
     anomalous?: Anode,
   ): Promise<RietveldOutcome | null> {
-    this.cancel();
-    const id = this.nextId++;
-    const worker = this.getWorker();
-    return new Promise((resolve) => {
-      this.running = { id, resolve };
-      worker.onmessage = ({ data }: MessageEvent<RietveldResponse>) => {
-        if (!this.running || data.id !== this.running.id) return;
-        if (data.kind === 'progress') progress(data.stage);
-        else {
-          this.running.resolve(data.outcome);
-          this.running = null;
-        }
-      };
-      worker.postMessage({ id, input, ...(anomalous && { anomalous }) } satisfies RietveldRequest);
-    });
+    return this.post({ input }, progress, anomalous) as Promise<RietveldOutcome | null>;
+  }
+
+  /** Refines every pattern of a series in order of value (sequential.ts); null when cancelled. */
+  refineSeries(
+    series: SeriesRequest,
+    progress: (stage: string) => void,
+    anomalous?: Anode,
+  ): Promise<SeriesPoint[] | null> {
+    return this.post({ series }, progress, anomalous) as Promise<SeriesPoint[] | null>;
   }
 
   cancel(): void {
@@ -49,6 +51,26 @@ export class RietveldClient {
     this.cancel();
     this.worker?.terminate();
     this.worker = undefined;
+  }
+
+  private post(
+    job: { input: RietveldInput } | { series: SeriesRequest },
+    progress: (stage: string) => void,
+    anomalous?: Anode,
+  ): Promise<Finished | null> {
+    this.cancel();
+    const id = this.nextId++;
+    const worker = this.getWorker();
+    return new Promise((resolve) => {
+      this.running = { id, resolve };
+      worker.onmessage = ({ data }: MessageEvent<RietveldResponse>) => {
+        if (!this.running || data.id !== this.running.id) return;
+        if (data.kind === 'progress') return progress(data.stage);
+        this.running.resolve(data.kind === 'done' ? data.outcome : data.points);
+        this.running = null;
+      };
+      worker.postMessage({ id, ...job, ...(anomalous && { anomalous }) } satisfies RietveldRequest);
+    });
   }
 
   private getWorker(): Worker {

@@ -244,6 +244,22 @@ async function walkToExport(log) {
     .first()
     .waitFor();
   note('5 Rietveld: spherical-harmonic texture of order 4 refined, texture index reported');
+  // Stage 17g: the two example patterns refined as a series, a quantity followed with a line.
+  const seriesValue = page.getByLabel(/Temperature \(°C\) of /).first();
+  if (!(await seriesValue.isVisible()))
+    await page.locator('summary', { hasText: 'Sequential refinement of a series' }).click();
+  await seriesValue.fill('25');
+  await page
+    .getByLabel(/Temperature \(°C\) of /)
+    .nth(1)
+    .fill('125');
+  await page.getByRole('button', { name: 'Refine the series', exact: true }).click();
+  await page.getByText('Series results (estimates)').waitFor({ timeout: 120_000 });
+  await page
+    .getByText(/The 2 patterns of the series \(temperature 25 to 125 °C\)/)
+    .first()
+    .waitFor();
+  note('5 Rietveld: sequential refinement of the two example patterns, line through the cell');
   await next('Fit peaks');
 
   // 5 Fit peaks

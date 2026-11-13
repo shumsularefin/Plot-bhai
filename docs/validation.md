@@ -469,6 +469,56 @@ Open:
   in the hexagonal setting the site agrees with GSAS-II exactly.
 - No refinement comparison with a measured textured sample; the GSAS-II simulation stands in.
 
+## 17g: sequential refinement of a series
+
+Code: src/core/xrd/rietveld/sequential.ts (refineSeries: the patterns refined in order of the
+series value, each starting from the cells refined on the previous one, as GSAS-II's sequential
+refinement with "copy results to next histogram"; seriesQuantities; seriesMethods),
+src/core/math/linearFit.ts (weightedLinearFit, w = 1/σ², centred normal equations, s.u. scaled by
+√χ²_ν as numpy.polyfit cov=True), src/workers/rietveld.worker.ts (series requests),
+src/modules/xrd/SeriesSection.tsx (step 5, Advanced). Tests: tests/sequential.test.ts,
+tests/series-report.test.ts, tests/validation-gsas2-sequential.test.ts; e2e step "5 Rietveld:
+sequential refinement of the two example patterns". GSAS-II fixture:
+scripts/validation/gsas2/sequential.py → tests/fixtures/validation/sequential.json and
+zno-series-0…4.xy (Validation workflow run 43476362292, GSAS-II commit 2c62562).
+
+The series: five ZnO (COD 1577381) patterns simulated in GSAS-II at series values 25, 125, 225,
+325 and 425, with a and c expanded by a made-up linear law (6e-6 and 4e-6 per unit, relative to the
+CIF cell), counting noise, 20–130° 2θ.
+
+| Method                        | Check                                                                                                                                                                                                                            | Source                           | Tolerance                                       | Result |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | ----------------------------------------------- | ------ |
+| Weighted line                 | exact line recovered; equal σ gives the unweighted fit; numpy.polyfit(w = 1/σ, cov = True and "unscaled") on a typed set of five points                                                                                          | synthetic; numpy 2.5.3           | 1e-12; 1e-9 relative                            | pass   |
+| Weighted line, GSAS-II's data | the line through GSAS-II's own one-by-one a and c reproduces numpy's slope, intercept and both kinds of s.u. in the fixture                                                                                                      | numpy in CI                      | 1e-8 relative                                   | pass   |
+| Weighted line invariance      | same line for the points in another order; a common factor on σ leaves the scaled s.u. unchanged and multiplies the unscaled ones by it                                                                                          | invariance                       | 1e-12                                           | pass   |
+| Series order, copy forward    | stand-in refinement: patterns refined by value, each starting from the previous refined cell; without copy forward from the input cell; a failed pattern is reported and the next starts from the last good one                  | synthetic (known answer)         | exact                                           | pass   |
+| Cells, one by one             | every a and c of the site's sequential refinement against GSAS-II refining each pattern on its own (site a 3.2510005(50) … 3.2588014(50) Å; GSAS-II 3.2509976(105) … 3.2588027(105) Å) and against the simulated truth           | GSAS-II (CI) and the known truth | 3 combined s.u. of GSAS-II; truth within 3 s.u. | pass   |
+| Cells, GSAS-II sequential     | the same against GSAS-II's own sequential refinement (cell changes refined as hydrostatic strain), for example c 5.2089923(134) Å against 5.2089934(134) Å on the first pattern                                                  | GSAS-II (CI)                     | 3 combined s.u.                                 | pass   |
+| R_wp                          | site 4.407–4.450 %, GSAS-II one by one 4.402–4.446 %                                                                                                                                                                             | GSAS-II (CI)                     | 2 % relative                                    | pass   |
+| Standard uncertainty of c     | site 1.34e-5 Å, GSAS-II 1.34e-5 Å                                                                                                                                                                                                | GSAS-II (CI)                     | ratio 0.9–1.1                                   | pass   |
+| Standard uncertainty, scatter | 40 copies of the first pattern (the fit's calculated pattern plus Gaussian noise of variance y, seeded): the reported s.u. of a and c against the standard deviation of the refined values                                       | Monte Carlo (known answer)       | ratio 0.75–1.3                                  | pass   |
+| Trend                         | slope of a against the series value: site (1.9494 ± 0.0024) × 10⁻⁵, GSAS-II one by one with numpy (1.9505 ± 0.0025) × 10⁻⁵, truth 1.9506 × 10⁻⁵ Å per unit; of c: (2.0866 ± 0.0035), (2.0855 ± 0.0036), 2.0836 × 10⁻⁵ Å per unit | GSAS-II with numpy (CI), truth   | 3 s.u. of GSAS-II's slope and of the truth      | pass   |
+| Start and order invariance    | the series refined without copy forward, and in reverse order (values negated), gives the same cells                                                                                                                             | invariance                       | 0.1 s.u.                                        | pass   |
+| Relative slope, methods text  | (1/y₀)·dy/dx of a line a = 3.25 (1 + 6e-6 (T − 25)) is 6e-6 per unit; methods text by hand (slope 0.39 / 20000 = 1.95e-5)                                                                                                        | synthetic (known answer)         | 1e-15; exact text                               | pass   |
+
+The s.u. of the hexagonal a: GSAS-II reports 1.05e-5 Å (get_cell_and_esd) for every pattern, the
+site 4.97e-6 Å. A Monte Carlo of 200 noisy copies of the first pattern (in this session, not in CI)
+gave a standard deviation of a of 4.60e-6 Å, so the site's value matches the real scatter. GSAS-II's
+own propagation from the s.u. of its reciprocal-metric term A0 gives 6.28e-6 Å; why
+get_cell_and_esd reports 1.05e-5 Å is not known. For c all three agree (Monte Carlo 1.32e-5,
+site 1.34e-5, GSAS-II 1.34e-5 Å). The test therefore compares the s.u. of a with the Monte Carlo
+scatter and the s.u. of c with GSAS-II.
+
+Open:
+
+- Only the cells are copied forward; the other parameters start from the same values on every
+  pattern (GSAS-II copies every parameter). With a good fit both reach the same minimum (the
+  invariance check above), but a series of poor fits may differ.
+- No measured series (for example a real heating run) has been compared; the GSAS-II simulation
+  stands in.
+- The cause of GSAS-II's larger s.u. of the hexagonal a is not confirmed.
+- The plot shows the points without error bars; the s.u. are in the table and the CSV.
+
 ## Step 6: fit improved until the regions fit (owner request, November 2026)
 
 Code: src/core/xrd/peaks/improve.ts (improveFit, fitScore, proposeChanges), run in the peaks

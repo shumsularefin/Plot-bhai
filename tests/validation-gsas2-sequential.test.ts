@@ -148,7 +148,7 @@ describe('sequential refinement against GSAS-II (ZnO series)', () => {
   // One run shared by the checks below (five refinements).
   let forward: SeriesPoint[] = [];
   const series = () => {
-    if (forward.length === 0) forward = refineSeries(items(values), true);
+    if (forward.length === 0) forward = refineSeries(items(values), true, refineRietveld);
     return forward;
   };
 
@@ -269,8 +269,8 @@ describe('sequential refinement against GSAS-II (ZnO series)', () => {
   }, 300_000);
 
   it('gives the same cells started from the CIF each time, or refined in the reverse order', () => {
-    const fresh = refineSeries(items(values), false);
-    const reverse = refineSeries(items(values.map((v) => -v)), true);
+    const fresh = refineSeries(items(values), false, refineRietveld);
+    const reverse = refineSeries(items(values.map((v) => -v)), true, refineRietveld);
     const forwardById = new Map(series().map((p) => [p.id, p]));
     for (const other of [fresh, reverse])
       for (const p of other) {
