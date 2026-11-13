@@ -1,5 +1,22 @@
 # Progress
 
+## Step 6 fit: improved automatically until the regions fit (owner request, November 2026)
+
+The owner saw regions flagged "Misses structure" after a Gaussian fit and asked for the fit to
+keep going until the peaks fit. Each fit already ran Levenberg–Marquardt to convergence; what a
+poor fit needs is a different model, so the step now changes the model in rounds
+(src/core/xrd/peaks/improve.ts, in the peaks worker):
+
+- Each round adds the peaks the residual shows were missed and removes peaks that shrank to
+  noise, went to zero height, sit on another peak or stood in for missed ones, then fits again.
+  A round is kept only when it lowers the score χ² + m ln n (BIC); the loop stops when every
+  region fits (χ²ν ≤ 4, R² ≥ 0.9, background meets the data), nothing is left to change, a
+  round brings no gain, or after 8 rounds. The note under the plot says which.
+- Gaussian and Lorentzian: the same improvement is also run as pseudo-Voigt. When that scores
+  lower, no tail peaks are added (they would not be real); the note gives both worst χ²ν and a
+  "Switch to pseudo-Voigt and fit again" button. The shape stays the user's choice.
+- Checks in docs/validation.md ("Step 6"); e2e covers the Gaussian case on the example data.
+
 ## Stage 17e: analytic derivatives of the Rietveld model (done, owner request November 2026)
 
 Branch `claude/sleepy-turing-hb1ofu`. No new packages or data. Checks in docs/validation.md, 17e.

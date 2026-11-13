@@ -253,6 +253,25 @@ async function walkToExport(log) {
     .locator('.peak-table th', { hasText: 'Pearson VII m' })
     .waitFor({ state: 'detached', timeout: 60_000 });
   note('6 Fit peaks: Pearson VII fitted (m column shown), then pseudo-Voigt again');
+  // Gaussian peaks on the example's pseudo-Voigt peaks: the fit says the shape is the problem
+  // instead of adding tail peaks, and one click refits as pseudo-Voigt until every region fits.
+  await page.getByLabel('Gaussian').check();
+  await fit.click();
+  const switchShape = page.getByRole('button', { name: 'Switch to pseudo-Voigt and fit again' });
+  await switchShape.waitFor({ timeout: 60_000 });
+  await switchShape.click();
+  await page
+    .getByText('Every region now fits to within the noise of the data.')
+    .waitFor({
+      timeout: 60_000,
+    })
+    .catch(async () => {
+      if ((await page.locator('.region-table').innerText()).includes('Misses structure'))
+        throw new Error('Pseudo-Voigt regions still flagged after the switch');
+    });
+  if (!(await page.getByLabel('Pseudo-Voigt', { exact: true }).isChecked()))
+    throw new Error('The profile did not switch to pseudo-Voigt');
+  note('6 Fit peaks: Gaussian misfit explained, switched to pseudo-Voigt, every region fits');
   await next('Instrument correction');
 
   // 6 Instrument correction: skip, which is allowed and warned about in the results.

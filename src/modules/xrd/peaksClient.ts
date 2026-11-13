@@ -2,6 +2,7 @@ import type { BandFitOptions } from '../../core/ftir/bands';
 import type { PlasmonOptions } from '../../core/uvvis/plasmon';
 import type { DetectedPeak, DetectionOptions } from '../../core/xrd/peaks/detect';
 import type { FitOptions, PeakGuess, RegionFit } from '../../core/xrd/peaks/fit';
+import type { ImprovedFit } from '../../core/xrd/peaks/improve';
 import type { PeaksRequest, PeaksResponse } from '../../workers/peaks.worker';
 
 /**
@@ -14,8 +15,8 @@ export class PeaksClient {
   private latestDetect = 0;
   private fit: {
     id: number;
-    resolve: (regions: RegionFit[] | null) => void;
-    progress: (done: number, total: number) => void;
+    resolve: (response: PeaksResponse | null) => void;
+    progress: (done: number, total: number, round: number) => void;
   } | null = null;
   private detectWaiting = new Map<number, (peaks: DetectedPeak[] | null) => void>();
 
@@ -43,8 +44,37 @@ export class PeaksClient {
     this.cancelFit();
     const id = this.nextId++;
     return new Promise((resolve) => {
-      this.fit = { id, resolve, progress };
+      this.fit = {
+        id,
+        resolve: (response) => resolve(response?.kind === 'fit' ? response.regions : null),
+        progress,
+      };
       this.send({ id, kind: 'fit', x, y, guesses, options });
+    });
+  }
+
+  /**
+   * Fits the peaks and keeps improving the set of peaks until the regions fit (improveFit).
+   * Resolves with the result, or null if cancelled or failed. progress(done, total, round).
+   */
+  improveFit(
+    x: Float64Array,
+    y: Float64Array,
+    guesses: PeakGuess[],
+    options: FitOptions,
+    detection: DetectionOptions,
+    step: number,
+    progress: (done: number, total: number, round: number) => void,
+  ): Promise<ImprovedFit | null> {
+    this.cancelFit();
+    const id = this.nextId++;
+    return new Promise((resolve) => {
+      this.fit = {
+        id,
+        resolve: (response) => resolve(response?.kind === 'improved' ? response.result : null),
+        progress,
+      };
+      this.send({ id, kind: 'improve', x, y, guesses, options, detection, step });
     });
   }
 
@@ -53,7 +83,12 @@ export class PeaksClient {
     this.cancelFit();
     const id = this.nextId++;
     return new Promise((resolve) => {
-      this.fit = { id, resolve: (regions) => resolve(regions?.[0] ?? null), progress: () => {} };
+      this.fit = {
+        id,
+        resolve: (response) =>
+          resolve(response?.kind === 'fit' ? (response.regions[0] ?? null) : null),
+        progress: () => {},
+      };
       this.send({ id, kind: 'bands', x, y, options });
     });
   }
@@ -66,7 +101,12 @@ export class PeaksClient {
     this.cancelFit();
     const id = this.nextId++;
     return new Promise((resolve) => {
-      this.fit = { id, resolve: (regions) => resolve(regions?.[0] ?? null), progress: () => {} };
+      this.fit = {
+        id,
+        resolve: (response) =>
+          resolve(response?.kind === 'fit' ? (response.regions[0] ?? null) : null),
+        progress: () => {},
+      };
       this.send({ id, kind: 'plasmon', x, y, options });
     });
   }
@@ -118,9 +158,9 @@ export class PeaksClient {
       return;
     }
     if (!this.fit || data.id !== this.fit.id) return;
-    if (data.kind === 'progress') this.fit.progress(data.done, data.total);
+    if (data.kind === 'progress') this.fit.progress(data.done, data.total, data.round ?? 0);
     else {
-      this.fit.resolve(data.kind === 'fit' ? data.regions : null);
+      this.fit.resolve(data);
       this.fit = null;
     }
   }

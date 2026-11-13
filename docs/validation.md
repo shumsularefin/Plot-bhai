@@ -425,3 +425,23 @@ Open:
 - Peaks with the FCJ axial-divergence profile still use a per-peak central difference of the
   profile for the shape terms.
 - The 10–50× speed-up in the roadmap was not reached (2.5× at 5,501 points, 1.4× at 50,001).
+
+## Step 6: fit improved until the regions fit (owner request, November 2026)
+
+Code: src/core/xrd/peaks/improve.ts (improveFit, fitScore, proposeChanges), run in the peaks
+worker. Tests: tests/improveFit.test.ts; e2e step "6 Fit peaks: Gaussian misfit explained".
+
+| Check                    | Data                                                                                                                           | Expected                                                                                           | Result                                                                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Missing peaks recovered  | synthetic pseudo-Voigt pattern with counting noise, six peaks (a shoulder 0.3° away, a pair 0.4° apart), four starting guesses | the six true peaks, centres within 0.02°, FWHM within 10 %, every region χ²ν < 2.5, stopped "fits" | pass                                                                                                                       |
+| Idempotent               | the same pattern started from the true peaks, then from its own result                                                         | no rounds, same peaks                                                                              | pass                                                                                                                       |
+| Duplicate merged         | a seventh guess 0.02° from a true peak                                                                                         | six peaks                                                                                          | pass                                                                                                                       |
+| Shape, not peaks         | Gaussian chosen on pseudo-Voigt data (η 0.6)                                                                                   | no tail peaks added; stopped "shape"; the pseudo-Voigt fit fits every region                       | pass; on the app's example data worst χ²ν 22.1 (Gaussian) against 2.2 (pseudo-Voigt), every region "Good" after the switch |
+| Gaussian kept when right | Gaussian data with a missed shoulder                                                                                           | Gaussian kept, the shoulder added at 30.3°                                                         | pass                                                                                                                       |
+| No peaks in noise        | one peak on a flat, noisy background                                                                                           | nothing added                                                                                      | pass                                                                                                                       |
+
+The score is χ² + (free parameters) × ln n per region (the Bayesian information criterion with
+the noise σ estimated from the data), so a change is kept only when it improves the fit by more
+than its extra parameters would by chance. Open: the score compares regions whose ranges can
+change when a peak is added or removed (a region grows by at most three peak widths), which
+slightly favours removing peaks; no case where this mattered was found.
