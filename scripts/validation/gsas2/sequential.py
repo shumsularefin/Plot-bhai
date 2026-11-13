@@ -116,6 +116,8 @@ try:
     gpx.set_Controls('cycles', 30)
     gpx.set_Controls('sequential', [h.name for h in hists])
     gpx.set_Controls('seqCopy', True)
+    # SeqRefine reads Controls['parmFrozen'] before creating it (the GUI creates it beforehand).
+    gpx.data['Controls']['data'].setdefault('parmFrozen', {})
     gpx.do_refinements(STAGES)
     ph = gpx.phase('zno')
     ph.set_HAP_refinements({'HStrain': True})
