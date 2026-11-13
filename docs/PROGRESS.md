@@ -1,5 +1,46 @@
 # Progress
 
+## Open validation items checked with Fityk and GSAS-II (done, owner request November 2026)
+
+Branch `claude/trusting-faraday-1pfp92`. No new dependencies. The owner asked for the open items
+of docs/validation.md to be validated, and said the site is not to be released as an app version
+for now.
+
+Built:
+
+- Fityk 1.3.2 fits the peak-fit test data and a line of a measured pattern
+  (tests/fixtures-real/bruker4_v5converter.raw); this site agrees to 2e-5° in the centre and 1e-4°
+  in the width (tests/validation-lmfit.test.ts).
+- The GSAS-II starting set of the Export step is loaded into GSAS-II
+  (scripts/validation/gsas2/load_export.py, tests/validation-gsas-export.test.ts). GSAS-II reads
+  the data, wavelengths, profile, cell and atoms as written and fits the pattern with R_wp
+  4.451 % (this site 4.493 %).
+- Bug found by that check and fixed: GSAS-II could not read the exported .instprm, because its
+  reader allows one comment line and the file had more. The notes are now on the first line.
+- Indexing: GSAS-II indexes every line with each cell this site suggests and refines to the same
+  cell (13 cases, differences at most 3.4e-4 relative); GSAS-II's own search is compared too
+  (scripts/validation/gsas2/index_cells.py and indexing.py, tests/xrd-indexing.test.ts).
+- `refinedStructure` moved from the Export step's component to src/core/xrd/export/gsas.ts, so
+  the test writes the same CIF as the site.
+- docs/validation.md section 18 lists the checks and what is still open.
+
+Decisions:
+
+- No release and no Zenodo DOI for now (owner). docs/RELEASING.md and CITATION.cff stay as they
+  are for later; the version number in the footer and in the records is kept, because it says
+  which code made a result.
+- Fityk, lmfit and GSAS-II are used only to make test fixtures; they are not dependencies of the
+  site. The export check also runs in .github/workflows/validation.yml; the Fityk and indexing
+  fixtures are made by hand, because GSAS-II's search is random with a time limit.
+
+Known issues and TODO (owner):
+
+- Still open: FullProf, DICVOL, TREOR, McMaille and VESTA could not be installed or scripted;
+  real Bruker .raw version 1 to 3 files and multi-scan .rasx/.brml files are not held; the
+  GSAS-II files were loaded by script, not by hand; no measured unknown pattern indexed by two
+  programs.
+- Measured example data (LaB6 or Si standard and others) must come from the owner.
+
 ## Review fixes: bugs, readability, example data, validation page, comparison, sample report (done, owner request November 2026)
 
 Branch `claude/trusting-faraday-1pfp92`. Version 0.2.0. No new dependencies. The owner asked for
@@ -46,8 +87,7 @@ Decisions:
 
 Known issues and TODO (owner):
 
-- **Zenodo DOI:** needs the owner's GitHub and Zenodo accounts (docs/RELEASING.md). CITATION.cff
-  has a TODO for it.
+- **Zenodo DOI:** deferred by the owner (no release for now, see the entry above).
 - **Measured example data:** no LaB6 or Si standard, and no measured FTIR, UV-Vis, TGA or SEM
   example, is bundled. They must come from the owner (own measurement, or an openly licensed data
   set with its citation). The examples of FTIR, UV-Vis, thermal and particles stay generated and

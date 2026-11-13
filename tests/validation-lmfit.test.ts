@@ -44,6 +44,21 @@ function load(name: string) {
     y: Float64Array.from(rows, (r) => r[1] as number),
   };
 }
+/**
+ * The same two files, and part of a measured pattern, fitted by Fityk (scripts/validation/fityk);
+ * its `shape` is η, or m for Pearson VII.
+ */
+interface FitykPeak {
+  center: number;
+  fwhm: number;
+  shape: number;
+  height: number;
+  area: number;
+}
+const fityk = JSON.parse(read('peakfit-fityk.json')) as {
+  source: string;
+  peaks: Record<'doublet-a' | 'doublet-b' | 'pearson' | 'real', FitykPeak>;
+};
 const relative = (a: number, b: number) => Math.abs(a - b) / Math.abs(b);
 
 describe(`peak fit against ${fixture.source}`, () => {
@@ -91,5 +106,68 @@ describe(`peak fit against ${fixture.source}`, () => {
     expect(relative(peak.shape.m, ref.m)).toBeLessThan(2e-3);
     expect(relative(peak.height, ref.height)).toBeLessThan(1e-3);
     expect(relative(peak.area, ref.area)).toBeLessThan(1e-3);
+  });
+});
+
+describe(`peak fit against ${fityk.source}`, () => {
+  const agrees = (
+    peak: { center: number; fwhm: number; height: number; area: number },
+    shape: number,
+    ref: FitykPeak,
+  ) => {
+    expect(Math.abs(peak.center - ref.center)).toBeLessThan(2e-5);
+    expect(Math.abs(peak.fwhm - ref.fwhm)).toBeLessThan(1e-4);
+    expect(relative(shape, ref.shape)).toBeLessThan(2e-3);
+    expect(relative(peak.height, ref.height)).toBeLessThan(1e-3);
+    expect(relative(peak.area, ref.area)).toBeLessThan(1e-3);
+  };
+
+  it('agrees on the two overlapping pseudo-Voigt peaks', () => {
+    const { x, y } = load('peakfit-doublet.xy');
+    const region = fitRegion(
+      x,
+      y,
+      {
+        start: 34,
+        end: 37,
+        peaks: [
+          { center: 35.28, width: 0.2 },
+          { center: 35.68, width: 0.2 },
+        ],
+      },
+      { profile: 'pseudo-voigt', fixedEta: null },
+    );
+    const [a, b] = region.peaks;
+    if (!a || !b) throw new Error('no fit');
+    agrees(a, a.eta, fityk.peaks['doublet-a']);
+    agrees(b, b.eta, fityk.peaks['doublet-b']);
+  });
+
+  it('agrees on the Pearson VII peak', () => {
+    const { x, y } = load('peakfit-pearson.xy');
+    const region = fitRegion(
+      x,
+      y,
+      { start: 29, end: 31, peaks: [{ center: 30.02, width: 0.25 }] },
+      { profile: 'pearson-vii', fixedEta: null },
+    );
+    const peak = region.peaks[0];
+    if (!peak || peak.shape?.kind !== 'pearson-vii') throw new Error('no Pearson VII fit');
+    agrees(peak, peak.shape.m, fityk.peaks.pearson);
+  });
+
+  // 41–45° of the measured pattern tests/fixtures-real/bruker4_v5converter.raw (MIT licence).
+  it('agrees on a line of a measured pattern', () => {
+    const { x, y } = load('peakfit-real.xy');
+    const region = fitRegion(
+      x,
+      y,
+      { start: 41, end: 45, peaks: [{ center: 43, width: 0.5 }] },
+      { profile: 'pseudo-voigt', fixedEta: null },
+    );
+    const peak = region.peaks[0];
+    if (!peak) throw new Error('no fit');
+    expect(region.converged).toBe(true);
+    agrees(peak, peak.eta, fityk.peaks.real);
   });
 });

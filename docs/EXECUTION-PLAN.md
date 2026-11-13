@@ -47,6 +47,7 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 16f       | Materials Project / AMCSD search through a backend               | skipped |
 | 16g       | Owner additions: TCH, U_ij, low-symmetry indexing, CI checks     | done    |
 | 17        | Review fixes: example data, readability, validation page, report | done    |
+| 18        | Open validation items checked with Fityk and GSAS-II             | done    |
 
 ## The one prompt you paste in every new session
 
