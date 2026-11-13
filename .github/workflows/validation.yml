@@ -50,6 +50,8 @@ jobs:
         run: python -I scripts/validation/gsas2/texture.py "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
       - name: GSAS-II sequential refinement of a ZnO series (and one by one)
         run: python -I scripts/validation/gsas2/sequential.py "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
+      - name: GSAS-II bond lengths, angles and their s.u., bond-valence sums (ZrO2)
+        run: python -I scripts/validation/gsas2/bonds.py "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
       - name: pymatgen distances and powder patterns
         run: python -I scripts/validation/pymatgen/check.py "$GITHUB_WORKSPACE"
       - name: Commit the fixtures

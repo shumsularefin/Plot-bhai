@@ -77,6 +77,7 @@ import {
   type Wavelengths,
 } from './model';
 import { fillJacobian } from './derivatives';
+import type { StructureGeometry } from '../structure/bonds';
 import { refinementReflections, type Hkl } from './reflections';
 import {
   MAX_TEXTURE_ORDER,
@@ -284,6 +285,12 @@ export interface RietveldPhaseResult {
   rBragg: number;
   /** Refined atoms when the structure was refined, otherwise null. */
   atoms: AtomResult[] | null;
+  /**
+   * The structure at the end of the refinement with the covariance of its cell and coordinates,
+   * for bond lengths and angles with uncertainties (structure/bonds.ts); null without atoms or in
+   * Le Bail mode. Parameters that were not refined have zero rows.
+   */
+  geometry: StructureGeometry | null;
   /** True when the phase was fitted in Le Bail mode (no structure; R_Bragg not meaningful). */
   leBail: boolean;
   /** Crystallite size (nm) and microstrain (10⁻⁶, GSAS-II definition), or null when not refined. */
@@ -1228,6 +1235,70 @@ export function refineRietveld(
       ).slice(0, 20)
     : [];
 
+  /**
+   * Cell, atoms and the covariance of p = [a, b, c, α, β, γ, x₁, y₁, z₁, …] of phase k:
+   * C_p = J C Jᵀ, J = ∂p/∂(refined parameters). The cell rows are central differences of the
+   * cell built from its refined parameters; a coordinate is x = x₀ + Σ c_k v_k, so ∂x/∂c_k = v_k.
+   * Without a structure model (only the cell refined) the stored positions are used.
+   */
+  const geometryOf = (k: number, cellNow: Cell): StructureGeometry => {
+    const phase = phases[k] as PhaseModel;
+    const pl = layout.phases[k] as (typeof layout.phases)[number];
+    const stored = (input.phases[k] as (typeof input.phases)[number]).structure as StoredStructure;
+    const model = phase.structure;
+    const states = model ? atomStates(phase, pl, params) : null;
+    const size = 6 + 3 * stored.atoms.length;
+    const jacobian: Map<number, number>[] = Array.from({ length: size }, () => new Map());
+    const keys: (keyof Cell)[] = ['a', 'b', 'c', 'alpha', 'beta', 'gamma'];
+    for (const j of pl.cell) {
+      if (!mask[j]) continue;
+      const h = 1e-6 * Math.max(Math.abs(params[j] as number), 1);
+      const shifted = (by: number) => {
+        const p = params.slice();
+        p[j] = (params[j] as number) + by;
+        return phaseCell(phase, pl, p);
+      };
+      const up = shifted(h);
+      const down = shifted(-h);
+      keys.forEach((key, r) => {
+        const d = (up[key] - down[key]) / (2 * h);
+        if (d !== 0) (jacobian[r] as Map<number, number>).set(j, d);
+      });
+    }
+    model?.atoms.forEach((atom, a) => {
+      const al = pl.atoms[a] as (typeof pl.atoms)[number];
+      al.coords.forEach((j, kk) => {
+        if (!mask[j]) return;
+        for (let i = 0; i < 3; i++) {
+          const v = (atom.basis[kk] as number[])[i] as number;
+          if (v !== 0) (jacobian[6 + 3 * a + i] as Map<number, number>).set(j, v);
+        }
+      });
+    });
+    const covarianceOut = new Array<number>(size * size).fill(0);
+    for (let r = 0; r < size; r++)
+      for (let t = r; t < size; t++) {
+        let v = 0;
+        for (const [i, ji] of jacobian[r] as Map<number, number>)
+          for (const [j, jj] of jacobian[t] as Map<number, number>) v += ji * cov(i, j) * jj;
+        covarianceOut[r * size + t] = v;
+        covarianceOut[t * size + r] = v;
+      }
+    return {
+      cell: { ...cellNow },
+      ops: [...stored.ops],
+      atoms: stored.atoms.map((atom, a) => ({
+        label: atom.label,
+        element: atom.element,
+        x: states
+          ? ([...(states[a] as (typeof states)[number]).x] as [number, number, number])
+          : [...atom.x],
+        occupancy: states ? (states[a] as (typeof states)[number]).occupancy : atom.occupancy,
+      })),
+      covariance: covarianceOut,
+    };
+  };
+
   const xLo = x[0] as number;
   const xHi = x[n - 1] as number;
   const negativeStrain: string[] = [];
@@ -1409,6 +1480,7 @@ export function refineRietveld(
             };
           })
         : null;
+    const geometry = input.phases[k]?.structure && !phase.leBail ? geometryOf(k, cellNow) : null;
     return {
       id: phase.id,
       name: phase.name,
@@ -1452,6 +1524,7 @@ export function refineRietveld(
       asymmetry: [estimate(pl.asymmetry[0]), estimate(pl.asymmetry[1])],
       rBragg: denominator > 0 && !phase.leBail ? numerator / denominator : NaN,
       atoms,
+      geometry,
       leBail: phase.leBail !== undefined,
       size,
       microstrain:
