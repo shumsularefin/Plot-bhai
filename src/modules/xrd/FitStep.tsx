@@ -9,6 +9,7 @@ import {
   type PeakGuess,
   type RegionFit,
 } from '../../core/xrd/peaks/fit';
+import { allRegionsFit, type ImprovedFit } from '../../core/xrd/peaks/improve';
 import type { FitProfileKind } from '../../core/xrd/peaks/profiles';
 import { lowerBoundIndex } from '../../core/xrd/peaks/search';
 import { missedPeaks } from '../../core/xrd/peaks/missed';
@@ -78,7 +79,7 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
   const [progress, setProgress] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   /** What the automatic refinement of the last fit changed, shown under the fit. */
-  const [refined, setRefined] = useState<{ added: number[]; removed: number[] } | null>(null);
+  const [refined, setRefined] = useState<Omit<ImprovedFit, 'regions' | 'score'> | null>(null);
   const [addAt, setAddAt] = useState('');
   // While the prominence slider is dragged: its value and the peaks found with it (not saved yet).
   const [sliding, setSliding] = useState<number | null>(null);
@@ -141,56 +142,46 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
   const fitting = progress !== null;
   const kAlpha2Present = !radiation.kAlpha1Only && !processing.kAlpha2.enabled;
 
-  const runFit = async (toFit: PeakGuess[] = state.guesses) => {
+  const runFit = async (
+    toFit: PeakGuess[] = state.guesses,
+    fitOptions: FitOptions = state.fitOptions,
+  ) => {
     if (!x || !y || !client.current || toFit.length === 0) return;
     setFailed(false);
     setRefined(null);
     setProgress('Starting…');
-    const options = fitOptionsFor(state.fitOptions, processing, radiation);
-    const fitOnce = (guesses: PeakGuess[]) =>
-      client.current?.fitPeaks(x, y, guesses, options, (done, total) =>
-        setProgress(`Fitting region ${done} of ${total}…`),
-      ) ?? Promise.resolve(null);
-    let regions = await fitOnce(toFit);
-    if (!regions) {
+    const options = fitOptionsFor(fitOptions, processing, radiation);
+    // Fit, then keep adding missed peaks and removing spurious ones until every region fits or
+    // a change no longer improves the fit (improveFit). Undo goes back to the peaks before.
+    const result = await client.current.improveFit(
+      x,
+      y,
+      toFit,
+      options,
+      state.detection,
+      step,
+      (done, total, round) =>
+        setProgress(
+          round === 0
+            ? `Fitting region ${done} of ${total}…`
+            : `Improving the fit, round ${round}: region ${done} of ${total}…`,
+        ),
+    );
+    if (!result) {
       setProgress(null);
       setFailed(true);
       return;
     }
-    // One automatic refinement: drop peaks that shrank to a single data step (noise), add the
-    // peaks the residual shows were missed (for example one half of an unresolved pair), drop a
-    // very broad peak (over 4 × the median width) that an added peak falls inside, since it was
-    // standing in for the missed ones, and fit again. Undo goes back to the peaks before the fit.
-    const first = regions.flatMap((r) => r.peaks);
-    const added = missedPeaks(x, y, regions, state.detection);
-    const widths = first.map((p) => p.fwhm).sort((a, b) => a - b);
-    const median = widths[widths.length >> 1] ?? 0;
-    const dropped = first.filter(
-      (p) =>
-        p.fwhm <= step * 1.01 ||
-        (p.fwhm > 4 * median && added.some((a) => Math.abs(a.center - p.center) < p.fwhm)),
-    );
-    if (dropped.length > 0 || added.length > 0) {
-      const next = [
-        ...first
-          .filter((p) => !dropped.includes(p))
-          .map((p) => ({ center: p.center, width: p.fwhm })),
-        ...added.map((p) => ({ center: p.center, width: p.width })),
-      ].sort((a, b) => a.center - b.center);
-      const second = next.length > 0 ? await fitOnce(next) : null;
-      if (second) {
-        regions = second;
-        setRefined({ added: added.map((p) => p.center), removed: dropped.map((p) => p.center) });
-      }
-    }
+    const { regions, rounds, added, removed, stopped, shape } = result;
+    setRefined({ rounds, added, removed, stopped, ...(shape && { shape }) });
     setProgress(null);
     // The fitted peaks become the new starting positions, so editing and re-fitting continues from them.
     const fitted = regions.flatMap((r) =>
       r.peaks.map((p) => ({ center: p.center, width: p.fwhm })),
     );
     const nextGuesses = fitted.length > 0 ? fitted : toFit;
-    const key = fitInputKey(nextGuesses, state.fitOptions, processing, radiation);
-    setState({ ...state, guesses: nextGuesses, fit: { regions, inputKey: key } });
+    const key = fitInputKey(nextGuesses, fitOptions, processing, radiation);
+    setState({ ...state, fitOptions, guesses: nextGuesses, fit: { regions, inputKey: key } });
   };
   const cancelFit = () => {
     client.current?.cancelFit();
@@ -612,16 +603,14 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
       )}
 
       {refined && state.fit && !stale && !fitting && (
-        <p class="message is-info" role="status">
-          <strong>Note:</strong> the fit was refined automatically.
-          {refined.added.length > 0 &&
-            ` Added ${refined.added.length === 1 ? 'a peak' : 'peaks'} the first fit missed at ${refined.added.map((c) => `${c.toFixed(2)}°`).join(', ')}.`}
-          {refined.removed.length > 0 &&
-            ` Removed ${refined.removed.length === 1 ? 'a peak' : 'peaks'} at ${refined.removed.map((c) => `${c.toFixed(2)}°`).join(', ')} that shrank to one data step (noise) or were too broad and stood in for the added ones.`}{' '}
-          Check them on the plot; Undo restores the peaks you had before.
-        </p>
+        <FitImprovement
+          refined={refined}
+          regions={state.fit.regions}
+          profile={PROFILE_LABELS[state.fitOptions.profile]}
+          onSwitch={(fitOptions) => void runFit(state.guesses, fitOptions)}
+        />
       )}
-      {missed.length > 0 && !fitting && (
+      {missed.length > 0 && !fitting && refined?.stopped !== 'shape' && (
         <div class="message is-warning missed-peaks" role="status">
           <p>
             <strong>Check:</strong> the residual has {missed.length === 1 ? 'a hump' : 'humps'} at{' '}
@@ -657,6 +646,65 @@ export function FitStep({ data, update }: StepContext<XrdData>) {
             lambda={lambda}
             patternName={pattern.name}
           />
+        </>
+      )}
+    </div>
+  );
+}
+
+/** χ²ν of the worst region, for the shape comparison. */
+const worstChi = (regions: readonly RegionFit[]) =>
+  Math.max(...regions.map((r) => (Number.isFinite(r.reducedChiSquared) ? r.reducedChiSquared : 0)));
+
+/** What the automatic improvement after a fit did and why it stopped (see improveFit). */
+function FitImprovement({
+  refined,
+  regions,
+  profile,
+  onSwitch,
+}: {
+  refined: Omit<ImprovedFit, 'regions' | 'score'>;
+  regions: readonly RegionFit[];
+  profile: string;
+  onSwitch: (options: FitOptions) => void;
+}) {
+  const { added, removed, rounds, stopped, shape } = refined;
+  const fits = allRegionsFit(regions);
+  if (rounds === 0 && fits && !shape) return null;
+  const degrees = (values: number[]) => values.map((c) => `${c.toFixed(2)}°`).join(', ');
+  return (
+    <div class={`message ${fits ? 'is-info' : 'is-warning'}`} role="status">
+      <p>
+        {rounds > 0 && (
+          <>
+            <strong>Note:</strong> the fit was improved automatically in {rounds}{' '}
+            {rounds === 1 ? 'round' : 'rounds'}.
+            {added.length > 0 &&
+              ` Added ${added.length === 1 ? 'a peak' : 'peaks'} the residual showed were missed at ${degrees(added)}.`}
+            {removed.length > 0 &&
+              ` Removed ${removed.length === 1 ? 'a peak' : 'peaks'} at ${degrees(removed)} that shrank to one data step (noise), went to zero height, sat on another peak or were too broad and stood in for added ones.`}{' '}
+            Check them on the plot; Undo restores the peaks you had before.{' '}
+          </>
+        )}
+        {fits
+          ? 'Every region now fits to within the noise of the data.'
+          : stopped === 'shape'
+            ? ''
+            : 'Some regions still do not fit, and adding or removing peaks no longer improves them. Look at the residual below the plot: a peak shape that does not follow the tails or one side (try Pearson VII or split pseudo-Voigt), a curved background, or a feature that is not a peak can cause this.'}
+      </p>
+      {stopped === 'shape' && shape && (
+        <>
+          <p>
+            <strong>The peak shape does not fit:</strong> {profile} peaks cannot follow these peaks.
+            Fitted as pseudo-Voigt (Lorentzian fraction η free) and improved the same way, the fit
+            is better: worst χ²ν {worstChi(regions).toFixed(1)} as {profile},{' '}
+            {worstChi(shape.regions).toFixed(1)} as pseudo-Voigt. No peaks were added to the{' '}
+            {profile} fit, because they would only fill the tails its shape misses, and those peaks
+            would not be real.
+          </p>
+          <button type="button" class="btn" onClick={() => onSwitch(shape.options)}>
+            Switch to pseudo-Voigt and fit again
+          </button>
         </>
       )}
     </div>

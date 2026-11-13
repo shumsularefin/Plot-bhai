@@ -2,7 +2,7 @@ name: Validation (GSAS-II and pymatgen)
 
 # Independent checks of the Rietveld, structure-refinement and crystal-geometry code: builds GSAS-II
 # from source and installs pymatgen, writes reference fixtures to tests/fixtures/validation/ and
-# commits them, so the unit tests compare against programs that are not part of this repository.
+# commits them (and the anomalous-dispersion table data/reference/anomalous-dispersion.json), so the unit tests compare against programs that are not part of this repository.
 on:
   workflow_dispatch:
   push:
@@ -38,6 +38,20 @@ jobs:
           python -m pip install "$RUNNER_TEMP/GSAS-II"
       - name: GSAS-II simulations and refinements
         run: python -I scripts/validation/gsas2/structure.py "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
+      - name: GSAS-II size, microstrain, polarisation, roughness, transparency and Le Bail
+        run: python -I scripts/validation/gsas2/sample.py "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
+      - name: GSAS-II shared-site substitution (Zn0.85Mg0.15O)
+        run: python -I scripts/validation/gsas2/substitution.py "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
+      - name: GSAS-II axial divergence (FCJ), uniaxial size and Stephens microstrain (ZnO)
+        run: python -I scripts/validation/gsas2/anisotropic.py "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
+      - name: GSAS-II anomalous dispersion table, Henke cross-check and capillary absorption
+        run: python -I scripts/validation/gsas2/dispersion.py "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
+      - name: GSAS-II spherical-harmonic preferred orientation (every Laue class, ZnO refinement)
+        run: python -I scripts/validation/gsas2/texture.py "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
+      - name: GSAS-II sequential refinement of a ZnO series (and one by one)
+        run: python -I scripts/validation/gsas2/sequential.py "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
+      - name: GSAS-II bond lengths, angles and their s.u., bond-valence sums (ZrO2)
+        run: python -I scripts/validation/gsas2/bonds.py "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -56,7 +70,7 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add tests/fixtures/validation
+          git add tests/fixtures/validation data/reference/anomalous-dispersion.json
           if git diff --cached --quiet; then echo 'Fixtures unchanged.'; exit 0; fi
           git commit -m 'Validation fixtures from GSAS-II and pymatgen'
           git push

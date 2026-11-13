@@ -82,3 +82,67 @@ export function originFit(x: readonly number[], y: readonly number[]): LinearFit
     n,
   };
 }
+
+/** Weighted straight-line fit: the scaled uncertainties, plus those from the weights alone. */
+export interface WeightedLinearFit extends LinearFit {
+  /** Uncertainties from the σ of the points alone (correct when the σ are the real scatter). */
+  slopeSigmaUnscaled: number;
+  interceptSigmaUnscaled: number;
+  /** χ²_ν = Σ w (y − fit)² / (n − 2); NaN with two points. */
+  reducedChi2: number;
+}
+
+/**
+ * Weighted least squares, y = intercept + slope · x, with weights w = 1/σ². With the weighted
+ * means x̄ = Σwx/Σw, ȳ = Σwy/Σw and Sxx = Σw(x − x̄)² (the normal equations in centred form, which
+ * keep precision when y changes little against its size, as a lattice parameter does):
+ *   slope = Σw(x − x̄)(y − ȳ) / Sxx,   intercept = ȳ − slope · x̄,
+ *   σ²(slope) = 1 / Sxx,   σ²(intercept) = 1/Σw + x̄² / Sxx   (from the σ alone, "unscaled").
+ * The reported (scaled) uncertainties multiply these variances by χ²_ν = Σw(y − fit)²/(n − 2),
+ * so the scatter of the points about the line sets them, as numpy.polyfit(…, w = 1/σ, cov = True)
+ * does; refinement s.u. usually underestimate the real scatter. R² is the weighted
+ * 1 − Σw(y − fit)² / Σw(y − ȳ)². Units follow x and y; σ has the unit of y.
+ * Returns null with fewer than two points, a σ that is not positive, or every x the same.
+ */
+export function weightedLinearFit(
+  x: readonly number[],
+  y: readonly number[],
+  sigma: readonly number[],
+): WeightedLinearFit | null {
+  const n = x.length;
+  if (n < 2 || sigma.some((s) => !(s > 0) || !Number.isFinite(s))) return null;
+  const w = sigma.map((s) => 1 / (s * s));
+  const sw = w.reduce((t, v) => t + v, 0);
+  const xBar = w.reduce((t, v, i) => t + v * (x[i] as number), 0) / sw;
+  const yBar = w.reduce((t, v, i) => t + v * (y[i] as number), 0) / sw;
+  let sxx = 0;
+  let sxy = 0;
+  let sst = 0;
+  for (let i = 0; i < n; i++) {
+    const dx = (x[i] as number) - xBar;
+    const dy = (y[i] as number) - yBar;
+    sxx += (w[i] as number) * dx * dx;
+    sxy += (w[i] as number) * dx * dy;
+    sst += (w[i] as number) * dy * dy;
+  }
+  if (!(sxx > 0)) return null;
+  const slope = sxy / sxx;
+  const intercept = yBar - slope * xBar;
+  let chi2 = 0;
+  for (let i = 0; i < n; i++)
+    chi2 += (w[i] as number) * ((y[i] as number) - intercept - slope * (x[i] as number)) ** 2;
+  const reducedChi2 = n > 2 ? chi2 / (n - 2) : NaN;
+  const slopeSigmaUnscaled = Math.sqrt(1 / sxx);
+  const interceptSigmaUnscaled = Math.sqrt(1 / sw + (xBar * xBar) / sxx);
+  return {
+    intercept,
+    slope,
+    slopeSigma: slopeSigmaUnscaled * Math.sqrt(reducedChi2),
+    interceptSigma: interceptSigmaUnscaled * Math.sqrt(reducedChi2),
+    slopeSigmaUnscaled,
+    interceptSigmaUnscaled,
+    reducedChi2,
+    rSquared: sst > 0 ? 1 - chi2 / sst : NaN,
+    n,
+  };
+}

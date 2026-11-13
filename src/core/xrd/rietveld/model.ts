@@ -8,25 +8,42 @@
  * - S: phase scale factor (dimensionless, absorbs the incident intensity and the volume fraction).
  * - M|F|²_k: Σ|F|² of reflection family k from the reference structure (electron units²), or
  *   calculated from the refined atoms when the structure is refined (structure.ts).
- * - LP(θ) = (1 + cos²2θ)/(sin²θ cosθ): Lorentz-polarisation factor with no monochromator.
+ * - LP(θ) = 2[P + (1 − P) cos²2θ]/(sin²θ cosθ): Lorentz-polarisation factor, P the polarisation
+ *   coefficient of GSAS-II (0.5, the default, is no monochromator: LP = (1 + cos²2θ)/(sin²θ cosθ);
+ *   sample.ts gives P for a monochromator).
+ * - All angle-dependent intensity factors are taken at each line's own Bragg angle. GSAS-II takes
+ *   them at the Kα1 angle for both lines (Wavelengths.correctionsAtKAlpha1 reproduces that); the
+ *   difference moved a refined roughness B by 0.6 % in the GSAS-II check.
+ * - SR(θ): Suortti surface roughness (sample.ts), 1 unless refined; V(θ) = sin θ when the data were
+ *   measured with an automatic (variable) divergence slit, otherwise 1 (sample.ts).
  * - P_k: March–Dollase preferred orientation, mean over the family's reflections of
  *   (r² cos²α + sin²α / r)^(−3/2), α the angle between the reflection's normal and the preferred
- *   direction (also given as a plane normal h k l); r = 1 is a random powder (P = 1).
+ *   direction (also given as a plane normal h k l); r = 1 is a random powder (P = 1). With
+ *   PhaseModel.texture, P_k is instead GSAS-II's spherical-harmonic correction (texture.ts) of the
+ *   family's representative reflection, A(h) = 1 + Σ C_l^n (4π/(2l+1)) k_l^n(φ, β) k_l^0(ψ), with
+ *   ψ = 90° on a flat plate (Bragg–Brentano) and ψ = θ of the Kα1 peak in a capillary.
  * - exp(−B/(2d²)) = exp(−2B sin²θ/λ²): an overall displacement factor B (Å²) applied on top of
  *   the displacement parameters already in the reference structure.
  * - r_λ: relative intensity of the Kα1 line (1) and the Kα2 line (the Kα2/Kα1 ratio, or none
  *   with a monochromator); each line has its own Bragg angle from λ = 2d sinθ.
- * - Peak position: 2θ_k,λ = 2·asin(λ/2d)·180/π + Z + D·cosθ (degrees): Z is the zero shift (the
- *   measured 2θ minus the true one, as in the Clean data step) and D the sample displacement
- *   coefficient (for a sample surface a distance s above the focusing circle of radius R,
- *   D = −(360/π)·s/R degrees).
+ * - Peak position: 2θ_k,λ = 2·asin(λ/2d)·180/π + Z + D·cosθ + T·sin2θ (degrees): Z is the zero
+ *   shift (the measured 2θ minus the true one, as in the Clean data step), D the sample
+ *   displacement coefficient (for a sample surface a distance s above the focusing circle of
+ *   radius R, D = −(360/π)·s/R degrees) and T the sample transparency (sample.ts).
  * - Ω: pseudo-Voigt of unit area, Ω = η·L + (1 − η)·G, with full width at half maximum H from the
  *   Caglioti relation H² = U tan²θ + V tanθ + W (H in degrees 2θ, U, V, W in deg²). η is the
- *   Lorentzian fraction (0 to 1). Ω is cut off at ±25 H (the Lorentzian tails beyond hold about
- *   1.3 % of its area).
+ *   Lorentzian fraction (0 to 1). Ω is computed from 50 F below to 75 F above the peak (reversed
+ *   above 2θ = 90°), F = H_G + H_L with the TCH profile and F = H otherwise, as in GSAS-II
+ *   (GSASIIpwd.getWidthsCW); the Lorentzian tails beyond hold about 0.5 % of its area. A shorter
+ *   window biases the size and strain of Lorentzian peaks by about 1 % (found in the GSAS-II check).
  * - TCH profile (optional, GSAS-II's peak shape): the Gaussian width follows the Caglioti relation
  *   above, H_G² = U tan²θ + V tanθ + W, the Lorentzian width H_L = X/cosθ + Y tanθ (degrees), and
  *   H and η come from the Thompson–Cox–Hastings formulas (tch.ts) instead of a refined η.
+ * - Sample broadening (optional, always with the TCH profile): crystallite size and microstrain
+ *   add to H_L and H_G² as in GSAS-II (sample.ts), so U, V, W, X, Y can stay those of the
+ *   instrument (for example fixed from a standard) while size and strain are refined per phase.
+ * - Le Bail mode (optional, per phase): M|F|²_k are not calculated from a structure but extracted
+ *   from the data (refine.ts), so only the cell and the profile are fitted.
  * - Peak asymmetry (optional, off unless refined): Ω is multiplied by the Bérar–Baldinozzi
  *   correction (J.-F. Bérar and G. Baldinozzi, J. Appl. Cryst. 26 (1993) 128–129), in the form of
  *   the FullProf manual (eq. 3.29) with its 1/tan θ terms:
@@ -37,18 +54,55 @@
  *   further 1/tan 2θ terms (P3, P4) are not used: they matter mainly at high angle, where lab
  *   patterns show little asymmetry.
  *
- * Anisotropic broadening, absorption and surface roughness are not modelled.
+ * - Anisotropic sample broadening (optional, per phase, broadening.ts): uniaxial crystallite size,
+ *   uniaxial microstrain or Stephens' generalized microstrain, as in GSAS-II. The width then
+ *   depends on the direction of each reflection, so the reflections of a family that are not
+ *   equivalent for it (for example (1 0 0) and (0 1 0) of a hexagonal cell with the size axis
+ *   along [1 0 0]) are placed as separate peaks, each with its share of Σ|F|². GSAS-II uses one
+ *   representative reflection; the two agree whenever the axis is a symmetry axis of the lattice.
+ * - Axial divergence (optional, fcj.ts): the Finger–Cox–Jephcoat profile of GSAS-II with one
+ *   parameter SH/L, which replaces the symmetric pseudo-Voigt; its low-angle side (the high-angle
+ *   side above 90°) is then computed 50 · SH/L · |cos 2θ| further out, as in GSAS-II.
+ *
+ * - Capillary (Debye–Scherrer) geometry (optional, Wavelengths.capillary): the intensity is
+ *   multiplied by the cylinder absorption factor A(μR, θ) of GSAS-II (sample.ts), with μR fixed or
+ *   refined, instead of the surface roughness and the variable-slit factor (flat-plate effects);
+ *   the displacement and transparency terms become GSAS-II's capillary displacements,
+ *   Δ2θ = Dx cos 2θ + Dy sin 2θ (perpendicular to and along the beam), in the same two parameters.
+ * - Anomalous dispersion f′, f″ enters through Σ|F|² (structure.ts).
+ *
+ * A flat plate in Bragg–Brentano geometry needs no absorption factor for a thick sample (it is the
+ * same at every angle); surface roughness is its only absorption-related correction here.
  */
 
+import { textureBasis, textureCorrection, type TextureSymmetry } from './texture';
 import { dSpacing, lorentzPolarisation, reciprocalMetric, type Cell } from '../reference/powder';
+import {
+  cosAngle,
+  stephensNames,
+  stephensStrain,
+  uniaxialInverseSize,
+  uniaxialStrain,
+  type LaueClass,
+} from './broadening';
+import { fcjNodes, type FcjNodes } from './fcj';
 import { tchEta, tchFwhm } from './tch';
+import {
+  capillaryShift,
+  cylinderAbsorption,
+  polarisation,
+  sampleWidths,
+  surfaceRoughness,
+  transparencyShift,
+  variableSlitFactor,
+} from './sample';
 import { cellFromParameters, cellParameterNames, type CellKind } from './cell';
 import type { Hkl, RefinementReflection } from './reflections';
 import {
   atomPosition,
   atomTensor,
   rotateTensor,
-  structureFactorSquared,
+  familyStructureFactor,
   type AtomState,
   type StructureModel,
 } from './structure';
@@ -62,10 +116,27 @@ export interface PhaseModel {
   reflections: RefinementReflection[];
   /** Preferred-orientation direction as a plane normal (h k l), or null for none. */
   orientation: Hkl | null;
+  /**
+   * Spherical-harmonic texture (texture.ts) instead of March–Dollase: the Laue class and the
+   * coefficients C_l^n refined, in GSAS-II's order.
+   */
+  texture?: { symmetry: TextureSymmetry; terms: [number, number][] };
   /** Atoms, when the structure is refined: Σ|F|² is then calculated (structure.ts). */
   structure?: StructureModel;
   /** Thompson–Cox–Hastings profile (GSAS-II) instead of the single-width pseudo-Voigt. */
   tch?: boolean;
+  /** Crystallite size and microstrain broadening (sample.ts); uses the TCH profile. */
+  sample?: boolean;
+  /** Le Bail mode: Σ|F|² of each reflection as extracted from the data (refine.ts). */
+  leBail?: Float64Array;
+  /** Laue class of the generalized microstrain terms (broadening.ts); needed for that model. */
+  laue?: LaueClass;
+  /** Crystallite-size model (isotropic unless given) and its axis as a plane normal. */
+  sizeModel?: 'isotropic' | 'uniaxial';
+  sizeAxis?: Hkl;
+  /** Microstrain model (isotropic unless given) and the axis of the uniaxial one. */
+  strainModel?: 'isotropic' | 'uniaxial' | 'generalized';
+  strainAxis?: Hkl;
 }
 
 export interface Wavelengths {
@@ -75,12 +146,32 @@ export interface Wavelengths {
   kAlpha2: number;
   /** Kα2/Kα1 intensity ratio; 0 when a monochromator removed Kα2. */
   ratio: number;
+  /** GSAS-II polarisation coefficient P (sample.ts); missing means 0.5, no monochromator. */
+  polarisation?: number;
+  /** Data measured with an automatic (variable) divergence slit (sample.ts). */
+  variableSlit?: boolean;
+  /**
+   * Evaluate LP, polarisation, roughness and slit factors at the Kα1 angle for both lines, as
+   * GSAS-II does (GetIntensityCorr uses the Kα1 position), instead of at each line's own angle.
+   * Only for reproducing GSAS-II exactly in the validation; the default is the exact form.
+   */
+  correctionsAtKAlpha1?: boolean;
+  /** Capillary (Debye–Scherrer) geometry instead of a flat plate (see the header). */
+  capillary?: boolean;
 }
 
 /** Where each parameter sits in the parameter vector. */
 export interface Layout {
   zero: number;
   displacement: number;
+  /** Sample transparency T (degrees). */
+  transparency: number;
+  /** Suortti surface roughness A and B. */
+  roughness: [number, number];
+  /** Axial divergence SH/L (fcj.ts); 0 is a symmetric profile. */
+  axial: number;
+  /** Capillary absorption μR (sample.ts), used only in capillary geometry. */
+  absorption: number;
   /** Background coefficients b_0 … b_(n−1). */
   background: number[];
   phases: PhaseLayout[];
@@ -99,11 +190,28 @@ export interface PhaseLayout {
   lx: number;
   ly: number;
   orientation: number;
+  /** Spherical-harmonic coefficients, one per PhaseModel.texture term (none without it). */
+  texture: number[];
   b: number;
   /** Bérar–Baldinozzi asymmetry P1 and P2. */
   asymmetry: [number, number];
-  /** Per atom of the structure (empty without one): free coordinate coefficients, occupancy, B. */
-  atoms: { coords: number[]; occupancy: number; b: number; aniso: number[] }[];
+  /**
+   * Sample broadening: 1/size (nm⁻¹), microstrain (10⁻⁶) and their Lorentzian fractions. With the
+   * uniaxial models these are the equatorial values and the axial ones follow; `stephens` holds
+   * the generalized microstrain coefficients S_hkl (one per term of the Laue class).
+   */
+  inverseSize: number;
+  inverseSizeAxial: number;
+  microstrain: number;
+  microstrainAxial: number;
+  stephens: number[];
+  sizeMix: number;
+  strainMix: number;
+  /**
+   * Per atom of the structure (empty without one): free coordinate coefficients, occupancy, B,
+   * U_ij coefficients and the fraction of a substituting element (structure.ts).
+   */
+  atoms: { coords: number[]; occupancy: number; b: number; aniso: number[]; fraction: number }[];
 }
 
 export function makeLayout(phases: readonly PhaseModel[], backgroundTerms: number): Layout {
@@ -111,6 +219,10 @@ export function makeLayout(phases: readonly PhaseModel[], backgroundTerms: numbe
   const take = () => next++;
   const zero = take();
   const displacement = take();
+  const transparency = take();
+  const roughness: [number, number] = [take(), take()];
+  const axial = take();
+  const absorption = take();
   const background = Array.from({ length: backgroundTerms }, take);
   const phaseLayouts = phases.map((phase) => ({
     scale: take(),
@@ -122,20 +234,41 @@ export function makeLayout(phases: readonly PhaseModel[], backgroundTerms: numbe
     lx: take(),
     ly: take(),
     orientation: take(),
+    texture: (phase.texture?.terms ?? []).map(take),
     b: take(),
     asymmetry: [take(), take()] as [number, number],
+    inverseSize: take(),
+    inverseSizeAxial: take(),
+    microstrain: take(),
+    microstrainAxial: take(),
+    stephens: (phase.laue ? stephensNames(phase.laue) : []).map(take),
+    sizeMix: take(),
+    strainMix: take(),
     atoms: (phase.structure?.atoms ?? []).map((atom) => ({
       coords: atom.basis.map(take),
       occupancy: take(),
       b: take(),
       aniso: atom.uBasis.map(take),
+      fraction: take(),
     })),
   }));
-  return { zero, displacement, background, phases: phaseLayouts, size: next };
+  return {
+    zero,
+    displacement,
+    transparency,
+    roughness,
+    axial,
+    absorption,
+    background,
+    phases: phaseLayouts,
+    size: next,
+  };
 }
 
 const SQRT_LN2_PI = Math.sqrt(Math.LN2 / Math.PI);
-const CUT_OFF = 25;
+/** Profile window in units of F (see the header): low-angle and high-angle side. */
+const REACH_LOW = 50;
+const REACH_HIGH = 75;
 const RAD = Math.PI / 180;
 
 /** Chebyshev polynomials T_0 … T_(n−1) at every point (row-major, n per point). */
@@ -206,12 +339,36 @@ export interface PlacedPeak {
   twoTheta: number;
   /** Integrated intensity (counts × degrees). */
   area: number;
+  /** area / Σ|F|²: every intensity factor except Σ|F|² (for the structure derivatives). */
+  areaPerMf2: number;
+  /** Preferred-orientation factor P_k of the reflection (1 for a random powder). */
+  orientation: number;
   fwhm: number;
   eta: number;
   /** Coefficients of Fa(z) and Fb(z) in the asymmetry correction: P1 / tan θ and P2 / tan θ. */
   asymmetry: [number, number];
   /** 0 for Kα1, 1 for Kα2. */
   line: 0 | 1;
+  /** d-spacing (Å) and Σ|F|² of the reflection family. */
+  d: number;
+  mf2: number;
+  /** Width F (degrees) that sets the profile window (see the header); missing means fwhm. */
+  reach?: number;
+  /** Axial-divergence profile (fcj.ts) and how much further its asymmetric side reaches. */
+  fcj?: FcjNodes;
+  fcjReach?: number;
+}
+
+/** First and last 2θ (degrees) at which a peak's profile is computed. */
+function peakRange(peak: PlacedPeak): [number, number] {
+  const f = peak.reach ?? peak.fwhm;
+  const extra = peak.fcjReach ?? 0;
+  // A pure Gaussian is below 10⁻³⁰ of its height beyond 8 H.
+  if (peak.eta === 0 && !peak.fcj)
+    return [peak.twoTheta - 8 * peak.fwhm, peak.twoTheta + 8 * peak.fwhm];
+  return peak.twoTheta > 90
+    ? [peak.twoTheta - REACH_HIGH * f, peak.twoTheta + REACH_LOW * (f + extra)]
+    : [peak.twoTheta - REACH_LOW * (f + extra), peak.twoTheta + REACH_HIGH * f];
 }
 
 /** Bérar–Baldinozzi correction As(z) = 1 + a·Fa(z) + b·Fb(z), Fa = 2z e^(−z²), Fb = 2(2z² − 3) Fa. */
@@ -244,24 +401,37 @@ export function atomStates(phase: PhaseModel, layout: PhaseLayout, p: Float64Arr
       ),
       occupancy: p[al.occupancy] as number,
       b: p[al.b] as number,
+      fraction: p[al.fraction] as number,
       ...(u && { uImages: atom.images.map((image) => rotateTensor(image.op.rot, u)) }),
     };
   });
 }
 
-/** Every peak of a phase for parameters p, within [lo, hi] degrees 2θ (with a margin). */
+/**
+ * Every peak of a phase for parameters p. `mf2`, when given, holds each reflection's Σ|F|²
+ * already calculated for the same cell and atoms (derivatives.ts), so it is not calculated again.
+ */
 export function placePeaks(
   phases: readonly PhaseModel[],
   layout: Layout,
   index: number,
   p: Float64Array,
   wavelengths: Wavelengths,
+  mf2Known?: Float64Array,
 ): PlacedPeak[] {
   const phase = phases[index] as PhaseModel;
   const pl = layout.phases[index] as PhaseLayout;
-  const gStar = reciprocalMetric(phaseCell(phase, pl, p));
+  const cell = phaseCell(phase, pl, p);
+  const gStar = reciprocalMetric(cell);
   const zero = p[layout.zero] as number;
   const displacement = p[layout.displacement] as number;
+  const transparency = p[layout.transparency] as number;
+  const roughA = p[layout.roughness[0]] as number;
+  const roughB = p[layout.roughness[1]] as number;
+  const capillary = wavelengths.capillary === true;
+  const rough = !capillary && roughA !== 1 && roughB !== 0;
+  const muR = capillary ? Math.max(0, p[layout.absorption] as number) : 0;
+  const pola = wavelengths.polarisation ?? 0.5;
   const scale = p[pl.scale] as number;
   const u = p[pl.u] as number;
   const v = p[pl.v] as number;
@@ -270,9 +440,39 @@ export function placePeaks(
   const lx = p[pl.lx] as number;
   const ly = p[pl.ly] as number;
   const r = p[pl.orientation] as number;
+  const texture = phase.texture;
+  const shCoefficients = pl.texture.map((j) => p[j] as number);
   const b = p[pl.b] as number;
   const p1 = p[pl.asymmetry[0]] as number;
   const p2 = p[pl.asymmetry[1]] as number;
+  const inverseSize = p[pl.inverseSize] as number;
+  const inverseSizeAxial = p[pl.inverseSizeAxial] as number;
+  const microstrain = p[pl.microstrain] as number;
+  const microstrainAxial = p[pl.microstrainAxial] as number;
+  const stephens = pl.stephens.map((j) => p[j] as number);
+  const sizeMix = p[pl.sizeMix] as number;
+  const strainMix = p[pl.strainMix] as number;
+  const shl = Math.max(0, p[layout.axial] as number);
+  const tch = phase.tch === true || phase.sample === true;
+  const sizeAxis = phase.sample && phase.sizeModel === 'uniaxial' ? phase.sizeAxis : undefined;
+  const strainModel = phase.sample ? (phase.strainModel ?? 'isotropic') : 'isotropic';
+  const strainAxis = strainModel === 'uniaxial' ? phase.strainAxis : undefined;
+  const laue = phase.laue;
+  const anisotropic =
+    sizeAxis !== undefined ||
+    strainAxis !== undefined ||
+    (strainModel === 'generalized' && laue !== undefined);
+  /** Inverse size and microstrain of one reflection (h k l) of spacing d (broadening.ts). */
+  const sampleOf = (hkl: Hkl, d: number): [number, number] => [
+    sizeAxis
+      ? uniaxialInverseSize(inverseSize, inverseSizeAxial, cosAngle(gStar, hkl, sizeAxis))
+      : inverseSize,
+    strainAxis
+      ? uniaxialStrain(microstrain, microstrainAxial, cosAngle(gStar, hkl, strainAxis))
+      : strainModel === 'generalized' && laue
+        ? stephensStrain(laue, stephens, hkl, d)
+        : microstrain,
+  ];
   const lines: [number, number][] = [[wavelengths.kAlpha1, 1]];
   if (wavelengths.ratio > 0) lines.push([wavelengths.kAlpha2, wavelengths.ratio]);
   const out: PlacedPeak[] = [];
@@ -281,70 +481,179 @@ export function placePeaks(
   phase.reflections.forEach((reflection, k) => {
     const [h, kk, l] = reflection.hkl;
     const d = dSpacing(gStar, h, kk, l);
-    const mf2 = structure
-      ? reflection.members.reduce(
-          (sum, m) => sum + structureFactorSquared(structure, states, m, d),
-          0,
-        )
-      : reflection.mf2;
-    const orientation =
-      phase.orientation && r !== 1
-        ? marchDollase(gStar, reflection.members, phase.orientation, r)
-        : 1;
-    const common = scale * mf2 * orientation * Math.exp(-b / (2 * d * d));
-    lines.forEach(([lambda, weight], line) => {
-      const s = lambda / (2 * d);
-      if (!(s < 1)) return;
-      const theta = Math.asin(s);
-      const tan = Math.tan(theta);
-      const h2 = u * tan * tan + v * tan + w;
-      let fwhm = Math.sqrt(Math.max(h2, 1e-8));
-      let mix = eta;
-      if (phase.tch) {
-        const hl = Math.max(0, lx / Math.cos(theta) + ly * tan);
-        const hg = fwhm;
-        fwhm = tchFwhm(hg, hl);
-        mix = tchEta(hl / fwhm);
+    const mf2 = mf2Known
+      ? (mf2Known[k] as number)
+      : phase.leBail
+        ? (phase.leBail[k] as number)
+        : structure
+          ? familyStructureFactor(structure, states, reflection.members, d)
+          : reflection.mf2;
+    let orientation = 1;
+    if (texture && shCoefficients.some((c) => c !== 0)) {
+      // ψ: 90° for every reflection on a flat plate; θ of the Kα1 peak (with its shifts) in a
+      // capillary, as GSAS-II's SHPOcal takes it from the reflection's position.
+      let psi = 90;
+      if (capillary) {
+        const theta1 = Math.asin(Math.min(1, wavelengths.kAlpha1 / (2 * d)));
+        psi = theta1 / RAD + (zero + capillaryShift(displacement, transparency, theta1)) / 2;
       }
-      out.push({
-        phase: index,
-        reflection: k,
-        twoTheta: (2 * theta) / RAD + zero + displacement * Math.cos(theta),
-        area: common * weight * lorentzPolarisation(theta),
-        fwhm,
-        eta: mix,
-        asymmetry: [p1 / tan, p2 / tan],
-        line: line as 0 | 1,
+      orientation = textureCorrection(
+        shCoefficients,
+        textureBasis(texture.terms, reflection.hkl, cell, texture.symmetry, psi),
+      );
+    } else if (phase.orientation && r !== 1)
+      orientation = marchDollase(gStar, reflection.members, phase.orientation, r);
+    const common = scale * orientation * Math.exp(-b / (2 * d * d));
+    // Reflections of the family with the same sample broadening share a peak (see the header).
+    const groups: { share: number; sample: [number, number] }[] = [];
+    if (anisotropic) {
+      const byWidth = new Map<string, { share: number; sample: [number, number] }>();
+      const share = 1 / reflection.members.length;
+      for (const member of reflection.members) {
+        const sample = sampleOf(member, d);
+        const key = `${sample[0].toPrecision(12)}:${sample[1].toPrecision(12)}`;
+        const group = byWidth.get(key);
+        if (group) group.share += share;
+        else byWidth.set(key, { share, sample });
+      }
+      groups.push(...byWidth.values());
+    } else groups.push({ share: 1, sample: [inverseSize, microstrain] });
+    for (const group of groups)
+      lines.forEach(([lambda, weight], line) => {
+        const s = lambda / (2 * d);
+        if (!(s < 1)) return;
+        const theta = Math.asin(s);
+        const tan = Math.tan(theta);
+        const h2 = u * tan * tan + v * tan + w;
+        let fwhm = Math.sqrt(Math.max(h2, 1e-8));
+        let mix = eta;
+        let reach = fwhm;
+        let lorentzian = 0;
+        if (tch) {
+          let hl = Math.max(0, lx / Math.cos(theta) + ly * tan);
+          let hg2 = Math.max(h2, 1e-8);
+          if (phase.sample) {
+            const [size, strain] = group.sample;
+            const extra = sampleWidths(size, strain, sizeMix, strainMix, lambda, theta);
+            hl += extra.lorentzian;
+            hg2 += extra.gaussian2;
+          }
+          fwhm = tchFwhm(Math.sqrt(hg2), hl);
+          mix = tchEta(hl / fwhm);
+          reach = Math.sqrt(hg2) + hl;
+          lorentzian = hl;
+        }
+        const at = wavelengths.correctionsAtKAlpha1
+          ? Math.asin(wavelengths.kAlpha1 / (2 * d))
+          : theta;
+        let factor = weight * lorentzPolarisation(at);
+        if (pola !== 0.5) factor *= polarisation(pola, at) / (1 + Math.cos(2 * at) ** 2);
+        if (rough) factor *= surfaceRoughness(roughA, roughB, at);
+        if (wavelengths.variableSlit && !capillary) factor *= variableSlitFactor(at);
+        if (muR > 0) factor *= cylinderAbsorption(muR, at);
+        const twoTheta =
+          (2 * theta) / RAD +
+          zero +
+          (capillary
+            ? capillaryShift(displacement, transparency, theta)
+            : displacement * Math.cos(theta) + transparencyShift(transparency, theta));
+        const fcj = shl > 0 ? fcjNodes(twoTheta, shl, tch ? lorentzian : mix * fwhm) : null;
+        out.push({
+          phase: index,
+          reflection: k,
+          twoTheta,
+          area: common * factor * group.share * mf2,
+          areaPerMf2: common * factor * group.share,
+          orientation,
+          fwhm,
+          eta: mix,
+          asymmetry: [p1 / tan, p2 / tan],
+          line: line as 0 | 1,
+          d,
+          mf2,
+          reach,
+          ...(fcj && { fcj, fcjReach: shl * Math.abs(Math.cos(twoTheta * RAD)) }),
+        });
       });
-    });
   });
   return out;
 }
 
-/** Adds the profiles of the peaks to `out` (same length as x). */
+/** One peak's profile on the points it reaches: values[q] belongs to x[start + q]. */
+export function profileWindow(
+  x: Float64Array,
+  peak: PlacedPeak,
+): { start: number; values: Float64Array } {
+  const [lo, hi] = peakRange(peak);
+  const start = lowerBound(x, lo);
+  const end = lowerBound(x, hi);
+  const values = new Float64Array(end - start);
+  addProfiles(x.subarray(start, end), [peak], values);
+  return { start, values };
+}
+
+/** Index range [start, end) of the points each peak's profile covers, two entries per peak. */
+export function peakWindows(x: Float64Array, peaks: readonly PlacedPeak[]): Int32Array {
+  const out = new Int32Array(2 * peaks.length);
+  peaks.forEach((peak, q) => {
+    const [lo, hi] = peakRange(peak);
+    out[2 * q] = lowerBound(x, lo);
+    out[2 * q + 1] = lowerBound(x, hi);
+  });
+  return out;
+}
+
+/**
+ * Adds the profiles of the peaks to `out` (same length as x). `windows` (from peakWindows) fixes
+ * the points each peak covers; finite-difference derivatives pass the windows of the unshifted
+ * parameters, because a window edge that crosses a point would add a jump to the derivative.
+ */
 export function addProfiles(
   x: Float64Array,
   peaks: readonly PlacedPeak[],
   out: Float64Array,
+  windows?: Int32Array,
 ): void {
-  for (const peak of peaks) {
-    const hw = CUT_OFF * peak.fwhm;
-    const start = lowerBound(x, peak.twoTheta - hw);
-    const end = lowerBound(x, peak.twoTheta + hw);
+  const fixed = windows !== undefined && windows.length === 2 * peaks.length;
+  peaks.forEach((peak, q) => {
+    let start: number;
+    let end: number;
+    if (fixed) {
+      start = windows[2 * q] as number;
+      end = windows[2 * q + 1] as number;
+    } else {
+      const [lo, hi] = peakRange(peak);
+      start = lowerBound(x, lo);
+      end = lowerBound(x, hi);
+    }
     const inv = 1 / peak.fwhm;
     const gNorm = 2 * SQRT_LN2_PI * inv;
     const lNorm = (2 / Math.PI) * inv;
     const [a, b] = peak.asymmetry;
     const asymmetric = a !== 0 || b !== 0;
+    const lorentz = peak.eta * lNorm;
+    const gaussian = (1 - peak.eta) * gNorm;
+    /** Pseudo-Voigt of unit area centred at 0, at u (degrees) from the centre. */
+    const voigt = (u: number) => {
+      const t2 = 4 * u * u * inv * inv;
+      // The Gaussian part is below 10⁻⁴⁰ of its height for t² > 135, so it is skipped there.
+      return lorentz / (1 + t2) + (t2 < 135 ? gaussian * Math.exp(-Math.LN2 * t2) : 0);
+    };
+    const fcj = peak.fcj;
     for (let i = start; i < end; i++) {
-      const t = ((x[i] as number) - peak.twoTheta) * inv;
-      const t2 = 4 * t * t;
-      const value =
-        peak.area *
-        ((peak.eta * lNorm) / (1 + t2) + (1 - peak.eta) * gNorm * Math.exp(-Math.LN2 * t2));
+      const xi = x[i] as number;
+      let shape: number;
+      if (fcj) {
+        shape = 0;
+        const { centres, weights } = fcj;
+        for (let j = 0; j < centres.length; j++)
+          shape += (weights[j] as number) * voigt(xi - (centres[j] as number));
+      } else shape = voigt(xi - peak.twoTheta);
+      const value = peak.area * shape;
+      const t = (xi - peak.twoTheta) * inv;
       out[i] = (out[i] as number) + (asymmetric ? value * asymmetryFactor(t, a, b) : value);
     }
-  }
+  });
 }
 
 /** Background at every point for parameters p. */
@@ -373,8 +682,9 @@ export function phaseCurve(
   index: number,
   p: Float64Array,
   wavelengths: Wavelengths,
+  windows?: Int32Array,
 ): Float64Array {
   const out = new Float64Array(x.length);
-  addProfiles(x, placePeaks(phases, layout, index, p, wavelengths), out);
+  addProfiles(x, placePeaks(phases, layout, index, p, wavelengths), out, windows);
   return out;
 }

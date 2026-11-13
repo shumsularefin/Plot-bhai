@@ -1,5 +1,301 @@
 # Progress
 
+## Stage 17i: Bérar–Lelann correction of the standard uncertainties (done, roadmap item 11)
+
+Branch `claude/sleepy-turing-hb1ofu`. No new packages. Checks in docs/validation.md, 17i.
+
+- **Core:** `berarLelann` in src/core/xrd/rietveld/statistics.ts (eqs 10–12 of Bérar and Lelann
+  1991, with 2π as in Andreev 1994 eq 3). Every refinement reports `stats.berarLelann`.
+- **Step 5 UI:** "Bérar–Lelann factor ×f" beside the Durbin–Watson d, with help text. The s.u.
+  shown stay the least-squares ones; the methods text says they should be multiplied by f.
+- **Decision:** the factor is reported, not applied, so tables stay comparable with GSAS-II.
+- **Known issues:** the paper has no numeric table to compare with; its printed eq 12 and Fortran
+  disagree (2 vs 2π, undefined CD), resolved with Andreev's paper.
+- **Next:** the roadmap (docs/rietveld-roadmap.md) is complete.
+
+## Stage 17h: bond lengths and angles with uncertainties, bond-valence sums (done, roadmap item 10)
+
+Branch `claude/sleepy-turing-hb1ofu`. No new packages. One new data file. Checks in
+docs/validation.md, 17h.
+
+- **Data:** data/reference/bond-valence.json (1168 ion pairs, 49 references, about 9 KB gzipped,
+  its own lazy chunk), built by `npm run build:bv` (scripts/build-bond-valence.ts) from an unchanged
+  copy of I. D. Brown's bvparm2020.cif (IUCr) taken from the matminer 0.10.1 wheel. Its copyright
+  notice is kept in both files (non-profit use, no fee, changes noted). The changes made: 283 rows
+  marked "unchecked" are left out, and only the first-listed entry of each ion pair is kept (owner's
+  choice). No value is changed. **Flagged for owner verification**, as are the covalent radii it
+  is used with.
+- **Core:** src/core/xrd/structure/bonds.ts finds bonds (covalent radii + 0.45 Å by default) and
+  angles, with CIF symmetry codes and analytic gradients. Standard uncertainties come from the
+  covariance of the cell and atom coordinates. src/core/xrd/structure/bondValence.ts gives the sums
+  with s.u., the oxidation states the table offers, and a suggested set of states. The Rietveld
+  result now carries each structure phase's geometry and covariance (not for Le Bail phases).
+- **Step 5 UI** (src/modules/xrd/BondsSection.tsx, Advanced, shown after a refinement with a
+  structure): bond tolerance; bond and angle tables with s.u. and symmetry codes; oxidation state
+  per element (suggested, labelled to check); a bond-valence table with a plain note when a sum
+  differs by more than 10 % from the state, or when a pair has no parameters; the references used;
+  a CSV of each table. Choices are saved in the session (RietveldState.bonds). A methods sentence
+  (bond criterion, Brown & Altermatt 1985, bvparm2020) is added to the methods text.
+- **Validation:** new GSAS-II script scripts/validation/gsas2/bonds.py (baddeleyite ZrO₂). The
+  site's distances, angles, sums and their s.u. match GSAS-II's on GSAS-II's refined structure, and
+  its own refinement of the same pattern gives lengths within 3 s.u. of GSAS-II's, with s.u. about
+  1.05 × GSAS-II's. Distances also match pymatgen on four structures.
+- **GSAS-II finding:** RetDistAngle passes the transposed orthogonalisation matrix to getAngSig, so
+  its angles are off by up to 1.14° in the monoclinic cell. The cause was confirmed by reproducing
+  its values exactly. The check uses getAngSig with the correct matrix.
+- **Known issues:** the oxidation-state suggestion is a rule of the site; the 10 % note is a display
+  choice; GSAS-II's own R₀ for Zr⁴⁺–O (1.937 Å) differs from the table's first entry (1.928 Å), so
+  sums differ from GSAS-II's by about 0.09 for Zr. The label-wrapping help buttons noted in 17f
+  are still to fix.
+- **Next:** roadmap item 11 (Bérar–Lelann).
+
+## Stage 17g: sequential refinement of a series (done, roadmap item 8)
+
+Branch `claude/sleepy-turing-hb1ofu`. No new packages or data. Checks in docs/validation.md, 17g.
+
+- **Core** (src/core/xrd/rietveld/sequential.ts): refines the patterns in order of a series value
+  with the same settings; with "Start from the previous result" each pattern starts from the cells
+  refined on the one before (GSAS-II's "copy results to next histogram"). A failed pattern is
+  reported and the series goes on. Results keep only cells, volume, weight %, size, microstrain,
+  R values and zero shift, so long series stay small in the saved session.
+- **Weighted straight line** (src/core/math/linearFit.ts, weightedLinearFit): weights 1/s.u.²,
+  s.u. scaled by the scatter about the line (as numpy.polyfit cov=True), the unscaled ones kept
+  too; the relative slope (1/y₀)·dy/dx gives a thermal expansion coefficient directly.
+- **Step 5 UI** (src/modules/xrd/SeriesSection.tsx, Advanced, shown with two or more patterns):
+  series label with unit, a value per pattern (suggested from the last number in the file name),
+  include boxes, copy-forward choice, progress and cancel (worker), a results table with CSV, a
+  quantity to follow with plot and fitted line, slope, intercept, relative slope, R², χ²_ν of the
+  line, and a methods paragraph (also added to the session methods text in Export).
+- **Validation:** new GSAS-II script scripts/validation/gsas2/sequential.py (five simulated ZnO
+  patterns, refined one by one and by GSAS-II's sequential refinement, numpy lines). The site's
+  cells agree within 3 combined s.u. with both, the slope of a is (1.9494 ± 0.0024) × 10⁻⁵ against
+  GSAS-II's (1.9505 ± 0.0025) × 10⁻⁵ and the true 1.9506 × 10⁻⁵ Å per unit. A Monte Carlo shows
+  the site's s.u. of a match the real scatter, while GSAS-II's reported s.u. of the hexagonal a is
+  about twice the scatter (cause not known, listed as open).
+- **Refactor:** RietveldStep builds the shared refinement input once (sharedInput) for the single
+  refinement and the series; the single refinement's settings key is unchanged, so saved results
+  stay current. refineSeries takes the refinement function as an argument, so the page bundle does
+  not load the refinement code (it stays in the worker).
+- **Known issues:** only the cells are copied forward; no measured series has been compared; the
+  series plot has no error bars (s.u. in the table and CSV). The label-wrapping help buttons noted
+  in 17f are still to fix.
+- **Next:** roadmap items 10 and 11.
+
+## Stage 17f: spherical-harmonic texture (done, roadmap item 7)
+
+Branch `claude/sleepy-turing-hb1ofu`. No new packages or data. Checks in docs/validation.md, 17f.
+
+- **Model** (src/core/xrd/rietveld/texture.ts): GSAS-II's cylindrical spherical-harmonic
+  preferred orientation (Von Dreele, J. Appl. Cryst. 30 (1997) 517), orders 2–16, coefficient
+  lists for every Laue class, flat plate (ψ = 90°) and capillary (ψ = θ). Texture index J reported
+  with its s.u.
+- **Step 5 UI:** with "Preferred orientation" ticked, each phase has an "orientation model" choice:
+  March–Dollase (as before) or spherical harmonics of order 2…16. Results show the coefficients, J
+  and the range of corrections; the reflection CSV has an orientation-factor column; the Methods
+  text names the model, order, Laue class, coefficients and J.
+- **Validation:** GSAS-II (new Validation workflow step, scripts/validation/gsas2/texture.py) gives
+  the Legendre functions, crystal and sample harmonics, the per-reflection corrections of seven
+  phases and a refinement of a textured ZnO pattern; the site matches all of them (refined C(2,0)
+  0.44770(345) against GSAS-II's 0.44767(344)).
+- **Four differences from GSAS-II**, kept on purpose because GSAS-II's form gives different
+  corrections to equivalent reflections: 31m sine/cosine terms, the 3mR class name, the
+  rhombohedral polar axis, and the monoclinic/triclinic azimuth. Listed in docs/validation.md.
+- **Known issues:** only cylindrical sample symmetry. Some existing step 5 fields (for example
+  "Size model") put a help button inside the label, so the label names the button rather than the
+  select; the new orientation select has its own aria-label, the older fields are still to fix.
+- **Next:** roadmap items 8 (sequential refinement), 10 (bond lengths with uncertainties,
+  bond-valence sums), 11 (Bérar–Lelann).
+
+## Step 6 fit: improved automatically until the regions fit (owner request, November 2026)
+
+The owner saw regions flagged "Misses structure" after a Gaussian fit and asked for the fit to
+keep going until the peaks fit. Each fit already ran Levenberg–Marquardt to convergence; what a
+poor fit needs is a different model, so the step now changes the model in rounds
+(src/core/xrd/peaks/improve.ts, in the peaks worker):
+
+- Each round adds the peaks the residual shows were missed and removes peaks that shrank to
+  noise, went to zero height, sit on another peak or stood in for missed ones, then fits again.
+  A round is kept only when it lowers the score χ² + m ln n (BIC); the loop stops when every
+  region fits (χ²ν ≤ 4, R² ≥ 0.9, background meets the data), nothing is left to change, a
+  round brings no gain, or after 8 rounds. The note under the plot says which.
+- Gaussian and Lorentzian: the same improvement is also run as pseudo-Voigt. When that scores
+  lower, no tail peaks are added (they would not be real); the note gives both worst χ²ν and a
+  "Switch to pseudo-Voigt and fit again" button. The shape stays the user's choice.
+- Checks in docs/validation.md ("Step 6"); e2e covers the Gaussian case on the example data.
+
+## Stage 17e: analytic derivatives of the Rietveld model (done, owner request November 2026)
+
+Branch `claude/sleepy-turing-hb1ofu`. No new packages or data. Checks in docs/validation.md, 17e.
+
+- **Jacobian peak by peak** (src/core/xrd/rietveld/derivatives.ts): each peak's position, width,
+  Lorentzian fraction, asymmetry and area are differenced on the peak list alone, and multiplied by
+  exact derivatives of the pseudo-Voigt and asymmetry profile on the peak's window, instead of
+  recalculating the whole pattern for every parameter.
+- **Exact structure-factor gradient** (structure.ts): ∂Σ|F|²/∂p for coordinates, occupancies, B,
+  U_ij and dopant fractions, with f′ and f″, summed over the members of a reflection family.
+  |F|² is now also calculated once per family, with the symmetry images cached.
+- **Fallbacks:** restraint rows, and any column whose shifted peak list does not line up (a peak
+  appearing or vanishing), still use the whole-pattern difference. FCJ peaks use a per-peak
+  difference of their profile.
+- **Validation:** every column of four models (all profile, optics, sample and structure options)
+  matches a Richardson-extrapolated finite difference to 2e-5 of the column; the Σ|F|² gradient
+  matches differences and is the same for equivalent reflections; every earlier Rietveld and
+  GSAS-II test passes unchanged.
+- **Speed** (WO₃ monoclinic, 42 parameters): 43 s → 17.4 s at 5,501 points, 148 s → 106.6 s at
+  50,001 points. The roadmap's 10–50× was not reached; the remaining time is the trial evaluations
+  of the least squares and the wide Lorentzian windows.
+- **Open:** no column-by-column comparison with GSAS-II's derivatives; FCJ shape terms still by
+  difference.
+- **Next:** not scheduled. Remaining roadmap items: 7 (spherical-harmonic texture), 8 (sequential
+  refinement), 10 (bond lengths and angles with uncertainties, bond-valence sums), 11 (Bérar–Lelann).
+  Waiting for the owner.
+
+## Stage 17d: anomalous dispersion and capillary geometry (done, owner request November 2026)
+
+Branch `claude/sleepy-turing-hb1ofu`. No new packages. One new data file,
+`data/reference/anomalous-dispersion.json` (27 KB, loaded only by the Rietveld worker): f′ and f″
+for every element at each anode's Kα1 energy, computed by GSAS-II's Cromer–Liberman routine in the
+Validation workflow (the source the owner chose), with its source and commit inside. Checks in
+docs/validation.md, 17d.
+
+- **Anomalous dispersion** (Rietveld step, setup, "Anomalous dispersion"): when ticked, every phase
+  with a stored structure gets |F|² from f + f′ and f″ for the chosen anode, as the mean of
+  |F(h)|² and |F(−h)|² (h and −h overlap in a powder). A dopant's f′, f″ mix with its fraction.
+  Phases whose elements are missing from the table are listed in a warning and keep the stored
+  intensities. The methods text cites Cromer & Liberman (1970).
+- **Capillary geometry** (setup, "Sample geometry": flat plate or capillary): GSAS-II's
+  Debye–Scherrer model. Absorption A(μR, θ) from GSAS-II's Absorb('Cylinder'), with μR typed and
+  optionally refined (a new choice, after the basic refinement, with a warning that it correlates
+  with B); the displacement and transparency slots become the capillary displacements Dx cos 2θ
+  and Dy sin 2θ, reported in degrees. Surface roughness and the variable-slit
+  correction are ignored for a capillary, with a note.
+- **Validation:** GSAS-II on GitHub (`scripts/validation/gsas2/dispersion.py`):
+  - The table agrees with the independent Henke tables within 0.04 e (f′) and 2 % (f″), Ce worst
+    (f″ 4.3 %).
+  - |F|² of every ZnS and CoFe₂O₄ reflection matches GSAS-II to 2e-4; Absorb('Cylinder') matches on
+    77 points to 1e-12.
+  - A simulated CoFe₂O₄ capillary pattern refines to μR 1.4982(21) (GSAS-II 1.5001(14), truth 1.5),
+    Dx 30.03 µm (30.11(20)), Dy −20.31 µm (−20.54(34)).
+- **Decisions:**
+  - The site places Kα2 at its exact Bragg angle; GSAS-II uses a first-order step from the shifted
+    Kα1 position. They differ by 3.4e-3° at 130°; recorded, not copied.
+  - The site's |F|² is the Friedel mean, where GSAS-II's list holds |F(h)|² of the listed h. They
+    are equal for centrosymmetric structures.
+  - The validation script loads neutral-atom copies of CIFs that give oxidation states.
+- **Open:**
+  - GSAS-II's own capillary refit ends 6 % above R_exp; the cause was not found.
+  - The original paper behind GSAS-II's cylinder absorption fit (Lobanov & Alte da Veiga) could not
+    be checked.
+- **Next:** 17e.
+
+## Stage 17c: anisotropic broadening and axial divergence (done, owner request November 2026)
+
+Branch `claude/sleepy-turing-hb1ofu`. No new dependencies. Checks in docs/validation.md, 17c.
+
+- **Axial divergence (SH/L):** the Finger–Cox–Jephcoat profile exactly as GSAS-II computes it
+  (PSVFCJO with S/L = H/L = SH/L/2, its Gauss–Legendre node counts), as a choice in the Rietveld
+  step. It is read from and written to .instprm files, and taken from a standard with the rest of
+  the instrument profile, so profiles transfer between the two programs. A fixed instrument with
+  SH/L > 0 keeps it fixed. GSAS-II's minimum of 0.002 is applied when a file gives less, with a
+  note.
+- **Uniaxial crystallite size and microstrain** (GSAS-II's): one value along an axis typed per
+  phase (default 0 0 1) and one across it; each reflection gets the value for its direction.
+- **Generalized microstrain** (Stephens 1999, GSAS-II's terms and names for every Laue class,
+  −31m told from −3m1 by the space group): started from the isotropic result. The table shows the
+  range of μ over the reflections and lists S_hkl; a warning appears when the coefficients give a
+  negative strain variance.
+- Members of a reflection family whose widths differ under an anisotropic model are placed as
+  separate peaks (GSAS-II uses one representative). The two agree when the axis is a symmetry
+  axis.
+- **Results:** the table, CSV, methods text and GSAS-II export carry the models, axes, axial
+  values, S_hkl and SH/L. The methods text no longer lists U, V, W as refined when the instrument
+  was fixed (a 17a slip), and it describes an anisotropic phase once.
+- **Validation:** GSAS-II on GitHub (`scripts/validation/gsas2/anisotropic.py`):
+  - The FCJ profile matches point by point in 24 cases.
+  - The Stephens terms match exactly in all 11 Laue classes.
+  - Every ZnO reflection width matches to 1e-6 under uniaxial and generalized models.
+  - The refinement of a simulated ZnO pattern agrees with GSAS-II's:
+    - SH/L 0.02962(23) against 0.02973(24).
+    - Size 50.07(32) and 116.1(26) nm against 49.98(32) and 116.0(26) nm.
+    - S400, S004, S202 within 0.2 s.u.
+    - R_wp 4.344 % against 4.340 %.
+- **Open:** no GSAS-II case with a uniaxial axis off a lattice symmetry direction, where the two
+  programs' treatment of a family differs slightly.
+- **Next:** 17d (anomalous dispersion f′, f″ from a table the owner approves; capillary geometry),
+  when the owner says so.
+
+## Stage 17b: doping on a shared site, Le Bail of an indexed cell (done, owner request November 2026)
+
+Branch `claude/sleepy-turing-hb1ofu`. No new dependencies. Checks in docs/validation.md, 17b.
+
+- **Doping** (Rietveld step, Advanced, "Doping: a second element on a site"): choose the site a
+  dopant replaces, type the element and the nominal fraction x, and refine x or keep it fixed. The
+  site scatters as (1 − x)·f(host) + x·f(dopant) with shared position and displacement, as GSAS-II
+  does with two atoms on one site under a sum constraint. x is released only after the basic
+  refinement has converged; weight fractions use the refined composition. Warnings when the two
+  elements differ by three electrons or fewer (Co/Zn, Fe/Mn) and that X-rays cannot tell a dopant
+  from vacancies.
+- **Special positions:** CIF coordinates within 0.002 of a special position (ZnO's 0.3333) are moved
+  onto it, as GSAS-II does; this removed a 1.5e-3 error in |F|².
+- **Le Bail of an indexed cell:** "Use as a phase" next to each indexing suggestion in step 3 adds
+  the cell as a candidate phase with every reflection its lattice centring allows (space group
+  unknown); step 5 always fits it in Le Bail mode. The methods text says the lines come from a
+  cell suggested by indexing.
+- **Fix found by the checks:** a cell that starts with equal intensities (most reflections empty)
+  made the Le Bail cycles diverge; each starting-width trial now extracts the intensities against
+  the flat starting background first.
+- **Validation:** GSAS-II on GitHub simulated and refined Zn₀.₈₅Mg₀.₁₅O
+  (`scripts/validation/gsas2/substitution.py`): x 0.1530(43) here against 0.1533(43) in GSAS-II
+  (truth 0.15), |F|² of every reflection within 5e-5. The indexed F cell gives the library phase's
+  Le Bail fit and GSAS-II's cell; a P cell finds the same cell with the F-forbidden reflections
+  empty.
+- **Checks:** lint, type check, 1244 unit tests (including the step 3 button, with the indexing
+  worker mocked), build, bundle size and e2e pass. The e2e also adds an indexing suggestion as a
+  phase when the example pattern can be indexed; it has too few peaks today, so it skips that.
+- **Next:** 17c from docs/rietveld-roadmap.md (Stephens anisotropic microstrain, uniaxial size,
+  Finger–Cox–Jephcoat axial divergence), when the owner says so.
+
+## Stage 17a: competitive Rietveld refinement, first batch (done, owner request November 2026)
+
+Branch `claude/sleepy-turing-hb1ofu`. No new dependencies. The owner asked to push the Rietveld
+refinement as far as the free plan allows. The audit and the ranked list of what comes next are
+in docs/rietveld-roadmap.md; the checks are in docs/validation.md, 17a.
+
+- **Optics:** monochromator choice (graphite diffracted beam, germanium incident beam, or a typed
+  GSAS-II polarisation coefficient P) in the Lorentz–polarisation factor; automatic divergence slit
+  (intensities × sin θ).
+- **Sample:** isotropic crystallite size and microstrain per phase with GSAS-II's definitions
+  (refined as 1/D so a large size stays finite), optional Lorentzian fractions; sample
+  transparency; Suortti surface roughness.
+- **Instrument profile:** refine as before, or fix U, V, W, X, Y typed, loaded from a GSAS-II
+  .instprm file, or taken from the refinement of a standard (LaB₆, Si) with one button. Without a
+  fixed profile X and Y stay fixed when size and strain are refined, with a warning that the size
+  is then a lower limit.
+- **Le Bail mode** per phase: intensities extracted from the data after every stage; scale, weight
+  fraction and R_Bragg are not used for that phase.
+- **Excluded 2θ ranges**, **amorphous content from an internal standard** (and absolute weight
+  fractions), **Durbin–Watson d**, **strongly correlated parameter pairs** (with a warning at
+  |r| ≥ 0.95), **reflection list CSV** (hkl, d, 2θ, |F|², I_obs, I_calc).
+- **Methods text** names the monochromator, slit, fixed instrument, Le Bail phases, size and
+  strain with their definitions, excluded ranges, amorphous content and d. The .instprm export
+  carries P and notes the refined size and strain in GSAS-II units.
+- **Fixes found by the checks:** the profile window now matches GSAS-II (50 F below, 75 F above);
+  the old ±25 H window biased Lorentzian size and strain by about 1 %. Finite-difference
+  derivatives reuse the unshifted windows; a moving window edge could make one uncertainty 13×
+  too small.
+- **Validation:** GSAS-II on GitHub simulated and refined CeO2 with size, strain, polarisation,
+  roughness and transparency (`scripts/validation/gsas2/sample.py`, Rietveld and Le Bail); this
+  site recovers GSAS-II's size 40.04(6) nm against 40.05(6) and R_wp 1.858 % against 1.850 %.
+- **Session:** new optional fields in `RietveldState` (older sessions load unchanged); results
+  saved by older versions show without the new columns.
+- **Checks:** lint, type check, 1142 unit tests, build, bundle size and e2e (now also refines with
+  a monochromator, crystallite size and an excluded range) pass.
+- **Open items, resolved later in November 2026:** roughness B (GSAS-II's Kα1-angle convention),
+  the Le Bail cell (transparency left out in both fits), the monochromator spacings (now from COD)
+  and the Hill and Flack pages; see docs/validation.md, 17a.
+- **Next:** 17b from docs/rietveld-roadmap.md (substitution on a shared site for doped materials,
+  Le Bail of an indexed cell), when the owner says so.
+
 ## Open validation items checked with Fityk and GSAS-II (done, owner request November 2026)
 
 Branch `claude/trusting-faraday-1pfp92`. No new dependencies. The owner asked for the open items

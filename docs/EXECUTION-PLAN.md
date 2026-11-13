@@ -46,6 +46,15 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 16e       | Rietveld structure refinement and GSAS-II export                 | done    |
 | 16f       | Materials Project / AMCSD search through a backend               | skipped |
 | 16g       | Owner additions: TCH, U_ij, low-symmetry indexing, CI checks     | done    |
+| 17a       | Rietveld: size/strain, optics, Le Bail, statistics               | done    |
+| 17b       | Rietveld: shared-site substitution, Le Bail of indexed cells     | done    |
+| 17c       | Rietveld: anisotropic broadening, FCJ axial divergence           | done    |
+| 17d       | Rietveld: anomalous dispersion, capillary geometry               | done    |
+| 17e       | Rietveld: analytic derivatives (speed)                           | done    |
+| 17f       | Rietveld: spherical-harmonic texture                             | done    |
+| 17g       | Rietveld: sequential refinement of a series                      | done    |
+| 17h       | Rietveld: bond lengths and angles with s.u., bond valence        | done    |
+| 17i       | Rietveld: Bérar–Lelann correction of the s.u.                    | done    |
 | 17        | Review fixes: example data, readability, validation page, report | done    |
 | 18        | Open validation items checked with Fityk and GSAS-II             | done    |
 
@@ -568,3 +577,36 @@ wizard step where it belongs (see CLAUDE.md section 8) and lists its checks in d
 - **16f** Skipped by the owner (November 2026): not possible on the free plan without a backend
   and an API key; CIF upload covers both databases. Original note: blocked until the owner approves a backend and holds a
   Materials Project API key; AMCSD's terms of use must be read first.
+
+## 15. Stage 17: the most competitive Rietveld refinement on the free plan (owner request, November 2026)
+
+The owner asked to push the Rietveld refinement as far as it can go within the Spark plan. All of
+it runs in the browser, so hosting is no limit; the audit, the capability table and the ranked
+list are in docs/rietveld-roadmap.md. Every sub-stage adds a GSAS-II case to
+`scripts/validation/gsas2/` (run by the Validation workflow) and its rows to docs/validation.md.
+
+- **17a (done)** Size and microstrain (GSAS-II definitions), fixed instrument profile (typed,
+  .instprm, or from a standard), monochromator polarisation, variable slit, transparency, surface
+  roughness, Le Bail mode, excluded ranges, internal-standard amorphous content, Durbin–Watson d,
+  correlations, reflection list.
+- **17b (done)** A second element on a site with the total occupancy fixed and shared x and B (doped
+  materials); Le Bail of a cell from "Index an unknown pattern", reflections from its centring.
+- **17c (done)** Stephens anisotropic microstrain and GSAS-II's uniaxial size; Finger–Cox–Jephcoat axial
+  divergence (SH/L) so .instprm files transfer exactly.
+- **17d (done)** Anomalous dispersion f′, f″ (GSAS-II's Cromer–Liberman table, chosen by the owner);
+  capillary geometry with absorption.
+- **17e (done)** Analytic derivatives, so structure refinements of low-symmetry phases and 50,000-point
+  scans stay fast.
+- **17f (done)** Spherical-harmonic texture (GSAS-II's cylindrical model, orders 2–16, every Laue class),
+  as an alternative to March–Dollase, checked against GSAS-II in the Validation workflow.
+- **17g (done)** Sequential refinement of a series (temperature, composition, time): every loaded
+  pattern refined in order of its value, each starting from the previous refined cells, with a
+  table, a plot of any refined quantity and a weighted straight line (thermal expansion, Vegard's
+  law); checked against GSAS-II one by one and GSAS-II's own sequential refinement.
+- **17h (done)** Bond lengths and angles of the refined structure with standard uncertainties
+  from the full covariance of the cell and coordinates, and bond-valence sums with I. D. Brown's
+  bvparm2020 table; checked against GSAS-II (RetDistAngle, getAngSig, its own sums), pymatgen
+  distances and a separate Python reading of the table in the Validation workflow.
+- **17i (done)** Bérar–Lelann factor for the standard uncertainties of a refinement whose
+  residuals are serially correlated, shown beside the Durbin–Watson d and in the methods text;
+  checked by hand, against an independent Python implementation and by point duplication.

@@ -21,7 +21,8 @@
     "build:polymers": "node scripts/build-polymer-library.ts",
     "build:refs": "NODE_USE_ENV_PROXY=1 node scripts/build-reference-library.ts",
     "build:ftir": "NODE_USE_ENV_PROXY=1 node scripts/build-ftir-groups.ts",
-    "build:weights": "NODE_USE_ENV_PROXY=1 node scripts/build-atomic-weights.ts"
+    "build:weights": "NODE_USE_ENV_PROXY=1 node scripts/build-atomic-weights.ts",
+    "build:bv": "node scripts/build-bond-valence.ts"
   },
   "dependencies": {
     "d3-array": "^3.2.4",

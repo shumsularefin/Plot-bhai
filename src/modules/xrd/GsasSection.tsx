@@ -8,12 +8,39 @@ import {
 import { ANODES } from '../../core/xrd/radiation';
 import { phaseReference } from '../../core/xrd/reference/source';
 import type { ReferencePhase, StoredStructure } from '../../core/xrd/reference/types';
+import type { RietveldPhaseResult } from '../../core/xrd/rietveld/refine';
 import { HelpTip } from '../../ui/HelpTip';
 import { downloadBlob, fileStem } from '../../ui/plot/export';
 import { processingFor, type XrdData } from './data';
 
 const save = (text: string, name: string) =>
   downloadBlob(new Blob([text], { type: 'text/plain' }), name);
+
+const axialOf = (result: { axial?: { value: number } }) => result.axial?.value ?? 0;
+
+const microns = (size: { value: number } | null) =>
+  size && Number.isFinite(size.value) ? (size.value / 1000).toPrecision(5) : 'not determined';
+
+/** One comment line with a phase's refined size and microstrain in GSAS-II's terms. */
+function sampleComment(p: RietveldPhaseResult): string {
+  const size =
+    p.sizeModel === 'uniaxial' && p.sizeAxial
+      ? `uniaxial size along [${(p.sizeAxis ?? [0, 0, 1]).join(' ')}]: equatorial ${microns(p.size)} um, axial ${microns(p.sizeAxial)} um`
+      : `isotropic size ${microns(p.size)} um`;
+  const strain = p.stephens
+    ? `generalized microstrain ${p.stephens.map((s) => `${s.name} ${s.value.value.toPrecision(5)}`).join(', ')}`
+    : p.strainModel === 'uniaxial' && p.microstrainAxial
+      ? `uniaxial microstrain along [${(p.strainAxis ?? [0, 0, 1]).join(' ')}]: equatorial ${p.microstrain ? p.microstrain.value.toPrecision(5) : 0}, axial ${p.microstrainAxial.value.toPrecision(5)}`
+      : `isotropic microstrain ${p.microstrain ? p.microstrain.value.toPrecision(5) : 0}`;
+  return `${p.name}: ${size}, ${strain}, refined here with LGmix ${p.sizeMix.value.toFixed(3)}, ${p.strainMix.value.toFixed(3)} (enter them in the phase's Data tab in GSAS-II).`;
+}
+
+/** Whether SH/L in the file was refined here. */
+function axialNote(result: { axial?: { value: number; refined: boolean } }): string {
+  return result.axial && result.axial.value > 0
+    ? `SH/L ${result.axial.value.toPrecision(5)} ${result.axial.refined ? 'refined here' : 'from the fixed instrument profile'} (the same Finger-Cox-Jephcoat profile).`
+    : "SH/L is GSAS-II's default, not refined here.";
+}
 
 /** Export step: GSAS-II starting set (instrument parameters and a CIF per phase). */
 export function GsasSection({ data, phases }: { data: XrdData; phases: ReferencePhase[] }) {
@@ -51,15 +78,20 @@ export function GsasSection({ data, phases }: { data: XrdData; phases: Reference
         kAlpha2: lines.kAlpha2,
         ratio,
         zero: result.zero.value,
+        polarisation: result.polarisation ?? 0.5,
         profile,
+        shl: axialOf(result),
         comments: [
+          ...result.phases.flatMap((p) =>
+            p.size || p.microstrain || p.stephens ? [sampleComment(p)] : [],
+          ),
           ...(first.tch
             ? [
-                `Profile of ${first.name} from the Rietveld step, refined with the same Thompson-Cox-Hastings shape (exact). SH/L is GSAS-II's default, not refined here.`,
+                `Profile of ${first.name} from the Rietveld step, refined with the same Thompson-Cox-Hastings shape (exact). ${axialNote(result)}`,
               ]
             : [
                 `Profile of ${first.name} from the Rietveld step (${from.toFixed(2)}-${to.toFixed(2)} deg 2theta), converted to the Thompson-Cox-Hastings form`,
-                `Largest difference over that range: FWHM ${(100 * profile.fwhmError).toFixed(2)} %, eta ${profile.etaError.toFixed(3)}. SH/L is GSAS-II's default, not refined here. Choose the GSAS-II peak shape in the Rietveld step for an exact file.`,
+                `Largest difference over that range: FWHM ${(100 * profile.fwhmError).toFixed(2)} %, eta ${profile.etaError.toFixed(3)}. ${axialNote(result)} Choose the GSAS-II peak shape in the Rietveld step for an exact file.`,
               ]),
           'A starting point: refine the instrument and profile in GSAS-II.',
         ],

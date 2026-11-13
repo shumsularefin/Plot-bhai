@@ -11,7 +11,10 @@ import {
   DEFAULT_CHOICES,
   type RefineChoices,
   type RietveldResult,
+  type InstrumentProfile,
 } from '../../core/xrd/rietveld/refine';
+import type { SeriesPoint } from '../../core/xrd/rietveld/sequential';
+import type { Substitution } from '../../core/xrd/rietveld/structure';
 import { DEFAULT_EXPORT_SETTINGS } from '../../ui/plot/export';
 import type { PlotSettings } from '../../ui/plot/PlotPanel';
 import type { WizardState } from '../../ui/wizard/types';
@@ -76,6 +79,13 @@ export interface RietveldState {
   excluded: string[];
   /** Preferred-orientation direction typed per phase id, for example "0 0 1"; empty means none. */
   orientation: Record<string, string>;
+  /**
+   * Even order (2 to 16) of the spherical-harmonic texture chosen per phase id; missing or 0 means
+   * March–Dollase along the typed direction.
+   */
+  texture?: Record<string, number>;
+  /** Axis (h k l) of the uniaxial size and microstrain models typed per phase id; empty is 0 0 1. */
+  axes?: Record<string, string>;
   choices: RefineChoices;
   backgroundTerms: number;
   /**
@@ -86,12 +96,77 @@ export interface RietveldState {
   /** 2θ range refined, degrees; null means the whole pattern. */
   from: number | null;
   to: number | null;
+  /** Monochromator, custom polarisation coefficient and slit type; missing means none, fixed. */
+  optics?: RietveldOptics;
+  /** 2θ ranges left out, as typed (for example "38–39, 44.5–45"); missing means none. */
+  excludedRanges?: string;
+  /** Fixed instrument profile and where it came from; missing or null means refine the widths. */
+  instrument?: { profile: InstrumentProfile; source: string } | null;
+  /** Phase ids fitted in Le Bail mode (intensities from the data, no structure). */
+  leBail?: string[];
+  /** Dopants placed on sites, by phase id (shared-site substitution). */
+  substitutions?: Record<string, Substitution[]>;
+  /** Internal standard for the amorphous content: phase id and its weighed weight %. */
+  standard?: { phaseId: string; percent: number | null } | null;
   /**
    * Last result, with a key of the settings it was made with (to tell when it is out of date) and
    * its methods sentences.
    */
   result: { key: string; outcome: RietveldResult; methods: string } | null;
+  /** Sequential refinement of the loaded patterns as a series; missing means not set up. */
+  series?: SeriesSettings;
+  /** Bond table and bond-valence sums of the refined structures; missing means the defaults. */
+  bonds?: BondSettings;
 }
+
+/** Choices of the bond-length and bond-valence tables (Rietveld step, Advanced). */
+export interface BondSettings {
+  /** Å added to the sum of covalent radii to decide which atoms are bonded. */
+  tolerance: number;
+  /**
+   * Oxidation state per phase id and element; a missing element takes the suggested state, null
+   * leaves the element out of the bond-valence sums.
+   */
+  states: Record<string, Record<string, number | null>>;
+}
+
+/** A sequential refinement: every loaded pattern refined with the settings above, in order. */
+export interface SeriesSettings {
+  /** What the series value is, with its unit in brackets, for example "Temperature (°C)". */
+  label: string;
+  /** Series value typed per pattern id; missing means the suggestion from the file name. */
+  values: Record<string, number | null>;
+  /** Pattern ids left out of the series. */
+  excluded: string[];
+  /** Start each pattern from the cells refined on the previous one (GSAS-II's "copy forward"). */
+  copyForward: boolean;
+  /** Key of the quantity plotted and fitted with a line (see seriesQuantities). */
+  quantity?: string;
+  /** Last series result, with a key of the settings it was made with. */
+  result: { key: string; points: SeriesPoint[] } | null;
+}
+
+export type MonochromatorChoice = 'none' | 'graphite' | 'germanium' | 'custom';
+
+export interface RietveldOptics {
+  monochromator: MonochromatorChoice;
+  /** GSAS-II polarisation coefficient P used with 'custom'. */
+  polarisation: number;
+  /** Automatic (variable) divergence slit. */
+  variableSlit: boolean;
+  /** Capillary (Debye–Scherrer) sample instead of a flat plate; missing means flat. */
+  capillary?: boolean;
+  /** Capillary μR (linear absorption coefficient × radius), the starting or fixed value. */
+  muR?: number;
+  /** Include anomalous dispersion f′, f″ in the structure factors; missing means off. */
+  anomalous?: boolean;
+}
+
+export const DEFAULT_OPTICS: RietveldOptics = {
+  monochromator: 'none',
+  polarisation: 0.5,
+  variableSlit: false,
+};
 
 export const DEFAULT_RIETVELD: RietveldState = {
   excluded: [],

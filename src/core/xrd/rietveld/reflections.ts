@@ -54,6 +54,18 @@ function distorted(kind: CellKind, cell: Cell): Cell {
 }
 
 /**
+ * Key that is equal for two (h k l) exactly when the lattice symmetry of the crystal system makes
+ * them equivalent: their 1/d² in the cell and in a slightly distorted cell of the same system
+ * (see the header).
+ */
+export function familyKey(cell: Cell, kind: CellKind): (hkl: Hkl) => string {
+  const g0 = reciprocalMetric(cell);
+  const g1 = reciprocalMetric(distorted(kind, cell));
+  return (hkl) =>
+    `${Math.round(inverseSquare(g0, hkl) * 1e8)}:${Math.round(inverseSquare(g1, hkl) * 1e8)}`;
+}
+
+/**
  * Families of every stored line with d ≥ dMin (Å), with their members and their share of Σ|F|².
  */
 export function refinementReflections(
@@ -65,10 +77,8 @@ export function refinementReflections(
   const lines = peaks.filter((p) => p.d >= dMin);
   if (lines.length === 0) return [];
   const g0 = reciprocalMetric(cell);
-  const g1 = reciprocalMetric(distorted(kind, cell));
   const smallest = Math.min(...lines.map((p) => p.d)) * (1 - 1e-4);
-  const key = (hkl: Hkl) =>
-    `${Math.round(inverseSquare(g0, hkl) * 1e8)}:${Math.round(inverseSquare(g1, hkl) * 1e8)}`;
+  const key = familyKey(cell, kind);
 
   // Every (h k l) down to the smallest d, grouped by its pair of d-spacings: |h| ≤ a/d.
   const groups = new Map<string, Hkl[]>();

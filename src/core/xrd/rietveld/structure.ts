@@ -10,6 +10,9 @@
  * A family's Σ|F|² is the sum of |F|² over its members (all reflections equivalent under the
  * lattice symmetry), which replaces the reference value when the structure is refined.
  *
+ * Special positions: each atom is first moved onto the exact special position its coordinates
+ * stand for (specialPosition below; 0.3333 becomes 1/3), so its images coincide exactly.
+ *
  * Free coordinates: an atom on a special position x₀ is left unchanged by its stabiliser, the
  * operators (R, t) with R x₀ + t ≡ x₀ (mod 1). A shift δ keeps it there when R δ = δ for each of
  * them, so the allowed shifts are the null space of the stacked (R − I): x = x₀ + Σ c_i v_i with the
@@ -21,6 +24,25 @@
  * stacked linear maps u ↦ R u Rᵀ − u (on the 6 independent components). The refined
  * coefficients are in Å² of U. An isotropic atom made anisotropic starts from u = U_iso G*
  * (G* the reciprocal metric), which gives the same T = exp(−2π² U_iso / d²).
+ *
+ * Substitution on a shared site (optional, for doped materials): a second element shares an
+ * atom's site, coordinates and displacement parameters, and the site's scattering factor becomes
+ *   f_site(s) = (1 − x) f_host(s) + x f_dopant(s)
+ * with x the refined fraction of the site taken by the dopant (0 to 1). The total occupancy of the
+ * site stays that of the file, so x is the composition on the site (for example x in
+ * Zn₁₋ₓCoₓO). This is GSAS-II's constraint of two atoms on one site with Frac₁ + Frac₂ fixed and
+ * equal positions and U, written as one atom.
+ *
+ * Anomalous dispersion (optional): each atom's f(s) becomes f(s) + f′ + i f″, with f′ and f″
+ * (electrons) for the wavelength used, independent of s (data/reference/anomalous-dispersion.json,
+ * Cromer–Liberman values computed by GSAS-II). With
+ *   A  = Σ (f + f′) T cos φ,   B  = Σ (f + f′) T sin φ,   A″ = Σ f″ T cos φ,   B″ = Σ f″ T sin φ
+ * (φ = 2π h·x', over every image of every atom), F(h) = (A − B″) + i(B + A″) and F(−h) =
+ * (A + B″) + i(A″ − B). A powder pattern adds h and −h, so the value used is their mean
+ *   |F|² = A² + B² + A″² + B″²,
+ * as in GSAS-II's StructureFactor2. For a centrosymmetric structure B = B″ = 0 and f″ only adds
+ * A″²; for a non-centrosymmetric one this is the Friedel average. f″ also multiplies the same
+ * occupancy and displacement factor T as f.
  *
  * Bond restraints (optional): each bond present at the start (0.5 Å < d ≤ r₁ + r₂ + 0.45 Å,
  * covalent radii) adds the pseudo-observation (d − d₀)/σ, σ = 0.02 Å, which keeps the bonds close
@@ -71,6 +93,26 @@ export interface StructureAtom {
   uCif0: number[] | null;
   images: Image[];
   factor: FormFactor;
+  /** Anomalous dispersion f′, f″ (electrons) of the element; [0, 0] when not used. */
+  dispersion: readonly [number, number];
+  /** A second element on the same site (doping), or undefined. */
+  substitute?: {
+    element: string;
+    factor: FormFactor;
+    dispersion: readonly [number, number];
+    fraction0: number;
+    refine: boolean;
+  };
+}
+
+/** A dopant placed on a site of the structure: the atom label, its element and the fraction x. */
+export interface Substitution {
+  site: string;
+  element: string;
+  /** Starting (or fixed) fraction of the site taken by the dopant, 0 to 1. */
+  fraction: number;
+  /** Refine x, or keep it at the given value. */
+  refine: boolean;
 }
 
 export interface Restraint {
@@ -93,6 +135,8 @@ export interface AtomState {
   x: Vec3;
   occupancy: number;
   b: number;
+  /** Fraction of the site taken by the substituting element (0 without one). */
+  fraction?: number;
   /** Dimensionless u of each image, in the order of StructureAtom.images (anisotropic atoms). */
   uImages?: Matrix3[];
 }
@@ -149,8 +193,31 @@ export function positiveDefinite(u: readonly number[]): boolean {
   return m1 > 0 && m2 > 0 && m3 > 0;
 }
 
-const EPS = 1e-4;
+/**
+ * Tolerance (fractional) for an operator to map an atom onto itself. CIF coordinates are often
+ * given to 3 decimals (0.333 for 1/3), and an image can then be off by up to 3 × 0.0005, so
+ * 0.002 (0.02 Å in a 10 Å cell).
+ */
+const EPS = 2e-3;
 const wrapDiff = (v: number) => v - Math.round(v);
+
+/**
+ * The exact special position near x: the mean of its images under the operators that map it onto
+ * itself within EPS, each image taken nearest to x. The images of a point under its stabiliser
+ * are permuted by every operator of it, so their mean is fixed by all of them (a CIF's 0.3333
+ * becomes 1/3, as in GSAS-II). A general position is returned unchanged.
+ */
+export function specialPosition(ops: readonly Symop[], x: Vec3): Vec3 {
+  const sum = [0, 0, 0];
+  let n = 0;
+  for (const g of ops) {
+    const shift = applySymop(g, x).map((v, i) => wrapDiff(v - (x[i] as number)));
+    if (!shift.every((v) => Math.abs(v) < EPS)) continue;
+    shift.forEach((v, i) => (sum[i] = (sum[i] as number) + (x[i] as number) + v));
+    n++;
+  }
+  return n > 0 ? (sum.map((v) => v / n) as Vec3) : x;
+}
 
 /** Null space of a stack of n-column rows (Gaussian elimination), as basis vectors. */
 export function nullSpace(rows: number[][], n = 3): number[][] {
@@ -186,20 +253,41 @@ export function nullSpace(rows: number[][], n = 3): number[][] {
   return out;
 }
 
-/** Builds the structure model; atoms whose element has no scattering factor make it throw. */
+/** f′ and f″ (electrons) of each element for one wavelength. */
+export type Dispersion = Readonly<Record<string, readonly [number, number]>>;
+
+/**
+ * Builds the structure model; atoms whose element has no scattering factor make it throw. With
+ * `dispersion`, every element of the structure must be in it.
+ */
 export function structureModel(
   cell: Cell,
   structure: StoredStructure,
   factors: FormFactors,
   radii: Readonly<Record<string, number>>,
   allAnisotropic = false,
+  substitutions: readonly Substitution[] = [],
+  dispersion?: Dispersion,
 ): StructureModel {
+  const dispersionOf = (element: string): readonly [number, number] => {
+    if (!dispersion) return [0, 0];
+    const value = dispersion[element];
+    if (!value) throw new Error(`no anomalous dispersion values for ${element}`);
+    return value;
+  };
+  for (const sub of substitutions) {
+    if (!structure.atoms.some((a) => a.label === sub.site))
+      throw new Error(`no site labelled ${sub.site}`);
+    if (!factors[sub.element]) throw new Error(`no scattering factor for ${sub.element}`);
+  }
   const ops = structure.ops.map(parseSymop);
   const gStar = reciprocalMetric(cell);
   const aStar = [Math.sqrt(gStar[0]), Math.sqrt(gStar[4]), Math.sqrt(gStar[8])];
-  const atoms: StructureAtom[] = structure.atoms.map((atom) => {
+  const atoms: StructureAtom[] = structure.atoms.map((given) => {
+    const atom = { ...given, x: specialPosition(ops, given.x) };
     const factor = factors[atom.element];
     if (!factor) throw new Error(`no scattering factor for ${atom.element}`);
+    const sub = substitutions.find((q) => q.site === atom.label);
     const sites = expandAtoms({ cell, ops, atoms: [atom] });
     const images: Image[] = sites.map((site) => {
       const op = ops.find((g) =>
@@ -259,6 +347,16 @@ export function structureModel(
       uCif0,
       images,
       factor,
+      dispersion: dispersionOf(atom.element),
+      ...(sub && {
+        substitute: {
+          element: sub.element,
+          factor: factors[sub.element] as FormFactor,
+          dispersion: dispersionOf(sub.element),
+          fraction0: Math.min(1, Math.max(0, sub.fraction)),
+          refine: sub.refine,
+        },
+      }),
     };
   });
 
@@ -299,38 +397,243 @@ function scatter(f: FormFactor, s2: number): number {
   return v;
 }
 
-/** |F(h)|² for the current atom states (d in Å). */
-export function structureFactorSquared(
+const imagePositions = new WeakMap<AtomState, Float64Array>();
+/** x' = R x + t of every image of an atom (3 per image), kept with the state they belong to. */
+function positionsOf(atom: StructureAtom, state: AtomState): Float64Array {
+  let out = imagePositions.get(state);
+  if (!out) {
+    out = new Float64Array(3 * atom.images.length);
+    atom.images.forEach((image, m) => {
+      const x = applySymop(image.op, state.x);
+      out?.set(x, 3 * m);
+    });
+    imagePositions.set(state, out);
+  }
+  return out;
+}
+
+/** hᵀ u h for a symmetric (row-major) u. */
+const quadratic = (h: number, k: number, l: number, t: readonly number[]) =>
+  h * h * (t[0] as number) +
+  k * k * (t[4] as number) +
+  l * l * (t[8] as number) +
+  2 * (h * k * (t[1] as number) + h * l * (t[2] as number) + k * l * (t[5] as number));
+
+/** Site scattering factor f + f′ and f″ of an atom at s² (with a dopant's share, if any). */
+function siteFactors(atom: StructureAtom, state: AtomState, s2: number): [number, number] {
+  const sub = atom.substitute;
+  if (!sub) return [scatter(atom.factor, s2) + atom.dispersion[0], atom.dispersion[1]];
+  const x = state.fraction ?? sub.fraction0;
+  return [
+    (1 - x) * (scatter(atom.factor, s2) + atom.dispersion[0]) +
+      x * (scatter(sub.factor, s2) + sub.dispersion[0]),
+    (1 - x) * atom.dispersion[1] + x * sub.dispersion[1],
+  ];
+}
+
+/**
+ * Σ over the members of a reflection family of |F(h)|² for the current atom states (d in Å, the
+ * spacing shared by the members); with anomalous dispersion, each |F|² is the mean of |F(h)|² and
+ * |F(−h)|² (see the header).
+ */
+export function familyStructureFactor(
   model: StructureModel,
   states: readonly AtomState[],
-  [h, k, l]: Hkl,
+  members: readonly Hkl[],
   d: number,
 ): number {
   const s2 = 1 / (4 * d * d);
-  let re = 0;
-  let im = 0;
-  model.atoms.forEach((atom, a) => {
-    const state = states[a] as AtomState;
-    const f = scatter(atom.factor, s2);
-    atom.images.forEach((image, m) => {
-      let t: number;
-      const u = state.uImages?.[m] ?? image.u;
-      if (u) {
-        const q =
-          h * h * u[0] +
-          k * k * u[4] +
-          l * l * u[8] +
-          2 * (h * k * u[1] + h * l * u[2] + k * l * u[5]);
-        t = Math.exp(-2 * Math.PI ** 2 * q);
-      } else t = Math.exp(-state.b * s2);
-      const x = applySymop(image.op, state.x);
-      const phase = 2 * Math.PI * (h * x[0] + k * x[1] + l * x[2]);
-      const amplitude = state.occupancy * f * t;
-      re += amplitude * Math.cos(phase);
-      im += amplitude * Math.sin(phase);
+  const factors = model.atoms.map((atom, a) => siteFactors(atom, states[a] as AtomState, s2));
+  const TWO_PI = 2 * Math.PI;
+  let total = 0;
+  for (const [h, k, l] of members) {
+    let re = 0;
+    let im = 0;
+    let re2 = 0;
+    let im2 = 0;
+    model.atoms.forEach((atom, a) => {
+      const state = states[a] as AtomState;
+      const [f, fpp] = factors[a] as [number, number];
+      const x = positionsOf(atom, state);
+      const tIso = Math.exp(-state.b * s2);
+      for (let m = 0; m < atom.images.length; m++) {
+        const u = state.uImages?.[m] ?? (atom.images[m] as Image).u;
+        const t = u ? Math.exp(-2 * Math.PI ** 2 * quadratic(h, k, l, u)) : tIso;
+        const phase =
+          TWO_PI *
+          (h * (x[3 * m] as number) + k * (x[3 * m + 1] as number) + l * (x[3 * m + 2] as number));
+        const weight = state.occupancy * t;
+        const c = weight * Math.cos(phase);
+        const sn = weight * Math.sin(phase);
+        re += f * c;
+        im += f * sn;
+        re2 += fpp * c;
+        im2 += fpp * sn;
+      }
     });
-  });
-  return re * re + im * im;
+    total += re * re + im * im + re2 * re2 + im2 * im2;
+  }
+  return total;
+}
+
+/** |F(h)|² of one reflection (see familyStructureFactor). */
+export const structureFactorSquared = (
+  model: StructureModel,
+  states: readonly AtomState[],
+  hkl: Hkl,
+  d: number,
+): number => familyStructureFactor(model, states, [hkl], d);
+
+/** Number of refinable quantities of an atom, in the order of the layout (see gradient below). */
+export const atomParameterCount = (atom: StructureAtom): number =>
+  atom.basis.length + 3 + atom.uBasis.length;
+
+const rotatedMoves = new WeakMap<StructureAtom, Float64Array[]>();
+/** R v_k of every image m and free direction k (3 per direction), for ∂φ/∂c_k. */
+function imageMoves(atom: StructureAtom): Float64Array[] {
+  let cached = rotatedMoves.get(atom);
+  if (!cached) {
+    cached = atom.images.map((image) => {
+      const out = new Float64Array(3 * atom.basis.length);
+      atom.basis.forEach((v, q) =>
+        out.set(applySymop({ rot: image.op.rot, trans: [0, 0, 0] }, v), 3 * q),
+      );
+      return out;
+    });
+    rotatedMoves.set(atom, cached);
+  }
+  return cached;
+}
+
+const rotatedBases = new WeakMap<StructureAtom, Matrix3[][]>();
+/** R uBasis_k Rᵀ for every image m and basis tensor k of an anisotropic atom ([m][k]). */
+function imageBases(atom: StructureAtom): Matrix3[][] {
+  let cached = rotatedBases.get(atom);
+  if (!cached) {
+    cached = atom.images.map((image) => atom.uBasis.map((v) => rotateTensor(image.op.rot, v)));
+    rotatedBases.set(atom, cached);
+  }
+  return cached;
+}
+
+/**
+ * Σ_members |F|² of a reflection family and its exact gradient with respect to every atom's
+ * refinable quantities (d in Å). With A, B, A″, B″ as in the header, |F|² = A² + B² + A″² + B″²
+ * and ∂|F|²/∂p = 2(A ∂A/∂p + B ∂B/∂p + A″ ∂A″/∂p + B″ ∂B″/∂p), where for one image term
+ * w f cos φ (w = o T, φ = 2π h·x', x' = R(x₀ + Σ c_k v_k) + t):
+ *   ∂φ/∂c_k = 2π h·(R v_k)                      (free coordinate coefficient c_k)
+ *   ∂w/∂o = T                                    (occupancy)
+ *   ∂T/∂B = −s² T                                (isotropic atoms; B has no effect on anisotropic ones)
+ *   ∂T/∂c_k = −2π² hᵀ(R u_k Rᵀ)h T               (U_ij coefficient c_k, u_k its basis tensor)
+ *   ∂f/∂x = (f_d + f′_d) − (f_h + f′_h),  ∂f″/∂x = f″_d − f″_h   (dopant fraction x)
+ * The gradient is per atom in the order of the layout: coordinate coefficients, occupancy, B,
+ * U_ij coefficients, dopant fraction (atomParameterCount entries per atom).
+ */
+export function structureFactorGradient(
+  model: StructureModel,
+  states: readonly AtomState[],
+  members: readonly Hkl[],
+  d: number,
+): { value: number; gradient: Float64Array } {
+  const s2 = 1 / (4 * d * d);
+  const size = model.atoms.reduce((n, atom) => n + atomParameterCount(atom), 0);
+  const gradient = new Float64Array(size);
+  const dRe = new Float64Array(size);
+  const dIm = new Float64Array(size);
+  const dRe2 = new Float64Array(size);
+  const dIm2 = new Float64Array(size);
+  const TWO_PI = 2 * Math.PI;
+  let value = 0;
+  for (const [h, k, l] of members) {
+    let re = 0;
+    let im = 0;
+    let re2 = 0;
+    let im2 = 0;
+    dRe.fill(0);
+    dIm.fill(0);
+    dRe2.fill(0);
+    dIm2.fill(0);
+    let offset = 0;
+    model.atoms.forEach((atom, a) => {
+      const state = states[a] as AtomState;
+      const sub = atom.substitute;
+      const x = sub ? (state.fraction ?? sub.fraction0) : 0;
+      const host = scatter(atom.factor, s2) + atom.dispersion[0];
+      const dopant = sub ? scatter(sub.factor, s2) + sub.dispersion[0] : 0;
+      const f = sub ? (1 - x) * host + x * dopant : host;
+      const fpp = sub ? (1 - x) * atom.dispersion[1] + x * sub.dispersion[1] : atom.dispersion[1];
+      const df = sub ? dopant - host : 0;
+      const dfpp = sub ? sub.dispersion[1] - atom.dispersion[1] : 0;
+      const nc = atom.basis.length;
+      const iOcc = offset + nc;
+      const iB = iOcc + 1;
+      const iU = iB + 1;
+      const iX = iU + atom.uBasis.length;
+      const bases = atom.uBasis.length > 0 ? imageBases(atom) : null;
+      const xs = positionsOf(atom, state);
+      const moves = imageMoves(atom);
+      const tIso = Math.exp(-state.b * s2);
+      atom.images.forEach((image, m) => {
+        const u = state.uImages?.[m] ?? image.u;
+        const t = u ? Math.exp(-2 * Math.PI ** 2 * quadratic(h, k, l, u)) : tIso;
+        const phase =
+          TWO_PI *
+          (h * (xs[3 * m] as number) +
+            k * (xs[3 * m + 1] as number) +
+            l * (xs[3 * m + 2] as number));
+        const c = Math.cos(phase);
+        const sn = Math.sin(phase);
+        const w = state.occupancy * t;
+        re += w * f * c;
+        im += w * f * sn;
+        re2 += w * fpp * c;
+        im2 += w * fpp * sn;
+        const rv = moves[m] as Float64Array;
+        for (let q = 0; q < nc; q++) {
+          const dPhase =
+            TWO_PI *
+            (h * (rv[3 * q] as number) +
+              k * (rv[3 * q + 1] as number) +
+              l * (rv[3 * q + 2] as number));
+          const j = offset + q;
+          dRe[j] = (dRe[j] as number) - w * f * sn * dPhase;
+          dIm[j] = (dIm[j] as number) + w * f * c * dPhase;
+          dRe2[j] = (dRe2[j] as number) - w * fpp * sn * dPhase;
+          dIm2[j] = (dIm2[j] as number) + w * fpp * c * dPhase;
+        }
+        /** Adds g·(f cos φ, f sin φ, f″ cos φ, f″ sin φ) to the derivatives of entry j. */
+        const add = (j: number, g: number) => {
+          dRe[j] = (dRe[j] as number) + g * f * c;
+          dIm[j] = (dIm[j] as number) + g * f * sn;
+          dRe2[j] = (dRe2[j] as number) + g * fpp * c;
+          dIm2[j] = (dIm2[j] as number) + g * fpp * sn;
+        };
+        add(iOcc, t);
+        if (!u) add(iB, -s2 * w);
+        if (bases)
+          (bases[m] as Matrix3[]).forEach((basis, q) =>
+            add(iU + q, -2 * Math.PI ** 2 * quadratic(h, k, l, basis) * w),
+          );
+        if (sub) {
+          dRe[iX] = (dRe[iX] as number) + w * df * c;
+          dIm[iX] = (dIm[iX] as number) + w * df * sn;
+          dRe2[iX] = (dRe2[iX] as number) + w * dfpp * c;
+          dIm2[iX] = (dIm2[iX] as number) + w * dfpp * sn;
+        }
+      });
+      offset = iX + 1;
+    });
+    value += re * re + im * im + re2 * re2 + im2 * im2;
+    for (let j = 0; j < size; j++)
+      gradient[j] =
+        (gradient[j] as number) +
+        2 *
+          (re * (dRe[j] as number) +
+            im * (dIm[j] as number) +
+            re2 * (dRe2[j] as number) +
+            im2 * (dIm2[j] as number));
+  }
+  return { value, gradient };
 }
 
 /** Restraint residuals (d − d₀)/σ for the current atom positions. */
@@ -344,4 +647,25 @@ export function restraintResiduals(
     const xj = applySymop(r.op, (states[r.j] as AtomState).x, r.n);
     return (distance(cell, xi, xj) - r.d0) / RESTRAINT_SIGMA;
   });
+}
+
+/**
+ * Unit-cell contents with each dopant on its site: (site multiplicity) × occupancy × x atoms of
+ * the host element become the dopant. `atoms` gives, per atom of the model, its occupancy and
+ * dopant fraction x.
+ */
+export function substitutedContents(
+  contents: Readonly<Record<string, number>>,
+  model: StructureModel,
+  atoms: readonly { occupancy: number; fraction: number }[],
+): Record<string, number> {
+  const out: Record<string, number> = { ...contents };
+  model.atoms.forEach((atom, a) => {
+    if (!atom.substitute) return;
+    const state = atoms[a] as { occupancy: number; fraction: number };
+    const moved = atom.images.length * state.occupancy * state.fraction;
+    out[atom.element] = (out[atom.element] ?? 0) - moved;
+    out[atom.substitute.element] = (out[atom.substitute.element] ?? 0) + moved;
+  });
+  return out;
 }

@@ -156,6 +156,15 @@ async function walkToExport(log) {
         ? (await table.locator('tbody tr').first().innerText()).replace(/\s+/g, ' ')
         : 'no cell';
       note(`3 Choose material: indexing in the worker, suggestion 1: ${first}`);
+      if (await table.isVisible()) {
+        // Stage 17b: a suggested cell becomes a candidate phase (Le Bail in step 5), then goes.
+        await page.getByRole('button', { name: 'Use suggestion 1 as a phase' }).click();
+        await page.getByText(/^Suggestion 1 .+ is now one of your candidate phases/).waitFor();
+        const added = page.getByRole('button', { name: /^Remove Indexed cell/ });
+        await added.waitFor();
+        await added.click();
+        note('3 Choose material: suggested cell added as a candidate phase, then removed');
+      }
     } else note('3 Choose material: indexing panel shown (too few peaks to index)');
     await indexToggle.click();
   }
@@ -182,6 +191,93 @@ async function walkToExport(log) {
   const rwp = await page.locator('.result-summary dd').first().textContent();
   assert.match(rwp ?? '', /^\d+\.\d\d %$/);
   note(`5 Rietveld: refined with peak asymmetry, Rwp ${rwp}`);
+  // Stage 17a: a monochromator, crystallite size and a left-out range, then refine again.
+  await page.getByLabel('Peak asymmetry').uncheck();
+  await page.getByLabel('Crystallite size').check();
+  const mono = page.getByLabel('Monochromator');
+  if (!(await mono.isVisible()))
+    await page.locator('summary', { hasText: 'Instrument, sample and quantification' }).click();
+  await page.getByLabel('Monochromator').selectOption('graphite');
+  await page.getByText(/^P = 0\.5\d+ \(monochromator angle/).waitFor();
+  await page.getByPlaceholder('for example 38–39, 44.5–45').fill('70-71');
+  await page.getByRole('button', { name: 'Refine again', exact: true }).click();
+  await page.getByRole('columnheader', { name: 'Size (nm)' }).waitFor({ timeout: 60_000 });
+  await page
+    .getByText(/graphite \(002\) diffracted-beam monochromator/)
+    .first()
+    .waitFor();
+  await page
+    .getByText(/70–71° were excluded/)
+    .first()
+    .waitFor();
+  note('5 Rietveld: monochromator, crystallite size and an excluded range refined');
+  // Stage 17d: capillary geometry with a typed μR, and f′, f″ in the structure factors.
+  await page.getByLabel('Capillary (Debye–Scherrer)').check();
+  const muR = page.getByLabel('μR (absorption × radius)');
+  await muR.fill('1');
+  await muR.blur();
+  await page.getByLabel('Include f′ and f″ in the structure factors').check();
+  await page.getByRole('button', { name: 'Refine again', exact: true }).click();
+  await page.getByText('Capillary μR (fixed)').waitFor({ timeout: 60_000 });
+  await page
+    .getByText(/capillary in Debye–Scherrer geometry/)
+    .first()
+    .waitFor();
+  await page
+    .getByText(/Cromer–Liberman/)
+    .first()
+    .waitFor();
+  note('5 Rietveld: capillary geometry (μR 1) with anomalous dispersion refined');
+  // Stage 17f: spherical-harmonic texture (order 4) instead of March–Dollase.
+  await page.getByRole('checkbox', { name: /^Preferred orientation/ }).check();
+  await page
+    .getByRole('combobox', { name: /: orientation model/ })
+    .first()
+    .selectOption('4');
+  await page.getByRole('button', { name: 'Refine again', exact: true }).click();
+  await page
+    .getByText(/spherical-harmonic texture of order 4 \(Laue class/)
+    .first()
+    .waitFor({ timeout: 60_000 });
+  await page
+    .getByText(/Von Dreele, J\. Appl\. Cryst\. 30 \(1997\) 517/)
+    .first()
+    .waitFor();
+  note('5 Rietveld: spherical-harmonic texture of order 4 refined, texture index reported');
+  // Stage 17h: bond lengths with s.u. and bond-valence sums of the refined structure.
+  const bondTable = page.getByRole('region', { name: /^Bond-valence sums, .*scrolls sideways$/ });
+  if (!(await bondTable.first().isVisible()))
+    await page
+      .locator('summary', { hasText: 'Bond lengths, angles and bond-valence sums' })
+      .click();
+  await bondTable.first().waitFor({ timeout: 30_000 });
+  const firstBond = await page
+    .getByRole('region', { name: /^Bond lengths, .*scrolls sideways$/ })
+    .first()
+    .locator('tbody tr')
+    .first()
+    .innerText();
+  const firstSum = await bondTable.first().locator('tbody tr').first().innerText();
+  assert.match(firstSum, /\d\.\d{3}/);
+  note(
+    `5 Rietveld: bonds (${firstBond.replace(/\s+/g, ' ')}) and bond-valence sum (${firstSum.replace(/\s+/g, ' ')})`,
+  );
+  // Stage 17g: the two example patterns refined as a series, a quantity followed with a line.
+  const seriesValue = page.getByLabel(/Temperature \(°C\) of /).first();
+  if (!(await seriesValue.isVisible()))
+    await page.locator('summary', { hasText: 'Sequential refinement of a series' }).click();
+  await seriesValue.fill('25');
+  await page
+    .getByLabel(/Temperature \(°C\) of /)
+    .nth(1)
+    .fill('125');
+  await page.getByRole('button', { name: 'Refine the series', exact: true }).click();
+  await page.getByText('Series results (estimates)').waitFor({ timeout: 120_000 });
+  await page
+    .getByText(/The 2 patterns of the series \(temperature 25 to 125 °C\)/)
+    .first()
+    .waitFor();
+  note('5 Rietveld: sequential refinement of the two example patterns, line through the cell');
   await next('Fit peaks');
 
   // 5 Fit peaks
@@ -207,6 +303,25 @@ async function walkToExport(log) {
     .locator('.peak-table th', { hasText: 'Pearson VII m' })
     .waitFor({ state: 'detached', timeout: 60_000 });
   note('6 Fit peaks: Pearson VII fitted (m column shown), then pseudo-Voigt again');
+  // Gaussian peaks on the example's pseudo-Voigt peaks: the fit says the shape is the problem
+  // instead of adding tail peaks, and one click refits as pseudo-Voigt until every region fits.
+  await page.getByLabel('Gaussian').check();
+  await fit.click();
+  const switchShape = page.getByRole('button', { name: 'Switch to pseudo-Voigt and fit again' });
+  await switchShape.waitFor({ timeout: 60_000 });
+  await switchShape.click();
+  await page
+    .getByText('Every region now fits to within the noise of the data.')
+    .waitFor({
+      timeout: 60_000,
+    })
+    .catch(async () => {
+      if ((await page.locator('.region-table').innerText()).includes('Misses structure'))
+        throw new Error('Pseudo-Voigt regions still flagged after the switch');
+    });
+  if (!(await page.getByLabel('Pseudo-Voigt', { exact: true }).isChecked()))
+    throw new Error('The profile did not switch to pseudo-Voigt');
+  note('6 Fit peaks: Gaussian misfit explained, switched to pseudo-Voigt, every region fits');
   await next('Instrument correction');
 
   // 6 Instrument correction: skip, which is allowed and warned about in the results.
@@ -300,7 +415,7 @@ try {
   const inst = readFileSync(await instDownload.path(), 'utf8');
   assert.match(inst.split('\n')[0] ?? '', /GSAS-II/);
   assert.match(inst, /\nType:PXC;Bank:1\n/);
-  assert.match(inst, /;Zero:[-\d.e]+;Polariz\.:0\.5;/);
+  assert.match(inst, /;Zero:[-\d.e]+;Polariz\.:0\.55\d+;/);
   const [cifDownload] = await Promise.all([
     page.waitForEvent('download'),
     page

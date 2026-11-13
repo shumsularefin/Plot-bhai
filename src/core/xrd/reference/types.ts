@@ -24,6 +24,16 @@ export type PhaseOrigin =
       database: string | null;
       /** What limits the calculated pattern (missing displacement parameters and the like). */
       notes?: { level: 'info' | 'warning' | 'error'; text: string }[];
+    }
+  | {
+      /** A cell suggested by indexing (indexing/latticePhase.ts): positions only, no structure. */
+      kind: 'indexed';
+      system: string;
+      centring: string;
+      /** de Wolff M_n and Smith–Snyder F_N of the suggestion, over n lines. */
+      m20: number;
+      fN: number;
+      n: number;
     };
 
 export interface ReferencePhase {

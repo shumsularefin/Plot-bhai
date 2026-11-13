@@ -152,7 +152,7 @@ export async function xrdRecord(
         ? phases
             .map(
               (p) =>
-                `${p.name} (${p.formula}, ${p.spaceGroup.hm}, ${phaseReference(p)})${data.material.phaseIds.includes(p.id) ? ' [used]' : ''}`,
+                `${p.name} (${[p.formula, p.spaceGroup.hm, phaseReference(p)].filter(Boolean).join(', ')})${data.material.phaseIds.includes(p.id) ? ' [used]' : ''}`,
             )
             .join('; ')
         : 'none'
