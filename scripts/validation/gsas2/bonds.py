@@ -12,7 +12,9 @@ Writes tests/fixtures/validation/zro2-bonds.xy and zro2-bonds.json with
   distances: GSAS-II RetDistAngle (GSASIIstrMain) with the refinement's covariance, bond radii
              Zr 1.4 and O 1.0 A, factor 1 (Zr-O up to 2.4 A, no Zr-Zr or O-O): each distance and
              s.u., and each angle and s.u. (GSAS-II's s.u. use only the coordinate covariance and
-             round angle s.u. below 0.01 deg to 0);
+             round angle s.u. below 0.01 deg to 0). RetDistAngle's own angles are kept as
+             retDistAngle; 'angle' and 'su' are GSAS-II's getAngSig called with the cell's
+             orthogonalisation matrix instead of its transpose (see the comment below);
   bvsGsas2:  the bond-valence sums GSAS-II prints in PrintDistAngle (R0 from atmdata.BVScoeff,
              b = 0.37), two decimals;
   bvparm:    an independent Python reading of data/reference/source/bvparm2020.cif (first entry of
@@ -122,14 +124,32 @@ for origin, entries in dist_array.items():
     for k, (target, unit, top, d, sig) in enumerate(entries):
         distances.append({'from': labels[origin], 'to': labels[target], 'unit': [int(v) for v in unit],
                           'op': int(top), 'distance': float(d), 'su': float(sig), 'index': k})
+# RetDistAngle passes the transpose of the orthogonalisation matrix to getAngSig (Amat.T), so
+# its angles do not belong to the geometry of its own distances unless the cell is orthogonal.
+# Each angle is therefore also recalculated by GSAS-II's getAngSig with Amat itself, the matrix
+# RetDistAngle uses for the distances (and getRBAngSig uses for angles).
+amat = G2lat.cell2AB(cell[:6])[0]
+by_index = {rec[0]: rec for rec in data['TargAtoms']}
+def vector(origin, entry):
+    target, unit, top = entry[0], entry[1], entry[2]
+    names = lambda i: [f'{pfx}dA{c}:{i}' for c in 'xyz']
+    return [names(origin), np.array(by_index[origin][3:6], dtype=float), names(target),
+            np.array(by_index[target][3:6], dtype=float), np.array(unit), top]
 angles = []
 for origin, entries in ang_array.items():
     dist = dist_array[origin]
     for i, j, (value, sig) in entries:
+        fixed, fixed_sig = G2mth.getAngSig(vector(origin, dist[i]), vector(origin, dist[j]), amat,
+                                           data['SGData'], cov)
+        # The rebuilt vectors are RetDistAngle's own: with Amat.T they give its values again.
+        again = G2mth.getAngSig(vector(origin, dist[i]), vector(origin, dist[j]), amat.T,
+                                data['SGData'], cov)
+        assert abs(again[0] - value) < 1e-8 and abs(again[1] - sig) < 1e-8, (origin, i, j)
         angles.append({'at': labels[origin],
                        'first': {'to': labels[dist[i][0]], 'distance': float(dist[i][3])},
                        'second': {'to': labels[dist[j][0]], 'distance': float(dist[j][3])},
-                       'angle': float(value), 'su': float(sig)})
+                       'retDistAngle': {'angle': float(value), 'su': float(sig)},
+                       'angle': float(fixed), 'su': float(fixed_sig)})
 
 # GSAS-II's own bond-valence sums, as PrintDistAngle prints them.
 text = io.StringIO()
@@ -174,7 +194,6 @@ for origin, entries in dist_array.items():
         total += s
         used.add(ref)
         # GSAS-II's numerical d(distance)/d(origin xyz, target xyz), as in RetDistAngle.
-        amat = G2lat.cell2AB(cell[:6])[0]
         pdpx = G2mth.getDistDerv(list(orig[origin][3:6]), list(targ[target][3:6]), amat, unit, top,
                                  data['SGData'])
         # The derivative must belong to this distance: rebuild it the way getDistDerv does.
