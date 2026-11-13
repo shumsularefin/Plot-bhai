@@ -1,4 +1,4 @@
-import type { ComponentChildren } from 'preact';
+import { createContext, type ComponentChildren } from 'preact';
 import { useEffect, useId, useRef, useState } from 'preact/hooks';
 import './dock.css';
 
@@ -11,6 +11,27 @@ import './dock.css';
  */
 
 const PREF_KEY = 'plot-dock';
+
+/** Below this width the kept-in-view figure is a panel along the bottom (see dock.css). */
+const BOTTOM_PANEL = '(max-width: 1099px)';
+
+/**
+ * True for a figure shown in the bottom panel of a narrow screen. Plots draw themselves shorter
+ * there, so the panel takes about a third of a phone screen and the step keeps the rest.
+ */
+export const DockCompact = createContext(false);
+
+function useBottomPanel(): boolean {
+  const query = typeof matchMedia === 'undefined' ? null : matchMedia(BOTTOM_PANEL);
+  const [matches, setMatches] = useState(query?.matches ?? false);
+  useEffect(() => {
+    if (!query) return;
+    const listener = () => setMatches(query.matches);
+    query.addEventListener('change', listener);
+    return () => query.removeEventListener('change', listener);
+  }, [query]);
+  return matches;
+}
 
 function readPref(key: string, fallback: boolean): boolean {
   try {
@@ -109,6 +130,7 @@ export function Dock({ label, mode = 'auto', children }: DockProps) {
 
   const docked = active() === id;
   const collapsed = docked && state.collapsed;
+  const bottomPanel = useBottomPanel();
   const frame = useRef<HTMLDivElement>(null);
 
   // The page leaves room for the panel: a class on the root element, and the panel's height for
@@ -160,7 +182,7 @@ export function Dock({ label, mode = 'auto', children }: DockProps) {
           </div>
         )}
         <div class="dock-content" hidden={collapsed}>
-          {children}
+          <DockCompact.Provider value={docked && bottomPanel}>{children}</DockCompact.Provider>
         </div>
       </div>
       {!docked && (

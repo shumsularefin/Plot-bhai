@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import { suggestAssignments, type AtmosphereTable, type GroupTable } from '../../core/ftir/assign';
+import {
+  suggestAssignments,
+  type AtmosphereTable,
+  type GroupTable,
+  type Suggestion,
+} from '../../core/ftir/assign';
+import type { FtirPeak } from '../../core/ftir/peaks';
 import { formatNumber } from '../../core/xrd/parsers/numbers';
 import { HelpTip } from '../../ui/HelpTip';
 import type { StepContext } from '../../ui/wizard/types';
@@ -8,7 +14,7 @@ import { assignmentFor, peaksOf, processAll } from './analysis';
 import { peaksFor, type Assignment, type FtirData } from './data';
 import { curveOf, FtirPlot, peakLabelsFor } from './FtirPlot';
 import { QuantityChoice } from './QuantityChoice';
-import { shownQuantity, valueIn } from './quantity';
+import { shownQuantity, valueIn, type FtirQuantity } from './quantity';
 import atmosphereBands from '../../../data/ftir/atmosphere.json';
 import groups from '../../../data/ftir/groups.json';
 import { useSelectedSpectrum } from './useSelected';
@@ -38,6 +44,12 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
       })),
     [peaks, stored, data.toleranceCm],
   );
+  // Highest wavenumber first, the way an FTIR spectrum is read.
+  const ordered = useMemo(() => [...rows].reverse(), [rows]);
+  const [current, setCurrent] = useState(0);
+  const index = Math.min(current, Math.max(0, ordered.length - 1));
+  const row = ordered[index];
+  const assigned = ordered.filter((r) => r.label).length;
   const shown = shownQuantity(data, spectrum ? [spectrum] : []);
   const quantity = shown.quantity;
   const labels = useMemo(() => peakLabelsFor(peaks, quantity), [peaks, quantity]);
@@ -132,99 +144,59 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
           minimum prominence.
         </p>
       ) : (
-        <ul class="assign-list">
-          {[...rows].reverse().map(({ peak, label, suggestions }) => {
-            const id = `assign-${Math.round(peak.wavenumber * 10)}`;
-            return (
-              <li key={peak.wavenumber} class="assign-row">
-                <h4 class="assign-peak">
-                  {formatNumber(peak.wavenumber, 1)} cm⁻¹{' '}
-                  <span class="field-hint">
-                    {quantity === 'absorbance'
-                      ? `absorbance ${formatNumber(peak.height, 3)}`
-                      : `transmittance ${formatNumber(valueIn(quantity, peak.height), 1)} %`}
-                    , {formatNumber(peak.relative, 0)} % of the highest absorbance
-                  </span>
-                </h4>
-                <div class="inline-field">
-                  <label for={id}>Your assignment</label>
-                  <AssignmentInput
-                    id={id}
-                    label={label}
-                    onCommit={(text) => setLabel(peak.wavenumber, text)}
-                  />
-                  {label !== '' && (
-                    <button
-                      type="button"
-                      class="btn btn-quiet"
-                      onClick={() => setLabel(peak.wavenumber, '')}
-                    >
-                      Remove
-                      <span class="visually-hidden">
-                        {' '}
-                        assignment at {formatNumber(peak.wavenumber, 1)}
-                      </span>
-                    </button>
-                  )}
-                </div>
-                {suggestions.length === 0 ? (
-                  <p class="field-hint">
-                    Nothing in the table lies within {data.toleranceCm} cm⁻¹ of this peak.
-                  </p>
-                ) : (
-                  <>
-                    <div
-                      class="table-scroll"
-                      tabIndex={0}
-                      role="region"
-                      aria-label={`Suggestions for ${formatNumber(peak.wavenumber, 1)} cm⁻¹`}
-                    >
-                      <table class="peak-table suggestion-table">
-                        <thead>
-                          <tr>
-                            <th scope="col">Suggestion</th>
-                            <th scope="col">Listed at</th>
-                            <th scope="col">Distance (cm⁻¹)</th>
-                            <th scope="col">
-                              <span class="visually-hidden">Action</span>
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {suggestions.map((s) => (
-                            <tr key={s.id}>
-                              <th scope="row">{s.label}</th>
-                              <td>{s.listed}</td>
-                              <td>{s.offset === 0 ? 'inside' : formatNumber(s.offset, 0)}</td>
-                              <td>
-                                <button
-                                  type="button"
-                                  class="btn"
-                                  onClick={() => setLabel(peak.wavenumber, s.label)}
-                                  disabled={label === s.label}
-                                >
-                                  {label === s.label ? 'Accepted' : 'Accept'}
-                                  <span class="visually-hidden"> {s.label}</span>
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    {suggestions
-                      .filter((s) => s.kind === 'atmosphere')
-                      .map((s) => (
-                        <p key={s.id} class="message is-warning">
-                          <strong>Check:</strong> {s.reason}
-                        </p>
-                      ))}
-                  </>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+        <>
+          <nav class="assign-pager" aria-label="Peaks">
+            <ul class="chip-row">
+              {ordered.map((r, i) => (
+                <li key={r.peak.wavenumber}>
+                  <button
+                    type="button"
+                    class={`chip${r.label ? ' is-assigned' : ''}`}
+                    aria-current={i === index ? 'true' : undefined}
+                    onClick={() => setCurrent(i)}
+                  >
+                    {formatNumber(r.peak.wavenumber, 0)}
+                    <span class="visually-hidden">
+                      {' '}
+                      cm⁻¹, {r.label ? 'assigned' : 'not assigned'}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <p class="field-hint" aria-live="polite">
+              Peak {index + 1} of {ordered.length}, {assigned} assigned. A filled chip has an
+              assignment.
+            </p>
+          </nav>
+          {row && (
+            <PeakCard
+              key={row.peak.wavenumber}
+              row={row}
+              quantity={quantity}
+              toleranceCm={data.toleranceCm}
+              setLabel={setLabel}
+            />
+          )}
+          <div class="assign-steps">
+            <button
+              type="button"
+              class="btn"
+              onClick={() => setCurrent(index - 1)}
+              disabled={index === 0}
+            >
+              Previous peak
+            </button>
+            <button
+              type="button"
+              class="btn"
+              onClick={() => setCurrent(index + 1)}
+              disabled={index >= ordered.length - 1}
+            >
+              Next peak
+            </button>
+          </div>
+        </>
       )}
 
       <details class="paste-box">
@@ -268,6 +240,107 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
           </table>
         </div>
       </details>
+    </div>
+  );
+}
+
+/** One row of the step: a found peak, what the user assigned to it and what the table suggests. */
+interface PeakRow {
+  peak: FtirPeak;
+  label: string;
+  suggestions: Suggestion[];
+}
+
+/** The assignment box and the suggestion table of one peak. */
+function PeakCard({
+  row: { peak, label, suggestions },
+  quantity,
+  toleranceCm,
+  setLabel,
+}: {
+  row: PeakRow;
+  quantity: FtirQuantity;
+  toleranceCm: number;
+  setLabel: (wavenumber: number, label: string) => void;
+}) {
+  const id = `assign-${Math.round(peak.wavenumber * 10)}`;
+  return (
+    <div class="assign-row">
+      <h4 class="assign-peak">
+        {formatNumber(peak.wavenumber, 1)} cm⁻¹{' '}
+        <span class="field-hint">
+          {quantity === 'absorbance'
+            ? `absorbance ${formatNumber(peak.height, 3)}`
+            : `transmittance ${formatNumber(valueIn(quantity, peak.height), 1)} %`}
+          , {formatNumber(peak.relative, 0)} % of the highest absorbance
+        </span>
+      </h4>
+      <div class="inline-field">
+        <label for={id}>Your assignment</label>
+        <AssignmentInput
+          id={id}
+          label={label}
+          onCommit={(text) => setLabel(peak.wavenumber, text)}
+        />
+        {label !== '' && (
+          <button type="button" class="btn btn-quiet" onClick={() => setLabel(peak.wavenumber, '')}>
+            Remove
+            <span class="visually-hidden"> assignment at {formatNumber(peak.wavenumber, 1)}</span>
+          </button>
+        )}
+      </div>
+      {suggestions.length === 0 ? (
+        <p class="field-hint">Nothing in the table lies within {toleranceCm} cm⁻¹ of this peak.</p>
+      ) : (
+        <>
+          <div
+            class="table-scroll"
+            tabIndex={0}
+            role="region"
+            aria-label={`Suggestions for ${formatNumber(peak.wavenumber, 1)} cm⁻¹`}
+          >
+            <table class="peak-table suggestion-table">
+              <thead>
+                <tr>
+                  <th scope="col">Suggestion</th>
+                  <th scope="col">Listed at</th>
+                  <th scope="col">Distance (cm⁻¹)</th>
+                  <th scope="col">
+                    <span class="visually-hidden">Action</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {suggestions.map((s) => (
+                  <tr key={s.id}>
+                    <th scope="row">{s.label}</th>
+                    <td>{s.listed}</td>
+                    <td>{s.offset === 0 ? 'inside' : formatNumber(s.offset, 0)}</td>
+                    <td>
+                      <button
+                        type="button"
+                        class="btn"
+                        onClick={() => setLabel(peak.wavenumber, s.label)}
+                        disabled={label === s.label}
+                      >
+                        {label === s.label ? 'Accepted' : 'Accept'}
+                        <span class="visually-hidden"> {s.label}</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {suggestions
+            .filter((s) => s.kind === 'atmosphere')
+            .map((s) => (
+              <p key={s.id} class="message is-warning">
+                <strong>Check:</strong> {s.reason}
+              </p>
+            ))}
+        </>
+      )}
     </div>
   );
 }

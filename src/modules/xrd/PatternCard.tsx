@@ -61,7 +61,7 @@ export function PatternCard({ pattern, onChange, onConvertRadians, onRemove }: P
             onInput={(e) => onChange({ name: e.currentTarget.value })}
           />
           <span class="badge">{FORMAT_LABELS[pattern.source]}</span>
-          {pattern.synthetic && <span class="badge badge-accent">Synthetic, not real data</span>}
+          {pattern.synthetic && <span class="badge badge-accent">Calculated, not measured</span>}
           {pattern.digitized && (
             <span class="badge badge-accent">Digitized from a figure: approximate</span>
           )}

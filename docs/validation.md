@@ -54,9 +54,9 @@ tests/rietveld.test.ts.
 
 Open:
 
-- No fit of the same data by another program (Fityk or FullProf) has been compared: installing
-  Fityk was not allowed in this environment. The formulas are checked against the documented
-  forms and numerical integration instead. A comparison on a real pattern would close this.
+- The peak fit is compared with lmfit and with Fityk on the same data, and with Fityk on a line
+  of a measured pattern (section 18). FullProf is a closed-source program that could not be
+  installed here; no comparison with it.
 - The full reference of the Pearson VII paper ("The approximation of symmetric X-ray peaks by
   Pearson type VII distributions", Hall et al., J. Appl. Cryst. 1977) could not be opened to
   confirm the volume and pages, so the code cites it by title, authors and year only.
@@ -83,7 +83,8 @@ Open:
 - Symmetry codes with a three-digit operator number (GSAS numbering) and negative codes
   (SHELX style) in CIF geometry tables are skipped by the test, since the CIF dictionary does not
   define them; 250 rows remain.
-- No comparison with pymatgen or VESTA (not installable here); the CIF tables stand in for it.
+- Distances are compared with pymatgen in section 16g. No comparison with VESTA (a desktop
+  program that cannot be run here).
 
 ## 16d: indexing an unknown pattern
 
@@ -112,8 +113,9 @@ Decisions that affect the figures:
 
 Open:
 
-- No comparison with another indexing program (DICVOL, TREOR, McMaille) on the same lines; they
-  could not be installed here. A real pattern indexed by one of them would close this.
+- GSAS-II's indexing is compared on the same lines in section 18. DICVOL, TREOR and McMaille are
+  not packaged and could not be installed here, and no measured pattern of an unknown has been
+  indexed by two programs; both are still open.
 - A pattern with fewer than 10 lines is refused: with 6 lines body-centred cubic and primitive
   cubic at a/√2 index identically (iron, checked).
 
@@ -144,9 +146,10 @@ not the same.
 
 Open:
 
-- No comparison with GSAS-II refining the same pattern (structure and profile), and the files
-  have not been loaded into GSAS-II itself: it cannot be installed here. Loading the exported
-  .xye, .instprm and CIF into GSAS-II and refining would close both.
+- GSAS-II refining the same pattern is compared in section 16g, and the files written by the
+  Export step (.xye, .instprm, CIF) are loaded into GSAS-II in section 18. This was done through
+  GSAS-II's scripting interface, which uses the same readers as its windows; loading them once
+  by hand in the GSAS-II program is still worth doing.
 - The synthetic patterns are made with this site's own model, so the recovery checks test the
   least squares, not the model; the model's Σ|F|² is checked against the independent library
   route above.
@@ -192,7 +195,8 @@ Open:
 - COD 9015929 (anatase) lists its U_ij values in the order U11, U12, U13, U22, U23, U33 under the
   headers U11, U22, U33, U12, U13, U23 (U22 = U33 = 0 for Ti). The library uses the file as it is;
   the owner should decide whether to correct it. Both GSAS-II and this site read it literally.
-- No comparison with DICVOL, TREOR or McMaille for monoclinic and triclinic cells.
+- Monoclinic cells are compared with GSAS-II in section 18. No comparison with DICVOL, TREOR or
+  McMaille, and none for triclinic cells.
 - Triclinic indexing needs the first lines of the pattern; it can give spurious cells.
 
 ## 17a: Rietveld sample broadening, optics, Le Bail and statistics
@@ -591,3 +595,84 @@ the noise σ estimated from the data), so a change is kept only when it improves
 than its extra parameters would by chance. Open: the score compares regions whose ranges can
 change when a peak is added or removed (a region grows by at most three peak widths), which
 slightly favours removing peaks; no case where this mattered was found.
+
+## 17: review fixes (calculated example, peak labels, sample comparison, sample report)
+
+Code: src/core/xrd/synthetic.ts (example patterns), src/modules/xrd/data.ts (lines of the example
+phase), src/core/xrd/reference/symmetry.ts (which member of a family of planes is printed),
+src/modules/xrd/comparison.ts, src/ui/report/sampleReport.ts. Tests: tests/xrd-checks.test.ts,
+tests/reference-cif.test.ts, tests/comparison.test.ts, tests/sampleReport.test.ts,
+tests/validation-lmfit.test.ts. The lmfit fixtures are made by
+scripts/validation/lmfit/make_peakfit.py (lmfit 1.3.4, scipy 1.18.1, numpy 2.5.4).
+
+| Method                 | Check                                                                                                                                                                                                                                                                       | Source                                                   | Tolerance                                 | Result |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ----------------------------------------- | ------ |
+| Peak fit against lmfit | two overlapping pseudo-Voigt peaks on a sloped background, and one Pearson VII peak, with counting noise, fitted by lmfit's built-in models and by this site: centres agree to 2e-7°, FWHM to 1e-7°, η to 7e-6, m, heights and areas to 4e-6 relative                       | independent implementation (lmfit, SciPy least squares)  | 2e-5°; 1e-4°; η and m 2e-3; 1e-3 relative | pass   |
+| Calculated example     | one line of the example at 36.3°, built for 60 nm and for 15 nm: the Kα1 + Kα2 fit, corrected for the example instrument width in quadrature, gives the size back through L = Kλ/(β cos θ); line positions of the bundled example come from COD 1577381 through Bragg's law | synthetic data with a known answer                       | 5 % of the size                           | pass   |
+| Sample comparison      | each row equals the per-pattern summary (same functions); doubling every width halves the Scherrer size                                                                                                                                                                     | invariance (D ∝ 1/β); same result by two routes          | exact; 1e-10                              | pass   |
+| Sample report          | result lines and methods paragraphs are passed through unchanged; example data are named in a warning                                                                                                                                                                       | round trip                                               | exact                                     | pass   |
+| Printed (hkl)          | of a family of equivalent planes the member with the fewest negative indices, then the largest h, k, l is printed: (110), not (2 -1 0), for wurtzite                                                                                                                        | convention only; positions and intensities are untouched | exact                                     | pass   |
+
+Open:
+
+- The example data of every tool are calculated or generated, and labelled so. No measured
+  standard (LaB6 or Si) is bundled: the owner must supply one, with its source, before a measured
+  example can be shown.
+- The sample comparison and the sample report add no numerical method; they collect results that
+  are validated above.
+- Several open items of sections 16a to 16e were worked on in section 18; what is left is listed
+  there.
+
+## 18: open items checked with Fityk and GSAS-II (owner request, November 2026)
+
+The owner asked for the open items above to be validated. Fityk 1.3.2 (Debian package) and
+GSAS-II (built from source at commit 2c62562) were installed in the session container and used
+as independent programs. Scripts: scripts/validation/fityk/ (peakfit.fit, make_peakfit.py),
+scripts/validation/gsas2/load_export.py, index_cells.py and indexing.py. Tests:
+tests/validation-lmfit.test.ts, tests/validation-gsas-export.test.ts, tests/xrd-indexing.test.ts.
+Fixtures: tests/fixtures/validation/peakfit-fityk.json, peakfit-real.xy, gsas-export.json,
+indexing-lines.json, indexing-gsas2-refined.json, indexing-gsas2.json.
+
+| Method                             | Check                                                                                                                                                                                                                                                                               | Source                                           | Tolerance                                 | Result                                                                 |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------- | ---------------------------------------------------------------------- |
+| Peak fit against Fityk             | the two synthetic data sets of section 17 (two overlapping pseudo-Voigt peaks; one Pearson VII peak) fitted by Fityk (MPFIT, unweighted) and by this site                                                                                                                           | independent program (Fityk 1.3.2)                | 2e-5°; 1e-4°; η and m 2e-3; 1e-3 relative | pass                                                                   |
+| Peak fit on a measured pattern     | 41 to 45° 2θ of the measured pattern tests/fixtures-real/bruker4_v5converter.raw (196 points, one line of about 88,000 counts on a straight background), one pseudo-Voigt: centre 43.0276°, FWHM 0.4936°, η 0.549 in Fityk, the same here                                           | independent program on real data                 | as above                                  | pass                                                                   |
+| .xye read by GSAS-II               | the .xye of the Export step (5,501 points): GSAS-II reads every point and the same σ                                                                                                                                                                                                | GSAS-II's reader                                 | exact count; σ 1e-6                       | pass                                                                   |
+| .instprm read by GSAS-II           | GSAS-II reads Lam1, Lam2, I(L2)/I(L1), Zero, Polariz., U, V, W, X, Y as written                                                                                                                                                                                                     | GSAS-II's reader (ReadInstprm)                   | 1e-7 relative (8 figures written)         | pass                                                                   |
+| CIF read by GSAS-II                | space group I 41/a m d, cell, atoms, occupancies and U_iso of the refined anatase as written; GSAS-II moves the atoms from origin choice 1 to its origin choice 2 by itself, so positions are compared relative to the first atom                                                   | GSAS-II's CIF reader                             | cell 1e-6 relative; positions 1e-6        | pass                                                                   |
+| Exported model in GSAS-II          | GSAS-II calculates the pattern from the three files with only its scale and background refined: R_wp 4.451 % (this site 4.493 %; GSAS-II's own full refinement of the same data 4.449 %); continuing the refinement in GSAS-II moves the cell by less than 2e-5 relative            | GSAS-II                                          | R_wp within 5 % relative; cell 2e-5       | pass                                                                   |
+| Suggested cells indexed by GSAS-II | 13 noisy line lists (σ 0.01° 2θ, two lines removed: 9 cubic to orthorhombic, 4 monoclinic): with the cell this site suggests, GSAS-II indexes every line, and its least-squares refinement gives the same cell (largest difference 3.4e-4 relative, c of tenorite; others ≤ 2.6e-4) | GSAS-II (GSASIIindex.refinePeaks, GSASIIlattice) | 0 unindexed; 5e-4 relative                | pass                                                                   |
+| GSAS-II's own search, same lines   | GSAS-II's Monte Carlo search (default controls, every Bravais lattice up to orthorhombic, monoclinic for the monoclinic cases, 60 s per lattice) lists a cell with this site's edges, see the notes below                                                                           | another indexing program                         | edges 0.2 %                               | pass, 10 of 13 with the same edges; 3 as a multiple or another setting |
+
+What was found:
+
+- A fault in the exported .instprm was found and fixed. GSAS-II refused the file: its reader skips one
+  comment line and reads the next line as values, and the file had two or three comment lines.
+  The notes are now written on the first line only. The earlier test had checked the layout
+  against a reading of the GSAS-II source, not against GSAS-II.
+- GSAS-II's search lists every cell it finds by M20 and leaves the choice to the user. It does
+  not rank by symmetry, so the cell with the highest M20 is often a lower-symmetry description
+  or a multiple of the true cell. The comparison is therefore "does GSAS-II's list contain this
+  site's cell", not "is it first".
+- In GSAS-II's search, 10 of the 13 cases list a cell with this site's edges: In2O3, rutile,
+  anatase, ZnO, h-BN, baddeleyite, WO3 and tenorite directly; LaB6 as a tetragonal cell with
+  c = a to 0.07 % and CeO2 as an orthorhombic cell with three equal edges to 0.06 % (its cubic
+  searches, started from the default volume, did not reach these two cells).
+- For the other three GSAS-II lists the same lattice differently: aragonite as a doubled cell
+  (2a, b, 2c, A-centred), brookite with 3c, and bismite as its pseudo-orthorhombic C-centred
+  cell (β = 90.05°, twice the volume). This site lists the primitive cell for all three; that
+  cell indexes every line in GSAS-II too (row above).
+
+Open:
+
+- FullProf (closed source), DICVOL, TREOR and McMaille (not packaged) could not be installed.
+- VESTA is a desktop program with no scripting interface, so structures cannot be opened in it
+  here. Distances and powder lines are checked against pymatgen instead (section 16g).
+- Bruker .raw versions 1 to 3, multi-scan .rasx and .brml files, and a .rasx with an attenuator
+  factor: no real, openly licensed file is held, and a reader is written only against real files.
+- The GSAS-II files were loaded through GSAS-II's scripting interface, not by hand in its
+  windows.
+- No measured pattern of an unknown phase has been indexed by two programs.
+- The Fityk, lmfit and indexing fixtures are made by hand with the scripts above (the GSAS-II
+  search is a random search with a time limit, so a rerun can list different cells); only
+  load_export.py runs in .github/workflows/validation.yml.

@@ -5,7 +5,7 @@ import { Stepper } from './Stepper';
 import type { WizardState, WizardStep } from './types';
 import { StepGuide } from './StepGuide';
 import { recordAnalysis } from '../feedback/client';
-import { ValidateButton } from '../feedback/ValidateButton';
+import { ValidateButton, ValidateOffer } from '../feedback/ValidateButton';
 import { setAdvancedShown, useAdvancedShown } from '../advancedMode';
 import './wizard.css';
 
@@ -215,7 +215,7 @@ export function Wizard<D>({ title, steps, store }: WizardProps<D>) {
               <button type="button" class="btn btn-quiet" onClick={startOver}>
                 Start over
               </button>
-              <ValidateButton tool={title} offer={status === 'ready' && index === last} />
+              <ValidateButton tool={title} />
             </div>
           </div>
 
@@ -225,6 +225,8 @@ export function Wizard<D>({ title, steps, store }: WizardProps<D>) {
               refresh. Private browsing often causes this.
             </p>
           )}
+
+          <ValidateOffer tool={title} show={status === 'ready' && index === last} />
 
           <div class="wizard-body">
             <header class="wizard-step-head">
@@ -246,7 +248,9 @@ export function Wizard<D>({ title, steps, store }: WizardProps<D>) {
                 Step {index + 1} of {steps.length}
               </span>
             </header>
-            {step.guide && <StepGuide items={step.guide} />}
+            {step.guide && (
+              <StepGuide key={step.id} id={`${title}/${step.id}`} items={step.guide} />
+            )}
             <div class="wizard-content">{step.render({ data: state.data, update })}</div>
           </div>
 

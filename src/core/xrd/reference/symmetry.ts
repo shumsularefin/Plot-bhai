@@ -71,23 +71,33 @@ export function isSystematicAbsence(
   return false;
 }
 
-/** One representative per symmetry orbit of reflections, for example (101) for {101}. */
+/**
+ * One representative per symmetry orbit of reflections, for example (101) for {101}. Among the
+ * equivalent reflections (and their Friedel opposites) it is the one with the fewest negative
+ * indices, and among those the largest h, then k, then l. So the hexagonal family that holds
+ * (1 1 0), (2 -1 0) and (1 -2 0) is printed as (1 1 0), as papers and reference cards write it.
+ */
 export function orbitRepresentative(
   ops: readonly Symop[],
   h: readonly [number, number, number],
 ): [number, number, number] {
+  const negatives = (g: readonly number[]) => g.filter((v) => v < 0).length;
   let best: [number, number, number] = [h[0], h[1], h[2]];
   const consider = (g: [number, number, number]) => {
     for (const sign of [1, -1]) {
       const c: [number, number, number] = [sign * g[0] + 0, sign * g[1] + 0, sign * g[2] + 0];
+      const fewer = negatives(c) - negatives(best);
       if (
-        c[0] > best[0] ||
-        (c[0] === best[0] && (c[1] > best[1] || (c[1] === best[1] && c[2] > best[2])))
+        fewer < 0 ||
+        (fewer === 0 &&
+          (c[0] > best[0] ||
+            (c[0] === best[0] && (c[1] > best[1] || (c[1] === best[1] && c[2] > best[2])))))
       ) {
         best = c;
       }
     }
   };
+  consider(best);
   for (const op of ops) consider(rotateHkl(op, h));
   return best;
 }

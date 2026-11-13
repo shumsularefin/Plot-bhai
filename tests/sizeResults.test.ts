@@ -113,8 +113,10 @@ describe('results follow every setting at once', () => {
   it('says what is missing', () => {
     const noFit = data({ peaks: {} });
     expect(sizeResults(noFit, 'p')).toMatchObject({ kind: 'none' });
-    const noWidth = data({ instrument: { ...initialXrdData.instrument, constantFwhm: null } });
+    const noWidth = data({
+      instrument: { ...initialXrdData.instrument, source: 'constant', constantFwhm: null },
+    });
     const r = sizeResults(noWidth, 'p');
-    expect(r.kind === 'none' && r.reason).toContain('step 6');
+    expect(r.kind === 'none' && r.reason).toContain('step 7');
   });
 });

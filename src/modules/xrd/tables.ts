@@ -3,6 +3,7 @@ import { peakTable, type CsvColumn, type PeakRow } from '../../core/xrd/peaks/ta
 import type { RegionFit } from '../../core/xrd/peaks/fit';
 import { ANODES } from '../../core/xrd/radiation';
 import type { ReferencePhase } from '../../core/xrd/reference/types';
+import { comparisonRows, comparisonTable } from './comparison';
 import { makeTable, type CsvTable } from './csv';
 import { assignmentFor, type AssignedPeak, type AssignmentResult } from './assignment';
 import { peaksFor, type XrdData } from './data';
@@ -186,13 +187,14 @@ export function assignedPeaksTable(
 }
 
 /**
- * Every table the Export step can offer for the whole analysis: for each pattern the peak
+ * Every table the Export step can offer for the whole analysis: with two or more patterns the
+ * sample comparison, then for each pattern the peak
  * fit, the assigned peaks (when reference phases are chosen) and the size and strain tables.
  * Texture, crystallinity and the per-method line fits stay as downloads in their own sections.
  */
 export function allTables(data: XrdData, library: readonly ReferencePhase[]): CsvTable[] {
   const lambda = ANODES[data.radiation.anode].kAlpha1;
-  return data.patterns.flatMap((pattern) => {
+  const perPattern = data.patterns.flatMap((pattern) => {
     const tables: CsvTable[] = [];
     const fit = peaksFor(data, pattern.id).fit;
     if (!fit) return tables;
@@ -209,6 +211,10 @@ export function allTables(data: XrdData, library: readonly ReferencePhase[]): Cs
     }
     return tables;
   });
+  const compared = comparisonRows(data, library);
+  return data.patterns.length > 1 && compared.some((r) => r.peaks !== null)
+    ? [comparisonTable(data, compared), ...perPattern]
+    : perPattern;
 }
 
 /** All tables in one CSV file, each preceded by a "## name" line and followed by a blank line. */

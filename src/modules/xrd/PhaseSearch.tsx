@@ -2,6 +2,7 @@ import type { ComponentChildren } from 'preact';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { formatNumber } from '../../core/xrd/parsers/numbers';
 import {
+  displayFormula,
   hillFormula,
   parseFormula,
   parseQuery,
@@ -69,6 +70,12 @@ function describe(query: PhaseQuery): string {
       return 'Names and space groups are matched in the polymer library only. COD is searched by formula, elements or COD number.';
   }
 }
+
+/** COD's Hill-order formula ("O Zn") in the usual written order ("ZnO"). */
+const written = (formula: string) => {
+  const counts = parseFormula(formula);
+  return counts ? displayFormula(counts) : formula;
+};
 
 const cellText = (cell: CodEntry['cell']) => {
   const v = (x: number | null, d: number) => (x === null ? '–' : formatNumber(x, d));
@@ -379,8 +386,8 @@ export function PhaseSearch({
                 <li key={entry.id} class="phase-result">
                   <div class="phase-result-text">
                     <p class="phase-result-name">
-                      <strong>{entry.mineral ?? entry.name ?? entry.formula}</strong>{' '}
-                      <span class="phase-result-formula">{entry.formula}</span>
+                      <strong>{entry.mineral ?? entry.name ?? written(entry.formula)}</strong>{' '}
+                      <span class="phase-result-formula">{written(entry.formula)}</span>
                     </p>
                     <p class="phase-result-meta">
                       {entry.spaceGroup ?? '–'}

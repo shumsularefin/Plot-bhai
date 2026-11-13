@@ -19,9 +19,9 @@ async function load(answer: (path: string, body: unknown) => { status: number; b
     }),
   );
   const client = await import('../src/ui/feedback/client');
-  const { ValidateButton } = await import('../src/ui/feedback/ValidateButton');
+  const { ValidateButton, ValidateOffer } = await import('../src/ui/feedback/ValidateButton');
   const { Community } = await import('../src/ui/feedback/Community');
-  return { client, ValidateButton, Community, calls };
+  return { client, ValidateButton, ValidateOffer, Community, calls };
 }
 
 beforeEach(() => localStorage.clear());
@@ -72,29 +72,51 @@ describe('Validate button', () => {
     expect(client.proofFor('XRD analysis')).toBeNull();
   });
 
-  it('offers a validation by itself once per finished analysis, and lets the user skip it', async () => {
-    const { client, ValidateButton } = await load(() => ({
+  it('offers a validation in a banner once per finished analysis, without a pop-up', async () => {
+    const { client, ValidateButton, ValidateOffer } = await load(() => ({
       status: 200,
       body: { id: 'a2', proof: 'p2' },
     }));
-    // Without a finished analysis nothing opens on the last step.
-    const first = render(<ValidateButton tool="FTIR analysis" offer />);
-    expect(screen.queryByRole('dialog')).toBeNull();
+    const page = () => (
+      <>
+        <ValidateButton tool="FTIR analysis" />
+        <ValidateOffer tool="FTIR analysis" show />
+      </>
+    );
+    // Without a finished analysis nothing is offered on the last step.
+    const first = render(page());
+    expect(screen.queryByText(/Your analysis is finished/)).toBeNull();
     first.unmount();
     await client.recordAnalysis('FTIR analysis');
-    const view = render(<ValidateButton tool="FTIR analysis" offer />);
-    const dialog = await screen.findByRole('dialog');
-    expect(dialog.textContent).toContain('Your analysis is finished');
-    expect(dialog.textContent).toContain('voluntary');
-    fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    const view = render(page());
+    expect((await screen.findByRole('status')).textContent).toContain('voluntary');
+    // The offer never covers the page: no pop-up until the user asks for it.
     expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    expect(screen.queryByText(/Your analysis is finished/)).toBeNull();
     // Coming back to the last step does not ask again for the same analysis.
     view.unmount();
-    render(<ValidateButton tool="FTIR analysis" offer />);
-    expect(screen.queryByRole('dialog')).toBeNull();
-    // The button still opens it, without the offer text.
+    render(page());
+    expect(screen.queryByText(/Your analysis is finished/)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Validate' }));
-    expect(screen.getByRole('dialog').textContent).not.toContain('Your analysis is finished');
+    expect(screen.getByRole('dialog')).toBeTruthy();
+  });
+
+  it('opens the pop-up from the banner when the user chooses to give feedback', async () => {
+    const { client, ValidateButton, ValidateOffer } = await load(() => ({
+      status: 200,
+      body: { id: 'a3', proof: 'p3' },
+    }));
+    await client.recordAnalysis('TGA analysis');
+    render(
+      <>
+        <ValidateButton tool="TGA analysis" />
+        <ValidateOffer tool="TGA analysis" show />
+      </>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Give feedback' }));
+    expect(await screen.findByRole('dialog')).toBeTruthy();
+    expect(screen.queryByText(/Your analysis is finished/)).toBeNull();
   });
 
   it('shows the reason when the service refuses', async () => {
@@ -148,11 +170,14 @@ describe('Home counters', () => {
 });
 
 describe('Credits', () => {
-  it('opens from the small About button and names the developer and supervisors', async () => {
-    const { CreditsButton } = await import('../src/ui/Credits');
-    render(<CreditsButton />);
-    fireEvent.click(screen.getByRole('button', { name: 'About' }));
-    const text = screen.getByRole('dialog').textContent ?? '';
+  it('names the developer and supervisors', async () => {
+    const { CreditsText } = await import('../src/ui/Credits');
+    const view = render(
+      <div>
+        <CreditsText />
+      </div>,
+    );
+    const text = view.container.textContent ?? '';
     for (const part of [
       'Shumsul Arefin',
       'graduate student',
@@ -165,7 +190,5 @@ describe('Credits', () => {
     expect(screen.getByRole('link', { name: 'Shumsul Arefin' }).getAttribute('href')).toBe(
       'https://shumsul-arefin.web.app',
     );
-    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 });

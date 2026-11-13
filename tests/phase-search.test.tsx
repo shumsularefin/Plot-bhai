@@ -10,7 +10,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/preact';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { phaseFromCif } from '../src/core/xrd/reference/fromCif';
 import type { FormFactors } from '../src/core/xrd/reference/powder';
-import { hillFormula, parseFormula } from '../src/core/xrd/reference/search';
+import { displayFormula, hillFormula, parseFormula } from '../src/core/xrd/reference/search';
 import type { ReferencePhase } from '../src/core/xrd/reference/types';
 import { PhaseSearch } from '../src/modules/xrd/PhaseSearch';
 
@@ -70,6 +70,18 @@ describe('phase search', () => {
     expect(hill('Fe2O3')).toBe('Fe2 O3');
     expect(hill('C2H5OH')).toBe('C2 H6 O');
     expect(hill('NaCl')).toBe('Cl Na');
+  });
+
+  it('shows formulas in the usual written order', () => {
+    const shown = (f: string) => displayFormula(parseFormula(f) as Record<string, number>);
+    expect(shown('O Zn')).toBe('ZnO');
+    expect(shown('O2 Ti')).toBe('TiO2');
+    expect(shown('Bi O4 V')).toBe('BiVO4');
+    expect(shown('C Ca O3')).toBe('CaCO3');
+    expect(shown('Fe Li O4 P')).toBe('FeLiPO4');
+    expect(shown('Cl Na')).toBe('NaCl');
+    expect(shown('B6 La')).toBe('B6La');
+    expect(shown('C2 H6 O')).toBe('C2H6O');
   });
 
   it('turns table clicks into the search text, asks COD and adds an entry as a calculated phase', async () => {

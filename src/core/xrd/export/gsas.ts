@@ -5,8 +5,9 @@
  * .instprm format, as read by GSAS-II's ReadInstprm (GSASIIfiles.py) and written in its
  * defaultIparms.py: a first line containing "GSAS-II", then name:value pairs separated by ";"
  * or new lines (Type, Bank, Lam1, Lam2, I(L2)/I(L1) or Lam, Zero, Polariz., Azimuth, U, V, W, X,
- * Y, Z, SH/L). Comment lines (#) may only come before the first value: the reader stops at a
- * # line once it has read values. Checked against the GSAS-II source on GitHub (AdvancedPhotonSource/
+ * Y, Z, SH/L). Only the first line may be a comment (#): the reader skips one # line and reads
+ * the next line as values whatever it is, and it stops at a # line once it has read values
+ * (found by loading a file with two comment lines into GSAS-II, which failed). Checked against the GSAS-II source on GitHub (AdvancedPhotonSource/
  * GSAS-II, main branch, November 2026).
  *
  * GSAS-II conventions (from GSASIIpwd.py): 2θ_obs = 2θ_calc + Zero (degrees), the same sign as
@@ -27,6 +28,7 @@
 import type { Cell } from '../reference/powder';
 import { tchEta, tchFwhm } from '../rietveld/tch';
 import type { StoredStructure } from '../reference/types';
+import type { RietveldPhaseResult } from '../rietveld/refine';
 
 const RAD = Math.PI / 180;
 const LN2_8 = 8 * Math.LN2;
@@ -156,8 +158,12 @@ export function instprm(input: InstprmInput): string {
       ? `Lam1:${n(input.kAlpha1)};Lam2:${n(input.kAlpha2)};I(L2)/I(L1):${n(input.ratio)}`
       : `Lam:${n(input.kAlpha1)}`;
   return [
-    '#GSAS-II instrument parameter file; written by Plot Bhai as a starting point',
-    ...input.comments.map((c) => `# ${c}`),
+    // One comment line only: GSAS-II's reader skips a single # line and reads the next line as
+    // values. "Bank" in a comment would be read as a bank header, so it is written in lower case.
+    `#GSAS-II instrument parameter file; written by Plot Bhai as a starting point. ${input.comments
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .replace(/Bank/g, 'bank')}`.trim(),
     'Type:PXC;Bank:1',
     `${wave};Zero:${n(input.zero)};Polariz.:${n(input.polarisation ?? 0.5)};Azimuth:0.0`,
     `U:${n(p.u)};V:${n(p.v)};W:${n(p.w)};X:${n(p.x)};Y:${n(p.y)};Z:0.0;SH/L:${n(input.shl && input.shl > 0 ? input.shl : 0.002)}`,
@@ -299,5 +305,32 @@ export function readInstprm(text: string): InstprmRead | { error: string } {
     ratio: number('I(L2)/I(L1)'),
     zero: number('Zero') ?? 0,
     notes,
+  };
+}
+
+/**
+ * The stored structure with the refined atoms when there are any: positions, occupancy and
+ * U_iso = B / (8π²) (B and U in Å²), or the refined U_ij (Å²).
+ */
+export function refinedStructure(
+  structure: StoredStructure,
+  fit: RietveldPhaseResult | undefined,
+): StoredStructure {
+  if (!fit?.atoms) return structure;
+  return {
+    ...structure,
+    atoms: structure.atoms.map((atom, i) => {
+      const r = fit.atoms?.[i];
+      if (!r) return atom;
+      return {
+        ...atom,
+        x: r.x.map((c) => c.value) as [number, number, number],
+        occupancy: r.occupancy.value,
+        uIso: r.u ? null : Number.isFinite(r.b.value) ? r.b.value / (8 * Math.PI ** 2) : atom.uIso,
+        uAniso: r.u
+          ? (r.u.map((c) => c.value) as [number, number, number, number, number, number])
+          : atom.uAniso,
+      };
+    }),
   };
 }

@@ -101,6 +101,9 @@ interface Snapshot {
 }
 
 /** Plain-language list of what step 3 (Adjust the image) changed, for the summary here. */
+/** The parts of automatic detection, shown one at a time so the step stays short. */
+const AUTO_PARTS = ['The image', 'Separate from the background', 'Clean up and split'] as const;
+
 function adjustSummary(settings: DetectSettings): string {
   const { adjust, denoise } = settings;
   const parts = [
@@ -143,6 +146,7 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
   const calibration = calibrationOf(data.scale);
   const perPixelNm = calibration ? nmPerPixel(calibration) : null;
   const [tool, setTool] = useState<Tool>('select');
+  const [part, setPart] = useState(0);
   const [selected, setSelected] = useState<ReadonlySet<number>>(new Set());
   const [busy, setBusy] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -567,7 +571,23 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
       )}
       {mode === 'auto' && (
         <>
-          <section class="process-step is-on" aria-labelledby="prep-title">
+          <nav aria-label="Parts of automatic detection">
+            <ul class="chip-row">
+              {AUTO_PARTS.map((name, i) => (
+                <li key={name}>
+                  <button
+                    type="button"
+                    class="chip"
+                    aria-current={part === i ? 'true' : undefined}
+                    onClick={() => setPart(i)}
+                  >
+                    {i + 1}. {name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <section class="process-step is-on" aria-labelledby="prep-title" hidden={part !== 0}>
             <h3 id="prep-title" class="process-step-title">
               1. The image
             </h3>
@@ -584,7 +604,7 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
             </label>
           </section>
 
-          <section class="process-step is-on" aria-labelledby="thr-title">
+          <section class="process-step is-on" aria-labelledby="thr-title" hidden={part !== 1}>
             <h3 id="thr-title" class="process-step-title">
               2. Separate particles from the background{' '}
               <HelpTip term="threshold">
@@ -771,7 +791,7 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
             </label>
           </section>
 
-          <section class="process-step is-on" aria-labelledby="clean-title">
+          <section class="process-step is-on" aria-labelledby="clean-title" hidden={part !== 2}>
             <h3 id="clean-title" class="process-step-title">
               3. Clean up and split{' '}
               <HelpTip term="clean-up and splitting">
@@ -916,6 +936,24 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
             )}
             <p class="field-hint">Radii are in pixels.{pixelsNote}</p>
           </section>
+          <div class="assign-steps">
+            <button
+              type="button"
+              class="btn"
+              onClick={() => setPart(part - 1)}
+              disabled={part === 0}
+            >
+              Previous part
+            </button>
+            <button
+              type="button"
+              class="btn"
+              onClick={() => setPart(part + 1)}
+              disabled={part === AUTO_PARTS.length - 1}
+            >
+              Next part
+            </button>
+          </div>
 
           <div class="clean-actions">
             <button

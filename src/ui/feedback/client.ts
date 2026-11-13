@@ -110,7 +110,7 @@ const OFFERED_KEY = 'plot-bhai-offered';
 
 /**
  * Marks the analysis behind a proof as offered for validation; true the first time only, so the
- * pop-up that offers it opens once per finished analysis, not on every visit to the last step.
+ * banner that offers it shows once per finished analysis, not on every visit to the last step.
  */
 export function offerOnce(id: string): boolean {
   try {

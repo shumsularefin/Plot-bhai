@@ -1,6 +1,7 @@
 import type { ComponentChildren } from 'preact';
-import { CreditsButton } from './Credits';
 import { Community } from './feedback/Community';
+// A figure exported by the XRD tool from its example data, unedited (see the caption below).
+import exampleFigure from './home-figure.svg';
 import './home.css';
 
 interface ToolCard {
@@ -91,7 +92,6 @@ export function Home() {
           <li>Free, no account</li>
           <li>Works with data files or pictures of graphs</li>
         </ul>
-        <CreditsButton />
       </section>
 
       <section aria-labelledby="home-tools">
@@ -118,7 +118,71 @@ export function Home() {
               </span>
             </li>
           ))}
+          <li class="tool-card is-note">
+            <svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 3h9l4 4v14H6zM9 11h7M9 15h7M9 7h3" />
+            </svg>
+            <h3 class="tool-name">
+              <a href="#/report" class="tool-link">
+                Sample report
+              </a>
+            </h3>
+            <p class="tool-description">
+              One sample, several techniques: the results of your XRD, FTIR, UV-Vis and thermal
+              analyses in one summary with a single methods section.
+            </p>
+            <span class="tool-cta" aria-hidden="true">
+              Combine →
+            </span>
+          </li>
+          <li class="tool-card is-note">
+            <svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 12.5l5 5L20 6.5" />
+            </svg>
+            <h3 class="tool-name">
+              <a href="#/validation" class="tool-link">
+                How this is validated
+              </a>
+            </h3>
+            <p class="tool-description">
+              Each numerical method is checked on data with a known answer and against another
+              program or a published example. The checks, their tolerances and what is still open
+              are public.
+            </p>
+            <span class="tool-cta" aria-hidden="true">
+              Read the checks →
+            </span>
+          </li>
         </ul>
+      </section>
+
+      <section aria-labelledby="home-figure" class="home-example">
+        <div>
+          <h2 id="home-figure" class="home-section-title">
+            What you get
+          </h2>
+          <p>
+            A figure sized for a journal column, with indexed peaks and the reference pattern named
+            by its database number, plus the tables and a methods paragraph that states the
+            equations and settings actually used.
+          </p>
+          <p>
+            <a href="#/xrd">Try the XRD tool with example data</a>
+          </p>
+        </div>
+        <figure class="home-figure">
+          <img
+            src={exampleFigure}
+            width="482"
+            height="369"
+            loading="lazy"
+            alt="X-ray diffraction patterns of zinc oxide between 20 and 80 degrees two-theta, with each peak labelled by its Miller indices and the reference lines of COD entry 1577381 below."
+          />
+          <figcaption>
+            Exported by the XRD tool, unedited (single column, 85 mm). The two patterns are the
+            tool's example data: calculated from the zinc oxide structure COD 1577381, not measured.
+          </figcaption>
+        </figure>
       </section>
 
       <section aria-labelledby="home-how" class="home-how">
@@ -136,6 +200,11 @@ export function Home() {
       </section>
 
       <Community />
+
+      <p class="home-credit">
+        Designed and developed by Shumsul Arefin, Gopalganj Science and Technology University.{' '}
+        <a href="#/about">Credits, equations and limits</a>
+      </p>
     </div>
   );
 }

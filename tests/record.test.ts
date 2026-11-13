@@ -8,6 +8,7 @@ import { DEFAULT_PROCESSING } from '../src/core/xrd/process/pipeline';
 import { examplePatternRecords, initialXrdData } from '../src/modules/xrd/data';
 import { xrdRecord } from '../src/modules/xrd/record';
 import { fingerprint, recordMarkdown } from '../src/ui/report/record';
+import { examplePhase } from './examplePhase';
 
 describe('data fingerprint', () => {
   it('is the same for the same numbers and changes with any value', async () => {
@@ -21,7 +22,7 @@ describe('data fingerprint', () => {
 
 describe('analysis records', () => {
   it('XRD: every processing step in order, with parameters, warnings and methods text', async () => {
-    const patterns = examplePatternRecords();
+    const patterns = examplePatternRecords(examplePhase());
     const first = patterns[0];
     if (!first) throw new Error('missing');
     const data = {

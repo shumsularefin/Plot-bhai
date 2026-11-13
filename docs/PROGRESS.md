@@ -283,6 +283,106 @@ in docs/rietveld-roadmap.md; the checks are in docs/validation.md, 17a.
 - **Next:** 17b from docs/rietveld-roadmap.md (substitution on a shared site for doped materials,
   Le Bail of an indexed cell), when the owner says so.
 
+## Open validation items checked with Fityk and GSAS-II (done, owner request November 2026)
+
+Branch `claude/trusting-faraday-1pfp92`. No new dependencies. The owner asked for the open items
+of docs/validation.md to be validated, and said the site is not to be released as an app version
+for now.
+
+Built:
+
+- Fityk 1.3.2 fits the peak-fit test data and a line of a measured pattern
+  (tests/fixtures-real/bruker4_v5converter.raw); this site agrees to 2e-5° in the centre and 1e-4°
+  in the width (tests/validation-lmfit.test.ts).
+- The GSAS-II starting set of the Export step is loaded into GSAS-II
+  (scripts/validation/gsas2/load_export.py, tests/validation-gsas-export.test.ts). GSAS-II reads
+  the data, wavelengths, profile, cell and atoms as written and fits the pattern with R_wp
+  4.451 % (this site 4.493 %).
+- Bug found by that check and fixed: GSAS-II could not read the exported .instprm, because its
+  reader allows one comment line and the file had more. The notes are now on the first line.
+- Indexing: GSAS-II indexes every line with each cell this site suggests and refines to the same
+  cell (13 cases, differences at most 3.4e-4 relative); GSAS-II's own search is compared too
+  (scripts/validation/gsas2/index_cells.py and indexing.py, tests/xrd-indexing.test.ts).
+- `refinedStructure` moved from the Export step's component to src/core/xrd/export/gsas.ts, so
+  the test writes the same CIF as the site.
+- docs/validation.md section 18 lists the checks and what is still open.
+
+Decisions:
+
+- No release and no Zenodo DOI for now (owner). docs/RELEASING.md and CITATION.cff stay as they
+  are for later; the version number in the footer and in the records is kept, because it says
+  which code made a result.
+- Fityk, lmfit and GSAS-II are used only to make test fixtures; they are not dependencies of the
+  site. The export check also runs in .github/workflows/validation.yml; the Fityk and indexing
+  fixtures are made by hand, because GSAS-II's search is random with a time limit.
+
+Known issues and TODO (owner):
+
+- Still open: FullProf, DICVOL, TREOR, McMaille and VESTA could not be installed or scripted;
+  real Bruker .raw version 1 to 3 files and multi-scan .rasx/.brml files are not held; the
+  GSAS-II files were loaded by script, not by hand; no measured unknown pattern indexed by two
+  programs.
+- Measured example data (LaB6 or Si standard and others) must come from the owner.
+
+## Review fixes: bugs, readability, example data, validation page, comparison, sample report (done, owner request November 2026)
+
+Branch `claude/trusting-faraday-1pfp92`. Version 0.2.0. No new dependencies. The owner asked for
+every point of the site review to be fixed.
+
+Built:
+
+- Bugs: wrong step numbers in the XRD text; "OZn" is now ZnO (`displayFormula`); "1 peaks";
+  the footer states the MIT licence; instrument correction starts on "skip" so Next is not
+  blocked; on a phone the docked plot takes at most 40 % of the screen height.
+- XRD example data are calculated from a real structure (ZnO, COD 1577381), labelled "Calculated,
+  not measured", with widths for 60 nm and 15 nm crystallites. The Rietveld step now fits the
+  example (R_wp 6.67 %, GOF 1.19 in the browser).
+- Readability: body text 15 to 16 px, smallest text 13 px, line height 1.55, lines at most about
+  70 characters; step tips collapse to one sentence after the first visit; the sidebar keeps its
+  full form next to a pinned plot.
+- Long steps: FTIR "Assign groups" shows one peak at a time (chips, Previous and Next peak);
+  Particles "Find the particles" shows one of its three parts at a time.
+- Home: the stray About button and the empty grid cell are gone; a real exported figure, a
+  "How this is validated" card and a "Sample report" card were added.
+- The Validate pop-up is now a banner in the page ("Give feedback" / "Not now").
+- Public validation page (`#/validation`), built from docs/validation.md.
+- Version number in the footer and in every record; CITATION.cff; docs/RELEASING.md lists the
+  steps for a Zenodo DOI.
+- XRD results: "Compare your samples", one row per pattern (Scherrer, Williamson–Hall UDM, cell),
+  with CSV and a bar chart; also first in "all tables".
+- Sample report (`#/report`): the results and methods paragraphs of the XRD, FTIR, UV-Vis and TGA
+  analyses saved in this browser, in one document (.md), with a warning for example data.
+- Validation: the peak fit is compared with lmfit (independent implementation,
+  tests/validation-lmfit.test.ts); the example generator has a known-answer test; stale open
+  items in docs/validation.md now point to the pymatgen and GSAS-II checks of 16g.
+
+Decisions:
+
+- The home page's About button was removed because the header already links to About
+  (CLAUDE.md section 8 updated).
+- `useCandidatePhases` returns the same array until its inputs change (it returned a new one on
+  every render, which made the report page loop).
+- Printed (hkl): the family member with the fewest negative indices, so (110), not (2 -1 0).
+- The sample report reads each tool's saved session; it cannot know that the files belong to one
+  sample, and says so.
+- lmfit, scipy and numpy are used only by scripts/validation/lmfit/make_peakfit.py to make test
+  fixtures; they are not dependencies of the site.
+
+Known issues and TODO (owner):
+
+- **Zenodo DOI:** deferred by the owner (no release for now, see the entry above).
+- **Measured example data:** no LaB6 or Si standard, and no measured FTIR, UV-Vis, TGA or SEM
+  example, is bundled. They must come from the owner (own measurement, or an openly licensed data
+  set with its citation). The examples of FTIR, UV-Vis, thermal and particles stay generated and
+  labelled as such.
+- **Still open in docs/validation.md:** Fityk or FullProf on a real pattern; DICVOL, TREOR or
+  McMaille on an unknown pattern; VESTA; the exported GSAS-II files loaded into GSAS-II by hand;
+  real Bruker .raw version 1 to 3 files and multi-scan .rasx/.brml files.
+- DSC results and the particle size distribution are not part of the sample report yet.
+- "Use the empty space under the docked plot" was not done: the plot panel keeps its own height.
+
+Next stage: none in the tracker; waiting for the owner.
+
 ## FTIR stacked peak labels, FTIR fixes, journal figure styles (done, owner request November 2026)
 
 Branch `claude/laughing-keller-tjba6r`. No new dependencies.

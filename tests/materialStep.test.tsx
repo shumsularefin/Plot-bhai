@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { phaseFromCif } from '../src/core/xrd/reference/fromCif';
 import type { FormFactors } from '../src/core/xrd/reference/powder';
 import { MaterialStep } from '../src/modules/xrd/MaterialStep';
+import { examplePhase } from './examplePhase';
 import type { IndexSolution } from '../src/core/xrd/indexing/index';
 import {
   DEFAULT_MATERIAL,
@@ -122,7 +123,7 @@ describe('MaterialStep', () => {
   });
 
   it('adds an indexing suggestion as a candidate phase with its lattice reflections', async () => {
-    const store = setup({ patterns: examplePatternRecords() });
+    const store = setup({ patterns: examplePatternRecords(examplePhase()) });
     fireEvent.click(screen.getByRole('button', { name: /Index the pattern/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Suggest cells' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Use suggestion 1 as a phase' }));

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { ReferencePhase } from '../../core/xrd/reference/types';
 import type { MaterialState } from './data';
 import { familyOf, loadReferenceFamily } from './referenceLibrary';
@@ -33,10 +33,16 @@ export function useCandidatePhases(material: Pick<MaterialState, 'candidates' | 
       current = false;
     };
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps -- libraryIds is derived from key
-  if (!library) return { phases: null, failed };
-  const phases = material.candidates.flatMap((id) => {
-    const phase = library.get(id) ?? material.userPhases.find((p) => p.id === id);
-    return phase ? [phase] : [];
-  });
+  const { candidates, userPhases } = material;
+  // The same array until its inputs change, so callers can depend on it in effects and memos.
+  const phases = useMemo(
+    () =>
+      library &&
+      candidates.flatMap((id) => {
+        const phase = library.get(id) ?? userPhases.find((p) => p.id === id);
+        return phase ? [phase] : [];
+      }),
+    [library, candidates, userPhases],
+  );
   return { phases, failed };
 }

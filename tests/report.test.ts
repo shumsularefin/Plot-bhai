@@ -10,6 +10,7 @@ import {
 import { methodsFor } from '../src/modules/xrd/methodsText';
 import { parseSession, serialiseSession } from '../src/modules/xrd/session';
 import { initialWizardState } from '../src/ui/wizard/types';
+import { examplePhase } from './examplePhase';
 
 const base: MethodsInput = {
   software: 'XRD Toolkit',
@@ -106,7 +107,7 @@ describe('methodsParagraph', () => {
 
 describe('methodsFor on the example data', () => {
   it('reads the radiation and the pattern from the saved data and says the data are synthetic', () => {
-    const data: XrdData = { ...initialXrdData, patterns: examplePatternRecords() };
+    const data: XrdData = { ...initialXrdData, patterns: examplePatternRecords(examplePhase()) };
     const text = methodsFor(data, []);
     expect(text).toContain('generated example data');
     expect(text).toContain('Cu Kα radiation');
@@ -116,7 +117,10 @@ describe('methodsFor on the example data', () => {
 describe('session file', () => {
   const data: XrdData = {
     ...initialXrdData,
-    patterns: examplePatternRecords().map((p) => ({ ...p, sigma: p.intensity.map(Math.sqrt) })),
+    patterns: examplePatternRecords(examplePhase()).map((p) => ({
+      ...p,
+      sigma: p.intensity.map(Math.sqrt),
+    })),
     peaks: { x: { ...DEFAULT_PEAK_STATE, guesses: [{ center: 25.3, width: 0.2 }] } },
   };
   const state = { ...initialWizardState(data), step: 3, furthest: 5 };

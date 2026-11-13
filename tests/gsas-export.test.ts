@@ -55,12 +55,14 @@ describe('Thompson–Cox–Hastings conversion for GSAS-II', () => {
       ratio: 0.5,
       zero: 0.012,
       profile: tchFromPseudoVoigt({ u: 0.004, v: -0.002, w: 0.006, eta: 0.5 }, 20, 90),
-      comments: ['From the Rietveld step'],
+      comments: ['From the Rietveld step', 'Bank and range noted'],
     });
     const lines = text.trim().split('\n');
     expect(lines[0]).toContain('GSAS-II');
-    const first = lines.findIndex((l) => !l.startsWith('#'));
+    // GSAS-II's reader skips one comment line only, so every later line must hold values.
+    const first = 1;
     expect(lines.slice(first).every((l) => !l.startsWith('#'))).toBe(true);
+    expect(lines[0]).not.toContain('Bank');
     // Parse as GSAS-II's ReadInstprm does: split on ';' and ':' once.
     const items = Object.fromEntries(
       lines

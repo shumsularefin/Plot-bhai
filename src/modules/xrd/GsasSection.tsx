@@ -1,4 +1,10 @@
-import { instprm, phaseCif, tchExact, tchFromPseudoVoigt } from '../../core/xrd/export/gsas';
+import {
+  instprm,
+  phaseCif,
+  refinedStructure,
+  tchExact,
+  tchFromPseudoVoigt,
+} from '../../core/xrd/export/gsas';
 import { ANODES } from '../../core/xrd/radiation';
 import { phaseReference } from '../../core/xrd/reference/source';
 import type { ReferencePhase, StoredStructure } from '../../core/xrd/reference/types';
@@ -9,27 +15,6 @@ import { processingFor, type XrdData } from './data';
 
 const save = (text: string, name: string) =>
   downloadBlob(new Blob([text], { type: 'text/plain' }), name);
-
-/** The stored structure with the refined atoms (B → U_iso = B/8π²) when there are any. */
-function refinedStructure(structure: StoredStructure, fit: RietveldPhaseResult | undefined) {
-  if (!fit?.atoms) return structure;
-  return {
-    ...structure,
-    atoms: structure.atoms.map((atom, i) => {
-      const r = fit.atoms?.[i];
-      if (!r) return atom;
-      return {
-        ...atom,
-        x: r.x.map((c) => c.value) as [number, number, number],
-        occupancy: r.occupancy.value,
-        uIso: r.u ? null : Number.isFinite(r.b.value) ? r.b.value / (8 * Math.PI ** 2) : atom.uIso,
-        uAniso: r.u
-          ? (r.u.map((c) => c.value) as [number, number, number, number, number, number])
-          : atom.uAniso,
-      };
-    }),
-  };
-}
 
 const axialOf = (result: { axial?: { value: number } }) => result.axial?.value ?? 0;
 

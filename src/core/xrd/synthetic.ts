@@ -3,8 +3,9 @@ import { kAlpha2Position } from './process/kAlpha2';
 import { ANODES, DEFAULT_KALPHA2_RATIO } from './radiation';
 
 /*
- * Synthetic diffraction patterns for the example data and for tests. These are generated, not
- * measured, and do not represent any real material: the peak positions are arbitrary.
+ * Generated diffraction patterns for the example data and for tests. None of them is measured.
+ * The example sample patterns use the lines of a real structure; the example standard and the
+ * test patterns use arbitrary peak positions.
  */
 
 /**
@@ -91,30 +92,63 @@ export function generatePattern(options: SyntheticOptions): {
   return { twoTheta, intensity };
 }
 
-const EXAMPLE_POSITIONS = [21.4, 30.2, 35.6, 43.3, 53.7, 57.2, 62.8, 74.3];
-const EXAMPLE_HEIGHTS = [900, 3200, 8000, 1800, 1100, 2600, 3900, 900];
+/** Scherrer constant used to give the example peaks their widths. */
+const EXAMPLE_K = 0.9;
+/** Crystallite sizes (nm) that the two example patterns are built with. */
+export const EXAMPLE_SIZES_NM = { narrow: 60, broad: 15 };
+/** Height of the strongest example peak above the background, counts. */
+const EXAMPLE_TOP_COUNTS = 8000;
+
+/** Caglioti parameters (degrees², FWHM² = U tan²θ + V tanθ + W) of the example standard. */
+export const EXAMPLE_STANDARD_CAGLIOTI = { u: 0.01, v: -0.004, w: 0.003 };
+
+/** Instrument FWHM (degrees 2θ) of the example standard at 2θ (degrees), from its Caglioti curve. */
+function exampleInstrumentWidth(twoTheta: number): number {
+  const { u, v, w } = EXAMPLE_STANDARD_CAGLIOTI;
+  const t = Math.tan((twoTheta / 2) * (Math.PI / 180));
+  return Math.sqrt(u * t * t + v * t + w);
+}
 
 /**
- * The "Try with example data" patterns: two synthetic scans with the same arbitrary peak
- * positions, one with narrow and one with broad peaks, each with a Cu Kα2 line beside every
- * Kα1 peak (ratio 0.5). Not a real material.
+ * The "Try with example data" patterns: two scans calculated from the lines of a real crystal
+ * structure (positions 2θ in degrees for Cu Kα1 and relative intensities, as this site
+ * calculates them from a CIF). They are calculated, not measured.
+ *
+ * Each line gets a width from the Scherrer equation for a chosen crystallite size L,
+ *   β_size = K λ / (L cos θ)   (radians; K = 0.9, λ = Cu Kα1 in the unit of L),
+ * combined with the example standard's instrument width by the Gaussian rule
+ *   FWHM² = β_size² + β_inst²,
+ * so that correcting with the example standard gives back L = 60 nm (narrow) and 15 nm (broad).
+ * A Cu Kα2 line (ratio 0.5), a smooth background and counting noise are added.
  */
-export function examplePatterns(): {
+export function examplePatterns(
+  lines: readonly { twoTheta: number; intensity: number }[],
+  label: string,
+): {
   name: string;
   twoTheta: Float64Array;
   intensity: Float64Array;
 }[] {
-  const make = (fwhm: number, seed: number) =>
+  const start = 20;
+  const end = 80;
+  const inRange = lines.filter((l) => l.twoTheta > start + 1 && l.twoTheta < end - 1);
+  const strongest = Math.max(...inRange.map((l) => l.intensity));
+  const make = (sizeNm: number, seed: number) =>
     generatePattern({
-      start: 10,
-      end: 80,
+      start,
+      end,
       step: 0.02,
-      peaks: EXAMPLE_POSITIONS.map((center, i) => ({
-        center,
-        fwhm: fwhm * (1 + center / 100),
-        height: EXAMPLE_HEIGHTS[i] as number,
-        eta: 0.5,
-      })),
+      peaks: inRange.map((line) => {
+        const theta = (line.twoTheta / 2) * (Math.PI / 180);
+        const sizeWidth =
+          ((EXAMPLE_K * ANODES.Cu.kAlpha1) / (sizeNm * 10 * Math.cos(theta))) * (180 / Math.PI);
+        return {
+          center: line.twoTheta,
+          fwhm: Math.hypot(sizeWidth, exampleInstrumentWidth(line.twoTheta)),
+          height: (EXAMPLE_TOP_COUNTS * line.intensity) / strongest,
+          eta: 0.5,
+        };
+      }),
       background: { constant: 150, amplitude: 900, decay: 12 },
       noiseSeed: seed,
       kAlpha2: {
@@ -124,13 +158,17 @@ export function examplePatterns(): {
       },
     });
   return [
-    { name: 'Synthetic example A (narrow peaks)', ...make(0.12, 1) },
-    { name: 'Synthetic example B (broad peaks)', ...make(0.45, 2) },
+    {
+      name: `${label}, calculated, ${EXAMPLE_SIZES_NM.narrow} nm crystallites`,
+      ...make(EXAMPLE_SIZES_NM.narrow, 1),
+    },
+    {
+      name: `${label}, calculated, ${EXAMPLE_SIZES_NM.broad} nm crystallites`,
+      ...make(EXAMPLE_SIZES_NM.broad, 2),
+    },
   ];
 }
 
-/** Caglioti parameters (degrees², FWHM² = U tan²θ + V tanθ + W) of the example standard. */
-export const EXAMPLE_STANDARD_CAGLIOTI = { u: 0.01, v: -0.004, w: 0.003 };
 const EXAMPLE_STANDARD_POSITIONS = [
   18.5, 26.2, 32.4, 38.9, 45.6, 51.3, 57.8, 63.1, 68.7, 75.2, 79.6,
 ];
@@ -146,18 +184,13 @@ export function exampleStandard(kAlpha1Only: boolean): {
   twoTheta: Float64Array;
   intensity: Float64Array;
 } {
-  const { u, v, w } = EXAMPLE_STANDARD_CAGLIOTI;
-  const width = (twoTheta: number) => {
-    const t = Math.tan((twoTheta / 2) * (Math.PI / 180));
-    return Math.sqrt(u * t * t + v * t + w);
-  };
   const pattern = generatePattern({
     start: 15,
     end: 82,
     step: 0.01,
     peaks: EXAMPLE_STANDARD_POSITIONS.map((center, i) => ({
       center,
-      fwhm: width(center),
+      fwhm: exampleInstrumentWidth(center),
       height: 12000 - 700 * i,
       eta: EXAMPLE_STANDARD_ETA,
     })),

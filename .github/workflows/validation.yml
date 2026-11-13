@@ -52,6 +52,18 @@ jobs:
         run: python -I scripts/validation/gsas2/sequential.py "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
       - name: GSAS-II bond lengths, angles and their s.u., bond-valence sums (ZrO2)
         run: python -I scripts/validation/gsas2/bonds.py "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Load this site's exported GSAS-II files into GSAS-II
+        # The first run only writes the files (it may fail against the old record), the last run
+        # checks the new record.
+        run: |
+          GSAS_EXPORT_DIR="$RUNNER_TEMP/export" npx vitest run tests/validation-gsas-export.test.ts || true
+          python -I scripts/validation/gsas2/load_export.py "$RUNNER_TEMP/export" "$GITHUB_WORKSPACE"
+          npx vitest run tests/validation-gsas-export.test.ts
       - name: pymatgen distances and powder patterns
         run: python -I scripts/validation/pymatgen/check.py "$GITHUB_WORKSPACE"
       - name: Commit the fixtures
