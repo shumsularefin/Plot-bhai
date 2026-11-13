@@ -156,6 +156,80 @@ export function RietveldSetup({ settings, set, phases, lambda, result, patternNa
 
       <fieldset class="method-choice">
         <legend>
+          Sample geometry{' '}
+          <HelpTip term="sample geometry">
+            <p>
+              Flat plate: the usual reflection (Bragg–Brentano) geometry. Capillary: the powder is
+              in a glass capillary in transmission (Debye–Scherrer). The capillary absorbs more of
+              the beam scattered at low angle, so the intensities are multiplied by GSAS-II’s
+              cylinder absorption factor A(μR, θ), with μR the linear absorption coefficient times
+              the capillary radius. Off-axis capillary positions shift the peaks by Dx cos 2θ + Dy
+              sin 2θ (the “Sample displacement” and “Sample transparency” choices then refine Dx and
+              Dy).
+            </p>
+          </HelpTip>
+        </legend>
+        <label class="check">
+          <input
+            type="radio"
+            name="rietveld-geometry"
+            checked={!optics.capillary}
+            onChange={() => set({ optics: { ...optics, capillary: false } })}
+          />
+          Flat plate (Bragg–Brentano)
+        </label>
+        <label class="check">
+          <input
+            type="radio"
+            name="rietveld-geometry"
+            checked={optics.capillary === true}
+            onChange={() => set({ optics: { ...optics, capillary: true } })}
+          />
+          Capillary (Debye–Scherrer)
+        </label>
+        {optics.capillary && (
+          <NumberInput
+            label="μR (absorption × radius)"
+            value={optics.muR ?? 0}
+            min={0}
+            max={20}
+            onChange={(v) => v !== null && set({ optics: { ...optics, muR: v } })}
+          />
+        )}
+        {optics.capillary && (
+          <p class="field-hint">
+            μR = μ·ρ_packing·R: μ the linear absorption coefficient of the compact material at this
+            wavelength, ρ_packing the fraction of the capillary filled (often 0.4 to 0.6), R the
+            inner radius. Tick “Capillary absorption μR” under “What to refine” to refine it.
+          </p>
+        )}
+      </fieldset>
+
+      <fieldset class="method-choice">
+        <legend>
+          Anomalous dispersion{' '}
+          <HelpTip term="anomalous dispersion">
+            <p>
+              Near an absorption edge an atom scatters less (f′, negative) and with a phase shift
+              (f″). For Cu radiation this matters most for Fe, Co, Mn and the rare earths. The
+              values are Cromer–Liberman f′ and f″ computed by GSAS-II for the Kα1 wavelength of the
+              anode chosen in step 1; GSAS-II always includes them, so tick this to match a GSAS-II
+              refinement. It needs the atom positions of each phase (added from a CIF).
+            </p>
+          </HelpTip>
+        </legend>
+        <label class="check">
+          <input
+            type="checkbox"
+            checked={optics.anomalous === true}
+            onChange={(e) => set({ optics: { ...optics, anomalous: e.currentTarget.checked } })}
+          />
+          Include f′ and f″ in the structure factors
+        </label>
+      </fieldset>
+
+      <fieldset class="method-choice">
+        <legend>
           Instrument profile{' '}
           <HelpTip term="instrument profile">
             <p>

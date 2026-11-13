@@ -81,6 +81,7 @@ import {
   restraintResiduals,
   structureModel,
   substitutedContents,
+  type Dispersion,
   type StructureModel,
   type Substitution,
 } from './structure';
@@ -170,6 +171,8 @@ export interface RefineChoices {
   strainModel?: 'isotropic' | 'uniaxial' | 'generalized';
   /** Axial divergence SH/L (Finger–Cox–Jephcoat asymmetry, fcj.ts), when no instrument is fixed. */
   axialDivergence?: boolean;
+  /** Capillary absorption μR (sample.ts), in capillary geometry only; otherwise fixed. */
+  absorption?: boolean;
 }
 
 export const DEFAULT_CHOICES: RefineChoices = {
@@ -204,6 +207,13 @@ export interface RietveldInput {
   excluded?: readonly (readonly [number, number])[];
   /** Internal standard for the amorphous content: phase id and its weighed fraction (0 to 1). */
   standard?: { phaseId: string; fraction: number };
+  /**
+   * Anomalous dispersion f′, f″ of each element for the wavelength of the data (structure.ts).
+   * When given, Σ|F|² of every phase with stored atoms is calculated with it.
+   */
+  dispersion?: Dispersion;
+  /** Starting (or fixed) capillary μR, with wavelengths.capillary; 0 if missing. */
+  muR?: number;
 }
 
 export interface AtomResult {
@@ -326,6 +336,14 @@ export interface RietveldResult {
   roughness: [Estimate, Estimate];
   /** Axial divergence SH/L (0 and fixed unless refined or given by the fixed instrument). */
   axial: Estimate;
+  /**
+   * Capillary geometry: μR, or null for a flat plate. `displacement` and `transparency` are then
+   * the capillary displacements Dx (cos 2θ) and Dy (sin 2θ), degrees (sample.ts).
+   */
+  absorption: Estimate | null;
+  /** True when Σ|F|² included anomalous dispersion; names of phases it could not be applied to. */
+  anomalous: boolean;
+  anomalousSkipped: string[];
   /** Polarisation coefficient P used (GSAS-II's Polariz.). */
   polarisation: number;
   /** The fixed instrument profile, when one was used. */
@@ -431,12 +449,14 @@ export function refineRietveld(
     choices.positions || choices.occupancy || choices.biso || choices.aniso,
   );
   const noStructure: string[] = [];
+  const anomalousSkipped: string[] = [];
+  const dispersion = input.dispersion;
   let setupError: string | null = null;
   const phases: PhaseModel[] = input.phases.map((phase) => {
     const kind = cellKind(phase.crystalSystem, phase.cell);
     let structure: StructureModel | undefined;
     const substitutions = phase.substitutions ?? [];
-    if ((wantsStructure || substitutions.length > 0) && !phase.leBail) {
+    if ((wantsStructure || substitutions.length > 0 || dispersion) && !phase.leBail) {
       try {
         if (!phase.structure || !input.factors) throw new Error('no structure');
         structure = structureModel(
@@ -446,11 +466,13 @@ export function refineRietveld(
           input.radii ?? {},
           wantsStructure && choices.aniso === true,
           substitutions,
+          dispersion,
         );
       } catch (e) {
         if (substitutions.length > 0)
           setupError = `The substitution in ${phase.name} cannot be used: ${e instanceof Error ? e.message : 'no atom positions are stored'}.`;
-        else noStructure.push(phase.name);
+        else if (wantsStructure) noStructure.push(phase.name);
+        if (dispersion) anomalousSkipped.push(phase.name);
       }
     }
     const reflections = refinementReflections(phase.peaks, phase.cell, kind, dMin);
@@ -502,6 +524,8 @@ export function refineRietveld(
   // A = 0, B = 0 is a smooth surface (SR = 1); B is released first, then A (see the stages).
   bound(layout.roughness[0], 0, 1, 0, 0.1);
   bound(layout.roughness[1], 0, 2, 0, 0.01);
+  const capillary = wavelengths.capillary === true;
+  bound(layout.absorption, 0, 20, capillary ? Math.max(0, input.muR ?? 0) : 0, 0.1);
   bound(
     layout.axial,
     0,
@@ -559,8 +583,9 @@ export function refineRietveld(
 
   const labels = new Array<string>(layout.size).fill('');
   labels[layout.zero] = 'zero shift';
-  labels[layout.displacement] = 'sample displacement';
-  labels[layout.transparency] = 'sample transparency';
+  labels[layout.displacement] = capillary ? 'capillary displacement Dx' : 'sample displacement';
+  labels[layout.transparency] = capillary ? 'capillary displacement Dy' : 'sample transparency';
+  labels[layout.absorption] = 'capillary absorption μR';
   labels[layout.roughness[0]] = 'surface roughness A';
   labels[layout.roughness[1]] = 'surface roughness B';
   labels[layout.axial] = 'axial divergence SH/L';
@@ -857,8 +882,10 @@ export function refineRietveld(
   stage(
     [
       'Zero shift',
-      ...(choices.displacement ? ['sample displacement'] : []),
-      ...(choices.transparency ? ['transparency'] : []),
+      ...(choices.displacement
+        ? [capillary ? 'capillary displacement Dx' : 'sample displacement']
+        : []),
+      ...(choices.transparency ? [capillary ? 'capillary displacement Dy' : 'transparency'] : []),
     ].join(', '),
     [
       ...(choices.zero ? [layout.zero] : []),
@@ -983,7 +1010,8 @@ export function refineRietveld(
       'Overall displacement factor B',
       layout.phases.flatMap((pl, k) => ((phases[k] as PhaseModel).leBail ? [] : [pl.b])),
     );
-  if (choices.roughness) {
+  if (capillary && choices.absorption) stage('Capillary absorption (μR)', [layout.absorption]);
+  if (choices.roughness && !capillary) {
     stage('Surface roughness B', [layout.roughness[1]]);
     // A changes nothing while B = 0 (a smooth surface), so it is released only after B moved.
     if ((current[layout.roughness[1]] as number) > 1e-4)
@@ -1259,62 +1287,65 @@ export function refineRietveld(
         : false;
     if (negative) negativeStrain.push(phase.name);
     const states = atomStates(phase, pl, params);
-    const atoms: AtomResult[] | null = phase.structure
-      ? phase.structure.atoms.map((atom, a) => {
-          const al = pl.atoms[a] as (typeof pl.atoms)[number];
-          const state = states[a] as (typeof states)[number];
-          const coordFree = al.coords.some((j) => mask[j]);
-          const x = [0, 1, 2].map((i) => {
-            // x_i = x0_i + Σ_k c_k v_ki, so var(x_i) = Σ_kl v_ki v_li cov(c_k, c_l).
-            let variance = 0;
-            al.coords.forEach((jk, kk) =>
-              al.coords.forEach(
-                (jl, ll) =>
-                  (variance +=
-                    ((atom.basis[kk] as number[])[i] as number) *
-                    ((atom.basis[ll] as number[])[i] as number) *
-                    cov(jk, jl)),
-              ),
-            );
-            const moves = atom.basis.some((v) => v[i] !== 0);
+    // A structure built only for anomalous dispersion is not reported as refined atoms.
+    const reportAtoms = wantsStructure || phase.structure?.atoms.some((atom) => atom.substitute);
+    const atoms: AtomResult[] | null =
+      phase.structure && reportAtoms
+        ? phase.structure.atoms.map((atom, a) => {
+            const al = pl.atoms[a] as (typeof pl.atoms)[number];
+            const state = states[a] as (typeof states)[number];
+            const coordFree = al.coords.some((j) => mask[j]);
+            const x = [0, 1, 2].map((i) => {
+              // x_i = x0_i + Σ_k c_k v_ki, so var(x_i) = Σ_kl v_ki v_li cov(c_k, c_l).
+              let variance = 0;
+              al.coords.forEach((jk, kk) =>
+                al.coords.forEach(
+                  (jl, ll) =>
+                    (variance +=
+                      ((atom.basis[kk] as number[])[i] as number) *
+                      ((atom.basis[ll] as number[])[i] as number) *
+                      cov(jk, jl)),
+                ),
+              );
+              const moves = atom.basis.some((v) => v[i] !== 0);
+              return {
+                value: state.x[i] as number,
+                esd: coordFree && moves ? Math.sqrt(Math.max(variance, 0)) : 0,
+                refined: coordFree && moves,
+              };
+            }) as [Estimate, Estimate, Estimate];
             return {
-              value: state.x[i] as number,
-              esd: coordFree && moves ? Math.sqrt(Math.max(variance, 0)) : 0,
-              refined: coordFree && moves,
+              label: atom.label,
+              element: atom.element,
+              x,
+              occupancy: estimate(al.occupancy),
+              b: atom.anisotropic ? { value: NaN, esd: 0, refined: false } : estimate(al.b),
+              u: atom.uCif0
+                ? atom.uCif0.map((u0, q) => {
+                    // U_q = U0_q + Σ_k c_k V_kq, var(U_q) = Σ_kl V_kq V_lq cov(c_k, c_l).
+                    let value = u0;
+                    let variance = 0;
+                    al.aniso.forEach((jk, kk) => {
+                      const vk = (atom.uBasisCif[kk] as number[])[q] as number;
+                      value += (params[jk] as number) * vk;
+                      al.aniso.forEach(
+                        (jl, ll) =>
+                          (variance +=
+                            vk * ((atom.uBasisCif[ll] as number[])[q] as number) * cov(jk, jl)),
+                      );
+                    });
+                    const refined =
+                      al.aniso.some((j) => mask[j]) && atom.uBasisCif.some((v) => v[q] !== 0);
+                    return { value, esd: refined ? Math.sqrt(Math.max(variance, 0)) : 0, refined };
+                  })
+                : null,
+              positiveDefinite: state.uImages?.[0] ? positiveDefinite(state.uImages[0]) : true,
+              substitute: atom.substitute
+                ? { element: atom.substitute.element, fraction: estimate(al.fraction) }
+                : null,
             };
-          }) as [Estimate, Estimate, Estimate];
-          return {
-            label: atom.label,
-            element: atom.element,
-            x,
-            occupancy: estimate(al.occupancy),
-            b: atom.anisotropic ? { value: NaN, esd: 0, refined: false } : estimate(al.b),
-            u: atom.uCif0
-              ? atom.uCif0.map((u0, q) => {
-                  // U_q = U0_q + Σ_k c_k V_kq, var(U_q) = Σ_kl V_kq V_lq cov(c_k, c_l).
-                  let value = u0;
-                  let variance = 0;
-                  al.aniso.forEach((jk, kk) => {
-                    const vk = (atom.uBasisCif[kk] as number[])[q] as number;
-                    value += (params[jk] as number) * vk;
-                    al.aniso.forEach(
-                      (jl, ll) =>
-                        (variance +=
-                          vk * ((atom.uBasisCif[ll] as number[])[q] as number) * cov(jk, jl)),
-                    );
-                  });
-                  const refined =
-                    al.aniso.some((j) => mask[j]) && atom.uBasisCif.some((v) => v[q] !== 0);
-                  return { value, esd: refined ? Math.sqrt(Math.max(variance, 0)) : 0, refined };
-                })
-              : null,
-            positiveDefinite: state.uImages?.[0] ? positiveDefinite(state.uImages[0]) : true,
-            substitute: atom.substitute
-              ? { element: atom.substitute.element, fraction: estimate(al.fraction) }
-              : null,
-          };
-        })
-      : null;
+          })
+        : null;
     return {
       id: phase.id,
       name: phase.name,
@@ -1377,6 +1408,22 @@ export function refineRietveld(
     );
   if (!final.converged)
     warnings.push('The refinement stopped before it converged. Check the fit, then refine again.');
+  if (capillary && choices.roughness)
+    warnings.push(
+      'Surface roughness describes a flat sample, so it was not used in capillary geometry. The capillary absorption μR takes its place.',
+    );
+  if (capillary && wavelengths.variableSlit)
+    warnings.push(
+      'An automatic divergence slit belongs to flat-plate (Bragg–Brentano) geometry, so its correction was not used for the capillary.',
+    );
+  if (capillary && choices.absorption && mask[layout.absorption])
+    warnings.push(
+      'The refined capillary μR is strongly correlated with the displacement parameters B (both change the intensity smoothly with angle). Prefer fixing μR at the value calculated from the composition, the packing fraction and the capillary radius, and check that the refined value is close to it.',
+    );
+  if (dispersion && anomalousSkipped.length > 0)
+    warnings.push(
+      `Anomalous dispersion could not be applied to ${anomalousSkipped.join(', ')}: no atom positions are stored, so the reference intensities were used. Add the phase again from its CIF to include it.`,
+    );
   if (!final.covarianceOk)
     warnings.push(
       'Uncertainties could not be calculated: some refined parameters cannot be told apart. Fix some of them (for example U and V) and refine again.',
@@ -1533,6 +1580,11 @@ export function refineRietveld(
     transparency: estimate(layout.transparency),
     roughness: [estimate(layout.roughness[0]), estimate(layout.roughness[1])],
     axial: estimate(layout.axial),
+    absorption: capillary ? estimate(layout.absorption) : null,
+    anomalous:
+      dispersion !== undefined &&
+      anomalousSkipped.length < phases.filter((ph) => !ph.leBail).length,
+    anomalousSkipped,
     polarisation: wavelengths.polarisation ?? 0.5,
     instrument,
     excluded,

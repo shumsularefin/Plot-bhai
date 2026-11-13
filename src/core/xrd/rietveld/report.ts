@@ -39,6 +39,8 @@ export interface RietveldMethodsInput {
   variableSlit?: boolean;
   /** Where a fixed instrument profile came from, for example "a refinement of LaB6". */
   instrumentSource?: string;
+  /** True for a capillary (Debye–Scherrer) sample. */
+  capillary?: boolean;
 }
 
 const percent = (v: number) => `${(100 * v).toFixed(2)} %`;
@@ -52,7 +54,13 @@ export function rietveldMethods(input: RietveldMethodsInput): string {
     'scale factors',
     `a ${input.backgroundTerms}-term Chebyshev background`,
     ...(choices.zero ? ['the zero shift'] : []),
-    ...(choices.displacement ? ['the sample displacement'] : []),
+    ...(choices.displacement
+      ? [
+          result.absorption
+            ? 'the capillary displacement perpendicular to the beam (Dx cos 2θ)'
+            : 'the sample displacement',
+        ]
+      : []),
     ...(choices.cell ? ['the unit cell parameters'] : []),
     ...(choices.width && !result.instrument
       ? [
@@ -71,14 +79,21 @@ export function rietveldMethods(input: RietveldMethodsInput): string {
     ...(choices.orientation && result.phases.some((p) => p.orientation)
       ? ['March–Dollase preferred orientation']
       : []),
-    ...(choices.transparency ? ['the sample transparency'] : []),
+    ...(choices.transparency
+      ? [
+          result.absorption
+            ? 'the capillary displacement along the beam (Dy sin 2θ)'
+            : 'the sample transparency',
+        ]
+      : []),
     ...(choices.size ? ['the crystallite size of each phase'] : []),
     ...(choices.strain ? ['the microstrain of each phase'] : []),
     ...(choices.sampleMix && (choices.size || choices.strain)
       ? ['the Lorentzian fractions of the size and strain broadening']
       : []),
     ...(choices.overallB ? ['an overall displacement factor B'] : []),
-    ...(choices.roughness
+    ...(result.absorption?.refined ? ['the capillary absorption μR'] : []),
+    ...(choices.roughness && !result.absorption
       ? ['the Suortti surface-roughness correction (J. Appl. Cryst. 5 (1972) 325)']
       : []),
     ...(choices.axialDivergence && result.axial?.refined
@@ -129,7 +144,15 @@ export function rietveldMethods(input: RietveldMethodsInput): string {
     sentences.push(
       `The polarisation factor was that of ${input.monochromator ?? 'the monochromator'} (polarisation coefficient P = ${pola.toFixed(4)} in the GSAS-II convention, P = 0.5 for an unpolarised beam).`,
     );
-  if (input.variableSlit)
+  if (result.absorption)
+    sentences.push(
+      `The sample was a capillary in Debye–Scherrer geometry; absorption was corrected with the cylinder absorption factor of GSAS-II (Absorb, 'Cylinder') with μR = ${withUncertainty(result.absorption.value, result.absorption.esd, 3)}${result.absorption.refined ? ' (refined)' : ' (fixed)'}.`,
+    );
+  if (result.anomalous)
+    sentences.push(
+      `Structure factors included anomalous dispersion, with Cromer–Liberman f′ and f″ (D. T. Cromer and D. A. Liberman, J. Chem. Phys. 53 (1970) 1891) computed by GSAS-II for the Kα1 wavelength${result.anomalousSkipped?.length ? `, except for ${list(result.anomalousSkipped)}, which had no stored atom positions` : ''}.`,
+    );
+  if (input.variableSlit && !result.absorption)
     sentences.push(
       'The data were measured with an automatic divergence slit, so the calculated intensities were multiplied by sin θ.',
     );

@@ -61,7 +61,15 @@
  *   parameter SH/L, which replaces the symmetric pseudo-Voigt; its low-angle side (the high-angle
  *   side above 90°) is then computed 50 · SH/L · |cos 2θ| further out, as in GSAS-II.
  *
- * Absorption (other than surface roughness) is not modelled.
+ * - Capillary (Debye–Scherrer) geometry (optional, Wavelengths.capillary): the intensity is
+ *   multiplied by the cylinder absorption factor A(μR, θ) of GSAS-II (sample.ts), with μR fixed or
+ *   refined, instead of the surface roughness and the variable-slit factor (flat-plate effects);
+ *   the displacement and transparency terms become GSAS-II's capillary displacements,
+ *   Δ2θ = Dx cos 2θ + Dy sin 2θ (perpendicular to and along the beam), in the same two parameters.
+ * - Anomalous dispersion f′, f″ enters through Σ|F|² (structure.ts).
+ *
+ * A flat plate in Bragg–Brentano geometry needs no absorption factor for a thick sample (it is the
+ * same at every angle); surface roughness is its only absorption-related correction here.
  */
 
 import { dSpacing, lorentzPolarisation, reciprocalMetric, type Cell } from '../reference/powder';
@@ -76,6 +84,8 @@ import {
 import { fcjNodes, type FcjNodes } from './fcj';
 import { tchEta, tchFwhm } from './tch';
 import {
+  capillaryShift,
+  cylinderAbsorption,
   polarisation,
   sampleWidths,
   surfaceRoughness,
@@ -137,6 +147,8 @@ export interface Wavelengths {
    * Only for reproducing GSAS-II exactly in the validation; the default is the exact form.
    */
   correctionsAtKAlpha1?: boolean;
+  /** Capillary (Debye–Scherrer) geometry instead of a flat plate (see the header). */
+  capillary?: boolean;
 }
 
 /** Where each parameter sits in the parameter vector. */
@@ -149,6 +161,8 @@ export interface Layout {
   roughness: [number, number];
   /** Axial divergence SH/L (fcj.ts); 0 is a symmetric profile. */
   axial: number;
+  /** Capillary absorption μR (sample.ts), used only in capillary geometry. */
+  absorption: number;
   /** Background coefficients b_0 … b_(n−1). */
   background: number[];
   phases: PhaseLayout[];
@@ -197,6 +211,7 @@ export function makeLayout(phases: readonly PhaseModel[], backgroundTerms: numbe
   const transparency = take();
   const roughness: [number, number] = [take(), take()];
   const axial = take();
+  const absorption = take();
   const background = Array.from({ length: backgroundTerms }, take);
   const phaseLayouts = phases.map((phase) => ({
     scale: take(),
@@ -231,6 +246,7 @@ export function makeLayout(phases: readonly PhaseModel[], backgroundTerms: numbe
     transparency,
     roughness,
     axial,
+    absorption,
     background,
     phases: phaseLayouts,
     size: next,
@@ -391,7 +407,9 @@ export function placePeaks(
   const transparency = p[layout.transparency] as number;
   const roughA = p[layout.roughness[0]] as number;
   const roughB = p[layout.roughness[1]] as number;
-  const rough = roughA !== 1 && roughB !== 0;
+  const capillary = wavelengths.capillary === true;
+  const rough = !capillary && roughA !== 1 && roughB !== 0;
+  const muR = capillary ? Math.max(0, p[layout.absorption] as number) : 0;
   const pola = wavelengths.polarisation ?? 0.5;
   const scale = p[pl.scale] as number;
   const u = p[pl.u] as number;
@@ -498,12 +516,14 @@ export function placePeaks(
         let factor = weight * lorentzPolarisation(at);
         if (pola !== 0.5) factor *= polarisation(pola, at) / (1 + Math.cos(2 * at) ** 2);
         if (rough) factor *= surfaceRoughness(roughA, roughB, at);
-        if (wavelengths.variableSlit) factor *= variableSlitFactor(at);
+        if (wavelengths.variableSlit && !capillary) factor *= variableSlitFactor(at);
+        if (muR > 0) factor *= cylinderAbsorption(muR, at);
         const twoTheta =
           (2 * theta) / RAD +
           zero +
-          displacement * Math.cos(theta) +
-          transparencyShift(transparency, theta);
+          (capillary
+            ? capillaryShift(displacement, transparency, theta)
+            : displacement * Math.cos(theta) + transparencyShift(transparency, theta));
         const fcj = shl > 0 ? fcjNodes(twoTheta, shl, tch ? lorentzian : mix * fwhm) : null;
         out.push({
           phase: index,

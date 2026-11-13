@@ -97,7 +97,12 @@ const CHOICE_LABELS: [keyof RefineChoices, string, string][] = [
   [
     'roughness',
     'Surface roughness',
-    'Suortti correction (as in GSAS-II) for a rough or porous sample surface, which lowers the intensity at low angle. Without it a rough sample can give negative B values. Strongly correlated with B.',
+    'Suortti correction (as in GSAS-II) for a rough or porous sample surface, which lowers the intensity at low angle. Without it a rough sample can give negative B values. Strongly correlated with B. Flat samples only.',
+  ],
+  [
+    'absorption',
+    'Capillary absorption μR',
+    'Refines μR of a capillary sample (set the geometry under “Instrument, sample and quantification”). μR is strongly correlated with the displacement parameters B: prefer typing the value calculated from the composition, packing and capillary radius and keeping it fixed.',
   ],
 ];
 
@@ -210,6 +215,8 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
     (settings.choices.strain && settings.choices.strainModel === 'uniaxial'),
   );
   const optics = settings.optics ?? DEFAULT_OPTICS;
+  const capillary = optics.capillary === true;
+  const anomalous = optics.anomalous === true;
   const polarisation = polarisationOf(optics, lines.kAlpha1);
   const ranges = parseRanges(settings.excludedRanges ?? '');
   // A cell from indexing has no structure and equal starting intensities: always Le Bail.
@@ -234,6 +241,8 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
     useCleaned && cleaning,
     polarisation,
     optics.variableSlit,
+    capillary && optics.muR,
+    anomalous,
     ranges,
     instrument?.profile,
     leBail.filter((id) => included.some((p) => p.id === id)),
@@ -264,6 +273,7 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
         monochromator: 'a germanium (111) incident-beam monochromator',
       }),
       variableSlit: optics.variableSlit,
+      capillary,
       ...(instrument && { instrumentSource: instrument.source }),
     })} ${
       useCleaned && cleaningSteps.length > 0
@@ -288,7 +298,9 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
         ratio,
         polarisation,
         variableSlit: optics.variableSlit,
+        ...(capillary && { capillary: true }),
       },
+      ...(capillary && { muR: optics.muR ?? 0 }),
       phases: included.map((p) => ({
         id: p.id,
         name: p.name,
@@ -318,7 +330,11 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
     };
     setError(null);
     setStage('Starting');
-    const outcome = await client.current.refine(input, setStage);
+    const outcome = await client.current.refine(
+      input,
+      setStage,
+      anomalous ? data.radiation.anode : undefined,
+    );
     setStage(null);
     if (!outcome) return;
     if (!outcome.ok) setError(outcome.error);
@@ -587,6 +603,8 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
                   (choice === 'tch' && tchForced) ||
                   (choice === 'sampleMix' && !settings.choices.size && !settings.choices.strain) ||
                   (choice === 'axialDivergence' && (instrument?.profile.shl ?? 0) > 0) ||
+                  (choice === 'absorption' && !capillary) ||
+                  (choice === 'roughness' && capillary) ||
                   (instrument !== null && (choice === 'width' || choice === 'widthSlope'))
                 }
                 onChange={(e) =>
@@ -891,8 +909,16 @@ function Results({
         )}
         {result.transparency?.refined && (
           <div>
-            <dt>Transparency T (° 2θ)</dt>
+            <dt>
+              {result.absorption ? 'Capillary displacement Dy (° 2θ)' : 'Transparency T (° 2θ)'}
+            </dt>
             <dd>{num(result.transparency, 4)}</dd>
+          </div>
+        )}
+        {result.absorption && (
+          <div>
+            <dt>Capillary μR{result.absorption.refined ? '' : ' (fixed)'}</dt>
+            <dd>{num(result.absorption, 3)}</dd>
           </div>
         )}
         {result.roughness?.[1].refined && (
@@ -1127,7 +1153,12 @@ function Results({
           ))}
         </ol>
         {result.displacement.refined && (
-          <p>Sample displacement coefficient D (° 2θ): {num(result.displacement, 4)}</p>
+          <p>
+            {result.absorption
+              ? 'Capillary displacement Dx, perpendicular to the beam (° 2θ): '
+              : 'Sample displacement coefficient D (° 2θ): '}
+            {num(result.displacement, 4)}
+          </p>
         )}
       </Advanced>
 

@@ -1,4 +1,5 @@
 import type { RietveldInput, RietveldOutcome } from '../../core/xrd/rietveld/refine';
+import type { Anode } from '../../core/xrd/radiation';
 import type { RietveldRequest, RietveldResponse } from '../../workers/rietveld.worker';
 
 /**
@@ -10,8 +11,15 @@ export class RietveldClient {
   private nextId = 1;
   private running: { id: number; resolve: (outcome: RietveldOutcome | null) => void } | null = null;
 
-  /** Resolves with the outcome, or null when cancelled or the worker failed. */
-  refine(input: RietveldInput, progress: (stage: string) => void): Promise<RietveldOutcome | null> {
+  /**
+   * Resolves with the outcome, or null when cancelled or the worker failed. `anomalous` names the
+   * anode whose f′, f″ table the worker adds to the input (data/reference/anomalous-dispersion.json).
+   */
+  refine(
+    input: RietveldInput,
+    progress: (stage: string) => void,
+    anomalous?: Anode,
+  ): Promise<RietveldOutcome | null> {
     this.cancel();
     const id = this.nextId++;
     const worker = this.getWorker();
@@ -25,7 +33,7 @@ export class RietveldClient {
           this.running = null;
         }
       };
-      worker.postMessage({ id, input } satisfies RietveldRequest);
+      worker.postMessage({ id, input, ...(anomalous && { anomalous }) } satisfies RietveldRequest);
     });
   }
 

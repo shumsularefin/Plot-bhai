@@ -117,6 +117,12 @@ export interface RietveldOptics {
   polarisation: number;
   /** Automatic (variable) divergence slit. */
   variableSlit: boolean;
+  /** Capillary (Debye–Scherrer) sample instead of a flat plate; missing means flat. */
+  capillary?: boolean;
+  /** Capillary μR (linear absorption coefficient × radius), the starting or fixed value. */
+  muR?: number;
+  /** Include anomalous dispersion f′, f″ in the structure factors; missing means off. */
+  anomalous?: boolean;
 }
 
 export const DEFAULT_OPTICS: RietveldOptics = {

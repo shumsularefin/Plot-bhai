@@ -33,6 +33,17 @@
  * Zn₁₋ₓCoₓO). This is GSAS-II's constraint of two atoms on one site with Frac₁ + Frac₂ fixed and
  * equal positions and U, written as one atom.
  *
+ * Anomalous dispersion (optional): each atom's f(s) becomes f(s) + f′ + i f″, with f′ and f″
+ * (electrons) for the wavelength used, independent of s (data/reference/anomalous-dispersion.json,
+ * Cromer–Liberman values computed by GSAS-II). With
+ *   A  = Σ (f + f′) T cos φ,   B  = Σ (f + f′) T sin φ,   A″ = Σ f″ T cos φ,   B″ = Σ f″ T sin φ
+ * (φ = 2π h·x', over every image of every atom), F(h) = (A − B″) + i(B + A″) and F(−h) =
+ * (A + B″) + i(A″ − B). A powder pattern adds h and −h, so the value used is their mean
+ *   |F|² = A² + B² + A″² + B″²,
+ * as in GSAS-II's StructureFactor2. For a centrosymmetric structure B = B″ = 0 and f″ only adds
+ * A″²; for a non-centrosymmetric one this is the Friedel average. f″ also multiplies the same
+ * occupancy and displacement factor T as f.
+ *
  * Bond restraints (optional): each bond present at the start (0.5 Å < d ≤ r₁ + r₂ + 0.45 Å,
  * covalent radii) adds the pseudo-observation (d − d₀)/σ, σ = 0.02 Å, which keeps the bonds close
  * to their starting lengths while the pattern moves the atoms.
@@ -82,8 +93,16 @@ export interface StructureAtom {
   uCif0: number[] | null;
   images: Image[];
   factor: FormFactor;
+  /** Anomalous dispersion f′, f″ (electrons) of the element; [0, 0] when not used. */
+  dispersion: readonly [number, number];
   /** A second element on the same site (doping), or undefined. */
-  substitute?: { element: string; factor: FormFactor; fraction0: number; refine: boolean };
+  substitute?: {
+    element: string;
+    factor: FormFactor;
+    dispersion: readonly [number, number];
+    fraction0: number;
+    refine: boolean;
+  };
 }
 
 /** A dopant placed on a site of the structure: the atom label, its element and the fraction x. */
@@ -234,7 +253,13 @@ export function nullSpace(rows: number[][], n = 3): number[][] {
   return out;
 }
 
-/** Builds the structure model; atoms whose element has no scattering factor make it throw. */
+/** f′ and f″ (electrons) of each element for one wavelength. */
+export type Dispersion = Readonly<Record<string, readonly [number, number]>>;
+
+/**
+ * Builds the structure model; atoms whose element has no scattering factor make it throw. With
+ * `dispersion`, every element of the structure must be in it.
+ */
 export function structureModel(
   cell: Cell,
   structure: StoredStructure,
@@ -242,7 +267,14 @@ export function structureModel(
   radii: Readonly<Record<string, number>>,
   allAnisotropic = false,
   substitutions: readonly Substitution[] = [],
+  dispersion?: Dispersion,
 ): StructureModel {
+  const dispersionOf = (element: string): readonly [number, number] => {
+    if (!dispersion) return [0, 0];
+    const value = dispersion[element];
+    if (!value) throw new Error(`no anomalous dispersion values for ${element}`);
+    return value;
+  };
   for (const sub of substitutions) {
     if (!structure.atoms.some((a) => a.label === sub.site))
       throw new Error(`no site labelled ${sub.site}`);
@@ -315,10 +347,12 @@ export function structureModel(
       uCif0,
       images,
       factor,
+      dispersion: dispersionOf(atom.element),
       ...(sub && {
         substitute: {
           element: sub.element,
           factor: factors[sub.element] as FormFactor,
+          dispersion: dispersionOf(sub.element),
           fraction0: Math.min(1, Math.max(0, sub.fraction)),
           refine: sub.refine,
         },
@@ -363,7 +397,10 @@ function scatter(f: FormFactor, s2: number): number {
   return v;
 }
 
-/** |F(h)|² for the current atom states (d in Å). */
+/**
+ * |F(h)|² for the current atom states (d in Å); with anomalous dispersion, the mean of |F(h)|² and
+ * |F(−h)|² (see the header).
+ */
 export function structureFactorSquared(
   model: StructureModel,
   states: readonly AtomState[],
@@ -373,12 +410,17 @@ export function structureFactorSquared(
   const s2 = 1 / (4 * d * d);
   let re = 0;
   let im = 0;
+  let re2 = 0;
+  let im2 = 0;
   model.atoms.forEach((atom, a) => {
     const state = states[a] as AtomState;
-    const x = atom.substitute ? (state.fraction ?? atom.substitute.fraction0) : 0;
-    const f = atom.substitute
-      ? (1 - x) * scatter(atom.factor, s2) + x * scatter(atom.substitute.factor, s2)
-      : scatter(atom.factor, s2);
+    const sub = atom.substitute;
+    const x = sub ? (state.fraction ?? sub.fraction0) : 0;
+    const f = sub
+      ? (1 - x) * (scatter(atom.factor, s2) + atom.dispersion[0]) +
+        x * (scatter(sub.factor, s2) + sub.dispersion[0])
+      : scatter(atom.factor, s2) + atom.dispersion[0];
+    const fpp = sub ? (1 - x) * atom.dispersion[1] + x * sub.dispersion[1] : atom.dispersion[1];
     atom.images.forEach((image, m) => {
       let t: number;
       const u = state.uImages?.[m] ?? image.u;
@@ -392,12 +434,18 @@ export function structureFactorSquared(
       } else t = Math.exp(-state.b * s2);
       const x = applySymop(image.op, state.x);
       const phase = 2 * Math.PI * (h * x[0] + k * x[1] + l * x[2]);
-      const amplitude = state.occupancy * f * t;
-      re += amplitude * Math.cos(phase);
-      im += amplitude * Math.sin(phase);
+      const weight = state.occupancy * t;
+      const c = Math.cos(phase);
+      const sn = Math.sin(phase);
+      re += weight * f * c;
+      im += weight * f * sn;
+      if (fpp !== 0) {
+        re2 += weight * fpp * c;
+        im2 += weight * fpp * sn;
+      }
     });
   });
-  return re * re + im * im;
+  return re * re + im * im + re2 * re2 + im2 * im2;
 }
 
 /** Restraint residuals (d − d₀)/σ for the current atom positions. */

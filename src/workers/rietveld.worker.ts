@@ -6,8 +6,20 @@ import {
 import type { FormFactors } from '../core/xrd/reference/powder';
 import scattering from '../../data/reference/scattering-factors.json';
 import covalent from '../../data/reference/covalent-radii.json';
+import dispersionTable from '../../data/reference/anomalous-dispersion.json';
+import type { Anode } from '../core/xrd/radiation';
+import type { Dispersion } from '../core/xrd/rietveld/structure';
+import { dispersionFor, type DispersionFile } from '../core/xrd/rietveld/dispersion';
 
-export type RietveldRequest = { id: number; input: RietveldInput };
+/** `anomalous`: the anode whose f′, f″ table to use, or missing for none. */
+export type RietveldRequest = { id: number; input: RietveldInput; anomalous?: Anode };
+
+const dispersionOf = (anode?: Anode): Dispersion | undefined =>
+  anode ? dispersionFor(dispersionTable as unknown as DispersionFile, anode) : undefined;
+const dispersionInput = (anode?: Anode): { dispersion?: Dispersion } => {
+  const dispersion = dispersionOf(anode);
+  return dispersion ? { dispersion } : {};
+};
 
 export type RietveldResponse =
   | { id: number; kind: 'progress'; stage: string }
@@ -28,6 +40,7 @@ scope.onmessage = ({ data: request }) => {
         ...request.input,
         factors: (scattering as unknown as { factors: FormFactors }).factors,
         radii: covalent.radii,
+        ...dispersionInput(request.anomalous),
       },
       (stage) => scope.postMessage({ id: request.id, kind: 'progress', stage }),
     );

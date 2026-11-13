@@ -38,7 +38,17 @@ os.makedirs(out, exist_ok=True)
 os.makedirs(run, exist_ok=True)
 commit = os.environ.get('GSAS2_COMMIT', 'unknown')
 inst = os.path.join(repo, 'scripts', 'validation', 'rietveld', 'cu.instprm')
-cif = lambda n: os.path.join(repo, 'scripts', 'cif-cache', f'{n}.cif')
+
+
+def cif(code):
+    """A copy of the cached CIF with neutral atom types (Zn2+ -> Zn, Fe+3 -> Fe): both CIFs give
+    oxidation states, and GSAS-II would then use ionic form factors where the site uses neutral ones."""
+    text = open(os.path.join(repo, 'scripts', 'cif-cache', f'{code}.cif')).read()
+    neutral = re.sub(r'(?<=\s)([A-Z][a-z]?)(?:\d?[+-]\d?)(?=\s)', r'\1', text)
+    path = os.path.join(run, f'{code}-neutral.cif')
+    open(path, 'w').write(neutral)
+    return path
+
 
 # 1. The table.
 radiation = open(os.path.join(repo, 'src', 'core', 'xrd', 'radiation.ts')).read()
