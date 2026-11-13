@@ -46,6 +46,8 @@ jobs:
         run: python -I scripts/validation/gsas2/anisotropic.py "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
       - name: GSAS-II anomalous dispersion table, Henke cross-check and capillary absorption
         run: python -I scripts/validation/gsas2/dispersion.py "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
+      - name: GSAS-II spherical-harmonic preferred orientation (every Laue class, ZnO refinement)
+        run: python -I scripts/validation/gsas2/texture.py "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
       - name: pymatgen distances and powder patterns
         run: python -I scripts/validation/pymatgen/check.py "$GITHUB_WORKSPACE"
       - name: Commit the fixtures
