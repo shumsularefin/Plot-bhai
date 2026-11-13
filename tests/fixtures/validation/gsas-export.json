@@ -47,12 +47,12 @@
    "uiso": 0.0119433
   }
  ],
- "rwpAsExported": 4.451409825840014,
- "rwpContinued": 4.4487212596262,
+ "rwpAsExported": 4.451402994380653,
+ "rwpContinued": 4.448649691661213,
  "cellContinued": [
-  3.7844931135242033,
-  3.7844931135242033,
-  9.514304976079945
+  3.784493011521289,
+  3.784493011521289,
+  9.514304643120036
  ],
  "source": "GSAS-II (github.com/AdvancedPhotonSource/GSAS-II) commit 2c62562"
 }
