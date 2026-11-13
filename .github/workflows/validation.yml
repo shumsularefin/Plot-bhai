@@ -42,6 +42,8 @@ jobs:
         run: python -I scripts/validation/gsas2/sample.py "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
       - name: GSAS-II shared-site substitution (Zn0.85Mg0.15O)
         run: python -I scripts/validation/gsas2/substitution.py "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
+      - name: GSAS-II axial divergence (FCJ), uniaxial size and Stephens microstrain (ZnO)
+        run: python -I scripts/validation/gsas2/anisotropic.py "$RUNNER_TEMP" "$GITHUB_WORKSPACE"
       - name: pymatgen distances and powder patterns
         run: python -I scripts/validation/pymatgen/check.py "$GITHUB_WORKSPACE"
       - name: Commit the fixtures
