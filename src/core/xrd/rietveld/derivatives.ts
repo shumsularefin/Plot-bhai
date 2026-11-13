@@ -225,7 +225,10 @@ export function fillJacobian(input: JacobianInput): number[] {
     });
   });
 
-  // Exact Σ|F|² gradients, once per reflection that reaches the data.
+  // Exact Σ|F|² gradients, once per reflection that reaches the data. Every peak of a reflection
+  // (Kα1, Kα2, width groups) shares them, so they are applied to the sum of its peaks' A/Σ|F|²·Ω.
+  const atomColumns = phases.map(() => ({ columns: [] as number[], entries: [] as number[] }));
+  const gradients = phases.map(() => new Map<number, Float64Array>());
   phases.forEach((phase, k) => {
     const structure = phase.structure;
     const cols = input.columns.flatMap((j, c) =>
@@ -236,51 +239,111 @@ export function fillJacobian(input: JacobianInput): number[] {
     if (!structure || cols.length === 0 || phase.leBail) return;
     const pl = layout.phases[k] as Layout['phases'][number];
     const states = atomStates(phase, pl, params);
-    const gradients = new Map<number, Float64Array>();
-    const base = peaks[k] as PlacedPeak[];
-    const cf = coef[k] as Float64Array;
-    base.forEach((p, q) => {
-      if (empty(k, q)) return;
-      let g = gradients.get(p.reflection);
-      if (!g) {
-        const reflection = phase.reflections[p.reflection] as PhaseModel['reflections'][number];
-        g = structureFactorGradient(structure, states, reflection.members, p.d).gradient;
-        gradients.set(p.reflection, g);
-      }
-      for (const [c, gi] of cols) cf[(q * nCols + c) * TERMS] = p.areaPerMf2 * (g[gi] as number);
+    const own = atomColumns[k] as (typeof atomColumns)[number];
+    for (const [c, gi] of cols) {
+      own.columns.push(input.columns[c] as number);
+      own.entries.push(gi);
+    }
+    const map = gradients[k] as Map<number, Float64Array>;
+    (peaks[k] as PlacedPeak[]).forEach((p, q) => {
+      if (empty(k, q) || map.has(p.reflection)) return;
+      const reflection = phase.reflections[p.reflection] as PhaseModel['reflections'][number];
+      map.set(
+        p.reflection,
+        structureFactorGradient(structure, states, reflection.members, p.d).gradient,
+      );
     });
   });
 
   // Assembly, peak by peak.
   const active = new Int32Array(nCols);
+  const area = new Int32Array(nCols);
+  const areaCoef = new Float64Array(nCols);
+  const areaColumn = new Int32Array(nCols);
+  const shapeCoef = new Float64Array(nCols * TERMS);
+  const shapeColumn = new Int32Array(nCols);
+  const reflectionOmega = new Float64Array(x.length);
   phases.forEach((_, k) => {
     const base = peaks[k] as PlacedPeak[];
     const cf = coef[k] as Float64Array;
     const w = windows[k] as Int32Array;
+    const { columns: atomJ, entries } = atomColumns[k] as (typeof atomColumns)[number];
+    const map = gradients[k] as Map<number, Float64Array>;
+    const nAtom = atomJ.length;
+    let current = -1;
+    let lo = 0;
+    let hi = 0;
+    /** Adds Σ|F|²-gradient × the summed Ω of the reflection collected so far, then clears it. */
+    const flush = () => {
+      const g = map.get(current);
+      if (g)
+        for (let i = lo; i < hi; i++) {
+          const v = reflectionOmega[i] as number;
+          if (v === 0) continue;
+          const row = i * m;
+          for (let a = 0; a < nAtom; a++) {
+            const j = row + (atomJ[a] as number);
+            jacobian[j] = (jacobian[j] as number) + (g[entries[a] as number] as number) * v;
+          }
+        }
+      reflectionOmega.fill(0, lo, hi);
+      lo = x.length;
+      hi = 0;
+    };
     base.forEach((p, q) => {
       if (empty(k, q)) return;
+      if (p.reflection !== current) {
+        flush();
+        current = p.reflection;
+      }
+      const collect = nAtom > 0 && map.has(p.reflection);
+      // Columns with only the Ω term (atoms, scale, …) and those that also move the shape.
       let count = 0;
+      let areaOnly = 0;
       for (let c = 0; c < nCols; c++) {
         const o = (q * nCols + c) * TERMS;
-        let any = false;
-        for (let t = 0; t < TERMS; t++) if (cf[o + t] !== 0) any = true;
-        if (any) active[count++] = c;
+        let shape = false;
+        for (let t = 1; t < TERMS; t++) if (cf[o + t] !== 0) shape = true;
+        if (shape) active[count++] = c;
+        else if (cf[o] !== 0) area[areaOnly++] = c;
       }
-      if (count === 0) return;
+      if (p.fcj) {
+        for (let a = 0; a < count; a++) area[areaOnly++] = active[a] as number;
+        count = 0;
+      }
+      if (count === 0 && areaOnly === 0 && !collect) return;
       const start = w[2 * q] as number;
       const end = w[2 * q + 1] as number;
+      if (collect) {
+        lo = Math.min(lo, start);
+        hi = Math.max(hi, end);
+      }
+      const perMf2 = p.areaPerMf2;
+      for (let a = 0; a < areaOnly; a++) {
+        const c = area[a] as number;
+        areaCoef[a] = cf[(q * nCols + c) * TERMS] as number;
+        areaColumn[a] = input.columns[c] as number;
+      }
+      for (let a = 0; a < count; a++) {
+        const c = active[a] as number;
+        for (let t = 0; t < TERMS; t++)
+          shapeCoef[a * TERMS + t] = cf[(q * nCols + c) * TERMS + t] as number;
+        shapeColumn[a] = input.columns[c] as number;
+      }
+      /** Adds the Ω-only columns at point i, Ω already multiplied by sw[i]. */
+      const addArea = (row: number, omega: number) => {
+        for (let a = 0; a < areaOnly; a++) {
+          const j = row + (areaColumn[a] as number);
+          jacobian[j] = (jacobian[j] as number) + (areaCoef[a] as number) * omega;
+        }
+      };
       if (p.fcj) {
         const shape = bufferFor(end - start);
         profileOn(k, q, { ...p, area: 1 }, shape);
         for (let i = start; i < end; i++) {
-          const v = (shape[i - start] as number) * (sw[i] as number);
-          const row = i * m;
-          for (let a = 0; a < count; a++) {
-            const c = active[a] as number;
-            const j = input.columns[c] as number;
-            jacobian[row + j] =
-              (jacobian[row + j] as number) + (cf[(q * nCols + c) * TERMS] as number) * v;
-          }
+          const omega = (shape[i - start] as number) * (sw[i] as number);
+          addArea(i * m, omega);
+          if (collect) reflectionOmega[i] = (reflectionOmega[i] as number) + perMf2 * omega;
         }
         return;
       }
@@ -297,6 +360,16 @@ export function fillJacobian(input: JacobianInput): number[] {
         const l = lNorm * den;
         const g = t2 < 135 ? gNorm * Math.exp(-Math.LN2 * t2) : 0;
         const v = eta * l + (1 - eta) * g;
+        const e = Math.exp(-z * z);
+        const fa = 2 * z * e;
+        const fb = 2 * (2 * z * z - 3) * fa;
+        const as = 1 + aa * fa + bb * fb;
+        const scale = sw[i] as number;
+        const row = i * m;
+        const omega = v * as * scale;
+        addArea(row, omega);
+        if (collect) reflectionOmega[i] = (reflectionOmega[i] as number) + perMf2 * omega;
+        if (count === 0) continue;
         // ∂/∂u and ∂/∂H of L and G.
         const lu = -l * 8 * u * inv * inv * den;
         const gu = -g * 8 * Math.LN2 * u * inv * inv;
@@ -304,36 +377,29 @@ export function fillJacobian(input: JacobianInput): number[] {
         const gh = g * inv * (-1 + 2 * Math.LN2 * t2);
         const vu = eta * lu + (1 - eta) * gu;
         const vh = eta * lh + (1 - eta) * gh;
-        const e = Math.exp(-z * z);
-        const fa = 2 * z * e;
-        const fb = 2 * (2 * z * z - 3) * fa;
         const faz = 2 * e * (1 - 2 * z * z);
         const fbz = 8 * z * fa + 2 * (2 * z * z - 3) * faz;
-        const as = 1 + aa * fa + bb * fb;
         const asz = aa * faz + bb * fbz;
-        const scale = sw[i] as number;
-        const omega = v * as * scale;
         const dT = (-vu * as - v * asz * inv) * scale;
         const dH = (vh * as - v * asz * u * inv * inv) * scale;
         const dEta = (l - g) * as * scale;
         const dA = v * fa * scale;
         const dB = v * fb * scale;
-        const row = i * m;
         for (let a = 0; a < count; a++) {
-          const c = active[a] as number;
-          const o = (q * nCols + c) * TERMS;
-          const j = input.columns[c] as number;
-          jacobian[row + j] =
-            (jacobian[row + j] as number) +
-            (cf[o] as number) * omega +
-            (cf[o + 1] as number) * dT +
-            (cf[o + 2] as number) * dH +
-            (cf[o + 3] as number) * dEta +
-            (cf[o + 4] as number) * dA +
-            (cf[o + 5] as number) * dB;
+          const o = a * TERMS;
+          const j = row + (shapeColumn[a] as number);
+          jacobian[j] =
+            (jacobian[j] as number) +
+            (shapeCoef[o] as number) * omega +
+            (shapeCoef[o + 1] as number) * dT +
+            (shapeCoef[o + 2] as number) * dH +
+            (shapeCoef[o + 3] as number) * dEta +
+            (shapeCoef[o + 4] as number) * dA +
+            (shapeCoef[o + 5] as number) * dB;
         }
       }
     });
+    flush();
   });
   return fallback;
 }

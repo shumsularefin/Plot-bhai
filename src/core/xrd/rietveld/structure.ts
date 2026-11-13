@@ -397,60 +397,113 @@ function scatter(f: FormFactor, s2: number): number {
   return v;
 }
 
+const imagePositions = new WeakMap<AtomState, Float64Array>();
+/** x' = R x + t of every image of an atom (3 per image), kept with the state they belong to. */
+function positionsOf(atom: StructureAtom, state: AtomState): Float64Array {
+  let out = imagePositions.get(state);
+  if (!out) {
+    out = new Float64Array(3 * atom.images.length);
+    atom.images.forEach((image, m) => {
+      const x = applySymop(image.op, state.x);
+      out?.set(x, 3 * m);
+    });
+    imagePositions.set(state, out);
+  }
+  return out;
+}
+
+/** hᵀ u h for a symmetric (row-major) u. */
+const quadratic = (h: number, k: number, l: number, t: readonly number[]) =>
+  h * h * (t[0] as number) +
+  k * k * (t[4] as number) +
+  l * l * (t[8] as number) +
+  2 * (h * k * (t[1] as number) + h * l * (t[2] as number) + k * l * (t[5] as number));
+
+/** Site scattering factor f + f′ and f″ of an atom at s² (with a dopant's share, if any). */
+function siteFactors(atom: StructureAtom, state: AtomState, s2: number): [number, number] {
+  const sub = atom.substitute;
+  if (!sub) return [scatter(atom.factor, s2) + atom.dispersion[0], atom.dispersion[1]];
+  const x = state.fraction ?? sub.fraction0;
+  return [
+    (1 - x) * (scatter(atom.factor, s2) + atom.dispersion[0]) +
+      x * (scatter(sub.factor, s2) + sub.dispersion[0]),
+    (1 - x) * atom.dispersion[1] + x * sub.dispersion[1],
+  ];
+}
+
 /**
- * |F(h)|² for the current atom states (d in Å); with anomalous dispersion, the mean of |F(h)|² and
+ * Σ over the members of a reflection family of |F(h)|² for the current atom states (d in Å, the
+ * spacing shared by the members); with anomalous dispersion, each |F|² is the mean of |F(h)|² and
  * |F(−h)|² (see the header).
  */
-export function structureFactorSquared(
+export function familyStructureFactor(
   model: StructureModel,
   states: readonly AtomState[],
-  [h, k, l]: Hkl,
+  members: readonly Hkl[],
   d: number,
 ): number {
   const s2 = 1 / (4 * d * d);
-  let re = 0;
-  let im = 0;
-  let re2 = 0;
-  let im2 = 0;
-  model.atoms.forEach((atom, a) => {
-    const state = states[a] as AtomState;
-    const sub = atom.substitute;
-    const x = sub ? (state.fraction ?? sub.fraction0) : 0;
-    const f = sub
-      ? (1 - x) * (scatter(atom.factor, s2) + atom.dispersion[0]) +
-        x * (scatter(sub.factor, s2) + sub.dispersion[0])
-      : scatter(atom.factor, s2) + atom.dispersion[0];
-    const fpp = sub ? (1 - x) * atom.dispersion[1] + x * sub.dispersion[1] : atom.dispersion[1];
-    atom.images.forEach((image, m) => {
-      let t: number;
-      const u = state.uImages?.[m] ?? image.u;
-      if (u) {
-        const q =
-          h * h * u[0] +
-          k * k * u[4] +
-          l * l * u[8] +
-          2 * (h * k * u[1] + h * l * u[2] + k * l * u[5]);
-        t = Math.exp(-2 * Math.PI ** 2 * q);
-      } else t = Math.exp(-state.b * s2);
-      const x = applySymop(image.op, state.x);
-      const phase = 2 * Math.PI * (h * x[0] + k * x[1] + l * x[2]);
-      const weight = state.occupancy * t;
-      const c = Math.cos(phase);
-      const sn = Math.sin(phase);
-      re += weight * f * c;
-      im += weight * f * sn;
-      if (fpp !== 0) {
-        re2 += weight * fpp * c;
-        im2 += weight * fpp * sn;
+  const factors = model.atoms.map((atom, a) => siteFactors(atom, states[a] as AtomState, s2));
+  const TWO_PI = 2 * Math.PI;
+  let total = 0;
+  for (const [h, k, l] of members) {
+    let re = 0;
+    let im = 0;
+    let re2 = 0;
+    let im2 = 0;
+    model.atoms.forEach((atom, a) => {
+      const state = states[a] as AtomState;
+      const [f, fpp] = factors[a] as [number, number];
+      const x = positionsOf(atom, state);
+      const tIso = Math.exp(-state.b * s2);
+      for (let m = 0; m < atom.images.length; m++) {
+        const u = state.uImages?.[m] ?? (atom.images[m] as Image).u;
+        const t = u ? Math.exp(-2 * Math.PI ** 2 * quadratic(h, k, l, u)) : tIso;
+        const phase =
+          TWO_PI *
+          (h * (x[3 * m] as number) + k * (x[3 * m + 1] as number) + l * (x[3 * m + 2] as number));
+        const weight = state.occupancy * t;
+        const c = weight * Math.cos(phase);
+        const sn = weight * Math.sin(phase);
+        re += f * c;
+        im += f * sn;
+        re2 += fpp * c;
+        im2 += fpp * sn;
       }
     });
-  });
-  return re * re + im * im + re2 * re2 + im2 * im2;
+    total += re * re + im * im + re2 * re2 + im2 * im2;
+  }
+  return total;
 }
+
+/** |F(h)|² of one reflection (see familyStructureFactor). */
+export const structureFactorSquared = (
+  model: StructureModel,
+  states: readonly AtomState[],
+  hkl: Hkl,
+  d: number,
+): number => familyStructureFactor(model, states, [hkl], d);
 
 /** Number of refinable quantities of an atom, in the order of the layout (see gradient below). */
 export const atomParameterCount = (atom: StructureAtom): number =>
   atom.basis.length + 3 + atom.uBasis.length;
+
+const rotatedMoves = new WeakMap<StructureAtom, Float64Array[]>();
+/** R v_k of every image m and free direction k (3 per direction), for ∂φ/∂c_k. */
+function imageMoves(atom: StructureAtom): Float64Array[] {
+  let cached = rotatedMoves.get(atom);
+  if (!cached) {
+    cached = atom.images.map((image) => {
+      const out = new Float64Array(3 * atom.basis.length);
+      atom.basis.forEach((v, q) =>
+        out.set(applySymop({ rot: image.op.rot, trans: [0, 0, 0] }, v), 3 * q),
+      );
+      return out;
+    });
+    rotatedMoves.set(atom, cached);
+  }
+  return cached;
+}
 
 const rotatedBases = new WeakMap<StructureAtom, Matrix3[][]>();
 /** R uBasis_k Rᵀ for every image m and basis tensor k of an anisotropic atom ([m][k]). */
@@ -517,16 +570,17 @@ export function structureFactorGradient(
       const iU = iB + 1;
       const iX = iU + atom.uBasis.length;
       const bases = atom.uBasis.length > 0 ? imageBases(atom) : null;
+      const xs = positionsOf(atom, state);
+      const moves = imageMoves(atom);
+      const tIso = Math.exp(-state.b * s2);
       atom.images.forEach((image, m) => {
         const u = state.uImages?.[m] ?? image.u;
-        const quad = (t: readonly number[]) =>
-          h * h * (t[0] as number) +
-          k * k * (t[4] as number) +
-          l * l * (t[8] as number) +
-          2 * (h * k * (t[1] as number) + h * l * (t[2] as number) + k * l * (t[5] as number));
-        const t = u ? Math.exp(-2 * Math.PI ** 2 * quad(u)) : Math.exp(-state.b * s2);
-        const xi = applySymop(image.op, state.x);
-        const phase = TWO_PI * (h * xi[0] + k * xi[1] + l * xi[2]);
+        const t = u ? Math.exp(-2 * Math.PI ** 2 * quadratic(h, k, l, u)) : tIso;
+        const phase =
+          TWO_PI *
+          (h * (xs[3 * m] as number) +
+            k * (xs[3 * m + 1] as number) +
+            l * (xs[3 * m + 2] as number));
         const c = Math.cos(phase);
         const sn = Math.sin(phase);
         const w = state.occupancy * t;
@@ -534,19 +588,19 @@ export function structureFactorGradient(
         im += w * f * sn;
         re2 += w * fpp * c;
         im2 += w * fpp * sn;
-        const r = image.op.rot;
-        atom.basis.forEach((v, q) => {
-          const rv = (i: number) =>
-            (r[i * 3] as number) * (v[0] as number) +
-            (r[i * 3 + 1] as number) * (v[1] as number) +
-            (r[i * 3 + 2] as number) * (v[2] as number);
-          const dPhase = TWO_PI * (h * rv(0) + k * rv(1) + l * rv(2));
+        const rv = moves[m] as Float64Array;
+        for (let q = 0; q < nc; q++) {
+          const dPhase =
+            TWO_PI *
+            (h * (rv[3 * q] as number) +
+              k * (rv[3 * q + 1] as number) +
+              l * (rv[3 * q + 2] as number));
           const j = offset + q;
           dRe[j] = (dRe[j] as number) - w * f * sn * dPhase;
           dIm[j] = (dIm[j] as number) + w * f * c * dPhase;
           dRe2[j] = (dRe2[j] as number) - w * fpp * sn * dPhase;
           dIm2[j] = (dIm2[j] as number) + w * fpp * c * dPhase;
-        });
+        }
         /** Adds g·(f cos φ, f sin φ, f″ cos φ, f″ sin φ) to the derivatives of entry j. */
         const add = (j: number, g: number) => {
           dRe[j] = (dRe[j] as number) + g * f * c;
@@ -558,7 +612,7 @@ export function structureFactorGradient(
         if (!u) add(iB, -s2 * w);
         if (bases)
           (bases[m] as Matrix3[]).forEach((basis, q) =>
-            add(iU + q, -2 * Math.PI ** 2 * quad(basis) * w),
+            add(iU + q, -2 * Math.PI ** 2 * quadratic(h, k, l, basis) * w),
           );
         if (sub) {
           dRe[iX] = (dRe[iX] as number) + w * df * c;

@@ -98,7 +98,7 @@ import {
   atomPosition,
   atomTensor,
   rotateTensor,
-  structureFactorSquared,
+  familyStructureFactor,
   type AtomState,
   type StructureModel,
 } from './structure';
@@ -469,10 +469,7 @@ export function placePeaks(
       : phase.leBail
         ? (phase.leBail[k] as number)
         : structure
-          ? reflection.members.reduce(
-              (sum, m) => sum + structureFactorSquared(structure, states, m, d),
-              0,
-            )
+          ? familyStructureFactor(structure, states, reflection.members, d)
           : reflection.mf2;
     const orientation =
       phase.orientation && r !== 1
