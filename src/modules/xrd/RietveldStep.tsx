@@ -28,6 +28,7 @@ import {
   type XrdData,
 } from './data';
 import { RietveldSetup } from './RietveldSetup';
+import { BondsSection } from './BondsSection';
 import { SeriesSection } from './SeriesSection';
 import type { SeriesPattern, SeriesRequest } from '../../workers/rietveld.worker';
 import { SubstitutionPanel, validSubstitutions } from './SubstitutionPanel';
@@ -889,6 +890,8 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
       {result && (
         <Results result={result} methods={settings.result?.methods ?? ''} name={pattern.name} />
       )}
+
+      {result && <BondsSection result={result} name={pattern.name} settings={settings} set={set} />}
 
       {data.patterns.length > 1 && (
         <SeriesSection

@@ -53,6 +53,7 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 17e       | Rietveld: analytic derivatives (speed)                       | done    |
 | 17f       | Rietveld: spherical-harmonic texture                         | done    |
 | 17g       | Rietveld: sequential refinement of a series                  | done    |
+| 17h       | Rietveld: bond lengths and angles with s.u., bond valence    | done    |
 
 ## The one prompt you paste in every new session
 
@@ -599,3 +600,7 @@ list are in docs/rietveld-roadmap.md. Every sub-stage adds a GSAS-II case to
   pattern refined in order of its value, each starting from the previous refined cells, with a
   table, a plot of any refined quantity and a weighted straight line (thermal expansion, Vegard's
   law); checked against GSAS-II one by one and GSAS-II's own sequential refinement.
+- **17h (done)** Bond lengths and angles of the refined structure with standard uncertainties
+  from the full covariance of the cell and coordinates, and bond-valence sums with I. D. Brown's
+  bvparm2020 table; checked against GSAS-II (RetDistAngle, getAngSig, its own sums), pymatgen
+  distances and a separate Python reading of the table in the Validation workflow.

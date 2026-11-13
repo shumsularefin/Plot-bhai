@@ -519,6 +519,59 @@ Open:
 - The cause of GSAS-II's larger s.u. of the hexagonal a is not confirmed.
 - The plot shows the points without error bars; the s.u. are in the table and the CSV.
 
+## 17h: bond lengths and angles with uncertainties, bond-valence sums
+
+Code: src/core/xrd/structure/bonds.ts (findBonds, findAngles, symmetry codes, analytic gradients
+of each distance and angle with respect to p = [a, b, c, α, β, γ, x₁, y₁, z₁, …], σ² = gᵀCg),
+src/core/xrd/structure/bondValence.ts (s = exp((R₀ − R)/b), V = Σ occ s, σ²(V) from the bond
+gradients, offered and suggested oxidation states), src/core/xrd/rietveld/refine.ts (the
+covariance of p, C_p = J C Jᵀ from the refined parameters, reported per phase as `geometry`),
+src/modules/xrd/BondsSection.tsx (step 5, Advanced). Data: data/reference/bond-valence.json, built
+by scripts/build-bond-valence.ts from an unchanged copy of bvparm2020.cif
+(data/reference/source/, SHA-1 54640352675869efaa9264bb1b9b1cd3c43d03e5, from the matminer 0.10.1
+wheel; copyright notice kept; flagged for owner verification). Tests: tests/structure-bonds.test.ts,
+tests/validation-gsas2-bonds.test.ts, tests/bonds-report.test.ts; e2e step "5 Rietveld: bonds …
+and bond-valence sum". GSAS-II fixture: scripts/validation/gsas2/bonds.py →
+tests/fixtures/validation/zro2-bonds.json and zro2-bonds.xy (Validation workflow run 43519799052,
+GSAS-II commit 2c62562). The GSAS-II case: baddeleyite (ZrO₂, P2₁/c, COD 9007448) simulated with
+O1 x moved by 0.004, refined in GSAS-II (R_wp 2.74 %) with positions and U_iso.
+
+| Method                         | Check                                                                                                                                                                                       | Source                     | Tolerance             | Result |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | --------------------- | ------ |
+| Distances                      | every distance up to 3.2 Å from each site of four COD structures (rutile 9007531, 9015929, 7212242, baddeleyite 9007448)                                                                    | pymatgen 2026.10.31 (CI)   | 1e-4 Å                | pass   |
+| Distances and s.u., GSAS-II    | the 14 Zr–O distances (up to 2.4 Å) of GSAS-II's refined baddeleyite and their s.u. against GSASIIstrMain.RetDistAngle, which uses the coordinate covariance only (the cell block set to 0) | GSAS-II (CI)               | 1e-8 Å; s.u. 1e-7 Å   | pass   |
+| Angles and s.u., GSAS-II       | the 30 O–Zr–O and Zr–O–Zr angles against GSAS-II's G2mth.getAngSig with the orthogonalisation matrix (see below)                                                                            | GSAS-II (CI)               | 1e-6°; s.u. 1e-5°     | pass   |
+| Bond-valence sums and s.u.     | Zr 3.7522(8), O1 1.9049(7), O2 1.8473(7) against a separate Python reading of bvparm2020 with s.u. from GSAS-II's distance derivatives (getDistDerv)                                        | Python in CI               | 1e-8; s.u. 1e-7       | pass   |
+| GSAS-II's own sum              | with GSAS-II's R₀ = 1.937 Å, b = 0.37 (atmdata.BVScoeff) the site gives Zr 3.845; GSAS-II prints 3.84                                                                                       | GSAS-II (CI)               | 0.005                 | pass   |
+| This site's refinement         | the same pattern refined here (R_wp 2.86 %): all 14 lengths within 3 combined s.u. of GSAS-II's (largest difference 0.0011 Å); coordinate-only s.u. 1.04–1.05 × GSAS-II's                   | GSAS-II (CI)               | 3 s.u.; ratio 0.9–1.2 | pass   |
+| Covariance of p                | its diagonal gives exactly the cell and coordinate s.u. the refinement reports                                                                                                              | internal consistency       | 1e-9                  | pass   |
+| Gradients                      | analytic gradients of every baddeleyite bond against central finite differences in all 15 parameters                                                                                        | synthetic                  | 1e-5                  | pass   |
+| Propagated s.u.                | standard deviation of lengths and angles over 4000 structures drawn from a covariance against the propagated s.u.                                                                           | Monte Carlo (known answer) | 5 %                   | pass   |
+| Closed forms                   | orthorhombic distance d = a(x₂ − x₁), σ² = (x₂ − x₁)²σ_a² + a²(σ₁² + σ₂²); a 90° angle from two perpendicular bonds                                                                         | synthetic (known answer)   | 1e-12; 1e-10          | pass   |
+| Symmetry invariance            | symmetry-equivalent rutile Ti–O bonds have equal lengths and s.u.; an atom moved to an equivalent position with its covariance transformed (C′ = TCTᵀ) gives the same bonds and s.u.        | invariance                 | 1e-10; 1e-12          | pass   |
+| Bond-valence sum, known answer | n equal bonds at R = R₀ + b ln(n/V) give the sum V; rutile: 2 V(Ti) = 4 V(O) over the cell; finite differences of the sum against its propagated s.u.                                       | synthetic; invariance      | 1e-12; 1e-10; 1e-6    | pass   |
+| Table reading, suggestions     | Zr⁴⁺–O 1.928 Å (ref a); no Ti²⁺–F entry; the valence-9 Ag–Br entry 2.22 Å (ref b) used as the fallback; ZrO₂ suggested as Zr 4+, O 2−; S an anion in ZnS, a cation with O                   | the table (by hand)        | exact                 | pass   |
+
+GSAS-II finding: RetDistAngle passes the transposed orthogonalisation matrix (Amat.T) to getAngSig,
+so its angles disagree with its own distances in a non-orthogonal cell, by up to 1.14° here
+(for example 86.50° against 87.27°). bonds.py checks this by recomputing the angles with Amat.T,
+which reproduces RetDistAngle's values exactly, and stores getAngSig's values with Amat, the
+matrix RetDistAngle uses for the distances. The site's angles agree with those to 1e-6°.
+
+Notes: GSAS-II's distance s.u. leave out the cell covariance; the site includes it (here it changes
+the s.u. by less than 1e-5 Å). pymatgen's calculate_bv_sum uses an electronegativity model with
+b = 0.31 Å rather than the tabulated parameters, so it was not used as a check. GSAS-II's own
+table lists Zr⁴⁺–O R₀ = 1.937 Å (bvparm2020's ref b entry), the site takes the first-listed entry
+(1.928 Å, ref a), as the owner chose.
+
+Open:
+
+- The oxidation-state suggestion is a rule of the site (anion by the table, cation state nearest
+  its own sum), checked only on the cases above; it is labelled as a suggestion.
+- The 10 % note on a sum far from the oxidation state is a display choice, not a published limit.
+- No published bond table of a measured refinement has been compared; the GSAS-II simulation stands
+  in.
+
 ## Step 6: fit improved until the regions fit (owner request, November 2026)
 
 Code: src/core/xrd/peaks/improve.ts (improveFit, fitScore, proposeChanges), run in the peaks

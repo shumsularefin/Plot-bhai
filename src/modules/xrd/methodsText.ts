@@ -5,6 +5,7 @@ import { ANODES } from '../../core/xrd/radiation';
 import type { ReferencePhase } from '../../core/xrd/reference/types';
 import { stepStats } from '../../core/xrd/summary';
 import { peaksFor, processingFor, type XrdData } from './data';
+import { bondsMethodsFor } from './bondsReport';
 import { seriesMethodsFor } from './seriesReport';
 import { METHOD_NAMES, sizeResults, type MethodId } from './sizeResults';
 
@@ -94,7 +95,8 @@ export function methodsInput(data: XrdData, library: readonly ReferencePhase[]):
 export function methodsFor(data: XrdData, library: readonly ReferencePhase[]): string {
   const rietveld = data.rietveld?.result?.methods;
   const series = seriesMethodsFor(data.rietveld?.series);
-  const text = [methodsParagraph(methodsInput(data, library)), rietveld, series]
+  const bonds = bondsMethodsFor(data.rietveld);
+  const text = [methodsParagraph(methodsInput(data, library)), rietveld, bonds, series]
     .filter(Boolean)
     .join(' ');
   const [first, ...others] = data.patterns;

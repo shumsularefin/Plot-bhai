@@ -226,8 +226,8 @@ describe("this site's refinement of the same pattern", () => {
       if (!t) throw new Error('bond missing');
       expect(Math.abs(b.length - t.length)).toBeLessThan(3 * Math.hypot(b.su, t.su));
       const ratio = (bare[i]?.su as number) / t.su;
-      expect(ratio).toBeGreaterThan(0.7);
-      expect(ratio).toBeLessThan(1.4);
+      expect(ratio).toBeGreaterThan(0.9);
+      expect(ratio).toBeLessThan(1.2);
     });
   });
 });

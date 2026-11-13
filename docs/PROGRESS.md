@@ -1,5 +1,41 @@
 # Progress
 
+## Stage 17h: bond lengths and angles with uncertainties, bond-valence sums (done, roadmap item 10)
+
+Branch `claude/sleepy-turing-hb1ofu`. No new packages. One new data file. Checks in
+docs/validation.md, 17h.
+
+- **Data:** data/reference/bond-valence.json (1168 ion pairs, 49 references, about 9 KB gzipped,
+  its own lazy chunk), built by `npm run build:bv` (scripts/build-bond-valence.ts) from an unchanged
+  copy of I. D. Brown's bvparm2020.cif (IUCr) taken from the matminer 0.10.1 wheel. Its copyright
+  notice is kept in both files (non-profit use, no fee, changes noted). The changes made: 283 rows
+  marked "unchecked" are left out, and only the first-listed entry of each ion pair is kept (owner's
+  choice). No value is changed. **Flagged for owner verification**, as are the covalent radii it
+  is used with.
+- **Core:** src/core/xrd/structure/bonds.ts finds bonds (covalent radii + 0.45 Å by default) and
+  angles, with CIF symmetry codes and analytic gradients. Standard uncertainties come from the
+  covariance of the cell and atom coordinates. src/core/xrd/structure/bondValence.ts gives the sums
+  with s.u., the oxidation states the table offers, and a suggested set of states. The Rietveld
+  result now carries each structure phase's geometry and covariance (not for Le Bail phases).
+- **Step 5 UI** (src/modules/xrd/BondsSection.tsx, Advanced, shown after a refinement with a
+  structure): bond tolerance; bond and angle tables with s.u. and symmetry codes; oxidation state
+  per element (suggested, labelled to check); a bond-valence table with a plain note when a sum
+  differs by more than 10 % from the state, or when a pair has no parameters; the references used;
+  a CSV of each table. Choices are saved in the session (RietveldState.bonds). A methods sentence
+  (bond criterion, Brown & Altermatt 1985, bvparm2020) is added to the methods text.
+- **Validation:** new GSAS-II script scripts/validation/gsas2/bonds.py (baddeleyite ZrO₂). The
+  site's distances, angles, sums and their s.u. match GSAS-II's on GSAS-II's refined structure, and
+  its own refinement of the same pattern gives lengths within 3 s.u. of GSAS-II's, with s.u. about
+  1.05 × GSAS-II's. Distances also match pymatgen on four structures.
+- **GSAS-II finding:** RetDistAngle passes the transposed orthogonalisation matrix to getAngSig, so
+  its angles are off by up to 1.14° in the monoclinic cell. The cause was confirmed by reproducing
+  its values exactly. The check uses getAngSig with the correct matrix.
+- **Known issues:** the oxidation-state suggestion is a rule of the site; the 10 % note is a display
+  choice; GSAS-II's own R₀ for Zr⁴⁺–O (1.937 Å) differs from the table's first entry (1.928 Å), so
+  sums differ from GSAS-II's by about 0.09 for Zr. The label-wrapping help buttons noted in 17f
+  are still to fix.
+- **Next:** roadmap item 11 (Bérar–Lelann).
+
 ## Stage 17g: sequential refinement of a series (done, roadmap item 8)
 
 Branch `claude/sleepy-turing-hb1ofu`. No new packages or data. Checks in docs/validation.md, 17g.
@@ -30,8 +66,7 @@ Branch `claude/sleepy-turing-hb1ofu`. No new packages or data. Checks in docs/va
 - **Known issues:** only the cells are copied forward; no measured series has been compared; the
   series plot has no error bars (s.u. in the table and CSV). The label-wrapping help buttons noted
   in 17f are still to fix.
-- **Next:** roadmap items 10 (bond lengths with uncertainties, bond-valence sums) and 11
-  (Bérar–Lelann).
+- **Next:** roadmap items 10 and 11.
 
 ## Stage 17f: spherical-harmonic texture (done, roadmap item 7)
 

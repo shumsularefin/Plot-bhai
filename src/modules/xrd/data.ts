@@ -115,6 +115,19 @@ export interface RietveldState {
   result: { key: string; outcome: RietveldResult; methods: string } | null;
   /** Sequential refinement of the loaded patterns as a series; missing means not set up. */
   series?: SeriesSettings;
+  /** Bond table and bond-valence sums of the refined structures; missing means the defaults. */
+  bonds?: BondSettings;
+}
+
+/** Choices of the bond-length and bond-valence tables (Rietveld step, Advanced). */
+export interface BondSettings {
+  /** Å added to the sum of covalent radii to decide which atoms are bonded. */
+  tolerance: number;
+  /**
+   * Oxidation state per phase id and element; a missing element takes the suggested state, null
+   * leaves the element out of the bond-valence sums.
+   */
+  states: Record<string, Record<string, number | null>>;
 }
 
 /** A sequential refinement: every loaded pattern refined with the settings above, in order. */

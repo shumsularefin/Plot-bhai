@@ -244,6 +244,24 @@ async function walkToExport(log) {
     .first()
     .waitFor();
   note('5 Rietveld: spherical-harmonic texture of order 4 refined, texture index reported');
+  // Stage 17h: bond lengths with s.u. and bond-valence sums of the refined structure.
+  const bondTable = page.getByRole('region', { name: /^Bond-valence sums, .*scrolls sideways$/ });
+  if (!(await bondTable.first().isVisible()))
+    await page
+      .locator('summary', { hasText: 'Bond lengths, angles and bond-valence sums' })
+      .click();
+  await bondTable.first().waitFor({ timeout: 30_000 });
+  const firstBond = await page
+    .getByRole('region', { name: /^Bond lengths, .*scrolls sideways$/ })
+    .first()
+    .locator('tbody tr')
+    .first()
+    .innerText();
+  const firstSum = await bondTable.first().locator('tbody tr').first().innerText();
+  assert.match(firstSum, /\d\.\d{3}/);
+  note(
+    `5 Rietveld: bonds (${firstBond.replace(/\s+/g, ' ')}) and bond-valence sum (${firstSum.replace(/\s+/g, ' ')})`,
+  );
   // Stage 17g: the two example patterns refined as a series, a quantity followed with a line.
   const seriesValue = page.getByLabel(/Temperature \(°C\) of /).first();
   if (!(await seriesValue.isVisible()))
