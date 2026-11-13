@@ -97,6 +97,7 @@ import {
   type Substitution,
 } from './structure';
 import {
+  berarLelann,
   durbinWatson,
   internalStandard,
   strongCorrelations,
@@ -357,6 +358,8 @@ export interface RietveldStats {
   parameters: number;
   /** Durbin–Watson d of the weighted residuals (statistics.ts); about 2 is ideal. */
   durbinWatson: number;
+  /** Bérar–Lelann factor (statistics.ts) by which the s.u. should be multiplied; about 1.13 is ideal. */
+  berarLelann: number;
 }
 
 export interface RietveldResult {
@@ -1161,6 +1164,10 @@ export function refineRietveld(
   }
   const rwp = Math.sqrt(weighted / sumWy2);
   const rexp = Math.sqrt(Math.max(n - refinedCount, 1) / sumWy2);
+  const weightedResiduals = Float64Array.from(
+    y,
+    (v, i) => (v - (calc[i] as number)) * (sw[i] as number),
+  );
   const stats: RietveldStats = {
     rp: absDiff / sumObs,
     rwp,
@@ -1169,9 +1176,8 @@ export function refineRietveld(
     gof: rwp / rexp,
     points: n,
     parameters: refinedCount,
-    durbinWatson: durbinWatson(
-      Float64Array.from(y, (v, i) => (v - (calc[i] as number)) * (sw[i] as number)),
-    ),
+    durbinWatson: durbinWatson(weightedResiduals),
+    berarLelann: berarLelann(weightedResiduals),
   };
 
   const m = layout.size;

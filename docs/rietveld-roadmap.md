@@ -51,7 +51,7 @@ Ranked by how often an early-career materials researcher needs it, then by effor
 | 8    | Done in 17g: **Sequential refinement** of a series (temperature, composition, time)                                                               | Lattice parameters against x or T (Vegard's law, thermal expansion) in one go, with a table and plot.                                                                 | Medium | Same result as one-by-one refinement      |
 | 9    | Done in 17d: **Capillary (Debye–Scherrer) geometry** with absorption μR                                                                           | Transmission instruments and air-sensitive samples.                                                                                                                   | Small  | GSAS-II Absorb() in CI                    |
 | 10   | Done in 17h: **Bond lengths and angles of the refined structure with uncertainties**, bond-valence sums                                           | Needed to report a structure refinement; the geometry code exists (16c), the error propagation and a verified bond-valence table do not.                              | Medium | pymatgen in CI                            |
-| 11   | Bérar–Lelann correction of the standard uncertainties                                                                                             | More honest uncertainties when the Durbin–Watson d is low.                                                                                                            | Small  | Published worked example                  |
+| 11   | Done in 17i: Bérar–Lelann correction of the standard uncertainties                                                                                | More honest uncertainties when the Durbin–Watson d is low.                                                                                                            | Small  | Published worked example                  |
 
 Out of scope, as CLAUDE.md section 9 says: magnetic structures, neutron or synchrotron-specific
 models, solving unknown structures, joint refinement of several radiation types.
@@ -59,5 +59,5 @@ models, solving unknown structures, joint refinement of several radiation types.
 ## Suggested order
 
 17b (done): items 1 and 3 (the two that change what users can publish). 17c (done): items 2 and 4. 17d (done): items 5
-and 9. 17e (done): item 6. 17f (done): item 7. 17g (done): item 8. 17h (done): item 10. Then 11. Each sub-stage adds its GSAS-II case to
+and 9. 17e (done): item 6. 17f (done): item 7. 17g (done): item 8. 17h (done): item 10. 17i (done): item 11; the roadmap is complete. Each sub-stage adds its GSAS-II case to
 `scripts/validation/gsas2/` and its rows to docs/validation.md.

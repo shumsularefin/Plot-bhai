@@ -576,6 +576,28 @@ Open:
 - No published bond table of a measured refinement has been compared; the GSAS-II simulation stands
   in.
 
+## 17i: Bérar–Lelann correction of the standard uncertainties
+
+Source: J.-F. Bérar and P. Lelann, J. Appl. Cryst. 24 (1991) 1–5, eqs 10–12 and the Appendix
+Fortran; Yu. G. Andreev, J. Appl. Cryst. 27 (1994) 288–297, eq 3 and Appendix I (read from the
+papers supplied by the owner, November 2026; the PDFs are not kept in the repository).
+src/core/xrd/rietveld/statistics.ts `berarLelann`, tests/berar-lelann.test.ts.
+
+| Check                                                                                                                              | Kind                       | Expected                                     | Tolerance |
+| ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | -------------------------------------------- | --------- |
+| a = (1, 2, 3, −1, −2): √((19 + 12 z(5) z(13))/19) from eqs 10–12 by hand                                                           | synthetic, known answer    | 1.175219                                     | 10⁻¹²     |
+| Same case in scripts/validation/berar-lelann/white_noise.py (separate run-by-run Python code) and in the independent rietx program | independent implementation | 1.17522                                      | 10⁻⁵      |
+| White noise, 400 000 points                                                                                                        | synthetic and independent  | Python 1.1268 (2 × 10⁶ points), rietx 1.1267 | 0.005     |
+| Alternating signs                                                                                                                  | synthetic                  | exactly 1                                    | exact     |
+| Every point duplicated μ = 2, 4, 8 times (the paper's own aim, §II–III)                                                            | invariance                 | corrected s.u. (factor/√μ) unchanged         | 10 %      |
+| All residuals negated                                                                                                              | invariance                 | same factor                                  | 10⁻¹²     |
+
+Misprints found: the printed eq 12 has 2 where the Fortran has 2π; Andreev's eq 3 prints 2π, so 2π
+is used. The Fortran uses an undefined CD, which Andreev's Appendix I corrects to XD, and pairs
+z_i with a_{i−1}, which Andreev says gives a small error at each change from uncorrelated to
+correlated points; the site follows the equations, not the listing. Open: the paper's own
+α-PbO figures (Figs 2–4) are plots without a table, so no numeric check against them was possible.
+
 ## Step 6: fit improved until the regions fit (owner request, November 2026)
 
 Code: src/core/xrd/peaks/improve.ts (improveFit, fitScore, proposeChanges), run in the peaks

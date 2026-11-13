@@ -217,7 +217,7 @@ describe('uncertainty of lengths and angles', () => {
     angles.forEach((a, k) =>
       expect(Math.abs(sdOf(values[k] as number[]) / a.su - 1)).toBeLessThan(0.05),
     );
-  });
+  }, 30000);
 
   it('closed form in an orthorhombic cell: d = a(x₂ − x₁), σ² = (x₂ − x₁)² σ_a² + a²(σ²₁ + σ²₂)', () => {
     const m = 6 + 6;

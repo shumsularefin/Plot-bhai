@@ -1,5 +1,18 @@
 # Progress
 
+## Stage 17i: Bérar–Lelann correction of the standard uncertainties (done, roadmap item 11)
+
+Branch `claude/sleepy-turing-hb1ofu`. No new packages. Checks in docs/validation.md, 17i.
+
+- **Core:** `berarLelann` in src/core/xrd/rietveld/statistics.ts (eqs 10–12 of Bérar and Lelann
+  1991, with 2π as in Andreev 1994 eq 3). Every refinement reports `stats.berarLelann`.
+- **Step 5 UI:** "Bérar–Lelann factor ×f" beside the Durbin–Watson d, with help text. The s.u.
+  shown stay the least-squares ones; the methods text says they should be multiplied by f.
+- **Decision:** the factor is reported, not applied, so tables stay comparable with GSAS-II.
+- **Known issues:** the paper has no numeric table to compare with; its printed eq 12 and Fortran
+  disagree (2 vs 2π, undefined CD), resolved with Andreev's paper.
+- **Next:** the roadmap (docs/rietveld-roadmap.md) is complete.
+
 ## Stage 17h: bond lengths and angles with uncertainties, bond-valence sums (done, roadmap item 10)
 
 Branch `claude/sleepy-turing-hb1ofu`. No new packages. One new data file. Checks in

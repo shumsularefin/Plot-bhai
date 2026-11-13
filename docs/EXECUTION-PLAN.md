@@ -54,6 +54,7 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 17f       | Rietveld: spherical-harmonic texture                             | done    |
 | 17g       | Rietveld: sequential refinement of a series                      | done    |
 | 17h       | Rietveld: bond lengths and angles with s.u., bond valence        | done    |
+| 17i       | Rietveld: Bérar–Lelann correction of the s.u.                    | done    |
 | 17        | Review fixes: example data, readability, validation page, report | done    |
 | 18        | Open validation items checked with Fityk and GSAS-II             | done    |
 
@@ -606,3 +607,6 @@ list are in docs/rietveld-roadmap.md. Every sub-stage adds a GSAS-II case to
   from the full covariance of the cell and coordinates, and bond-valence sums with I. D. Brown's
   bvparm2020 table; checked against GSAS-II (RetDistAngle, getAngSig, its own sums), pymatgen
   distances and a separate Python reading of the table in the Validation workflow.
+- **17i (done)** Bérar–Lelann factor for the standard uncertainties of a refinement whose
+  residuals are serially correlated, shown beside the Durbin–Watson d and in the methods text;
+  checked by hand, against an independent Python implementation and by point duplication.

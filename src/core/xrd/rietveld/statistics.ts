@@ -22,6 +22,42 @@ export function durbinWatson(residuals: ArrayLike<number>): number {
   return den > 0 ? num / den : NaN;
 }
 
+/**
+ * Bérar–Lelann factor for the standard uncertainties of a refinement with serially correlated
+ * residuals (J.-F. Bérar and P. Lelann, J. Appl. Cryst. 24 (1991) 1–5, eqs 10–12; z_i with 2π as
+ * in their Fortran and as printed by Yu. G. Andreev, J. Appl. Cryst. 27 (1994) 288–297, eq 3).
+ * With the weighted residuals a_i = √w_i (y_obs,i − y_calc,i) (dimensionless) in pattern order:
+ *   z_i = √(2π(a_i² + a_{i−1}²)) / (2 + √(2π(a_i² + a_{i−1}²)))  when a_i a_{i−1} > 0, else 0
+ *   S = Σ a_i²,   S″ = Σ (1 − z_i²) a_i² + Σ_l (Σ_{i∈l} z_i a_i)²
+ * where l runs over the runs of consecutive points with z_i > 0 (z_i is the estimated probability
+ * that point i is correlated with its predecessor). Correlated residuals add linearly instead of
+ * quadratically. The returned factor √(S″/S) multiplies every least-squares s.u. (eq 11). It is
+ * about 1.13 for pure white noise and grows when the difference curve has runs of one sign.
+ */
+export function berarLelann(residuals: ArrayLike<number>): number {
+  let s = 0;
+  let s2 = 0;
+  let run = 0;
+  for (let i = 0; i < residuals.length; i++) {
+    const a = residuals[i] as number;
+    const prev = i > 0 ? (residuals[i - 1] as number) : 0;
+    s += a * a;
+    let z = 0;
+    if (a * prev > 0) {
+      const q = Math.sqrt(2 * Math.PI * (a * a + prev * prev));
+      z = q / (2 + q);
+    }
+    if (z === 0) {
+      s2 += run * run;
+      run = 0;
+    }
+    s2 += (1 - z * z) * a * a;
+    run += z * a;
+  }
+  s2 += run * run;
+  return s > 0 ? Math.sqrt(s2 / s) : NaN;
+}
+
 export interface Correlation {
   a: string;
   b: string;

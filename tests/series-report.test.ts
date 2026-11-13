@@ -17,6 +17,7 @@ const point = (value: number, a: number, esd = 1e-4): SeriesPoint => ({
     chi2: 1.5,
     gof: 1.2,
     durbinWatson: 2,
+    berarLelann: 1.13,
   } as SeriesPoint['stats'],
   zero: est(0, 0, false),
   converged: true,

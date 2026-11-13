@@ -260,5 +260,9 @@ export function rietveldMethods(input: RietveldMethodsInput): string {
     sentences.push(
       `The Durbin–Watson d statistic of the weighted residuals was ${result.stats.durbinWatson.toFixed(2)}.`,
     );
+  if (Number.isFinite(result.stats.berarLelann))
+    sentences.push(
+      `The standard uncertainties given are those of the least-squares fit; to allow for serial correlation of the residuals they should be multiplied by the Bérar–Lelann factor ${result.stats.berarLelann.toFixed(2)} (Bérar and Lelann, J. Appl. Cryst. 24 (1991) 1–5).`,
+    );
   return sentences.join(' ');
 }

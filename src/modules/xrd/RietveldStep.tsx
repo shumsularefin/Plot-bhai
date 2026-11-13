@@ -1006,6 +1006,23 @@ function Results({
             <dd>{stats.durbinWatson.toFixed(2)}</dd>
           </div>
         )}
+        {Number.isFinite(stats.berarLelann) && (
+          <div>
+            <dt>
+              Bérar–Lelann factor{' '}
+              <HelpTip term="Bérar–Lelann factor">
+                <p>
+                  How much larger the standard uncertainties (±) should be because neighbouring
+                  points of the difference curve are correlated. Multiply each ± by this factor for
+                  a realistic error. About 1.13 means the residuals are pure noise; larger values
+                  mean the profile is systematically misfitted (Bérar and Lelann, J. Appl. Cryst. 24
+                  (1991) 1–5).
+                </p>
+              </HelpTip>
+            </dt>
+            <dd>×{stats.berarLelann.toFixed(2)}</dd>
+          </div>
+        )}
         {result.transparency?.refined && (
           <div>
             <dt>
