@@ -387,3 +387,41 @@ Open:
 - The Lobanov & Alte da Veiga fit used by Absorb('Cylinder') is cited only as GSAS-II's source
   comment gives it; the original paper could not be checked.
 - The Henke comparison covers six elements; the rest of the table rests on GSAS-II alone.
+
+## 17e: analytic derivatives of the Rietveld model
+
+Formulas: src/core/xrd/rietveld/derivatives.ts (the chain rule peak by peak and the exact
+pseudo-Voigt and asymmetry derivatives, in its header comment), structure.ts
+(structureFactorGradient: the exact gradient of Σ|F|² of a reflection family for coordinates,
+occupancy, B, U_ij and dopant fraction), refine.ts (evaluate: the Jacobian from fillJacobian, with
+the whole-pattern difference kept for restraints and for any column whose peak list changes).
+Tests: tests/rietveld-derivatives.test.ts.
+
+| Method                     | Check                                                                                                                                                                                                                                                                                                                                                                                                                                 | Source                                         | Tolerance                                          | Result |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------- | ------ |
+| **Jacobian, every column** | each column against a Richardson-extrapolated central difference of the whole pattern (h and h/2, h = 10⁻⁵ max(\|p\|, 10⁻²)), four models: ZnO (U_ij, f′ f″, Mg on the Zn site, asymmetry, orientation, polarisation, variable slit, zero, displacement, transparency, roughness); WO₃ (TCH, sample size and strain, uniaxial size, Stephens strain); CeO₂ (FCJ SH/L, capillary μR, uniaxial strain); ZnO structure with CeO₂ Le Bail | independent calculation (finite differences)   | largest error / largest value of the column < 2e-5 | pass   |
+| Σ\|F\|² gradient           | every atom parameter of ZnO (coordinates, occupancy, U_ij, dopant fraction, f′ f″) on 15 reflections against central differences of the structure factor                                                                                                                                                                                                                                                                              | independent calculation                        | 1e-6 of \|F\|² + 1e-9                              | pass   |
+| Equivalent reflections     | members of one family give the same \|F\|² and gradient (ZnO with U_ij from U_iso, so the symmetry is exact)                                                                                                                                                                                                                                                                                                                          | invariance                                     | 1e-10 of the gradient norm                         | pass   |
+| Origin choice              | a common shift of every atom along the polar c axis of ZnO changes no \|F\|²: the summed c gradients are 0                                                                                                                                                                                                                                                                                                                            | invariance                                     | 1e-9 relative                                      | pass   |
+| Same refinements as before | every earlier Rietveld test and every GSAS-II comparison (16, 17a–17d fixtures) passes unchanged with the analytic Jacobian                                                                                                                                                                                                                                                                                                           | GSAS-II fixtures in tests/fixtures/validation/ | the tolerances of those checks                     | pass   |
+
+Timings (this container, one core, Node; WO₃ monoclinic, 42 parameters, five stages, positions and
+B released, simulated Cu Kα1 + Kα2 pattern 15–125°; the benchmark script is not kept in the
+repository):
+
+| Points | Whole-pattern differences (before) | Analytic Jacobian | Final R_wp |
+| ------ | ---------------------------------- | ----------------- | ---------- |
+| 5,501  | 43 s                               | 17.4 s            | 0.0006     |
+| 50,001 | 148 s                              | 106.6 s           | 0.0006     |
+
+The roadmap hoped for 10–50×. The Jacobian itself is now cheap; what remains is the trial
+evaluations of the damped least squares (about half of the 5,501-point time) and the assembly over
+the wide Lorentzian windows, which grow with the number of points.
+
+Open:
+
+- No comparison with GSAS-II's own derivative routines (they are not exposed in a form the
+  Validation workflow can compare column by column); the finite-difference check stands in.
+- Peaks with the FCJ axial-divergence profile still use a per-peak central difference of the
+  profile for the shape terms.
+- The 10–50× speed-up in the roadmap was not reached (2.5× at 5,501 points, 1.4× at 50,001).

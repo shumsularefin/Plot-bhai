@@ -1,5 +1,32 @@
 # Progress
 
+## Stage 17e: analytic derivatives of the Rietveld model (done, owner request November 2026)
+
+Branch `claude/sleepy-turing-hb1ofu`. No new packages or data. Checks in docs/validation.md, 17e.
+
+- **Jacobian peak by peak** (src/core/xrd/rietveld/derivatives.ts): each peak's position, width,
+  Lorentzian fraction, asymmetry and area are differenced on the peak list alone, and multiplied by
+  exact derivatives of the pseudo-Voigt and asymmetry profile on the peak's window, instead of
+  recalculating the whole pattern for every parameter.
+- **Exact structure-factor gradient** (structure.ts): ∂Σ|F|²/∂p for coordinates, occupancies, B,
+  U_ij and dopant fractions, with f′ and f″, summed over the members of a reflection family.
+  |F|² is now also calculated once per family, with the symmetry images cached.
+- **Fallbacks:** restraint rows, and any column whose shifted peak list does not line up (a peak
+  appearing or vanishing), still use the whole-pattern difference. FCJ peaks use a per-peak
+  difference of their profile.
+- **Validation:** every column of four models (all profile, optics, sample and structure options)
+  matches a Richardson-extrapolated finite difference to 2e-5 of the column; the Σ|F|² gradient
+  matches differences and is the same for equivalent reflections; every earlier Rietveld and
+  GSAS-II test passes unchanged.
+- **Speed** (WO₃ monoclinic, 42 parameters): 43 s → 17.4 s at 5,501 points, 148 s → 106.6 s at
+  50,001 points. The roadmap's 10–50× was not reached; the remaining time is the trial evaluations
+  of the least squares and the wide Lorentzian windows.
+- **Open:** no column-by-column comparison with GSAS-II's derivatives; FCJ shape terms still by
+  difference.
+- **Next:** not scheduled. Remaining roadmap items: 7 (spherical-harmonic texture), 8 (sequential
+  refinement), 10 (bond lengths and angles with uncertainties, bond-valence sums), 11 (Bérar–Lelann).
+  Waiting for the owner.
+
 ## Stage 17d: anomalous dispersion and capillary geometry (done, owner request November 2026)
 
 Branch `claude/sleepy-turing-hb1ofu`. No new packages. One new data file,
@@ -36,7 +63,7 @@ docs/validation.md, 17d.
   - GSAS-II's own capillary refit ends 6 % above R_exp; the cause was not found.
   - The original paper behind GSAS-II's cylinder absorption fit (Lobanov & Alte da Veiga) could not
     be checked.
-- **Next:** 17e (analytic derivatives, for speed), when the owner says so.
+- **Next:** 17e.
 
 ## Stage 17c: anisotropic broadening and axial divergence (done, owner request November 2026)
 
