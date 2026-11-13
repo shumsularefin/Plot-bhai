@@ -26,16 +26,58 @@ function useProof(tool: string): boolean {
   return has;
 }
 
+/** Asks the Validate button of a section to open its pop-up (sent by the offer banner). */
+const OPEN_EVENT = 'plot-bhai-validate';
+
+/**
+ * A banner in the page, shown once for each newly finished analysis (the wizard is on its last
+ * step): it offers to validate the result without covering it. "Give feedback" opens the
+ * Validate pop-up; "Not now" removes the banner. Answering stays voluntary.
+ */
+export function ValidateOffer({ tool, show }: { tool: string; show: boolean }) {
+  const [offered, setOffered] = useState(false);
+  const ready = useProof(tool);
+
+  useEffect(() => {
+    const proof = show && ready && FEEDBACK_API ? proofFor(tool) : null;
+    if (proof && offerOnce(proof.id)) setOffered(true);
+    if (!show) setOffered(false);
+  }, [show, ready, tool]);
+
+  if (!offered) return null;
+  return (
+    <div class="validate-offer" role="status">
+      <p>
+        <strong>Your analysis is finished.</strong> Did it work for your data? Saying so is
+        voluntary and helps test this tool.
+      </p>
+      <div class="validate-offer-actions">
+        <button
+          type="button"
+          class="btn btn-primary"
+          onClick={() => {
+            setOffered(false);
+            window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: tool }));
+          }}
+        >
+          Give feedback
+        </button>
+        <button type="button" class="btn" onClick={() => setOffered(false)}>
+          Not now
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /**
  * The highlighted Validate button of an analysis section and its pop-up: the tool is a testing
  * version, so users are asked whether the result worked, with an optional comment that is
- * published only after the owner approves it. A validation needs a finished analysis. With
- * `offer` (the wizard is on its last step) the pop-up also opens by itself, once for each newly
- * finished analysis; answering stays voluntary.
+ * published only after the owner approves it. A validation needs a finished analysis. The pop-up
+ * opens only when the user asks for it, here or from the offer banner.
  */
-export function ValidateButton({ tool, offer = false }: { tool: string; offer?: boolean }) {
+export function ValidateButton({ tool }: { tool: string }) {
   const [open, setOpen] = useState(false);
-  const [offered, setOffered] = useState(false);
   const [verdict, setVerdict] = useState<Verdict>('works');
   const [comment, setComment] = useState('');
   const [busy, setBusy] = useState(false);
@@ -45,12 +87,12 @@ export function ValidateButton({ tool, offer = false }: { tool: string; offer?: 
   const opener = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    const proof = offer && ready && FEEDBACK_API ? proofFor(tool) : null;
-    if (proof && offerOnce(proof.id)) {
-      setOffered(true);
-      setOpen(true);
-    }
-  }, [offer, ready, tool]);
+    const onOpen = (event: Event) => {
+      if ((event as CustomEvent<string>).detail === tool) setOpen(true);
+    };
+    window.addEventListener(OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_EVENT, onOpen);
+  }, [tool]);
 
   useEffect(() => {
     if (open) dialog.current?.querySelector<HTMLElement>('input, textarea, button')?.focus();
@@ -58,7 +100,6 @@ export function ValidateButton({ tool, offer = false }: { tool: string; offer?: 
 
   const close = () => {
     setOpen(false);
-    setOffered(false);
     setResult(null);
     opener.current?.focus();
   };
@@ -94,13 +135,6 @@ export function ValidateButton({ tool, offer = false }: { tool: string; offer?: 
             <h2 id="validate-title" class="validate-title">
               Help test {tool}
             </h2>
-            {offered && (
-              <p class="message is-info">
-                <strong>Your analysis is finished.</strong> Would you like to say whether it worked?
-                This is voluntary: choose Not now to skip, and use the Validate button at the top of
-                the tool at any time.
-              </p>
-            )}
             <p>
               This tool is an <strong>early testing version</strong>. Please check its result
               against what you know or another program, and say whether it worked. Your comment
@@ -179,7 +213,7 @@ export function ValidateButton({ tool, offer = false }: { tool: string; offer?: 
                 </button>
               )}
               <button type="button" class="btn" onClick={close}>
-                {offered && !result?.ok ? 'Not now' : 'Close'}
+                Close
               </button>
             </div>
           </div>

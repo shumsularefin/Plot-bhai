@@ -1,0 +1,35 @@
+# Independent peak fits with Fityk for tests/validation-fityk.test.ts.
+# Run from the repository root:  cfityk -q scripts/validation/fityk/peakfit.fit
+# The first two data sets are written by scripts/validation/lmfit/make_peakfit.py, the third is
+# part of a measured pattern. S = 1 switches
+# Fityk's default counting weights off, because this site's peak fit is unweighted.
+set fitting_method = mpfit
+set numeric_format = '%.12g'
+
+@0 < 'tests/fixtures/validation/peakfit-doublet.xy'
+S = 1
+%bg = Linear(a0=~400, a1=~0)
+%a = PseudoVoigt(height=~4000, center=~35.28, hwhm=~0.1, shape=~0.5)
+%b = PseudoVoigt(height=~2000, center=~35.68, hwhm=~0.1, shape=~0.5)
+F = %bg + %a + %b
+fit
+print 'doublet-a', %a.center, %a.FWHM, %a.shape, %a.height, %a.Area
+print 'doublet-b', %b.center, %b.FWHM, %b.shape, %b.height, %b.Area
+
+@0 < 'tests/fixtures/validation/peakfit-pearson.xy'
+S = 1
+%bg = Linear(a0=~200, a1=~0)
+%p = Pearson7(height=~2500, center=~30.02, hwhm=~0.12, shape=~2)
+F = %bg + %p
+fit
+print 'pearson', %p.center, %p.FWHM, %p.shape, %p.height, %p.Area
+
+# A measured pattern: 41 to 45 degrees of tests/fixtures-real/bruker4_v5converter.raw (from the
+# geddes test corpus, MIT licence), one line on a straight background.
+@0 < 'tests/fixtures/validation/peakfit-real.xy'
+S = 1
+%bg = Linear(a0=~7000, a1=~0)
+%r = PseudoVoigt(height=~88000, center=~43.0, hwhm=~0.25, shape=~0.5)
+F = %bg + %r
+fit
+print 'real', %r.center, %r.FWHM, %r.shape, %r.height, %r.Area

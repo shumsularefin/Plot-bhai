@@ -132,6 +132,23 @@ describe('FTIR peaks and assignment steps', () => {
     );
     expect((store.get().assignments[sample.id] ?? []).length).toBeGreaterThan(0);
   });
+
+  it('shows one peak at a time and moves between them', () => {
+    const spectra = exampleSpectra();
+    setup(AssignStep, { spectra });
+    expect(screen.getAllByLabelText('Your assignment')).toHaveLength(1);
+    const first = screen.getByRole('heading', { level: 4 }).textContent;
+    expect(screen.getByText(/^Peak 1 of \d+, 0 assigned/)).toBeTruthy();
+    expect(
+      (screen.getByRole('button', { name: 'Previous peak' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Next peak' }));
+    expect(screen.getByText(/^Peak 2 of/)).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 4 }).textContent).not.toBe(first);
+    const chips = screen.getByRole('navigation', { name: 'Peaks' }).querySelectorAll('button');
+    fireEvent.click(chips[0] as HTMLButtonElement);
+    expect(screen.getByRole('heading', { level: 4 }).textContent).toBe(first);
+  });
 });
 
 describe('FTIR results step', () => {

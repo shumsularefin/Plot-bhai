@@ -1,43 +1,51 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 
-/** Browser-only preference: whether the user has hidden the step instructions in every tool. */
-const HIDDEN_KEY = 'step-guides-hidden';
+/** Browser-only record of the steps whose tips have already been shown in full once. */
+const SEEN_KEY = 'step-guides-seen';
 
-function readHidden(): boolean {
+function readSeen(): string[] {
   try {
-    return localStorage.getItem(HIDDEN_KEY) === '1';
+    const stored: unknown = JSON.parse(localStorage.getItem(SEEN_KEY) ?? '[]');
+    return Array.isArray(stored) ? stored.filter((s) => typeof s === 'string') : [];
   } catch {
-    return false;
+    return [];
   }
 }
 
-function writeHidden(hidden: boolean) {
+function markSeen(id: string) {
   try {
-    if (hidden) localStorage.setItem(HIDDEN_KEY, '1');
-    else localStorage.removeItem(HIDDEN_KEY);
+    const seen = readSeen();
+    if (!seen.includes(id)) localStorage.setItem(SEEN_KEY, JSON.stringify([...seen, id]));
   } catch {
-    // Storage blocked: the choice lasts until the page is reloaded.
+    // Storage blocked: the tips open in full again next time.
   }
 }
 
-/** Short numbered instructions at the top of a wizard step, which the user can hide. */
-export function StepGuide({ items }: { items: readonly string[] }) {
-  const [hidden, setHidden] = useState(readHidden);
-  const set = (next: boolean) => {
-    writeHidden(next);
-    setHidden(next);
-  };
-  if (hidden)
+/**
+ * Short numbered instructions at the top of a wizard step. They are shown in full the first
+ * time a step is opened in this browser; after that only the first tip stays on screen, with a
+ * button for the rest, so a returning user is not asked to read the same text again.
+ */
+export function StepGuide({ id, items }: { id: string; items: readonly string[] }) {
+  const [open, setOpen] = useState(() => !readSeen().includes(id));
+  useEffect(() => markSeen(id), [id]);
+
+  if (!open)
     return (
-      <button type="button" class="btn btn-quiet step-guide-show" onClick={() => set(false)}>
-        Show how to do this step
-      </button>
+      <p class="step-guide-brief">
+        <span>{items[0]}</span>
+        {items.length > 1 && (
+          <button type="button" class="btn btn-quiet" onClick={() => setOpen(true)}>
+            More tips
+          </button>
+        )}
+      </p>
     );
   return (
     <aside class="step-guide" aria-label="How to do this step">
       <div class="step-guide-header">
         <p class="step-guide-title">How to do this step</p>
-        <button type="button" class="btn btn-quiet" onClick={() => set(true)}>
+        <button type="button" class="btn btn-quiet" onClick={() => setOpen(false)}>
           Hide tips
         </button>
       </div>

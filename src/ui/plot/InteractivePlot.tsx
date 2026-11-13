@@ -1,4 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { DockCompact } from '../Dock';
 import { nearestIndex } from './decimate';
 import {
   styledLabels,
@@ -15,6 +16,8 @@ import { clampDomain, panDomain, zoomDomain } from './view';
 
 const FONT_SIZE = 12;
 const LINE_WIDTH = 1.25;
+/** Plot height (px) in the bottom panel of a narrow screen. */
+const COMPACT_HEIGHT = 190;
 
 export interface InteractivePlotProps {
   series: readonly PlotSeries[];
@@ -118,8 +121,11 @@ export function InteractivePlot(props: InteractivePlotProps) {
   const svgRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [hoverX, setHoverX] = useState<number | null>(null);
+  const compact = useContext(DockCompact);
 
-  const height = Math.round(props.heightFor?.(width) ?? Math.min(520, Math.max(260, width * 0.6)));
+  const fullHeight = props.heightFor?.(width) ?? Math.min(520, Math.max(260, width * 0.6));
+  // In the bottom panel of a phone the plot is a short strip, so the step stays in view.
+  const height = Math.round(compact ? Math.min(fullHeight, COMPACT_HEIGHT) : fullHeight);
   const m = plotMargins(FONT_SIZE, labels.yValues);
   const innerW = Math.max(1, width - m.left - m.right);
   const innerH = Math.max(1, height - m.top - m.bottom);

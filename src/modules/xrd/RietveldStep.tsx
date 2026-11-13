@@ -344,8 +344,8 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
 
       {pattern.synthetic && (
         <p class="field-hint">
-          The example patterns have made-up peaks, not those of a real material, so no reference
-          phase fits them well. Use your own data to see a meaningful refinement.
+          The example patterns are calculated from the zinc oxide structure (COD 1577381), so that
+          phase fits them. A measured pattern never fits this cleanly.
         </p>
       )}
 

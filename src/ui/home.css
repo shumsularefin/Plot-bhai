@@ -8,7 +8,7 @@
 }
 
 .home-title {
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   line-height: 1.1;
   letter-spacing: -0.02em;
 }
@@ -177,7 +177,50 @@
   color: var(--color-text-muted);
 }
 
-.credits-button {
+/* The card that explains how results are checked: same grid, quieter surface. */
+.tool-card.is-note {
+  background: var(--color-toolbar);
+}
+
+.home-example {
+  display: grid;
+  gap: var(--space-5);
+  align-items: center;
+}
+
+.home-example p {
   margin-top: var(--space-3);
-  min-height: 44px;
+  color: var(--color-text-muted);
+}
+
+@media (min-width: 900px) {
+  .home-example {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 30rem);
+    gap: var(--space-7);
+  }
+}
+
+.home-figure {
+  margin: 0;
+}
+
+/* The exported figure has its own white background, in both themes. */
+.home-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: #ffffff;
+}
+
+.home-figure figcaption {
+  margin-top: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.home-credit {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
 }

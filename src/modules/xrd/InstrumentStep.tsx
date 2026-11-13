@@ -107,9 +107,10 @@ export function InstrumentStep({ data, update }: StepContext<XrdData>) {
           )}
           {instrument.source === 'skip' && (
             <p class="message is-warning">
-              <strong>Check:</strong> no instrument correction. The widths stay as fitted, so every
-              crystallite size will come out smaller than reality. This warning stays with your
-              results.
+              <strong>Check:</strong> no instrument correction yet. The widths stay as fitted, so
+              every crystallite size will come out smaller than reality, and your results will say
+              so. If you know your instrument's width or have a standard pattern, choose one of the
+              options above.
             </p>
           )}
           {'problem' in result && <p class="field-hint">{result.problem}</p>}
@@ -417,12 +418,12 @@ function CorrectionTable({ data, model }: { data: XrdData; model: InstrumentMode
       )}
       {!fit && (
         <p class="field-hint">
-          This pattern has no fitted peaks yet. Fit them in step 5, Fit peaks.
+          This pattern has no fitted peaks yet. Fit them in step 6, Fit peaks.
         </p>
       )}
       {stale && (
         <p class="message is-warning">
-          <strong>Check:</strong> the peak fit for this pattern is out of date. Fit again in step 5
+          <strong>Check:</strong> the peak fit for this pattern is out of date. Fit again in step 6
           so these widths match your current settings.
         </p>
       )}

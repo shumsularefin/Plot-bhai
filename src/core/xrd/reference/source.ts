@@ -4,12 +4,15 @@ import type { ReferencePhase } from './types.ts';
  * Where a reference phase comes from, for tables, figure keys and the methods text:
  * "COD 9013437" for a COD entry, "Langan et al., Biomacromolecules 2 (2001) 410" for a polymer
  * library phase transcribed from a paper, "CIF file name.cif (COD 9013437)" for a loaded file
- * that names its database entry, "CIF file name.cif" for one that does not.
+ * that names its database entry, "CIF file name.cif" for one that does not. An entry the site
+ * downloaded from COD itself (stored as "COD 9013437.cif") is simply "COD 9013437".
  */
 export function phaseReference(
   phase: Pick<ReferencePhase, 'codId' | 'origin' | 'citation'>,
 ): string {
   const origin = phase.origin;
+  if (origin?.kind === 'cif' && origin.fileName === `COD ${phase.codId}.cif`)
+    return `COD ${phase.codId}`;
   if (origin?.kind === 'cif')
     return `CIF file ${origin.fileName}${origin.database ? ` (${origin.database})` : ''}`;
   if (phase.codId !== null) return `COD ${phase.codId}`;

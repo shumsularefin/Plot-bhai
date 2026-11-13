@@ -2,8 +2,12 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { importFile } from '../src/core/xrd/import';
+import { fitRegion } from '../src/core/xrd/peaks/fit';
+import { ANODES } from '../src/core/xrd/radiation';
 import { stepStats, summarise } from '../src/core/xrd/summary';
 import {
+  EXAMPLE_SIZES_NM,
+  EXAMPLE_STANDARD_CAGLIOTI,
   examplePatterns,
   generatePattern,
   pseudoVoigt,
@@ -115,16 +119,50 @@ describe('synthetic data', () => {
     expect([a(), a(), a()]).toEqual([b(), b(), b()]);
   });
 
-  it('example data are two whole-count patterns from 10° to 80°', () => {
-    const examples = examplePatterns();
+  it('example data are two whole-count patterns with peaks where the lines are', () => {
+    const lines = [
+      { twoTheta: 31.8, intensity: 57 },
+      { twoTheta: 36.3, intensity: 100 },
+      { twoTheta: 56.6, intensity: 30 },
+      { twoTheta: 95, intensity: 10 },
+    ];
+    const examples = examplePatterns(lines, 'ZnO');
     expect(examples.map((e) => e.name)).toEqual([
-      'Synthetic example A (narrow peaks)',
-      'Synthetic example B (broad peaks)',
+      'ZnO, calculated, 60 nm crystallites',
+      'ZnO, calculated, 15 nm crystallites',
     ]);
     for (const e of examples) {
-      expect(e.twoTheta[0]).toBe(10);
+      expect(e.twoTheta[0]).toBe(20);
       expect(e.twoTheta[e.twoTheta.length - 1]).toBe(80);
       expect(e.intensity.every((v) => Number.isInteger(v) && v >= 0)).toBe(true);
+      expect(summarise(e.twoTheta, e.intensity).maxIntensityAt).toBeCloseTo(36.3, 1);
     }
+  });
+
+  it('example peaks carry the stated crystallite size: fitted and corrected widths give it back', () => {
+    const line = { twoTheta: 36.3, intensity: 100 };
+    const lambda = ANODES.Cu.kAlpha1;
+    const theta = (line.twoTheta / 2) * (Math.PI / 180);
+    const { u, v, w } = EXAMPLE_STANDARD_CAGLIOTI;
+    const t = Math.tan(theta);
+    const instrument = Math.sqrt(u * t * t + v * t + w);
+    const sizes = [EXAMPLE_SIZES_NM.narrow, EXAMPLE_SIZES_NM.broad];
+    examplePatterns([line], 'One line').forEach((example, i) => {
+      const region = fitRegion(
+        example.twoTheta,
+        example.intensity,
+        { start: 33.5, end: 39, peaks: [{ center: 36.25, width: 0.3 }] },
+        {
+          profile: 'pseudo-voigt',
+          fixedEta: null,
+          kAlpha2: { lambda1: lambda, lambda2: ANODES.Cu.kAlpha2, ratio: 0.5 },
+        },
+      );
+      const fwhm = region.peaks[0]?.fwhm ?? NaN;
+      // Scherrer after the Gaussian correction the generator used: L = K λ / (β cos θ).
+      const beta = Math.sqrt(fwhm ** 2 - instrument ** 2) * (Math.PI / 180);
+      const sizeNm = (0.9 * lambda) / 10 / (beta * Math.cos(theta));
+      expect(Math.abs(sizeNm - (sizes[i] as number)) / (sizes[i] as number)).toBeLessThan(0.05);
+    });
   });
 });

@@ -5,6 +5,7 @@ import { recordVisit } from './feedback/client';
 import { Home } from './Home';
 import { LazyTool } from './LazyTool';
 import { useHashPath } from './router';
+import { VERSION } from './software';
 import { ThemeToggle } from './ThemeToggle';
 
 // Defined once at module level so LazyTool does not reload it on every render.
@@ -17,6 +18,8 @@ const loadXrdImage = () => import('../modules/digitize/targets/xrd');
 const loadFtirImage = () => import('../modules/digitize/targets/ftir');
 const loadUvvisImage = () => import('../modules/digitize/targets/uvvis');
 const loadThermalImage = () => import('../modules/digitize/targets/thermal');
+const loadValidation = () => import('./Validation');
+const loadReport = () => import('../modules/report/SampleReport');
 
 export function App() {
   const path = useHashPath();
@@ -33,6 +36,7 @@ export function App() {
             Plot Bhai
           </a>
           <nav class="site-nav" aria-label="Site">
+            <a href="#/validation">Validation</a>
             <a href="#/about">About</a>
             <ThemeToggle />
           </nav>
@@ -43,6 +47,10 @@ export function App() {
           <ErrorBoundary key={path}>
             {path === '/about' ? (
               <About />
+            ) : path === '/validation' ? (
+              <LazyTool load={loadValidation} />
+            ) : path === '/report' ? (
+              <LazyTool load={loadReport} />
             ) : path === '/xrd' ? (
               <LazyTool load={loadXrd} />
             ) : path === '/xrd/image' || path === '/xrd-screenshot' ? (
@@ -69,10 +77,12 @@ export function App() {
       </main>
       <footer class="site-footer">
         <div class="container">
-          <p>© 2026 Shumsul Arefin. All rights reserved.</p>
+          <p>Plot Bhai {VERSION}. © 2026 Shumsul Arefin. Open source under the MIT licence.</p>
           <p>
             Free to use. Your data stays on your device.{' '}
             <a href="#/about">About, equations and limits</a>
+            {' · '}
+            <a href="#/validation">How it is validated</a>
           </p>
         </div>
       </footer>

@@ -261,8 +261,12 @@ export interface StandardState {
   curve: CurveKind;
 }
 
+/**
+ * A new analysis starts with no correction, so a beginner without a standard is not stopped at
+ * this step; the step and the results then say plainly that the sizes are lower limits.
+ */
 export const DEFAULT_INSTRUMENT: InstrumentState = {
-  source: 'constant',
+  source: 'skip',
   constantFwhm: null,
   caglioti: { u: null, v: null, w: null, convention: 'fwhm' },
   eta: 0,
@@ -413,9 +417,22 @@ export function newId(): string {
   return crypto.randomUUID();
 }
 
-/** The synthetic example patterns as stored patterns. Clearly marked as not real data. */
-export function examplePatternRecords(): Pattern[] {
-  return examplePatterns().map((example) => ({
+/** COD entry the example patterns and the example phase are calculated from (zinc oxide). */
+export const EXAMPLE_COD_ID = 1577381;
+
+/**
+ * The example patterns as stored patterns, calculated from the lines of the example phase
+ * (see examplePatterns). Clearly marked as calculated, not measured.
+ */
+export function examplePatternRecords(phase: ReferencePhase): Pattern[] {
+  // Bragg's law for Cu Kα1: 2θ = 2 asin(λ / 2d), in degrees; lines beyond reach are left out.
+  const lines = phase.peaks
+    .filter((p) => ANODES.Cu.kAlpha1 / (2 * p.d) < 1)
+    .map((p) => ({
+      twoTheta: 2 * Math.asin(ANODES.Cu.kAlpha1 / (2 * p.d)) * (180 / Math.PI),
+      intensity: p.i,
+    }));
+  return examplePatterns(lines, phase.formula).map((example) => ({
     id: newId(),
     name: example.name,
     source: 'synthetic',
@@ -427,7 +444,7 @@ export function examplePatternRecords(): Pattern[] {
     notes: [
       {
         level: 'info',
-        text: 'Synthetic example: generated peaks (each with a Cu Kα2 line) on a smooth background with simulated counting noise. It is not a measurement of any real material.',
+        text: `Calculated example, not a measurement: the peak positions and intensities come from the published crystal structure of ${phase.formula} (COD ${EXAMPLE_COD_ID}), and this site added peak widths for a chosen crystallite size, a Cu Kα2 line, a smooth background and counting noise.`,
       },
     ],
   }));

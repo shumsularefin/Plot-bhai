@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import {
   DEFAULT_INDEXING,
   evaluateCell,
@@ -302,6 +302,131 @@ function solve3(m: number[][], v: number[]): number[] {
     (j) => det(m.map((row, i) => row.map((x, c) => (c === j ? (v[i] as number) : x)))) / d,
   );
 }
+
+/*
+ * Another indexing program on the same lines: GSAS-II's indexing (GSASIIindex.py, a Monte Carlo
+ * search over trial cells with least-squares refinement, not this site's method). The noisy
+ * line lists below (σ = 0.01° 2θ, two lines removed) and the cell this site suggests for each
+ * are stored in tests/fixtures/validation/indexing-lines.json. To rewrite them:
+ *   INDEXING_LINES=1 npx vitest run tests/xrd-indexing.test.ts
+ * scripts/validation/gsas2/index_cells.py then lets GSAS-II index the lines with this site's
+ * cell and refine it (indexing-gsas2-refined.json), and scripts/validation/gsas2/indexing.py
+ * runs GSAS-II's own search (indexing-gsas2.json: the best cell it found in each Bravais lattice).
+ */
+interface GsasCell {
+  m20: number;
+  bravais: string;
+  cell: number[];
+  volume: number;
+}
+/**
+ * Largest relative difference allowed between this site's refined cell and GSAS-II's. The two
+ * weight the lines differently, and the noise of 0.01° 2θ is about 2e-4 of a d-spacing at 40°;
+ * the largest difference found is 3.4e-4 (c of tenorite), the cubic to orthorhombic cells agree
+ * to 1e-4.
+ */
+const REFINED_TOLERANCE = 5e-4;
+/** Cases where GSAS-II's search reports a multiple of the cell (factors of the sorted edges). */
+const SEARCH_MULTIPLES: Record<string, number[]> = {
+  // GSAS-II's best orthorhombic cells: aragonite 2a, 2c (A-centred), brookite 3c.
+  aragonite: [2, 2, 1],
+  brookite: [3, 1, 1],
+};
+/**
+ * Bismite is pseudo-orthorhombic C (see above): GSAS-II lists that C-centred cell (a, 2c + a, b
+ * with β = 90.05°), not the primitive one, so the lattice is compared instead of the edges.
+ */
+const OTHER_SETTING = 'bismite';
+/** Cell volume in Å³ from a, b, c (Å) and α, β, γ (degrees). */
+function cellVolume([a, b, c, al, be, ga]: number[]) {
+  const [ca, cb, cg] = [al, be, ga].map((v) => Math.cos(((v as number) * Math.PI) / 180));
+  return (
+    (a as number) *
+    (b as number) *
+    (c as number) *
+    Math.sqrt(
+      1 -
+        (ca as number) ** 2 -
+        (cb as number) ** 2 -
+        (cg as number) ** 2 +
+        2 * (ca as number) * (cb as number) * (cg as number),
+    )
+  );
+}
+const fixtureUrl = (name: string) => new URL(`fixtures/validation/${name}`, import.meta.url);
+const fixtureJson = (name: string) => JSON.parse(readFileSync(fixtureUrl(name), 'utf8')) as unknown;
+
+describe('against GSAS-II on the same lines', { timeout: 120_000 }, () => {
+  const all = [...CASES, ...LOW.filter(([, , system]) => system === 'monoclinic')];
+  const listed = all.map(([file, id, system]) => {
+    const p = phase(file, id);
+    const twoTheta = lines(p, 20, 0.01, [3, 8], 7);
+    const top = indexPattern(twoTheta).slice(0, system === 'monoclinic' ? 3 : 1);
+    const ours = top.find((s) => s.system === system && sameLattice(s, p, twoTheta, 3e-3));
+    if (!ours) throw new Error(`${id}: reference lattice not suggested`);
+    return {
+      id,
+      wavelength: CU,
+      twoTheta,
+      site: {
+        system: ours.system,
+        centring: ours.centring,
+        cell: [ours.a, ours.b, ours.c, ours.alpha, ours.beta, ours.gamma],
+      },
+    };
+  });
+  if (process.env.INDEXING_LINES)
+    writeFileSync(fixtureUrl('indexing-lines.json'), `${JSON.stringify(listed, null, 1)}\n`);
+  const refined = fixtureJson('indexing-gsas2-refined.json') as {
+    cases: { id: string; bravais: string; unindexed: number; m20: number; cell: number[] }[];
+  };
+  const searched = fixtureJson('indexing-gsas2.json') as {
+    cases: { id: string; cells: GsasCell[] }[];
+  };
+
+  it('the stored line lists and cells are the ones this test makes', () => {
+    const stored = fixtureJson('indexing-lines.json') as typeof listed;
+    expect(stored.map((c) => c.id)).toEqual(listed.map((c) => c.id));
+    stored.forEach((c, i) => {
+      const now = listed[i] as (typeof listed)[number];
+      expect(c.site.system + c.site.centring).toBe(now.site.system + now.site.centring);
+      c.twoTheta.forEach((t, k) => expect(t).toBeCloseTo(now.twoTheta[k] as number, 9));
+      c.site.cell.forEach((v, k) => expect(v).toBeCloseTo(now.site.cell[k] as number, 7));
+    });
+  });
+
+  for (const { id, site } of listed) {
+    it(`${id}: GSAS-II indexes every line with this site's cell and refines to the same cell`, () => {
+      const theirs = refined.cases.find((c) => c.id === id);
+      if (!theirs) throw new Error(`${id}: not refined by GSAS-II`);
+      expect(theirs.unindexed).toBe(0);
+      site.cell.forEach((v, k) =>
+        expect(Math.abs((theirs.cell[k] as number) - v)).toBeLessThan(REFINED_TOLERANCE * v),
+      );
+    });
+  }
+
+  for (const { id, site } of listed) {
+    it(`${id}: GSAS-II's own search finds this site's cell`, () => {
+      const cells = searched.cases.find((c) => c.id === id)?.cells ?? [];
+      const ours = site.cell.slice(0, 3).sort((x, y) => x - y);
+      const multiple = SEARCH_MULTIPLES[id] ?? [1, 1, 1];
+      const near = (x: number, y: number) => Math.abs(x - y) < 2e-3 * y;
+      const found = cells.some((c) => {
+        const e = c.cell.slice(0, 3).sort((x, y) => x - y);
+        if (id === OTHER_SETTING) {
+          // The same lattice in another setting: the same volume per lattice point, two shared edges.
+          const points = c.bravais.endsWith('-P') ? 1 : 2;
+          const shared = ours.filter((v) => e.some((x) => near(x, v))).length;
+          return shared >= 2 && near(c.volume / points, cellVolume(site.cell));
+        }
+        const want = ours.map((v, k) => v * (multiple[k] as number)).sort((x, y) => x - y);
+        return want.every((v, k) => near(e[k] as number, v));
+      });
+      expect(found).toBe(true);
+    });
+  }
+});
 
 describe('indexing worker', { timeout: 120_000 }, () => {
   it('posts progress and then the same solutions as a direct call', async () => {
