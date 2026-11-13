@@ -127,7 +127,8 @@ export const MONOCHROMATORS = {
  *            T2 = (0.013869 − 0.01249 S) exp(3.27094 S) + (0.337894 + 13.77317 S) / (1 + 11.53544 S)^1.555039
  *            T3 = 1.933433 / (1 + 23.12967 S)^1.686715 − 0.13576 √S + 1.163198
  *            T4 = 0.044365 − 0.04259 / (1 + 0.41051 S)^148.4202
- * A = 1 at μR = 0. Absorption in a capillary lowers the low-angle intensity most (the beam
+ * A = 1 at μR = 0. The two branches do not meet exactly: A steps by up to 2.7 % at μR = 3 (tested),
+ * as in GSAS-II. Absorption in a capillary lowers the low-angle intensity most (the beam
  * scattered forward crosses the most material), the opposite of a displacement factor B, so μR
  * and B are correlated and μR is best fixed from the sample's composition, packing and radius.
  */

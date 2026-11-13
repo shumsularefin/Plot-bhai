@@ -17,7 +17,7 @@ Writes
                 and f'' on, for ZnS wurtzite (COD 1100044, non-centrosymmetric P6_3mc) and CoFe2O4
                 (COD 1533163, Fe and Co close to their K edges for Cu radiation), U_iso = 0.
     absorb:     GSASIIpwd.Absorb('Cylinder', muR, 2theta) on a grid of muR and 2theta.
-    capillary:  a CoFe2O4 pattern simulated in GSAS-II in Debye-Scherrer geometry with muR = 1.5,
+    capillary:  a CoFe2O4 pattern simulated in GSAS-II (Cu K-alpha1 only) in Debye-Scherrer geometry with muR = 1.5,
                 DisplaceX = 30 um and DisplaceY = -20 um, f' and f'' on, Poisson noise (seed 23),
                 refined in GSAS-II (scale, background, cell, absorption, DisplaceX, DisplaceY). The
                 pattern goes to cofe2o4-capillary.xy; the reflection positions of the simulation are
@@ -128,7 +128,13 @@ TTH = [5.0, 20.0, 45.0, 90.0, 120.0, 150.0, 175.0]
 absorb = {'muR': MUR, 'twoTheta': TTH,
           'values': [[float(G2pwd.Absorb('Cylinder', m, t)) for t in TTH] for m in MUR]}
 
-# 5. Capillary simulation and refinement.
+# 5. Capillary simulation and refinement, with Cu K-alpha1 only: GSAS-II places K-alpha2 by a first-
+# order step from the shifted K-alpha1 position, 2theta2 = 2theta1 + (360/pi)(dlambda/lambda1) tan theta1
+# (GSASIIstrMath, lamRatio), where the site uses the exact Bragg angle of K-alpha2; with one line the
+# comparison tests the capillary terms alone.
+ka1 = os.path.join(run, 'cu-ka1.instprm')
+lines = [l for l in open(inst).read().splitlines() if not l.startswith(('Lam2:', 'I(L2)/I(L1):'))]
+open(ka1, 'w').write('\n'.join(l.replace('Lam1:', 'Lam:') for l in lines) + '\n')
 TRUTH = {'Absorption': 1.5, 'DisplaceX': 30.0, 'DisplaceY': -20.0}
 
 
@@ -143,7 +149,7 @@ def debye(h, mur, dx, dy, refine):
 
 gpx = G.G2Project(newgpx=os.path.join(run, 'cap-sim.gpx'))
 ph = gpx.add_phase(cif(1533163), phasename='cofe2o4', fmthint='CIF')
-h = gpx.add_simulated_powder_histogram('sim', inst, 15.0, 130.0, Tstep=0.02, phases=[ph], scale=2000.0)
+h = gpx.add_simulated_powder_histogram('sim', ka1, 15.0, 130.0, Tstep=0.02, phases=[ph], scale=2000.0)
 isotropic_zero(ph)
 no_sample_broadening(ph)
 sample = debye(h, TRUTH['Absorption'], TRUTH['DisplaceX'], TRUTH['DisplaceY'], False)
@@ -162,7 +168,7 @@ sim_reflections = [[int(r[0]), int(r[1]), int(r[2]), int(r[3]), float(r[4]), flo
 
 START = {'Absorption': 0.5, 'DisplaceX': 0.0, 'DisplaceY': 0.0}
 gpx = G.G2Project(newgpx=os.path.join(run, 'cap-ref.gpx'))
-h = gpx.add_powder_histogram(os.path.join(run, 'cofe2o4-capillary.xy'), inst, fmthint='xye')
+h = gpx.add_powder_histogram(os.path.join(run, 'cofe2o4-capillary.xy'), ka1, fmthint='xye')
 ph = gpx.add_phase(cif(1533163), phasename='cofe2o4', fmthint='CIF', histograms=[h])
 isotropic_zero(ph)
 no_sample_broadening(ph)

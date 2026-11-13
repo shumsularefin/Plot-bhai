@@ -14,7 +14,13 @@ import {
   capillaryShift,
   cylinderAbsorption,
 } from '../src/core/xrd/rietveld/sample';
-import { structureFactorSquared, structureModel } from '../src/core/xrd/rietveld/structure';
+import type { Hkl } from '../src/core/xrd/rietveld/reflections';
+import {
+  structureFactorSquared,
+  structureModel,
+  type StructureModel,
+} from '../src/core/xrd/rietveld/structure';
+import { applySymop } from '../src/core/xrd/structure/geometry';
 
 /*
  * Independent check against GSAS-II (scripts/validation/gsas2/dispersion.py, run on GitHub by
@@ -99,28 +105,60 @@ describe('The f′, f″ table (GSAS-II Cromer–Liberman)', () => {
   );
 });
 
+/** F(h) summed directly with complex f = f0 + f′ + i f″ on the atoms of the site's model. */
+function complexF(m: StructureModel, [h, k, l]: Hkl, d: number): [number, number] {
+  const s2 = 1 / (4 * d * d);
+  let re = 0;
+  let im = 0;
+  for (const atom of m.atoms) {
+    let f0 = atom.factor[8];
+    for (let i = 0; i < 4; i++) f0 += atom.factor[i] * Math.exp(-atom.factor[i + 4] * s2);
+    const fr = f0 + atom.dispersion[0];
+    const fi = atom.dispersion[1];
+    for (const image of atom.images) {
+      const x = applySymop(image.op, atom.x0);
+      const p = 2 * Math.PI * (h * x[0] + k * x[1] + l * x[2]);
+      re += atom.occupancy0 * (fr * Math.cos(p) - fi * Math.sin(p));
+      im += atom.occupancy0 * (fr * Math.sin(p) + fi * Math.cos(p));
+    }
+  }
+  return [re, im];
+}
+const abs2 = ([re, im]: [number, number]) => re * re + im * im;
+
 describe('|F|² with anomalous dispersion against GSAS-II', () => {
+  /*
+   * GSAS-II's reflection list holds |F(h)|² of the h it lists. In a powder h and −h fall at the same
+   * 2θ and both count in the multiplicity, so the site uses the mean of |F(h)|² and |F(−h)|²; the
+   * two agree when the structure is centrosymmetric (CoFe₂O₄) and differ by up to a few per cent for
+   * ZnS, where f″ breaks Friedel's law.
+   */
   it.each(fixture.structure.map((s) => [s.name, s] as const))(
-    '%s: every reflection to 2 × 10⁻⁴ (and the effect is far larger than that)',
-    (_, s) => {
+    '%s: |F(h)|² to 2 × 10⁻⁴, the site’s value is the Friedel mean, and f′, f″ matter',
+    (name, s) => {
       const phase = phaseOf(s.cif);
       const structure = phase.structure as NonNullable<ReferencePhase['structure']>;
       const withF = structureModel(phase.cell, structure, factors, {}, false, [], cu);
       const without = structureModel(phase.cell, structure, factors, {}, false);
-      const states = withF.atoms.map((a) => ({
-        x: a.x0,
-        occupancy: a.occupancy0,
-        b: 0,
-        fraction: 0,
-      }));
+      const states = withF.atoms.map((a) => ({ x: a.x0, occupancy: a.occupancy0, b: 0 }));
       let largest = 0;
+      let friedel = 0;
+      // Relative to each reflection, or to 10⁻³ of the strongest for those zero by symmetry.
+      const strongest = Math.max(...s.reflections.map((r) => r[5]));
       for (const [h, k, l, , d, f2] of s.reflections) {
+        const floor = Math.max(f2, 1e-3 * strongest);
+        const plus = abs2(complexF(withF, [h, k, l], d));
+        const minus = abs2(complexF(withF, [-h, -k, -l], d));
+        expect(Math.abs(plus - f2) / floor, `${h} ${k} ${l}`).toBeLessThan(2e-4);
         const ours = structureFactorSquared(withF, states, [h, k, l], d);
-        expect(Math.abs(ours - f2) / f2, `${h} ${k} ${l}`).toBeLessThan(2e-4);
+        expect(Math.abs(ours - (plus + minus) / 2) / floor).toBeLessThan(1e-10);
+        friedel = Math.max(friedel, Math.abs(ours - f2) / floor);
         const plain = structureFactorSquared(without, states, [h, k, l], d);
-        largest = Math.max(largest, Math.abs(plain - f2) / f2);
+        largest = Math.max(largest, Math.abs(plain - f2) / floor);
       }
       expect(largest).toBeGreaterThan(0.02);
+      if (name === 'cofe2o4') expect(friedel).toBeLessThan(2e-4);
+      else expect(friedel).toBeGreaterThan(0.01);
     },
   );
 });
@@ -140,7 +178,8 @@ describe('Cylinder absorption against GSAS-II’s Absorb', () => {
 describe('Capillary refinement against GSAS-II', () => {
   const cap = fixture.capillary;
   const radius = cap.goniometerRadius;
-  const ip = { kAlpha1: 1.5405929, kAlpha2: 1.5444274, ratio: 0.5 };
+  // Cu Kα1 only (see the script: GSAS-II places Kα2 by a first-order step, the site exactly).
+  const ip = { kAlpha1: 1.5405929, kAlpha2: 1.5405929, ratio: 0 };
 
   it('places the reflections where GSAS-II put them (capillary displacement)', () => {
     const dx = capillaryDegrees(cap.truth.DisplaceX, radius);
@@ -223,7 +262,7 @@ describe('Capillary refinement against GSAS-II', () => {
       choices: { ...DEFAULT_CHOICES, displacement: true, transparency: true, absorption: true },
       backgroundTerms: 6,
       phases: [{ name: 'CoFe2O4', reference: 'COD 1533163' }],
-      radiation: 'Cu Kα1/Kα2 radiation',
+      radiation: 'Cu Kα1 radiation',
       capillary: true,
     });
     expect(text).toContain('capillary in Debye–Scherrer geometry');
