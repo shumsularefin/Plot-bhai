@@ -188,3 +188,54 @@ describe('Cylinder absorption', () => {
     expect(largest).toBeLessThan(0.03);
   });
 });
+
+/**
+ * The absorption factor from its definition, with no fitted formula: the mean over the circular
+ * cross-section (radius 1) of exp(−μR (t_in + t_out)), where t_in is the path from the surface to
+ * the point along the beam and t_out the path from the point to the surface along the diffracted
+ * beam at 2θ. From a point p along a unit vector u the surface is at t = −p·u + √((p·u)² − |p|² + 1).
+ * Midpoint rule on n rings of equal area and n angles.
+ */
+function cylinderIntegral(muR: number, theta: number, n: number): number {
+  const ux = Math.cos(2 * theta);
+  const uy = Math.sin(2 * theta);
+  let sum = 0;
+  for (let i = 0; i < n; i++) {
+    const r = Math.sqrt((i + 0.5) / n);
+    for (let j = 0; j < n; j++) {
+      const phi = (2 * Math.PI * (j + 0.5)) / n;
+      const x = r * Math.cos(phi);
+      const y = r * Math.sin(phi);
+      const along = (vx: number, vy: number) => {
+        const b = x * vx + y * vy;
+        return -b + Math.sqrt(b * b - r * r + 1);
+      };
+      sum += Math.exp(-muR * (along(-1, 0) + along(ux, uy)));
+    }
+  }
+  return sum / (n * n);
+}
+
+describe('capillary absorption formula against the absorption integral', () => {
+  it('has a converged integral (n = 600 against n = 1200)', () => {
+    for (const [m, t] of [
+      [1, 10],
+      [8, 10],
+      [8, 150],
+    ] as const) {
+      const coarse = cylinderIntegral(m, (t / 2) * RAD, 600);
+      expect(Math.abs(coarse / cylinderIntegral(m, (t / 2) * RAD, 1200) - 1)).toBeLessThan(1e-3);
+    }
+  });
+
+  it('agrees within 1.1 % for μR from 0.1 to 8 and 2θ from 10° to 150°', () => {
+    let worst = 0;
+    for (const m of [0.1, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 5, 8])
+      for (const t of [10, 30, 60, 90, 120, 150]) {
+        const exact = cylinderIntegral(m, (t / 2) * RAD, 600);
+        worst = Math.max(worst, Math.abs(cylinderAbsorption(m, (t / 2) * RAD) / exact - 1));
+      }
+    expect(worst).toBeLessThan(0.011);
+    expect(worst).toBeGreaterThan(0.005); // a fitted formula, not the integral itself
+  });
+});
