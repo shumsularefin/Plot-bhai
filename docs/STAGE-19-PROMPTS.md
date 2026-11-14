@@ -110,6 +110,14 @@ edge, because the curve is no longer straight near it.
    cases already tested.
 6. Results table, CSV, methods text and the record state which method gave each gap.
 
+> **Correction (19a session, 2026-11-14, owner's decision):** the crossing of two lines on the
+> Tauc plot cannot meet the 0.01 eV target below. With a level c in A, (αhν)² = (1.2·√(E − 3.2) +
+> cE)² is bent above the gap, so the crossing gives 3.18, 3.15 and 3.14 eV for c = 0.05, 0.2 and
+> 0.5. The owner chose to build both: subtraction of a straight sub-gap baseline from α, A or F(R)
+> before the Tauc plot (the default when it moves Eg by more than 0.01 eV, and the method the
+> target below applies to), and the crossing, labelled as lying below the gap. The Makuła paper
+> could not be opened in the session; its citation is TODO in docs/validation.md.
+
 **Done when:** the four synthetic cases above return 3.200 eV within a tolerance you justify
 (about 0.01 eV is expected) with the baseline method; the same holds for an indirect allowed
 synthetic edge, for a sloping (not constant) background, and for a Kubelka–Munk spectrum with a

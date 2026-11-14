@@ -1,6 +1,6 @@
 import { digitizedSentence } from '../digitize/methods';
 import { HC_EV_NM } from './conversions';
-import { TRANSITIONS, type TransitionId } from './tauc';
+import { TRANSITIONS, type GapMethod, type TransitionId } from './tauc';
 import type { SpectrumKind } from './types';
 
 /**
@@ -25,6 +25,9 @@ export interface UvvisMethodsInput {
     transition: TransitionId;
     /** Whether a band gap fit was obtained for this spectrum. */
     fitted: boolean;
+    /** How Eg was read from the Tauc line, and the sub-gap baseline region (eV) when one was used. */
+    gapMethod: GapMethod;
+    baselineEv: [number, number] | null;
     thicknessNm: number | null;
     urbach: boolean;
     derivative: 'off' | 'linear' | 'log';
@@ -101,8 +104,36 @@ export function uvvisMethodsParagraph(input: UvvisMethodsInput): string {
     const { nText, label } = TRANSITIONS[id];
     return `n = ${nText} (${label.toLowerCase()} transition) for ${fitted.length === names.length ? 'all spectra' : list(names)}`;
   });
+  const methods = unique(fitted.map((s) => s.gapMethod));
+  const whom = (method: GapMethod) => {
+    const names = fitted.filter((s) => s.gapMethod === method).map((s) => s.name);
+    return methods.length === 1 ? '' : ` (${list(names)})`;
+  };
+  const regions = (method: GapMethod) =>
+    list(
+      unique(
+        fitted.flatMap((s) =>
+          s.gapMethod === method && s.baselineEv
+            ? [`${number(s.baselineEv[0])}–${number(s.baselineEv[1])} eV`]
+            : [],
+        ),
+      ),
+    );
+  const readings: string[] = [];
+  if (methods.includes('axis'))
+    readings.push(
+      `the energy at which a straight line fitted to the linear part of the absorption edge meets the energy axis${whom('axis')}`,
+    );
+  if (methods.includes('subtract-baseline'))
+    readings.push(
+      `the energy at which that line meets the energy axis after a straight line fitted to the absorption quantity below the edge (${regions('subtract-baseline')}) was subtracted from the whole spectrum before the Tauc plot was made${whom('subtract-baseline')}`,
+    );
+  if (methods.includes('baseline-crossing'))
+    readings.push(
+      `the energy at which the edge line crosses a second straight line fitted to the Tauc curve below the edge (${regions('baseline-crossing')}), following Makuła, Pacia and Macyk (J. Phys. Chem. Lett. 9 (2018) 6814)${whom('baseline-crossing')}`,
+    );
   sentences.push(
-    `The optical band gap Eg was estimated with the Tauc method: (αhν)^(1/n) was plotted against hν, with ${list(byTransition)}, and Eg was taken as the energy at which a straight line fitted to the linear part of the absorption edge meets the energy axis. The fit region was chosen for each spectrum and is listed with its R² in the results table; the uncertainty of Eg comes from the covariance of the fitted line and does not include systematic errors.`,
+    `The optical band gap Eg was estimated with the Tauc method: (αhν)^(1/n) was plotted against hν, with ${list(byTransition)}, and Eg was taken as ${readings.join('; or as ')}. The fit region was chosen for each spectrum and is listed with its R² in the results table; the uncertainty of Eg comes from the covariance of the fitted line${methods.some((m) => m !== 'axis') ? 's' : ''} and does not include systematic errors.`,
   );
 
   const thicknesses = unique(

@@ -1,5 +1,54 @@
 # Progress
 
+## Stage 19a: four bugs found by the audit of UV-Vis and FTIR (done)
+
+Branch `claude/charming-wozniak-qix1hp`. No new packages. Checks in docs/validation.md, 19a.
+
+- **Bug 1, Tauc gap with background absorption (UV-Vis).** src/core/uvvis/tauc.ts
+  `analyseTaucGap` now reads Eg in one of three ways, set per spectrum under "How Eg is read":
+  the axis intercept (as before); the sub-gap baseline subtracted first (a straight line fitted to
+  α, A or F(R) below the edge is subtracted before the Tauc plot); or the crossing of the edge
+  line with a baseline line on the Tauc plot (after Makuła, Pacia and Macyk 2018). Automatic (the
+  default) subtracts the baseline when that moves Eg by more than 0.01 eV, otherwise uses the axis
+  intercept, so zero-level spectra give exactly the old numbers. The baseline region (0.5 eV
+  ending 0.1 eV below the gap, placed again after one subtraction, my own choice) can be typed or
+  dragged (the lower pair of markers). When a level is found, the edge region is suggested on the
+  corrected curve, so it stays on the edge. The uncertainty of the subtraction adds the baseline
+  line's part (central differences and its covariance); the crossing's comes from both lines.
+  A warning appears when the axis intercept is used with a level present, with both numbers. The
+  results table, CSV ("Eg read from", baseline limits), methods text and record name the method.
+  The step's tip card and help text are updated.
+- **Decision (owner, 2026-11-14):** the crossing cannot reach the 0.01 eV target (the Tauc curve
+  of an edge plus a level is bent above the gap: 3.18, 3.15, 3.14 eV for levels 0.05, 0.2, 0.5),
+  so both methods were built and subtraction is the default; the background of the Kubelka–Munk
+  test case is added to F(R). docs/STAGE-19-PROMPTS.md carries a correction note.
+- **Saved sessions:** UV-Vis state version 3. A version 2 spectrum is migrated to the axis
+  intercept with the old region suggestion (`legacySuggestion`), so its band gap is unchanged
+  until the user changes the method or a region; the step says so.
+- **Bug 2, fraction read as percent (UV-Vis).** `kindFromText` names the kind from a word and the
+  scale only from a percent sign ("%R", "R (%)", "Reflectance [%]"); otherwise the range decides.
+  Film and concentration uploads go through the same import; digitized curves had no heading.
+- **Bug 3, FTIR assignments lost on reprocessing.** Assignments now carry an id and the position
+  where they were made (FTIR state version 4, migration adds ids). After every reprocessing they
+  re-attach, one per peak, to the nearest peak within 20 cm⁻¹ (my own choice: the example's broad
+  O–H band moves 15.9 cm⁻¹ with baseline, smoothing and ATR on; narrow bands up to 4.8 cm⁻¹). An
+  assignment more than 2 cm⁻¹ from its peak is shown with where it was made. Assignments with no
+  peak are listed in step 4 as "not attached to a peak" (removable), noted under the results
+  table and in the record, and re-attach when the peak returns. A peak added by hand (19c) can be
+  referred to by an optional id on the assignment without another migration.
+- **Bug 4, FTIR reflectance taken as transmittance.** Reflectance wording in a heading or in
+  JCAMP-DX ##YUNITS is recognised; the spectrum is read as transmittance with a plain warning on
+  its card until the reflectance data type of 19d.
+- **Verification:** lint clean, type check clean (app and tests), 1518 tests pass (132 files),
+  production build OK, bundle size within budget, e2e passed. Screens checked at 360 and 1280 px
+  (no sideways scroll).
+- **Known issues:** the Makuła paper could not be opened (no open copy; publisher not reachable),
+  so its citation is TODO for the owner in docs/validation.md. The "all four transitions" table
+  still compares axis intercepts over each type's uncorrected suggestion. The plain axis σ is
+  about 1.27 × the real scatter when the noise is in A (unweighted fit, unchanged since 8b).
+  Subtraction assumes a background linear in E across the edge.
+- **Next:** 19b, validation of the three tools.
+
 ## Stage 17i: Bérar–Lelann correction of the standard uncertainties (done, roadmap item 11)
 
 Branch `claude/sleepy-turing-hb1ofu`. No new packages. Checks in docs/validation.md, 17i.

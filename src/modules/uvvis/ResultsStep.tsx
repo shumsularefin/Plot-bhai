@@ -1,7 +1,7 @@
 import { RecordSection } from '../../ui/report/RecordSection';
 import { uvvisRecord } from './record';
 import { useMemo, useState } from 'preact/hooks';
-import { TRANSITIONS } from '../../core/uvvis/tauc';
+import { GAP_METHODS, TRANSITIONS } from '../../core/uvvis/tauc';
 import { formatNumber } from '../../core/xrd/parsers/numbers';
 import { HelpTip } from '../../ui/HelpTip';
 import { SessionSection } from '../../ui/SessionSection';
@@ -96,7 +96,10 @@ export function ResultsStep({ data, update }: StepContext<UvvisData>) {
                       {TRANSITIONS[r.choice.transition].nText})
                     </td>
                     <td>{fit ? fit.rSquared.toFixed(4) : '–'}</td>
-                    <td>Tauc{r.analysis.derivative ? ', derivative' : ''}</td>
+                    <td>
+                      Tauc, {fit ? GAP_METHODS[r.analysis.method].short : 'no fit'}
+                      {r.analysis.derivative ? '; derivative' : ''}
+                    </td>
                     <td>
                       {urbach
                         ? `${eV(urbach.euEv * 1000, 1)} ± ${Number.isFinite(urbach.euSigma) ? eV(urbach.euSigma * 1000, 1) : '?'}`

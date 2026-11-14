@@ -9,7 +9,7 @@ import {
   directGapReflectance,
   EXAMPLE_BAND_GAP_EV,
 } from '../../core/uvvis/synthetic';
-import type { TransitionId } from '../../core/uvvis/tauc';
+import type { GapMethod, TransitionId } from '../../core/uvvis/tauc';
 import type { Spectrum } from '../../core/uvvis/types';
 import { DEFAULT_EXPORT_SETTINGS } from '../../ui/plot/export';
 import type { PlotSettings } from '../../ui/plot/PlotPanel';
@@ -39,6 +39,18 @@ export interface BandGapChoice {
   urbach: { enabled: boolean; region: [number, number] | null };
   /** Derivative method: off, or the peak of dS/dE (linear) or d ln S/dE (log). */
   derivative: 'off' | 'linear' | 'log';
+  /**
+   * How Eg is read from the Tauc line (see `GapMethod`); null chooses automatically: the sub-gap
+   * baseline is subtracted when one is found, otherwise the line's axis intercept is used.
+   */
+  method: GapMethod | null;
+  /** Sub-gap baseline region in eV; null means the automatic suggestion. */
+  baselineRegion: [number, number] | null;
+  /**
+   * Set on sessions saved before the baseline methods (version 2): the edge region is suggested
+   * as it was then, so the saved band gap does not change. Cleared when the user picks a method.
+   */
+  legacySuggestion?: true;
 }
 
 export const DEFAULT_BAND_GAP: BandGapChoice = {
@@ -47,6 +59,8 @@ export const DEFAULT_BAND_GAP: BandGapChoice = {
   regions: {},
   urbach: { enabled: false, region: null },
   derivative: 'off',
+  method: null,
+  baselineRegion: null,
 };
 
 /** Everything saved for a UV-Vis analysis. */
@@ -71,17 +85,34 @@ export const initialUvvisData: UvvisData = {
 };
 
 /** Version of the saved shape. Bump it, and extend migrateUvvisData, when the shape changes. */
-export const UVVIS_STATE_VERSION = 2;
+export const UVVIS_STATE_VERSION = 3;
 
-/** Upgrades saved sessions: version 1 (sub-stage 8a) had no band gap settings. */
+/**
+ * Upgrades saved sessions: version 1 (sub-stage 8a) had no band gap settings; version 2 read Eg
+ * only where the Tauc line meets the axis. A version 2 spectrum keeps that method and the old way
+ * of suggesting the edge region, so its band gap stays the same until the user changes it.
+ */
 export function migrateUvvisData(
   saved: unknown,
   version: number,
 ): WizardState<UvvisData> | undefined {
-  if (version !== 1) return undefined;
+  if (version !== 1 && version !== 2) return undefined;
   const state = saved as WizardState<Partial<UvvisData> & Pick<UvvisData, 'spectra' | 'plot'>>;
   if (!state || typeof state !== 'object' || !state.data) return undefined;
-  return { ...state, data: { ...initialUvvisData, ...state.data, bandGap: {} } };
+  if (version === 1) return { ...state, data: { ...initialUvvisData, ...state.data, bandGap: {} } };
+  const old = (state.data.bandGap ?? {}) as Record<string, Omit<BandGapChoice, 'method'>>;
+  const bandGap: Record<string, BandGapChoice> = {};
+  // Spectra without saved settings used the defaults, which are made explicit here.
+  for (const spectrum of state.data.spectra ?? []) {
+    const choice = old[spectrum.id] ?? DEFAULT_BAND_GAP;
+    bandGap[spectrum.id] = {
+      ...choice,
+      method: 'axis',
+      baselineRegion: null,
+      legacySuggestion: true,
+    };
+  }
+  return { ...state, data: { ...initialUvvisData, ...state.data, bandGap } };
 }
 
 export function bandGapFor(data: Pick<UvvisData, 'bandGap'>, id: string): BandGapChoice {

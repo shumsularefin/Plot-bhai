@@ -41,7 +41,7 @@ export const uvvisSteps: readonly WizardStep<UvvisData>[] = [
     guide: [
       'Choose the transition type (direct or indirect) for the Tauc plot.',
       'The straight part of the absorption edge is suggested; drag or type its limits to adjust.',
-      'The band gap is where the fitted line meets the energy axis. Then press Next.',
+      'The band gap is where the fitted line meets the energy axis, or a baseline when the curve does not fall to zero below the edge. Then press Next.',
     ],
     render: (context) => <BandGapStep {...context} />,
   },

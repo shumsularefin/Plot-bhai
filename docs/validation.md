@@ -698,3 +698,56 @@ Open:
 - The Fityk, lmfit and indexing fixtures are made by hand with the scripts above (the GSAS-II
   search is a random search with a time limit, so a rerun can list different cells); only
   load_export.py runs in .github/workflows/validation.yml.
+
+## 19a: Tauc band gap with background absorption (audit of 2026-11-14)
+
+src/core/uvvis/tauc.ts `analyseTaucGap`, `subtractedGap`, `lineCrossing`, `fitLine`;
+tests/uvvis-tauc-baseline.test.ts and tests/uvvis-gap-method.test.tsx. Synthetic spectrum of the
+audit: 250 to 850 nm in 1 nm steps, A = 1.2·√(E − 3.2)/E above 3.2 eV, plus a level. Two methods
+were added beside the axis intercept, both chosen with the owner (November 2026): the sub-gap
+baseline subtracted from α, A or F(R) before the Tauc plot (the default when it moves Eg by more
+than 0.01 eV), and the crossing of the edge line with a baseline line on the Tauc plot.
+
+| Check                                                                                           | Kind                      | Expected                                                       | Tolerance |
+| ----------------------------------------------------------------------------------------------- | ------------------------- | -------------------------------------------------------------- | --------- |
+| Audit table reproduced: axis intercept for level 0, 0.05, 0.2, 0.5                              | synthetic, known answer   | 3.200, 3.116, 2.926, 2.690 eV                                  | 0.0005 eV |
+| Subtraction, direct allowed, constant level 0, 0.05, 0.2, 0.5                                   | synthetic, known answer   | 3.200 eV, edge region starting below 3.3 eV                    | 0.002 eV  |
+| Subtraction, indirect allowed, the same levels                                                  | synthetic, known answer   | 3.200 eV                                                       | 0.002 eV  |
+| Subtraction, sloping levels (0.05 + 0.05/eV, 0.2 − 0.05/eV, 0.1 + 0.1/eV), direct and indirect  | synthetic, known answer   | 3.200 eV                                                       | 0.002 eV  |
+| Subtraction, Kubelka–Munk spectra with 0.01, 0.05, 0.2 added to F(R), direct and indirect       | synthetic, known answer   | 3.200 eV                                                       | 0.002 eV  |
+| Zero level with noise (σ 0.003): automatic choice keeps the old method, region and number       | regression                | identical to the version 2 result                              | exact     |
+| Crossing of two exact lines y = 2(E − 3) and y = 0.1 + 0.05E, by hand                           | synthetic, known answer   | 6.1/1.95 = 3.128205 eV, σ 0                                    | 10⁻¹⁰     |
+| Crossing with a baseline of exactly zero                                                        | independent formula       | same Eg and σ as the axis-intercept formula of `fitBandGap`    | 10⁻¹²     |
+| Crossing σ: 400 data sets, equal noise on two lines                                             | Monte Carlo (independent) | mean reported σ / scatter of Eg = 1                            | ±15 %     |
+| Subtraction σ (baseline part, by central differences): 400 data sets, noise only below the edge | Monte Carlo (independent) | mean reported σ / scatter of Eg = 1                            | ±15 %     |
+| Signal multiplied by 37 (thickness or concentration)                                            | invariance                | Eg unchanged, all three methods                                | 10⁻⁹ eV   |
+| Any straight background added (0.3; 0.1 + 0.2/eV; 0.4 − 0.08/eV)                                | invariance                | subtraction gives the zero-level Eg                            | 0.0005 eV |
+| Wavelength step 2 nm instead of 1 nm                                                            | invariance                | 3.200 eV                                                       | 0.002 eV  |
+| Version 2 session with a level of 0.2                                                           | round trip                | same Eg after migration (2.926 eV) until the method is changed | exact     |
+
+Findings, measured, not published values: with a level in A or F(R) the Tauc curve is bent above
+the gap, (1.2·√(E − 3.2) + cE)² for the direct case, so no straight line through it is exact. The
+crossing method gives 3.18, 3.15 and 3.14 eV for c = 0.05, 0.2 and 0.5 with an edge region of
+3.21–3.40 eV; it always lies between the axis intercept and the true gap. Subtraction is exact when
+the background adds to the absorption quantity and is linear in E across the edge; a background of
+another shape (for example scattering rising as λ⁻⁴ over a wide range) is only approximated.
+
+Open:
+
+- Makuła, Pacia and Macyk, J. Phys. Chem. Lett. 9 (2018) 6814–6817, doi:10.1021/acs.jpclett.8b02892
+  (details confirmed with Crossref and Europe PMC). The paper itself could not be opened in the
+  session (no open-access copy; the publisher's site was not reachable), so it is not yet confirmed
+  that the crossing method as built is the one the paper describes. **TODO for the owner:** check
+  the paper and either confirm the citation or correct it.
+- The σ of the plain axis intercept (unchanged since stage 8b) is about 1.27 times the scatter of
+  repeated noisy spectra when the noise is in A, because the noise of (A·E)² grows along the edge
+  and the fit is unweighted; the new methods inherit this. It errs on the safe side.
+- No real spectrum with a known gap was available; tests/fixtures-real/ has none for UV-Vis.
+
+## 19a: other fixes (audit of 2026-11-14)
+
+| Fix                                                                                                   | Test                                |
+| ----------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| UV-Vis heading "Reflectance" or "Transmittance" names the type only; "%R", "R (%)", "T%" name percent | tests/uvvis-kind-scale.test.ts      |
+| FTIR assignments re-attach to the nearest peak (20 cm⁻¹) after reprocessing; none dropped silently    | tests/ftir-assignments.test.ts      |
+| FTIR files stating reflectance (heading or ##YUNITS) are read as transmittance with a warning         | tests/ftir-reflectance-kind.test.ts |

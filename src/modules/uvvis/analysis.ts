@@ -2,17 +2,17 @@ import { energyFromWavelength } from '../../core/uvvis/conversions';
 import { cleanSpectrum, DEFAULT_CLEANING, lambdaMax, type Cleaned } from '../../core/uvvis/process';
 import {
   absorptionSignal,
+  analyseTaucGap,
   compareTransitions,
   derivativeMaximum,
-  fitBandGap,
-  suggestRegion,
+  GAP_METHODS,
   suggestUrbachRegion,
+  SUB_GAP_SHIFT_EV,
   TRANSITIONS,
-  taucValues,
   urbachFit,
   type AbsorptionSignal,
-  type BandGapFit,
   type DerivativePeak,
+  type TaucGap,
   type TransitionComparison,
   type UrbachFit,
 } from '../../core/uvvis/tauc';
@@ -30,14 +30,10 @@ export function cleanAll(spectra: readonly Spectrum[], cleaning: UvvisData['clea
   });
 }
 
-export interface BandGapAnalysis {
+export interface BandGapAnalysis extends TaucGap {
   signal: AbsorptionSignal;
-  /** The Tauc quantity for the chosen transition. */
-  tauc: Float64Array;
-  /** Fit region in use (the user's, or the suggestion) and whether it is the suggestion. */
-  region: [number, number] | null;
-  suggested: boolean;
-  fit: BandGapFit | null;
+  /** True when the method was chosen automatically. */
+  automatic: boolean;
   comparison: TransitionComparison[];
   urbach: { region: [number, number] | null; fit: UrbachFit | null } | null;
   derivative: DerivativePeak | null;
@@ -55,10 +51,18 @@ export function analyseBandGap(
     spectrum,
     choice.thicknessNm,
   );
-  const tauc = taucValues(signal.energyEv, signal.signal, TRANSITIONS[choice.transition].exponent);
-  const own = choice.regions[choice.transition];
-  const region = own ?? suggestRegion(signal.energyEv, tauc);
-  const fit = region ? fitBandGap(signal.energyEv, tauc, region[0], region[1]) : null;
+  const gap = analyseTaucGap(
+    signal.energyEv,
+    signal.signal,
+    TRANSITIONS[choice.transition].exponent,
+    {
+      method: choice.method,
+      edgeRegion: choice.regions[choice.transition] ?? null,
+      baselineRegion: choice.baselineRegion,
+      ...(choice.legacySuggestion && { legacySuggestion: true }),
+    },
+  );
+  const { fit, region } = gap;
   const comparison = compareTransitions(signal.energyEv, signal.signal, choice.regions);
 
   let urbach: BandGapAnalysis['urbach'] = null;
@@ -85,11 +89,9 @@ export function analyseBandGap(
           region ? region[1] + 0.3 : Infinity,
         );
   return {
+    ...gap,
     signal,
-    tauc,
-    region,
-    suggested: own === undefined,
-    fit,
+    automatic: choice.method === null,
     comparison,
     urbach,
     derivative,
@@ -159,7 +161,7 @@ export function fitMessages(analysis: BandGapAnalysis): FitMessage[] {
     if (fit.egEv > fit.fromEv) {
       messages.push({
         level: 'warning',
-        text: `The fitted line meets the energy axis at ${eV(fit.egEv)}, inside the fit region (it starts at ${eV(fit.fromEv)}). Check the region.`,
+        text: `The band gap (${eV(fit.egEv)}) lies inside the fit region (it starts at ${eV(fit.fromEv)}). Check the region.`,
       });
     } else if (fit.fromEv - fit.egEv > 1.5 * (fit.toEv - fit.fromEv)) {
       messages.push({
@@ -173,6 +175,30 @@ export function fitMessages(analysis: BandGapAnalysis): FitMessage[] {
         text: 'The band gap is below the lowest photon energy measured. Check the fit region and the data.',
       });
     }
+  }
+  const eg = (v: number) => `${v.toFixed(3)} eV`;
+  if (analysis.subGapLevel && analysis.method === 'axis') {
+    messages.push({
+      level: 'warning',
+      text: `The Tauc curve does not fall to zero below the edge (there is background absorption, for example from scattering, a second phase, defects or an imperfect blank), so the line meets the axis below the true gap: ${analysis.axisEgEv === null ? 'no straight edge is found without correction' : eg(analysis.axisEgEv)}${analysis.subtractedEgEv === null ? '' : `, against ${eg(analysis.subtractedEgEv)} with the sub-gap baseline subtracted`}. Choose "${GAP_METHODS['subtract-baseline'].label}" (or the crossing with a baseline) under "How Eg is read".`,
+    });
+  }
+  if (
+    fit &&
+    analysis.method === 'baseline-crossing' &&
+    analysis.subtractedEgEv !== null &&
+    Math.abs(fit.egEv - analysis.subtractedEgEv) > SUB_GAP_SHIFT_EV
+  ) {
+    messages.push({
+      level: 'info',
+      text: `With background absorption the Tauc curve bends above the gap, so the crossing lies below the gap found with the baseline subtracted first (${eg(analysis.subtractedEgEv)}). Report which method you used.`,
+    });
+  }
+  if (analysis.method !== 'axis' && !analysis.baselineRegion) {
+    messages.push({
+      level: 'warning',
+      text: 'No baseline region could be placed below the edge (the spectrum needs at least 6 points there). Set one by typing its limits, or use the axis intercept.',
+    });
   }
   if (signal.unit === 'proportional') {
     messages.push({

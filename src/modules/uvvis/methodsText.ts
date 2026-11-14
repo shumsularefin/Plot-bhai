@@ -27,6 +27,8 @@ export function methodsInput(data: UvvisData): UvvisMethodsInput {
         },
         transition: choice.transition,
         fitted: analysis.fit !== null,
+        gapMethod: analysis.method,
+        baselineEv: analysis.method === 'axis' ? null : analysis.baselineRegion,
         thicknessNm: choice.thicknessNm,
         urbach: choice.urbach.enabled && analysis.urbach?.fit != null,
         derivative: analysis.derivative ? choice.derivative : 'off',

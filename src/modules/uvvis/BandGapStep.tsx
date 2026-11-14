@@ -1,6 +1,12 @@
 import { useMemo, useState } from 'preact/hooks';
 import { energyFromWavelength } from '../../core/uvvis/conversions';
-import { TRANSITIONS, type TransitionId } from '../../core/uvvis/tauc';
+import {
+  automaticGapMethod,
+  GAP_METHODS,
+  TRANSITIONS,
+  type GapMethod,
+  type TransitionId,
+} from '../../core/uvvis/tauc';
 import { HelpTip } from '../../ui/HelpTip';
 import { PlotPanel } from '../../ui/plot/PlotPanel';
 import type { SeriesSource } from '../../ui/plot/series';
@@ -73,11 +79,17 @@ export function BandGapStep({ data, update }: StepContext<UvvisData>) {
 
   const change = (patch: Partial<BandGapChoice>) =>
     update({ bandGap: { ...data.bandGap, [spectrum.id]: { ...choice, ...patch } } });
+  /** Any change to how Eg is read, or to its regions, ends the saved session's old suggestion. */
+  const changeGap = (patch: Partial<BandGapChoice>) => {
+    const { legacySuggestion: _legacy, ...rest } = choice;
+    void _legacy;
+    update({ bandGap: { ...data.bandGap, [spectrum.id]: { ...rest, ...patch } } });
+  };
   const setRegion = (region: [number, number] | null) => {
     const regions = Object.fromEntries(
       Object.entries(choice.regions).filter(([id]) => id !== choice.transition),
     );
-    change({ regions: region ? { ...regions, [choice.transition]: region } : regions });
+    changeGap({ regions: region ? { ...regions, [choice.transition]: region } : regions });
   };
 
   return (
@@ -107,10 +119,11 @@ export function BandGapStep({ data, update }: StepContext<UvvisData>) {
           <HelpTip term="Tauc plot">
             <p>
               Near the absorption edge, (αhν)^(1/n) is a straight line against photon energy hν. The
-              band gap is where that line meets the energy axis. The exponent n depends on the type
-              of electronic transition: 1/2 for direct allowed, 2 for indirect allowed, 3/2 for
-              direct forbidden and 3 for indirect forbidden. Which one fits your material should
-              come from the literature, not from which line looks straightest.
+              band gap is where that line meets the energy axis (or a baseline, see below). The
+              exponent n depends on the type of electronic transition: 1/2 for direct allowed, 2 for
+              indirect allowed, 3/2 for direct forbidden and 3 for indirect forbidden. Which one
+              fits your material should come from the literature, not from which line looks
+              straightest.
             </p>
           </HelpTip>
         </h3>
@@ -162,7 +175,20 @@ export function BandGapStep({ data, update }: StepContext<UvvisData>) {
             because the two give different band gaps.
           </p>
         )}
+        <GapMethodChoice
+          analysis={analysis}
+          choice={choice}
+          onMethod={(method) => changeGap({ method })}
+          onBaseline={(baselineRegion) => changeGap({ baselineRegion })}
+        />
         <TaucResult analysis={analysis} onReset={() => setRegion(null)} />
+        {choice.legacySuggestion && (
+          <p class="field-hint">
+            This spectrum was saved before the baseline methods existed, so its fit region is still
+            suggested the old way and its band gap is unchanged. Choosing how Eg is read, or moving
+            a region, updates it.
+          </p>
+        )}
       </section>
 
       <TaucPlot
@@ -171,6 +197,7 @@ export function BandGapStep({ data, update }: StepContext<UvvisData>) {
         data={data}
         update={update}
         onRegion={setRegion}
+        onBaseline={(baselineRegion) => changeGap({ baselineRegion })}
         name={spectrum.name}
       />
 
@@ -277,6 +304,13 @@ function TaucResult({ analysis, onReset }: { analysis: BandGapAnalysis; onReset:
             <dd>{eV(energyFromWavelength(fit.egEv), 1)} nm</dd>
           </div>
           <div>
+            <dt>How Eg is read</dt>
+            <dd>
+              {GAP_METHODS[analysis.method].label}
+              {analysis.automatic ? ' (automatic)' : ''}
+            </dd>
+          </div>
+          <div>
             <dt>R² of the line</dt>
             <dd>{fit.rSquared.toFixed(4)}</dd>
           </div>
@@ -301,8 +335,9 @@ function TaucResult({ analysis, onReset }: { analysis: BandGapAnalysis; onReset:
       </p>
       {fit && (
         <p class="field-hint">
-          The ± is the statistical uncertainty of the straight-line fit only. It is smaller than the
-          true uncertainty, which also depends on the region you choose.
+          The ± is the statistical uncertainty of the straight-line fit
+          {analysis.method === 'axis' ? '' : 's (edge and baseline)'} only. It is smaller than the
+          true uncertainty, which also depends on the regions you choose.
         </p>
       )}
       {messages.length > 0 && (
@@ -331,38 +366,92 @@ function TaucPlot({
   data,
   update,
   onRegion,
+  onBaseline,
   name,
-}: PlotStepProps & { onRegion: (region: [number, number]) => void; name: string }) {
-  const { fit, signal, region, tauc } = analysis;
+}: PlotStepProps & {
+  onRegion: (region: [number, number]) => void;
+  onBaseline: (region: [number, number]) => void;
+  name: string;
+}) {
+  const { fit, signal, region, tauc, method, taucCorrected, taucBaseline, baselineRegion } =
+    analysis;
+  const subtracted = method === 'subtract-baseline' && taucCorrected !== null;
+  // The curve the edge line is fitted to: the corrected one when the baseline is subtracted.
+  const fitted = subtracted ? taucCorrected : tauc;
+  const showBaseline = method !== 'axis' && baselineRegion !== null;
   const sources = useMemo(() => {
-    const list: SeriesSource[] = [curveSource('tauc', 'Tauc curve', signal.energyEv, tauc)];
+    const list: SeriesSource[] = [
+      curveSource(
+        'tauc',
+        subtracted ? 'Tauc curve, as measured' : 'Tauc curve',
+        signal.energyEv,
+        tauc,
+      ),
+    ];
+    if (subtracted && taucCorrected) {
+      list.push(
+        curveSource(
+          'corrected',
+          'Tauc curve, sub-gap baseline subtracted',
+          signal.energyEv,
+          taucCorrected,
+          {
+            colorIndex: 2,
+          },
+        ),
+      );
+    }
     if (fit) {
       const end = fit.toEv + 0.1;
+      const line = (e: number) => fit.intercept + fit.slope * e;
       list.push({
         id: 'fit',
-        name: `Linear fit, Eg = ${eV(fit.egEv)} eV`,
+        name: `${method === 'baseline-crossing' ? 'Edge line' : 'Linear fit'}, Eg = ${eV(fit.egEv)} eV`,
         x: Float64Array.from([fit.egEv, end]),
-        y: Float64Array.from([0, fit.slope * (end - fit.egEv)]),
+        y: Float64Array.from(
+          method === 'baseline-crossing'
+            ? [line(fit.egEv), line(end)]
+            : [0, line(end) - line(fit.egEv)],
+        ),
         unit: '',
         colorIndex: 1,
         dashed: true,
       });
     }
+    if (method === 'baseline-crossing' && taucBaseline && baselineRegion) {
+      const to = fit ? fit.egEv : baselineRegion[1];
+      const line = (e: number) => taucBaseline.intercept + taucBaseline.slope * e;
+      list.push({
+        id: 'baseline',
+        name: 'Baseline line on the Tauc plot',
+        x: Float64Array.from([baselineRegion[0], to]),
+        y: Float64Array.from([line(baselineRegion[0]), line(to)]),
+        unit: '',
+        colorIndex: 3,
+        dashed: true,
+      });
+    }
     return list;
-  }, [signal, tauc, fit]);
+  }, [signal, tauc, taucCorrected, subtracted, fit, method, taucBaseline, baselineRegion]);
   const labels = useMemo(
     () => taucLabels(choice.transition, signal.unit),
     [choice.transition, signal.unit],
   );
-  const markers: PlotMarker[] = region
-    ? region.map((x) => ({ x, y: valueAt(signal.energyEv, tauc, x) }))
-    : [];
+  const markers: PlotMarker[] = [
+    ...(region ? region.map((x) => ({ x, y: valueAt(signal.energyEv, fitted, x) })) : []),
+    ...(showBaseline && baselineRegion
+      ? baselineRegion.map((x) => ({ x, y: valueAt(signal.energyEv, tauc, x) }))
+      : []),
+  ];
+  const edgeCount = region ? 2 : 0;
   const drag = (index: number, x: number) => {
-    if (!region) return;
-    const next: [number, number] = [region[0], region[1]];
-    next[index] =
-      index === 0 ? Math.min(x, region[1] - MIN_REGION) : Math.max(x, region[0] + MIN_REGION);
-    onRegion([eV(next[0], 4), eV(next[1], 4)]);
+    const isBaseline = index >= edgeCount;
+    const current = isBaseline ? baselineRegion : region;
+    if (!current) return;
+    const i = isBaseline ? index - edgeCount : index;
+    const next: [number, number] = [current[0], current[1]];
+    next[i] = i === 0 ? Math.min(x, current[1] - MIN_REGION) : Math.max(x, current[0] + MIN_REGION);
+    (isBaseline ? onBaseline : onRegion)([eV(next[0], 4), eV(next[1], 4)]);
   };
   return (
     <PlotPanel
@@ -377,9 +466,99 @@ function TaucPlot({
       interaction={{
         markers,
         onMarkerDrag: drag,
-        hint: 'Drag the round markers to change the fit region. Pinch or Ctrl and scroll to zoom.',
+        hint: showBaseline
+          ? 'Drag the round markers to change the edge region (the upper pair) and the baseline region (the lower pair). Pinch or Ctrl and scroll to zoom.'
+          : 'Drag the round markers to change the fit region. Pinch or Ctrl and scroll to zoom.',
       }}
     />
+  );
+}
+
+/** How Eg is read from the Tauc line, and the sub-gap baseline region the two baseline methods use. */
+function GapMethodChoice({
+  analysis,
+  choice,
+  onMethod,
+  onBaseline,
+}: {
+  analysis: BandGapAnalysis;
+  choice: BandGapChoice;
+  onMethod: (method: GapMethod | null) => void;
+  onBaseline: (region: [number, number] | null) => void;
+}) {
+  const region = analysis.baselineRegion;
+  const usesBaseline = analysis.method !== 'axis';
+  const setLimit = (index: 0 | 1, value: number | null) => {
+    if (value === null || !region) return;
+    const next: [number, number] = [region[0], region[1]];
+    next[index] = value;
+    if (next[1] - next[0] >= MIN_REGION) onBaseline(next);
+  };
+  return (
+    <div class="radiation-fields">
+      <label class="inline-field">
+        How Eg is read
+        <select
+          value={choice.method ?? 'auto'}
+          onChange={(e) => {
+            const v = e.currentTarget.value;
+            onMethod(v === 'auto' ? null : (v as GapMethod));
+          }}
+        >
+          <option value="auto">
+            Automatic (now: {GAP_METHODS[automaticGapMethod(analysis.subGapLevel)].short})
+          </option>
+          {(Object.keys(GAP_METHODS) as GapMethod[]).map((id) => (
+            <option key={id} value={id}>
+              {GAP_METHODS[id].label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <HelpTip term="how Eg is read">
+        <p>
+          Axis intercept: Eg is where the straight edge line meets zero. That is right only when the
+          curve falls to zero below the edge. Scattering, a second phase, defects or an imperfect
+          blank leave a level below the edge, and the line then meets the axis below the true gap.
+        </p>
+        <p>
+          Sub-gap baseline subtracted first: a straight line is fitted to the absorption quantity
+          (α, A or F(R)) in a region below the edge and subtracted before the Tauc plot is made.
+          This assumes the background adds to the absorption and changes linearly with energy across
+          the edge. Automatic uses it when it moves Eg by more than 0.01 eV.
+        </p>
+        <p>
+          Crossing with a baseline: a second line is fitted to the Tauc curve below the edge, and Eg
+          is where the two lines cross (as described by Makuła, Pacia and Macyk, J. Phys. Chem.
+          Lett. 9 (2018) 6814). Because the Tauc curve of an edge plus a level is bent, the crossing
+          still lies somewhat below the gap.
+        </p>
+      </HelpTip>
+      {usesBaseline && region && (
+        <>
+          <NumberInput
+            label="Baseline from (eV)"
+            value={eV(region[0], 3)}
+            onChange={(v) => setLimit(0, v)}
+          />
+          <NumberInput
+            label="Baseline to (eV)"
+            value={eV(region[1], 3)}
+            onChange={(v) => setLimit(1, v)}
+          />
+          <p class="field-hint">
+            {analysis.baselineSuggested
+              ? 'The baseline region is an automatic suggestion: 0.5 eV ending 0.1 eV below the gap. Choose a stretch with no absorption of its own (no tail or second edge).'
+              : 'The baseline region was set by you. '}
+            {!analysis.baselineSuggested && (
+              <button type="button" class="btn btn-quiet" onClick={() => onBaseline(null)}>
+                Use the suggested baseline again
+              </button>
+            )}
+          </p>
+        </>
+      )}
+    </div>
   );
 }
 

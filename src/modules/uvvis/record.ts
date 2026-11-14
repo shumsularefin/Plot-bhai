@@ -1,4 +1,4 @@
-import { TRANSITIONS } from '../../core/uvvis/tauc';
+import { GAP_METHODS, TRANSITIONS } from '../../core/uvvis/tauc';
 import { formatWithSigma } from '../../ui/format';
 import { fingerprint, type AnalysisRecord, type RecordData } from '../../ui/report/record';
 import { cleanAll, fitMessages, resultRows } from './analysis';
@@ -59,7 +59,7 @@ export async function uvvisRecord(data: UvvisData): Promise<AnalysisRecord> {
         `Signal: ${analysis.signal.unit === 'alpha' ? `α from A with thickness ${choice.thicknessNm} nm` : analysis.signal.unit === 'kubelka-munk' ? 'Kubelka–Munk F(R)' : 'absorbance (proportional to α)'}`,
         `Tauc plot for ${t.label.toLowerCase()} transitions, n = ${t.nText} (the transition type is the user's choice, not deduced from the data)`,
         analysis.fit
-          ? `Eg = ${formatWithSigma(analysis.fit.egEv, analysis.fit.egSigma)} eV from a straight line over ${n(analysis.fit.fromEv)}–${n(analysis.fit.toEv)} eV (${analysis.fit.n} points, R² = ${analysis.fit.rSquared.toFixed(4)}, ${analysis.suggested ? 'region suggested automatically' : 'region chosen by the user'})`
+          ? `Eg = ${formatWithSigma(analysis.fit.egEv, analysis.fit.egSigma)} eV from a straight line over ${n(analysis.fit.fromEv)}–${n(analysis.fit.toEv)} eV (${analysis.fit.n} points, R² = ${analysis.fit.rSquared.toFixed(4)}, ${analysis.suggested ? 'region suggested automatically' : 'region chosen by the user'}), read as the ${GAP_METHODS[analysis.method].short}${analysis.automatic ? ' (chosen automatically)' : ''}${analysis.method !== 'axis' && analysis.baselineRegion ? `, baseline region ${n(analysis.baselineRegion[0])}–${n(analysis.baselineRegion[1])} eV (${analysis.baselineSuggested ? 'suggested' : 'chosen by the user'})` : ''}`
           : 'No Tauc fit.',
         ...fitMessages(analysis).map(
           (m) => `${m.level === 'warning' ? 'Warning' : 'Note'}: ${m.text}`,

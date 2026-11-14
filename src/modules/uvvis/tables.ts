@@ -1,5 +1,5 @@
 import { DISPLAY_LABELS } from '../../core/uvvis/process';
-import { TRANSITIONS } from '../../core/uvvis/tauc';
+import { GAP_METHODS, TRANSITIONS } from '../../core/uvvis/tauc';
 import type { CsvColumn } from '../../core/xrd/peaks/table';
 import type { ResultRow } from './analysis';
 
@@ -20,6 +20,21 @@ export const RESULT_COLUMNS: readonly CsvColumn<ResultRow>[] = [
   { header: 'Eg (eV)', value: (r) => num(r.analysis.fit?.egEv) },
   { header: 'Eg uncertainty (eV)', value: (r) => num(r.analysis.fit?.egSigma) },
   { header: 'Method', value: (r) => (r.analysis.fit ? 'Tauc' : '') },
+  {
+    header: 'Eg read from',
+    value: (r) =>
+      r.analysis.fit
+        ? `${GAP_METHODS[r.analysis.method].short}${r.analysis.automatic ? ' (automatic)' : ''}`
+        : '',
+  },
+  {
+    header: 'Baseline from (eV)',
+    value: (r) => num(r.analysis.method === 'axis' ? null : r.analysis.baselineRegion?.[0]),
+  },
+  {
+    header: 'Baseline to (eV)',
+    value: (r) => num(r.analysis.method === 'axis' ? null : r.analysis.baselineRegion?.[1]),
+  },
   { header: 'Transition', value: (r) => TRANSITIONS[r.choice.transition].label },
   { header: 'n', value: (r) => TRANSITIONS[r.choice.transition].nText },
   { header: 'R2', value: (r) => num(r.analysis.fit?.rSquared) },
@@ -44,7 +59,7 @@ export const RESULT_COLUMNS: readonly CsvColumn<ResultRow>[] = [
 ];
 
 export const RESULTS_NOTE =
-  'UV-Vis results. Eg is an estimate from the Tauc method; its uncertainty is that of the straight-line fit only. lambda_max is the highest data point of the absorbance (F(R) for reflectance). Example data are synthetic.';
+  'UV-Vis results. Eg is an estimate from the Tauc method, read as stated in the Eg read from column; its uncertainty is that of the straight-line fits only. lambda_max is the highest data point of the absorbance (F(R) for reflectance). Example data are synthetic.';
 
 /** Band gap with its uncertainty for display, in eV, for example "3.204 ± 0.005" or "3.200 ± < 0.001". */
 export function gapText(fit: { egEv: number; egSigma: number }): string {
