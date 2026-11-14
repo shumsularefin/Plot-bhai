@@ -24,7 +24,9 @@ it cannot be done from a coding session.
 4. Put the concept DOI in `CITATION.cff` (the `doi:` line that is marked TODO there) and in the
    README, and commit.
 
-Until that is done the site has a version number but no DOI, and CITATION.cff says so.
+Done for v1.0.0 (November 2026): concept DOI 10.5281/zenodo.24222105, version DOI
+10.5281/zenodo.24222106. Later releases are archived automatically; add each version DOI to the
+`identifiers` in CITATION.cff and the citation in the README.
 
 ## 3. What a user cites
 

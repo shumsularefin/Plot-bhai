@@ -1,5 +1,13 @@
 # Progress
 
+## v1.0.0 archived on Zenodo (done, November 2026)
+
+- The owner published release v1.0.0 and Zenodo archived it: version DOI
+  10.5281/zenodo.24222106, concept DOI 10.5281/zenodo.24222105 (checked through the Zenodo API).
+- The concept DOI is in CITATION.cff, the README (badge and citation), the About page ("How to
+  cite") and the software line of every methods text. The owner's ORCID (0009-0004-9706-6328) is in
+  CITATION.cff, .zenodo.json and the About credits.
+
 ## Launch fixes: one width everywhere, owner check, export clipping, v1.0.0 (done, owner request November 2026)
 
 - Layout: the reading pages (home, About, Validation) no longer stop running text at 35rem while
