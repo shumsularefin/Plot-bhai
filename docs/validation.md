@@ -386,9 +386,6 @@ Found by these checks:
 
 Open:
 
-- The Lobanov & Alte da Veiga fit used by Absorb('Cylinder') is cited only as GSAS-II's source
-  comment gives it; the original paper could not be read. The formula itself is checked against
-  the absorption integral of a cylinder for μR 0.1 to 8 (section 20); above μR 8 it is not checked.
 - The Henke comparison covers six elements; the rest of the table rests on GSAS-II alone.
 
 ## 17e: analytic derivatives of the Rietveld model
@@ -569,9 +566,6 @@ table lists Zr⁴⁺–O R₀ = 1.937 Å (bvparm2020's ref b entry), the site ta
 
 Open:
 
-- The oxidation-state suggestion is a rule of the site (anion by the table, cation state nearest
-  its own sum), checked only on the cases above; it is labelled as a suggestion.
-- The 10 % note on a sum far from the oxidation state is a display choice, not a published limit.
 - No published bond table of a measured refinement has been compared; the GSAS-II simulation stands
   in.
 
@@ -757,16 +751,64 @@ Decisions kept (the owner can change them):
 
 Open:
 
-- bvparm2020.cif has not been compared with the copy on the IUCr site (the site refuses automated
-  downloads). Its reference `bt` reads "Yee, Suesdn & Rbuffetti" where another copy (crystchemlib)
-  reads "Yee, Suescun & Rabuffetti"; the file is kept unchanged.
-- The oxidation-state suggestion and the 10 % note on a bond-valence sum are rules of this site
-  without a published source; they await the owner's approval.
-- No measured patterns with known answers are held for 17d to 17h (a capillary run, a line
-  standard, a textured sample, a heating series, a refinement with a published bond table).
+- No measured patterns with known answers are held for a capillary run, a textured sample, a
+  heating series or a refinement with a published bond table (the line standards are in
+  section 21).
 - The differences found in other programs are reported, not resolved: GSAS-II's transposed matrix
   in its angles, its bond s.u. without the cell covariance, its larger s.u. of the hexagonal a, its
   Zr–O R₀, and pymatgen's different bond-valence model.
 - The counting-noise ratio cannot tell a pattern multiplied by a factor between 0.5 and 2 from
   counts, and it is not a test of a variable-counting-time scan.
-- The capillary formula is not checked above μR 8.
+
+The IUCr copy of bvparm2020.cif, the owner's approval of the two bond-valence rules and the
+capillary formula above μR 8 are settled in section 21.
+
+## 21: the owner's files and decisions (November 2026)
+
+The owner supplied the IUCr copy of bvparm2020.cif, two NIST data releases (SRM 660c LaB₆ and SRM
+640f Si, powder CIFs), and, for the capillary formula, the GSAS Technical Manual pages and the
+Lobanov abstract. The owner also approved two rules of the site (below). A second PDF supplied
+with them (Willett et al., Am. J. Epidemiol. 1985, a food questionnaire) is unrelated and was not
+used. Tests: tests/validation-tables.test.ts, tests/rietveld-dispersion.test.ts,
+tests/validation-gsas2-dispersion.test.ts, tests/validation-nist-srm.test.ts,
+tests/xrd-pdcif.test.ts.
+
+| Method                       | Check                                                                                                                                                                                                                 | Source                                   | Tolerance      | Result |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | -------------- | ------ |
+| Bond-valence parameter file  | replaced by the IUCr copy (SHA-1 141eb3c7…); it differs from the earlier copy (VESTA, pparBVM, matminer) only in the authors of reference bt ("Suescun & Rabuffetti") and an unchecked Mn²⁺–I row the site leaves out | the IUCr page, via the owner             | recorded SHA-1 | pass   |
+| Capillary formula, manual    | every coefficient of Absorb('Cylinder') against the GSAS Technical Manual (2004) pp. 134–135: identical above μR 3; below μR 3 the manual's k1 (0.024514, 26.0456) differs from GSAS-II's (0.024551, 26.04556)        | published formula                        | 1e-12; 0.8 %   | pass   |
+| Capillary formula, integral  | against the absorption integral of a cylinder (numerical, converged), μR 0.1 to 10, 2θ 10 to 170°: largest error 1.30 %; above μR 10 the fit fails (5 % at μR 12, 16 % at 15)                                         | physical definition                      | 1.4 %          | pass   |
+| μR limit                     | the refinement keeps μR at or below 10, the manual's range of validity, and says so in a warning                                                                                                                      | GSAS Technical Manual p. 135             | exact          | pass   |
+| Powder CIF reader            | 2θ from a column or a range, the s.u. in parentheses, σ = 1/√w from _pd_proc_ls_weight, a calculated block skipped, a structure CIF sent to step 3                                                                    | synthetic, known answer                  | 1e-12          | pass   |
+| Weights from the file        | with σ given, points are weighted by 1/σ², the counting-statistics warnings are not shown, and the methods text says so; on the 640f pattern χ² = 1.30 with NIST's weights                                            | real data (NIST)                         | GOF < 1.2      | pass   |
+| Lattice parameter, Si 640f   | the site's refinement (TCH, Bérar–Baldinozzi asymmetry, displacement, zero fixed because NIST's 2θ is corrected, Kα1 from Ge 111) of NIST's pattern: a = 5.431150(6) Å against NIST's 5.431144 Å, +1.0 ppm            | real data, NIST's refinement (Topas FPA) | 5 ppm          | pass   |
+| Lattice parameter, LaB₆ 660c | the same on NIST's Kα1 + Kα2 pattern (graphite analyser, 6.8° Soller slits): a = 4.156476(5) Å against 4.156783 Å, −74 ppm; −63 ppm with the zero refined and −74 to +101 ppm with the other asymmetry models         | real data, NIST's refinement             | 100 ppm        | pass   |
+
+What was found:
+
+- The capillary fit has no full paper; the GSAS Technical Manual is the published source, and it
+  states the range μR ≤ 10. The site limits μR to 10 in the refinement and in the input box.
+- With wide Soller slits (660c) the lattice parameter depends on the asymmetry model by up to
+  about 1e-4 relative, far more than its s.u. (1 ppm). The site's simple asymmetry models are the
+  limit there; NIST's fundamental-parameters profile is not available on the site. With narrow
+  slits (640f) the site matches NIST within its s.u.
+- Refining both zero and displacement on these patterns correlates them at r = −0.99 to −1.00 and
+  moves a by 129 ppm (Si) and 11 ppm (LaB₆): for corrected 2θ data the zero should be fixed.
+
+Decisions kept (the owner can change them):
+
+- The owner approved (November 2026) the two rules of the bond-valence table: the suggested
+  oxidation state (anion by the table, cation state nearest its own sum, labelled as a suggestion)
+  and the note on a sum more than 10 % from the oxidation state (a display choice of the site).
+- The decisions of section 20 stay as they were: Kα2 at its exact Bragg angle, the Bérar–Lelann
+  factor off by default, cylindrical texture symmetry.
+
+Open:
+
+- Bruker .raw versions 1 to 3 and multi-scan .rasx and .brml files: no openly licensed real file
+  was found. The files listed by xylib (SDPD course, IUCr CPD round robin) could not be fetched
+  (the host is gone, the IUCr site needs a browser) and carry no stated licence. They stay
+  "recognised, cannot read".
+- The differences found in GSAS-II are drafted as reports in docs/gsas2-issue-drafts.md, for the
+  owner to send; they are not resolved.
+- The counting-noise limits (0.5 and 2) stay a rule of the site, as the owner left them.

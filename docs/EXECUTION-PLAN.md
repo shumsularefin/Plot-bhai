@@ -58,6 +58,7 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 18        | Review fixes: example data, readability, validation page, report | done    |
 | 19        | Open validation items checked with Fityk and GSAS-II             | done    |
 | 20        | Open items of 17a–17i: checks, s.u. switch, series, labels       | done    |
+| 21        | Owner's files: IUCr bvparm, NIST SRM patterns, capillary μR ≤ 10 | done    |
 
 ## The one prompt you paste in every new session
 

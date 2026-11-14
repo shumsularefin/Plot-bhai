@@ -1,5 +1,30 @@
 # Progress
 
+## Stage 21: the owner's files and decisions (done, owner request November 2026)
+
+Branch `claude/trusting-faraday-1pfp92`. No new packages. Checks in docs/validation.md, section 21.
+
+- **Bond valence:** data/reference/source/bvparm2020.cif is now the IUCr copy the owner downloaded
+  (it corrects the authors of reference bt). The owner approved the suggested oxidation states and
+  the 10 % note.
+- **Capillary:** the Lobanov & Alte da Veiga fit checked coefficient by coefficient against the GSAS
+  Technical Manual (pp. 134–135) and against the cylinder integral up to μR 10 (1.4 %). It fails above
+  μR 10, so μR is limited to 10 in the refinement and the input box, with a warning.
+- **Powder CIF reader:** `src/core/xrd/parsers/pdcif.ts` reads 2θ, intensity and σ (from the s.u. in
+  parentheses or `_pd_proc_ls_weight`) from pdCIF files such as NIST's; step 1 accepts them.
+- **Weights from the file:** when a pattern carries σ (.xye or pdCIF) and is refined uncleaned,
+  points are weighted by 1/σ², the counting-statistics warnings are skipped and the methods text
+  says so.
+- **NIST checks:** tests/fixtures-real/ holds one SRM 660c (LaB₆) and one SRM 640f (Si) pattern.
+  The site refines Si to +1.0 ppm of NIST's lattice parameter and LaB₆ to −74 ppm (the asymmetry
+  of wide Soller slits limits it).
+- **GSAS-II drafts:** docs/gsas2-issue-drafts.md, for the owner to send.
+- **Decisions:** unchanged (Kα2 exact angle, Bérar–Lelann off by default, cylindrical texture, the
+  0.5 and 2 noise limits).
+- **Known issues:** no openly licensed Bruker .raw v1–3 or multi-scan file could be found or
+  fetched; the LaB₆ lattice parameter depends on the asymmetry model by about 1e-4.
+- **Next:** nothing scheduled; the owner decides.
+
 ## Stage 20: open items of 17a to 17i (done, owner request November 2026)
 
 Branch `claude/trusting-faraday-1pfp92`. No new packages (periodictable, mendeleev and xraylib are
