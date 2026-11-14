@@ -932,7 +932,6 @@
 .methods-text {
   box-sizing: border-box;
   width: 100%;
-  max-width: 70ch;
   padding: 0.75rem;
   border: 1px solid var(--color-border);
   border-radius: 6px;
@@ -1506,7 +1505,7 @@
 .structure-viewer {
   display: grid;
   gap: var(--space-2, 0.5rem);
-  max-width: 34rem;
+  max-width: 40rem;
 }
 .structure-canvas {
   width: 100%;
@@ -1516,6 +1515,13 @@
   border-radius: 6px;
   background: var(--color-surface);
   cursor: grab;
+  /* A drag must turn the crystal, never select the axis letters or start a native drag. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.structure-canvas:active {
+  cursor: grabbing;
 }
 .structure-canvas:focus-visible {
   outline: 2px solid var(--color-accent);
@@ -1529,29 +1535,36 @@
 }
 .structure-views {
   display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 0.25rem;
 }
-.structure-views .btn {
-  min-width: 44px;
-  min-height: 44px;
-}
-.structure-check {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
+.structure-views-label {
+  margin-right: 0.25rem;
+  color: var(--color-text-muted);
 }
 .structure-cell {
-  stroke: var(--color-text-muted);
-  stroke-width: 1.2;
+  stroke: var(--color-text);
+  stroke-width: 1.8;
+  stroke-linecap: round;
 }
-.structure-cell.is-back {
-  stroke-dasharray: 4 3;
-  opacity: 0.6;
+.structure-face {
+  fill-opacity: 0.32;
+  stroke-width: 1;
+  stroke-opacity: 0.8;
+  stroke-linejoin: round;
 }
 .structure-bond,
 .structure-cell,
+.structure-face,
+.structure-symbol,
 .structure-triad {
   pointer-events: none;
+}
+.structure-symbol {
+  font-weight: 600;
+  text-anchor: middle;
+  dominant-baseline: central;
 }
 .structure-bond line {
   stroke-linecap: round;

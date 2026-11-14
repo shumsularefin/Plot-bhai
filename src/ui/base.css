@@ -38,10 +38,11 @@ p {
 }
 
 /*
- * Running text keeps to about 70 characters a line, which is easier to read than a line that
- * spans a wide screen. Zero specificity, so any layout that sets its own width still wins.
+ * Reading pages keep running text to about 70 characters a line. Tool steps do not: there the
+ * text, notes, cards and tables share one left and right edge, so a step reads as one column.
+ * Zero specificity, so any layout that sets its own width still wins.
  */
-:where(.wizard-content, .about, .home, .validation) :where(p, li, dd) {
+:where(.about, .home, .validation) :where(p, li, dd) {
   max-width: var(--measure);
 }
 

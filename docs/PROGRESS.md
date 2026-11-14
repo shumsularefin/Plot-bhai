@@ -1,5 +1,24 @@
 # Progress
 
+## Owner fixes: one column width, crystal viewer (done, owner request November 2026)
+
+- Layout: running text in the tool steps no longer stops at 35rem while cards and tables run to
+  the full width. Notes, search results, phase cards and the Methods text now share the step's
+  left and right edges. The 35rem measure stays on the reading pages (home, About, Validation).
+  "Saved on this device" in the sidebar no longer wraps.
+- Crystal structure viewer (step 3):
+  - Rotation: a drag now turns the crystal wherever it starts. It used to do nothing when it
+    started on an atom, which felt stuck. A press that does not move picks the atom.
+  - The drawing can no longer be selected as text.
+  - Look: larger, lit spheres with element symbols, solid cell edges, toolbar buttons that look
+    like buttons.
+  - Optional coordination polyhedra around a chosen element. Neighbours from the adjacent cells
+    are added so each polyhedron is complete. The convex hull is in
+    src/core/xrd/structure/polyhedra.ts with tests (tetrahedron, octahedron, cube with
+    coplanar points, flat set, point-order invariance, outside neighbours completing an
+    octahedron).
+- DATA-SOURCES.md now lists the bond valence, covalent radii and anomalous dispersion tables.
+
 ## Stage 21: the owner's files and decisions (done, owner request November 2026)
 
 Branch `claude/trusting-faraday-1pfp92`. No new packages. Checks in docs/validation.md, section 21.
