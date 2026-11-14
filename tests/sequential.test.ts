@@ -167,6 +167,62 @@ describe('sequential refinement (order, copying forward, failures)', () => {
     );
   });
 
+  it('also starts from the atoms refined on the previous pattern when there is a structure', () => {
+    const atom = { x: [0, 0, 0.38], occupancy: 1, uIso: 0.005, uAniso: null };
+    const starts: (typeof atom)[] = [];
+    // A stand-in that moves z by 0.001 and raises B by 0.1 Å² from wherever the atom starts.
+    const fakeAtoms = ((input: RietveldInput) => {
+      const phase = input.phases[0] as unknown as {
+        cell: Cell;
+        structure: { atoms: (typeof atom)[] };
+      };
+      const start = phase.structure.atoms[0] as typeof atom;
+      starts.push(start);
+      return {
+        ok: true,
+        phases: [
+          {
+            id: 'p',
+            name: 'P',
+            cell: cellEstimates(phase.cell),
+            atoms: [
+              {
+                x: [est(0), est(0), est((start.x[2] as number) + 0.001)],
+                occupancy: est(1, false, 0),
+                b: est(8 * Math.PI ** 2 * start.uIso + 0.1),
+                u: null,
+              },
+            ],
+          },
+        ],
+        stats: {},
+        zero: est(0, false, 0),
+        converged: true,
+        warnings: [],
+      } as unknown as RietveldResult;
+    }) as typeof refineRietveld;
+    const withAtoms = (id: string, value: number): SeriesItem => ({
+      id,
+      name: id,
+      value,
+      input: {
+        phases: [{ id: 'p', name: 'P', cell: base, structure: { atoms: [atom] } }],
+      } as unknown as RietveldInput,
+    });
+    const items = [withAtoms('a', 1), withAtoms('b', 2), withAtoms('c', 3)];
+    refineSeries(items, true, fakeAtoms);
+    expect(starts.map((a) => a.x[2])).toEqual(
+      [0.38, 0.381, 0.382].map((v) => expect.closeTo(v, 12)),
+    );
+    // B = 8π²U: 0.005 Å² is B = 0.3948 Å²; each pattern adds 0.1 Å².
+    expect(starts.map((a) => 8 * Math.PI ** 2 * a.uIso)).toEqual(
+      [0.3948, 0.4948, 0.5948].map((v) => expect.closeTo(v, 4)),
+    );
+    starts.length = 0;
+    refineSeries(items, false, fakeAtoms);
+    expect(starts.map((a) => a.x[2])).toEqual([0.38, 0.38, 0.38]);
+  });
+
   it('starts every pattern from the input cell without copying forward', () => {
     seen.length = 0;
     refineSeries([item('t1', 100), item('t2', 200)], false, fake);
@@ -238,7 +294,9 @@ describe('series methods text', () => {
       trend: { label: 'ZnO: a', unit: 'Å', fit, start: 3.25 },
     });
     expect(text).toContain('The 4 patterns of the series (temperature 25 to 325 °C)');
-    expect(text).toContain('each starting from the unit cells refined on the previous pattern');
+    expect(text).toContain(
+      'each starting from the unit cells (and, where refined, the atomic parameters) refined on the previous pattern',
+    );
     expect(text).toContain('1 pattern could not be refined and is left out');
     // Slope by hand: Σ(x − x̄)(y − ȳ) / Σ(x − x̄)² = 0.39 / 20000 = 1.95e-5 Å per °C.
     expect(text).toContain('slope of (1.950 ± 0.087) × 10⁻⁵ Å per °C');
