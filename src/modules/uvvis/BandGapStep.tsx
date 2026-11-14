@@ -13,7 +13,13 @@ import type { SeriesSource } from '../../ui/plot/series';
 import type { PlotMarker } from '../../ui/plot/types';
 import type { StepContext } from '../../ui/wizard/types';
 import { NumberInput } from '../xrd/NumberInput';
-import { analyseBandGap, cleanAll, fitMessages, type BandGapAnalysis } from './analysis';
+import {
+  analyseBandGap,
+  cleanAll,
+  componentFor,
+  fitMessages,
+  type BandGapAnalysis,
+} from './analysis';
 import { bandGapFor, type BandGapChoice, type UvvisData } from './data';
 import { taucLabels, urbachLabels } from './labels';
 import { gapText } from './tables';
@@ -68,9 +74,14 @@ export function BandGapStep({ data, update }: StepContext<UvvisData>) {
   const analysis = useMemo(
     () =>
       spectrum && cleanedSpectrum && choice
-        ? analyseBandGap(spectrum, cleanedSpectrum, choice)
+        ? analyseBandGap(
+            spectrum,
+            cleanedSpectrum,
+            choice,
+            componentFor(spectra, cleaned, choice, spectrum.id),
+          )
         : null,
-    [spectrum, cleanedSpectrum, choice],
+    [spectrum, cleanedSpectrum, choice, spectra, cleaned],
   );
 
   if (!spectrum || !analysis || !choice) {
@@ -178,8 +189,10 @@ export function BandGapStep({ data, update }: StepContext<UvvisData>) {
         <GapMethodChoice
           analysis={analysis}
           choice={choice}
+          others={spectra.filter((s) => s.id !== spectrum.id)}
           onMethod={(method) => changeGap({ method })}
           onBaseline={(baselineRegion) => changeGap({ baselineRegion })}
+          onComponent={(component) => changeGap({ component })}
         />
         <TaucResult analysis={analysis} onReset={() => setRegion(null)} />
         {choice.legacySuggestion && (
@@ -336,8 +349,13 @@ function TaucResult({ analysis, onReset }: { analysis: BandGapAnalysis; onReset:
       {fit && (
         <p class="field-hint">
           The ± is the statistical uncertainty of the straight-line fit
-          {analysis.method === 'axis' ? '' : 's (edge and baseline)'} only. It is smaller than the
-          true uncertainty, which also depends on the regions you choose.
+          {analysis.method === 'axis'
+            ? ''
+            : analysis.method === 'subtract-component'
+              ? ' and of the factor c'
+              : 's (edge and baseline)'}{' '}
+          only. It is smaller than the true uncertainty, which also depends on the regions you
+          choose.
         </p>
       )}
       {messages.length > 0 && (
@@ -375,10 +393,19 @@ function TaucPlot({
 }) {
   const { fit, signal, region, tauc, method, taucCorrected, taucBaseline, baselineRegion } =
     analysis;
-  const subtracted = method === 'subtract-baseline' && taucCorrected !== null;
-  // The curve the edge line is fitted to: the corrected one when the baseline is subtracted.
-  const fitted = subtracted ? taucCorrected : tauc;
-  const showBaseline = method !== 'axis' && baselineRegion !== null;
+  // The curve the edge line is fitted to: the corrected one when something is subtracted.
+  const corrected =
+    method === 'subtract-baseline'
+      ? taucCorrected
+      : method === 'subtract-component'
+        ? analysis.taucComponent
+        : null;
+  const subtracted = corrected !== null;
+  const fitted = corrected ?? tauc;
+  const showBaseline =
+    method !== 'axis' &&
+    baselineRegion !== null &&
+    !(method === 'subtract-component' && analysis.componentFactor?.n === 0);
   const sources = useMemo(() => {
     const list: SeriesSource[] = [
       curveSource(
@@ -388,16 +415,16 @@ function TaucPlot({
         tauc,
       ),
     ];
-    if (subtracted && taucCorrected) {
+    if (corrected) {
       list.push(
         curveSource(
           'corrected',
-          'Tauc curve, sub-gap baseline subtracted',
+          method === 'subtract-component'
+            ? 'Tauc curve, second component subtracted'
+            : 'Tauc curve, sub-gap baseline subtracted',
           signal.energyEv,
-          taucCorrected,
-          {
-            colorIndex: 2,
-          },
+          corrected,
+          { colorIndex: 2 },
         ),
       );
     }
@@ -432,7 +459,7 @@ function TaucPlot({
       });
     }
     return list;
-  }, [signal, tauc, taucCorrected, subtracted, fit, method, taucBaseline, baselineRegion]);
+  }, [signal, tauc, corrected, subtracted, fit, method, taucBaseline, baselineRegion]);
   const labels = useMemo(
     () => taucLabels(choice.transition, signal.unit),
     [choice.transition, signal.unit],
@@ -478,16 +505,22 @@ function TaucPlot({
 function GapMethodChoice({
   analysis,
   choice,
+  others,
   onMethod,
   onBaseline,
+  onComponent,
 }: {
   analysis: BandGapAnalysis;
   choice: BandGapChoice;
+  others: readonly { id: string; name: string }[];
   onMethod: (method: GapMethod | null) => void;
   onBaseline: (region: [number, number] | null) => void;
+  onComponent: (component: BandGapChoice['component']) => void;
 }) {
   const region = analysis.baselineRegion;
-  const usesBaseline = analysis.method !== 'axis';
+  const usesComponent = analysis.method === 'subtract-component';
+  const typedFactor = choice.component?.factor ?? null;
+  const usesBaseline = analysis.method !== 'axis' && !(usesComponent && typedFactor !== null);
   const setLimit = (index: 0 | 1, value: number | null) => {
     if (value === null || !region) return;
     const next: [number, number] = [region[0], region[1]];
@@ -529,11 +562,54 @@ function GapMethodChoice({
         </p>
         <p>
           Crossing with a baseline: a second line is fitted to the Tauc curve below the edge, and Eg
-          is where the two lines cross (as described by Makuła, Pacia and Macyk, J. Phys. Chem.
-          Lett. 9 (2018) 6814). Because the Tauc curve of an edge plus a level is bent, the crossing
-          still lies somewhat below the gap.
+          is where the two lines cross (the simplified procedure of Makuła, Pacia and Macyk, J.
+          Phys. Chem. Lett. 9 (2018) 6814). Because the Tauc curve of an edge plus a level is bent,
+          the crossing can differ from the gap by a few hundredths of an eV.
+        </p>
+        <p>
+          Spectrum of a second component subtracted first: when the sample is a semiconductor with a
+          dye, modifier or support that you have also measured on its own, its spectrum, scaled by a
+          factor c, is subtracted before the Tauc plot, α<sub>s</sub> = α − c·α<sub>m</sub>. Makuła
+          and co-workers found this the most accurate way. c is fitted over the baseline region,
+          where only the second component absorbs, or typed by you.
         </p>
       </HelpTip>
+      {usesComponent && (
+        <>
+          <label class="inline-field">
+            Second component
+            <select
+              value={choice.component?.spectrumId ?? ''}
+              onChange={(e) => {
+                const id = e.currentTarget.value;
+                onComponent(id ? { spectrumId: id, factor: typedFactor } : null);
+              }}
+            >
+              <option value="">Choose a spectrum</option>
+              {others.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {choice.component && (
+            <NumberInput
+              label="Factor c (empty: fitted)"
+              value={typedFactor}
+              onChange={(factor) =>
+                choice.component && onComponent({ ...choice.component, factor })
+              }
+            />
+          )}
+          {others.length === 0 && (
+            <p class="field-hint">
+              Only one spectrum is loaded. Go back to Upload and add the spectrum of the second
+              component, measured the same way.
+            </p>
+          )}
+        </>
+      )}
       {usesBaseline && region && (
         <>
           <NumberInput
@@ -577,9 +653,10 @@ function ComparisonTable({
         All four transition types side by side{' '}
         <HelpTip term="comparing transition types">
           <p>
-            Each type is fitted over its own suggested region, so the numbers are not directly
-            comparable in quality. A higher R² does not prove which transition a material has;
-            several can look almost equally straight.
+            Each type is fitted over its own region (yours, or the suggestion) and Eg is read the
+            same way as above, so the numbers are not directly comparable in quality. A higher R²
+            does not prove which transition a material has; several can look almost equally
+            straight.
           </p>
         </HelpTip>
       </h3>
@@ -603,17 +680,19 @@ function ComparisonTable({
               </th>
               <th scope="col">R²</th>
               <th scope="col">Region (eV)</th>
+              <th scope="col">Eg read from</th>
               <th scope="col">Use</th>
             </tr>
           </thead>
           <tbody>
-            {analysis.comparison.map(({ id, fit }) => (
+            {analysis.comparison.map(({ id, fit, method }) => (
               <tr key={id}>
                 <th scope="row">{TRANSITIONS[id].label}</th>
                 <td>{TRANSITIONS[id].nText}</td>
                 <td>{fit ? gapText(fit) : '–'}</td>
                 <td>{fit ? fit.rSquared.toFixed(4) : '–'}</td>
                 <td>{fit ? `${eV(fit.fromEv)} to ${eV(fit.toEv)}` : '–'}</td>
+                <td>{GAP_METHODS[method].short}</td>
                 <td>
                   {id === selected ? (
                     <span class="badge badge-accent">In use</span>

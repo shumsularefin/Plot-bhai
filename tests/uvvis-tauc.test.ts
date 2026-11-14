@@ -178,7 +178,15 @@ describe('Tauc fit', () => {
       { kind: 'absorbance', scale: 'percent' },
       null,
     );
-    const rows = compareTransitions(signal.energyEv, signal.signal, {});
+    const rows = compareTransitions(
+      signal.energyEv,
+      signal.signal,
+      {},
+      {
+        method: 'axis',
+        baselineRegion: null,
+      },
+    );
     expect(rows.map((r) => r.id)).toEqual(Object.keys(TRANSITIONS));
     const indirect = must(rows.find((r) => r.id === 'indirect-allowed')?.fit);
     expect(indirect.egEv).toBeCloseTo(TRUE_EG, 3);

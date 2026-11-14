@@ -1,7 +1,7 @@
 import { DISPLAY_LABELS } from '../../core/uvvis/process';
 import { GAP_METHODS, TRANSITIONS } from '../../core/uvvis/tauc';
 import type { CsvColumn } from '../../core/xrd/peaks/table';
-import type { ResultRow } from './analysis';
+import { baselineUsed, type ResultRow } from './analysis';
 
 /** Number to a fixed number of decimals, or an empty cell when it is not a finite number. */
 const num = (value: number | null | undefined) =>
@@ -29,11 +29,25 @@ export const RESULT_COLUMNS: readonly CsvColumn<ResultRow>[] = [
   },
   {
     header: 'Baseline from (eV)',
-    value: (r) => num(r.analysis.method === 'axis' ? null : r.analysis.baselineRegion?.[0]),
+    value: (r) => num(baselineUsed(r.analysis)?.[0]),
   },
   {
     header: 'Baseline to (eV)',
-    value: (r) => num(r.analysis.method === 'axis' ? null : r.analysis.baselineRegion?.[1]),
+    value: (r) => num(baselineUsed(r.analysis)?.[1]),
+  },
+  { header: 'Second component', value: (r) => r.analysis.component?.name ?? '' },
+  {
+    header: 'Factor c',
+    value: (r) => num(r.analysis.component ? r.analysis.componentFactor?.value : null),
+  },
+  {
+    header: 'Factor c uncertainty',
+    value: (r) =>
+      r.analysis.component && r.analysis.componentFactor?.n
+        ? num(r.analysis.componentFactor.sigma)
+        : r.analysis.component && r.analysis.componentFactor
+          ? 'typed'
+          : '',
   },
   { header: 'Transition', value: (r) => TRANSITIONS[r.choice.transition].label },
   { header: 'n', value: (r) => TRANSITIONS[r.choice.transition].nText },

@@ -116,7 +116,7 @@ edge, because the curve is no longer straight near it.
 > 0.5. The owner chose to build both: subtraction of a straight sub-gap baseline from α, A or F(R)
 > before the Tauc plot (the default when it moves Eg by more than 0.01 eV, and the method the
 > target below applies to), and the crossing, labelled as lying below the gap. The Makuła paper
-> could not be opened in the session; its citation is TODO in docs/validation.md.
+> was later supplied by the owner and read: the crossing is its column 3 method, and its column 2 method (subtracting a measured second-component spectrum) was added as well; see docs/validation.md.
 
 **Done when:** the four synthetic cases above return 3.200 eV within a tolerance you justify
 (about 0.01 eV is expected) with the baseline method; the same holds for an indirect allowed

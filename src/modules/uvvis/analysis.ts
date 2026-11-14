@@ -6,6 +6,7 @@ import {
   compareTransitions,
   derivativeMaximum,
   GAP_METHODS,
+  interpolateOnto,
   suggestUrbachRegion,
   SUB_GAP_SHIFT_EV,
   TRANSITIONS,
@@ -32,6 +33,9 @@ export function cleanAll(spectra: readonly Spectrum[], cleaning: UvvisData['clea
 
 export interface BandGapAnalysis extends TaucGap {
   signal: AbsorptionSignal;
+  /** For 'subtract-component': the component spectrum used, or why none could be used. */
+  component: { name: string } | null;
+  componentProblem: ComponentProblem;
   /** True when the method was chosen automatically. */
   automatic: boolean;
   comparison: TransitionComparison[];
@@ -39,11 +43,21 @@ export interface BandGapAnalysis extends TaucGap {
   derivative: DerivativePeak | null;
 }
 
+/** A spectrum with its cleaned data, as passed for the second component. */
+export interface CleanedSpectrum {
+  spectrum: Pick<Spectrum, 'id' | 'name' | 'kind' | 'scale'>;
+  cleaned: Pick<Cleaned, 'wavelengthNm' | 'values'>;
+}
+
+/** Why a chosen component spectrum cannot be used, or null when it can. */
+export type ComponentProblem = 'none-chosen' | 'unit' | 'no-overlap' | null;
+
 /** All band gap numbers of one cleaned spectrum under its settings. */
 export function analyseBandGap(
   spectrum: Pick<Spectrum, 'kind' | 'scale'>,
   cleaned: Pick<Cleaned, 'wavelengthNm' | 'values'>,
   choice: BandGapChoice,
+  component: CleanedSpectrum | null = null,
 ): BandGapAnalysis {
   const signal = absorptionSignal(
     cleaned.wavelengthNm,
@@ -51,19 +65,46 @@ export function analyseBandGap(
     spectrum,
     choice.thicknessNm,
   );
+  // The component is converted to the same quantity (A or F(R)); its scale, including any
+  // thickness, is absorbed by the factor c.
+  let componentSignal: Float64Array | null = null;
+  let componentProblem: ComponentProblem = null;
+  if (choice.method === 'subtract-component') {
+    if (!component) componentProblem = 'none-chosen';
+    else {
+      const other = absorptionSignal(
+        component.cleaned.wavelengthNm,
+        component.cleaned.values,
+        component.spectrum,
+        null,
+      );
+      if ((other.unit === 'kubelka-munk') !== (signal.unit === 'kubelka-munk')) {
+        componentProblem = 'unit';
+      } else {
+        componentSignal = interpolateOnto(other.energyEv, other.signal, signal.energyEv);
+        if (!componentSignal.some(Number.isFinite)) {
+          componentSignal = null;
+          componentProblem = 'no-overlap';
+        }
+      }
+    }
+  }
+  const options = {
+    method: choice.method,
+    baselineRegion: choice.baselineRegion,
+    ...(choice.legacySuggestion && { legacySuggestion: true }),
+    component: componentSignal
+      ? { signal: componentSignal, factor: choice.component?.factor ?? null }
+      : null,
+  };
   const gap = analyseTaucGap(
     signal.energyEv,
     signal.signal,
     TRANSITIONS[choice.transition].exponent,
-    {
-      method: choice.method,
-      edgeRegion: choice.regions[choice.transition] ?? null,
-      baselineRegion: choice.baselineRegion,
-      ...(choice.legacySuggestion && { legacySuggestion: true }),
-    },
+    { ...options, edgeRegion: choice.regions[choice.transition] ?? null },
   );
   const { fit, region } = gap;
-  const comparison = compareTransitions(signal.energyEv, signal.signal, choice.regions);
+  const comparison = compareTransitions(signal.energyEv, signal.signal, choice.regions, options);
 
   let urbach: BandGapAnalysis['urbach'] = null;
   if (choice.urbach.enabled) {
@@ -91,6 +132,8 @@ export function analyseBandGap(
   return {
     ...gap,
     signal,
+    component: componentSignal && component ? { name: component.spectrum.name } : null,
+    componentProblem,
     automatic: choice.method === null,
     comparison,
     urbach,
@@ -107,13 +150,39 @@ export interface ResultRow {
   edgeNm: number | null;
 }
 
+/** The sub-gap baseline region the method used, or null when it used none. */
+export function baselineUsed(analysis: TaucGap): [number, number] | null {
+  if (analysis.method === 'axis') return null;
+  if (analysis.method === 'subtract-component' && analysis.componentFactor?.n === 0) return null;
+  return analysis.baselineRegion;
+}
+
+/** The second-component spectrum chosen for a spectrum, with its cleaned data. */
+export function componentFor(
+  spectra: readonly Spectrum[],
+  cleaned: readonly Cleaned[],
+  choice: BandGapChoice,
+  ownId: string,
+): CleanedSpectrum | null {
+  const id = choice.component?.spectrumId;
+  const index = spectra.findIndex((s) => s.id === id && s.id !== ownId);
+  const spectrum = spectra[index];
+  const clean = cleaned[index];
+  return spectrum && clean ? { spectrum, cleaned: clean } : null;
+}
+
 /** One result row per spectrum, from the cleaned data. */
 export function resultRows(data: UvvisData): ResultRow[] {
   const cleaned = cleanAll(data.spectra, data.cleaning);
   return data.spectra.map((spectrum, i) => {
     const clean = cleaned[i] ?? spectrum;
     const choice = bandGapFor(data, spectrum.id);
-    const analysis = analyseBandGap(spectrum, clean, choice);
+    const analysis = analyseBandGap(
+      spectrum,
+      clean,
+      choice,
+      componentFor(data.spectra, cleaned, choice, spectrum.id),
+    );
     return {
       spectrum,
       choice,
@@ -194,7 +263,51 @@ export function fitMessages(analysis: BandGapAnalysis): FitMessage[] {
       text: `With background absorption the Tauc curve bends above the gap, so the crossing lies below the gap found with the baseline subtracted first (${eg(analysis.subtractedEgEv)}). Report which method you used.`,
     });
   }
-  if (analysis.method !== 'axis' && !analysis.baselineRegion) {
+  if (analysis.method === 'subtract-component') {
+    const problem = analysis.componentProblem;
+    const c = analysis.componentFactor;
+    if (problem === 'none-chosen') {
+      messages.push({
+        level: 'warning',
+        text: 'Choose the spectrum of the second component (for example the dye, modifier or support measured on its own) under "Second component". Upload it with the sample if it is not loaded.',
+      });
+    } else if (problem === 'unit') {
+      messages.push({
+        level: 'warning',
+        text: 'The second component must be measured the same way as this spectrum: both diffuse reflectance (F(R)) or both absorbance or transmittance.',
+      });
+    } else if (problem === 'no-overlap') {
+      messages.push({
+        level: 'warning',
+        text: 'The second component does not cover the energies of this spectrum, so it cannot be subtracted.',
+      });
+    } else if (!c) {
+      messages.push({
+        level: 'warning',
+        text: 'The scale factor c could not be fitted: the baseline region needs at least 4 points where the component absorbs. Set the baseline region or type c.',
+      });
+    } else {
+      if (c.value < 0) {
+        messages.push({
+          level: 'warning',
+          text: `The scale factor c is negative (${c.value.toPrecision(3)}), so the component is not what absorbs below the edge. Check that the right spectrum is chosen.`,
+        });
+      }
+      messages.push({
+        level: 'info',
+        text:
+          c.n > 0
+            ? `c = ${c.value.toPrecision(4)} ± ${c.sigma.toPrecision(2)}, fitted over the baseline region, where the sample is assumed to absorb only through the second component. Its uncertainty is included in that of Eg.`
+            : `c = ${c.value.toPrecision(4)}, typed by you (for example from the concentration of the component); no uncertainty is assigned to it.`,
+      });
+    }
+  }
+  if (
+    (analysis.method === 'baseline-crossing' ||
+      analysis.method === 'subtract-baseline' ||
+      (analysis.method === 'subtract-component' && analysis.componentFactor?.n !== 0)) &&
+    !analysis.baselineRegion
+  ) {
     messages.push({
       level: 'warning',
       text: 'No baseline region could be placed below the edge (the spectrum needs at least 6 points there). Set one by typing its limits, or use the axis intercept.',

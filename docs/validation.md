@@ -732,17 +732,56 @@ crossing method gives 3.18, 3.15 and 3.14 eV for c = 0.05, 0.2 and 0.5 with an e
 the background adds to the absorption quantity and is linear in E across the edge; a background of
 another shape (for example scattering rising as λ⁻⁴ over a wide range) is only approximated.
 
+Source confirmed on 2026-11-14 (paper supplied by the owner and read in full): Makuła, Pacia and
+Macyk, J. Phys. Chem. Lett. 9 (2018) 6814–6817, doi:10.1021/acs.jpclett.8b02892.
+
+- The crossing as built is their "simplified procedure": a linear fit of the edge and a linear
+  fit of the slope below the fundamental absorption, with Eg at the intersection (Table 1,
+  column 3, Figure 4).
+- Their preferred method is to subtract the measured spectrum of the second component,
+  α_s = α − c·α_m (eq 4, Table 1, column 2). It is added below.
+- In their data the two methods differ by up to 0.08 eV (for example 3.18 against 3.26 eV),
+  with a stated margin of ±0.03 eV.
+- The plain axis intercept gave 2.13 to 3.08 eV, against 3.22 eV for bare TiO2.
+
+### Second component subtracted (Makuła et al. 2018, eq 4)
+
+Code: src/core/uvvis/tauc.ts (`componentFactor`, `componentGap`, `interpolateOnto`).
+Tests: tests/uvvis-component.test.ts.
+
+Synthetic model of their system:
+
+- The edge above, at 3.2 eV.
+- A dye band, 0.4·exp(−½((E − 2.9)/0.4)²), that absorbs across the edge.
+- The dye "measured alone" is 1/0.6 as strong, so c = 0.6.
+
+| Check                                                                   | Kind                      | Expected                              | Tolerance      |
+| ----------------------------------------------------------------------- | ------------------------- | ------------------------------------- | -------------- |
+| Direct and indirect, absorbance: c fitted, Eg                           | synthetic, known answer   | c = 0.6, 3.200 eV                     | 10⁻⁹; 0.002 eV |
+| Direct and indirect, Kubelka–Munk (dye and a 0.002 floor added to F(R)) | synthetic, known answer   | c = 0.6, 3.200 eV                     | 10⁻⁶; 0.002 eV |
+| The other three methods on the same spectrum                            | measured, recorded        | 2.368, 2.424, 2.396 eV (the dye edge) | error > 0.5 eV |
+| c typed as 0.6; c typed as 0.3 over the same edge region                | synthetic                 | 3.200 eV; below 3.19 eV               | 0.002; 0.01 eV |
+| c of S = 2M; c and σ(c) of S = (1, 3, 2, 5), M = (1, 1, 1, 2) by hand   | independent hand result   | 2, σ 0; 16/7, σ² = (119/49)/3/7       | 10⁻¹²          |
+| σ(Eg) from σ(c): 400 data sets, noise σ 0.003 only where c is fitted    | Monte Carlo (independent) | mean reported σ / scatter of Eg = 1   | ±15 %          |
+| Component 37 times stronger                                             | invariance                | c/37, same Eg                         | 10⁻⁹           |
+| Component on another grid (2 nm steps from 251 nm), interpolated        | invariance                | 3.200 eV                              | 0.002 eV       |
+| Interpolation of a straight line; points outside the data               | synthetic, known answer   | exact; NaN                            | exact          |
+| Component measured another way (reflectance against absorbance)         | guard                     | refused with a message                | exact          |
+| Version 3 session                                                       | round trip                | same settings, component null         | exact          |
+
+Robustness check added with it. With this curved background, the automatic baseline window of
+the straight-line subtraction used to move up into the edge, giving 4.049 eV. A move is now
+undone unless the corrected Tauc curve stays below 10 % of the edge between the window and the
+gap (`flatBelowGap`, my own threshold). Every earlier 19a check gives the same result.
+
 Open:
 
-- Makuła, Pacia and Macyk, J. Phys. Chem. Lett. 9 (2018) 6814–6817, doi:10.1021/acs.jpclett.8b02892
-  (details confirmed with Crossref and Europe PMC). The paper itself could not be opened in the
-  session (no open-access copy; the publisher's site was not reachable), so it is not yet confirmed
-  that the crossing method as built is the one the paper describes. **TODO for the owner:** check
-  the paper and either confirm the citation or correct it.
 - The σ of the plain axis intercept (unchanged since stage 8b) is about 1.27 times the scatter of
-  repeated noisy spectra when the noise is in A, because the noise of (A·E)² grows along the edge
-  and the fit is unweighted; the new methods inherit this. It errs on the safe side.
-- No real spectrum with a known gap was available; tests/fixtures-real/ has none for UV-Vis.
+  repeated noisy spectra when the noise is in A. The noise of (A·E)² grows along the edge and the
+  fit is unweighted, and the new methods inherit this. It is kept on purpose: unweighted least
+  squares is the usual Tauc practice, and it errs on the safe side.
+- No real spectrum with a known gap was available; tests/fixtures-real/ has none for UV-Vis. The
+  paper's spectra are not published as data, so its Table 1 cannot be reproduced here.
 
 ## 19a: other fixes (audit of 2026-11-14)
 

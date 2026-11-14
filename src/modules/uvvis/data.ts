@@ -51,6 +51,11 @@ export interface BandGapChoice {
    * as it was then, so the saved band gap does not change. Cleared when the user picks a method.
    */
   legacySuggestion?: true;
+  /**
+   * For the method 'subtract-component': the spectrum of the second component (a dye, modifier
+   * or support measured alone) and its scale factor c, or null to fit c below the edge.
+   */
+  component: { spectrumId: string; factor: number | null } | null;
 }
 
 export const DEFAULT_BAND_GAP: BandGapChoice = {
@@ -61,6 +66,7 @@ export const DEFAULT_BAND_GAP: BandGapChoice = {
   derivative: 'off',
   method: null,
   baselineRegion: null,
+  component: null,
 };
 
 /** Everything saved for a UV-Vis analysis. */
@@ -85,23 +91,39 @@ export const initialUvvisData: UvvisData = {
 };
 
 /** Version of the saved shape. Bump it, and extend migrateUvvisData, when the shape changes. */
-export const UVVIS_STATE_VERSION = 3;
+export const UVVIS_STATE_VERSION = 4;
 
 /**
  * Upgrades saved sessions: version 1 (sub-stage 8a) had no band gap settings; version 2 read Eg
- * only where the Tauc line meets the axis. A version 2 spectrum keeps that method and the old way
- * of suggesting the edge region, so its band gap stays the same until the user changes it.
+ * only where the Tauc line meets the axis; version 3 had no second-component subtraction. A
+ * version 2 spectrum keeps that method and the old way of suggesting the edge region, so its band
+ * gap stays the same until the user changes it.
  */
 export function migrateUvvisData(
   saved: unknown,
   version: number,
 ): WizardState<UvvisData> | undefined {
-  if (version !== 1 && version !== 2) return undefined;
+  if (version !== 1 && version !== 2 && version !== 3) return undefined;
   const state = saved as WizardState<Partial<UvvisData> & Pick<UvvisData, 'spectra' | 'plot'>>;
   if (!state || typeof state !== 'object' || !state.data) return undefined;
   if (version === 1) return { ...state, data: { ...initialUvvisData, ...state.data, bandGap: {} } };
-  const old = (state.data.bandGap ?? {}) as Record<string, Omit<BandGapChoice, 'method'>>;
+  const old = (state.data.bandGap ?? {}) as Record<
+    string,
+    Omit<BandGapChoice, 'method' | 'baselineRegion' | 'component'> &
+      Partial<Pick<BandGapChoice, 'method' | 'baselineRegion'>>
+  >;
   const bandGap: Record<string, BandGapChoice> = {};
+  if (version === 3) {
+    for (const [id, choice] of Object.entries(old)) {
+      bandGap[id] = {
+        ...choice,
+        method: choice.method ?? null,
+        baselineRegion: choice.baselineRegion ?? null,
+        component: null,
+      };
+    }
+    return { ...state, data: { ...initialUvvisData, ...state.data, bandGap } };
+  }
   // Spectra without saved settings used the defaults, which are made explicit here.
   for (const spectrum of state.data.spectra ?? []) {
     const choice = old[spectrum.id] ?? DEFAULT_BAND_GAP;
@@ -109,6 +131,7 @@ export function migrateUvvisData(
       ...choice,
       method: 'axis',
       baselineRegion: null,
+      component: null,
       legacySuggestion: true,
     };
   }

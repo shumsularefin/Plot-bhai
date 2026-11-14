@@ -1,7 +1,7 @@
 import { SOFTWARE } from '../../ui/software';
 import { uvvisMethodsParagraph, type UvvisMethodsInput } from '../../core/uvvis/methods';
 import { DEFAULT_CLEANING } from '../../core/uvvis/process';
-import { resultRows } from './analysis';
+import { baselineUsed, resultRows } from './analysis';
 import type { UvvisData } from './data';
 
 /** The settings that went into the analysis, read from the saved session. */
@@ -28,7 +28,15 @@ export function methodsInput(data: UvvisData): UvvisMethodsInput {
         transition: choice.transition,
         fitted: analysis.fit !== null,
         gapMethod: analysis.method,
-        baselineEv: analysis.method === 'axis' ? null : analysis.baselineRegion,
+        baselineEv: baselineUsed(analysis),
+        component:
+          analysis.component && analysis.componentFactor
+            ? {
+                name: analysis.component.name,
+                factor: analysis.componentFactor.value,
+                fitted: analysis.componentFactor.n > 0,
+              }
+            : null,
         thicknessNm: choice.thicknessNm,
         urbach: choice.urbach.enabled && analysis.urbach?.fit != null,
         derivative: analysis.derivative ? choice.derivative : 'off',

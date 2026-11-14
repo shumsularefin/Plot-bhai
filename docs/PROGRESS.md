@@ -42,11 +42,35 @@ Branch `claude/charming-wozniak-qix1hp`. No new packages. Checks in docs/validat
 - **Verification:** lint clean, type check clean (app and tests), 1518 tests pass (132 files),
   production build OK, bundle size within budget, e2e passed. Screens checked at 360 and 1280 px
   (no sideways scroll).
-- **Known issues:** the Makuła paper could not be opened (no open copy; publisher not reachable),
-  so its citation is TODO for the owner in docs/validation.md. The "all four transitions" table
-  still compares axis intercepts over each type's uncorrected suggestion. The plain axis σ is
-  about 1.27 × the real scatter when the noise is in A (unweighted fit, unchanged since 8b).
-  Subtraction assumes a background linear in E across the edge.
+- **Follow-up in the same pull request.** On 2026-11-14 the owner asked for the open items to be
+  settled in whatever way suits researchers best, following the published literature. Done:
+  - The owner supplied the Makuła paper, read in full. The crossing as built is their
+    "simplified procedure" (Table 1, column 3, Figure 4). Citation confirmed, TODO removed.
+  - Their most accurate method (column 2) is added as a fourth way to read Eg: "Spectrum of a
+    second component subtracted first", α_s = α − c·α_m (their eq 4). The user picks another
+    loaded spectrum: the dye, modifier or support measured alone, measured the same way (both
+    F(R), or both absorbance). c is fitted by least squares through the origin over the sub-gap
+    region (my own choice, so the concentration is not needed), or typed. σ(c) is carried into
+    σ(Eg). The component is interpolated onto the sample's energy grid, never extrapolated, and
+    this method is never chosen automatically. On a synthetic dye band across the edge it gives
+    3.200 eV, where the other three methods read the dye edge (2.37 to 2.42 eV), as in the
+    paper's column 1.
+  - Robustness fix found while testing it: with a curved background, the automatic baseline
+    window could creep up into the edge (straight-line subtraction gave 4.05 eV for a 3.20 eV
+    gap). A move of the window is now undone when the corrected Tauc curve is not flat (below
+    10 % of the edge) between the window and the gap it gives (`flatBelowGap`, my own
+    threshold). Earlier 19a results are unchanged.
+  - The "all four transitions" table now reads every transition with the same method settings
+    as the chosen one (new column "Eg read from").
+  - UV-Vis state version 4 adds `component`, which is null for older sessions. The results
+    table and CSV ("Second component", "Factor c" and its uncertainty), the methods text and the
+    record name it.
+  - Decision: the axis σ (unweighted least squares, the usual Tauc practice) stays as it is. It
+    is about 1.27 × the scatter when the noise is in A, which errs on the safe side; a weighted
+    fit would need a noise model the data do not give.
+- **Known issues:** subtracting a straight baseline assumes a background that is linear in E
+  across the edge; for a curved one, use the component subtraction. tests/fixtures-real/ has no
+  real UV-Vis spectrum with a known gap.
 - **Next:** 19b, validation of the three tools.
 
 ## Stage 17i: Bérar–Lelann correction of the standard uncertainties (done, roadmap item 11)
