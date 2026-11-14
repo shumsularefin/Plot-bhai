@@ -99,6 +99,8 @@ jobs:
           python -m pip install numpy==2.5.4 scipy==1.18.1 lmfit==1.3.4 pybaselines==1.2.1 scikit-image==0.26.0
       - name: UV-Vis references (scipy, lmfit)
         run: python -I scripts/validation/spectra/uvvis.py tests/fixtures/validation
+      - name: UV-Vis references for the real TiO2 files (scipy)
+        run: python -I scripts/validation/spectra/uvvis_real.py tests/fixtures-real/uvvis tests/fixtures/validation
       - name: FTIR references (scipy, pybaselines, lmfit)
         run: python -I scripts/validation/spectra/ftir.py tests/fixtures/validation
       - name: Particle references (scikit-image, scipy) and the test image

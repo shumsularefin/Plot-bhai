@@ -50,6 +50,23 @@ Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs
 - **Verification:** lint clean, type check clean (app and tests), 1575 tests pass and 3 are
   skipped (the ImageJ ones, waiting for the workflow), 136 files. Production build OK, bundle size
   within budget, e2e passed.
+- **Follow-up in the same pull request (2026-11-14).**
+  - Real UV-Vis files: two TiO₂ diffuse reflectance spectra (200 and 300 °C) from Zenodo
+    10.5281/zenodo.14608640, CC BY 4.0, in tests/fixtures-real/uvvis/ with their source. The
+    record gives no band gap and no openly readable paper with one was found, so they check the
+    reader and the Tauc arithmetic against scripts/validation/spectra/uvvis_real.py
+    (tests/validation-uvvis-real.test.ts), not a published value. tests/realFiles.test.ts now
+    reads only the XRD files at the top of the folder.
+  - Fault found with them and fixed: the suggested Tauc region took the straight, slow rise above
+    the edge where F(R) saturates (4.6–5.4 eV: 3.72 eV direct, no indirect gap). A chosen line
+    that meets y = 0 above the steepest part of the edge, or at or below zero, now makes the
+    region be chosen again among windows that overlap that part. No synthetic result changes.
+    Still open: the 300 °C indirect suggestion after baseline subtraction, and the general case
+    (both in docs/validation.md, 19b Open).
+  - CLAUDE.md section 10 now records the owner's standing instruction to decide by published
+    practice without waiting, with unverifiable data still left as TODO.
+  - Verification: lint clean, type check clean, 1588 tests pass, 3 skipped (ImageJ) and 1 todo
+    (137 files), production build OK, bundle size within budget, e2e passed.
 - **Next:** 19c, FTIR peaks: editing, table, comparison across samples.
 
 ## Stage 19a: four bugs found by the audit of UV-Vis and FTIR (done)

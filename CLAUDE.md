@@ -113,6 +113,7 @@ Magnetic structures and neutron or synchrotron-specific models (the basic Rietve
 - Before saying a stage is done, run lint, type check, tests and the production build, and report the real results, including failures.
 - At the end of each stage update docs/PROGRESS.md with what was built, decisions made, known issues and the next stage.
 - If a requirement is unclear or cannot be verified, ask me instead of guessing.
+- Owner, November 2026: for choices of method or behaviour, do not wait for my decision. Follow what the published literature and research-industry practice recommend, within the Firebase Spark plan, and record the choice and its source in docs/PROGRESS.md. This does not cover scientific data that cannot be verified: those stay TODO, as section 2 says.
 - Prefer simple, readable code over clever code. No dead code, no unused dependencies.
 
 ## 11. Starting a session

@@ -18,3 +18,16 @@ SHA-256 hashes of the first five files match geddes's `tests/data/formats/manife
 licence texts are in `tests/real-references/`. geddes: https://github.com/jcwang587/geddes;
 FAIRmat readers-xrd: https://github.com/FAIRmat-NFDI/readers-xrd; cheminfo:
 https://github.com/cheminfo/xrd-analysis.
+
+## UV-Vis (`uvvis/`)
+
+Checked by `tests/validation-uvvis-real.test.ts` against `scripts/validation/spectra/uvvis_real.py`.
+
+| File                              | Points | Source                                                                                                                                                                          | Licence   |
+| --------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| `DRS_TiO2_annealed_at_200_oC.csv` | 325    | Zenodo 10.5281/zenodo.14608640, P. Kuzhir, H. Maltanava and N. Belko (2025), "Diffuse reflectance spectra for titanium dioxide, graphitic carbon nitride, and their composites" | CC BY 4.0 |
+| `DRS_TiO2_annealed_at_300_oC.csv` | 325    | as above                                                                                                                                                                        | CC BY 4.0 |
+
+Wavelength in nm and diffuse reflectance in %, unchanged from the record (MD5 2ad94a2d3ba46de4a9c9335caaaffde8
+and 639fb40f71c45147d8b73b7f28fa374f, as Zenodo lists them). Licence:
+https://creativecommons.org/licenses/by/4.0/. The record gives no band gap.

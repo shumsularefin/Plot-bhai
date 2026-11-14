@@ -974,9 +974,41 @@ Definitions that differ between programs:
 
 ### Real files
 
-tests/fixtures-real/ holds only XRD files: Bruker .raw and .brml, Rigaku .rasx. There is none for
-the three tools. Each is listed under Open with the file needed and, for the same file, the numbers
-the instrument software gives.
+tests/fixtures-real/ holds XRD files (Bruker .raw and .brml, Rigaku .rasx) and, since 19b, two
+real UV-Vis files in tests/fixtures-real/uvvis/: diffuse reflectance of TiO₂ annealed at 200 and
+300 °C, 208 to 848 nm in 2 nm steps, from Zenodo record 10.5281/zenodo.14608640 (Kuzhir,
+Maltanava and Belko, 2025, CC BY 4.0). No published band gap goes with them: the record gives
+none, and the one Zenodo dataset found with a paper (Fe₂O₃–TiO₂, doi:10.1016/j.cattod.2022.02.005)
+links to a closed-access article. So the files check the reader and the arithmetic on real data,
+against scripts/validation/spectra/uvvis_real.py (tests/validation-uvvis-real.test.ts):
+
+| Check                                           | Reference                     | Tolerance      |
+| ----------------------------------------------- | ----------------------------- | -------------- |
+| Reading: 325 points, semicolons, decimal commas | plain Python reader           | exact          |
+| F(R) = (1 − R)² / 2R                            | NumPy                         | 1e-12 relative |
+| Direct Tauc line, 3.25–3.60 eV: Eg and σ(Eg)    | scipy curve_fit, delta method | 1e-8 eV; 1e-6  |
+| Indirect Tauc line, 3.10–3.30 eV: Eg and σ(Eg)  | scipy curve_fit, delta method | 1e-8 eV; 1e-6  |
+| Row order reversed; % and fraction              | invariance                    | 1e-12 eV       |
+| Suggested direct region on the edge             | the fixed-window gap          | 0.04 eV        |
+
+With those windows: direct 3.231 ± 0.006 eV (200 °C) and 3.217 ± 0.005 eV (300 °C); indirect
+2.884 ± 0.003 eV and 2.872 ± 0.002 eV. The windows were chosen by eye on the steep part of the
+edge; they are not a published analysis.
+
+Fault found with these files and fixed. The suggested Tauc region picked the slow, straight rise
+above the edge, where F(R) saturates at low reflectance (4.6 to 5.4 eV, giving 3.72 eV for the
+direct plot and no gap at all for the indirect one). suggestRegion now checks the chosen line:
+when it meets y = 0 above the steepest part of the edge, or at or below zero, the region is chosen
+again among the windows that overlap that steepest part. A region chosen on the edge is not
+changed, so every synthetic result above and in 19a is unchanged. Suggested now: direct 3.221 and
+3.249 eV, indirect 2.885 eV (200 °C).
+
+The files have no header, so the site guesses transmittance and the user chooses reflectance, as
+for any file without one. There is a small step in R at 690 nm (a lamp or detector change in the
+instrument), well below the edge.
+
+FTIR and particle files: none yet. Each is listed under Open with the file needed and, for the same
+file, the numbers the instrument software gives.
 
 ### FTIR group table
 
@@ -1018,6 +1050,8 @@ itself, not from other values:
   or the original data each pass, should be checked in the paper (Appl. Spectrosc. 57,
   1363–1367). pybaselines' description and the earlier "checked against the paper" note do not
   agree.
-- Real UV-Vis file wanted: a film or powder spectrum (.csv or .txt export) with the Eg that the instrument or Origin gives for a stated Tauc region.
+- Real UV-Vis file with a published or software band gap: still wanted. The TiO₂ files above have none. Wanted: a film or powder spectrum (.csv or .txt export) and the Eg that the instrument or Origin gives for a stated Tauc region.
+- Suggested Tauc region, indirect plot of the 300 °C TiO₂ file: after the sub-gap baseline is subtracted the suggestion lies on the foot of the edge (2.78 to 2.88 eV, Eg 2.69 eV, against 2.87 eV over 3.10 to 3.30 eV). The user can move it; the test is marked todo.
+- Suggested Tauc region, general case: a long straight stretch above the edge whose line meets the axis below the edge still wins (a piecewise-linear test curve gave 0.40 eV for a 3.20 eV edge). The guard above covers the saturated diffuse reflectance seen in real files, not this. A general rule would change the 19a synthetic results, so it needs a published automatic method to follow; none has been checked yet.
 - Real FTIR file wanted: a JCAMP-DX (.jdx) export and the peak table the instrument software (OMNIC, OPUS or Spectrum) prints for it, with its threshold.
 - Real particle image wanted: an SEM or TEM image with a scale bar and the ImageJ Analyze Particles table (Area, Feret, MinFeret, Perim.) for a stated threshold.

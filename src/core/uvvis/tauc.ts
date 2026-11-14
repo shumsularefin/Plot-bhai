@@ -168,12 +168,28 @@ const MINIMUM_STRAIGHT = 0.98;
  * is chosen, the uncertainty of its fit is somewhat too small. If no window is that straight,
  * the threshold falls to 0.98, and then to the best R². Windows lying on the flat baseline (top
  * of the window below 5 % of the highest value) are ignored. A suggestion only: the user can change the limits.
+ *
+ * Guard for spectra that flatten above the edge (found on a real TiO₂ diffuse reflectance file,
+ * tests/fixtures-real/uvvis/, 2026-11-14): there F(R) saturates and the slow rise above the edge
+ * is straighter and wider than the edge itself, so the rule above picked 4.6–5.4 eV for a gap
+ * near 3.2 eV. The steepest part of the edge is the narrowest window with the largest relative
+ * rise, slope / (highest value in the window). When the chosen window lies wholly above it, the
+ * choice is made again among the windows that overlap it. Windows chosen on the edge are left as
+ * they were, so earlier results do not change.
  * Returns [fromEv, toEv], or null when no window has a rising line.
  */
 export function suggestRegion(energyEv: Float64Array, y: Float64Array): [number, number] | null {
   const { xs, ys } = inWindow(energyEv, y, -Infinity, Infinity);
   const top = ys.reduce((m, v) => Math.max(m, v), 0);
-  const candidates: { from: number; to: number; target: number; slope: number; r2: number }[] = [];
+  const candidates: {
+    from: number;
+    to: number;
+    target: number;
+    slope: number;
+    intercept: number;
+    steepness: number;
+    r2: number;
+  }[] = [];
   for (const span of SPANS) {
     let end = 0;
     for (let start = 0; start < xs.length; start++) {
@@ -189,21 +205,39 @@ export function suggestRegion(energyEv: Float64Array, y: Float64Array): [number,
         to: xs[end] as number,
         target: span,
         slope: fit.slope,
+        intercept: fit.intercept,
+        steepness: fit.slope / Math.max(...wy),
         r2: fit.rSquared,
       });
     }
   }
   if (candidates.length === 0) return null;
+  const chosen = straightestWidest(candidates);
+  const narrowest = candidates.filter(
+    (c) => c.target === candidates[0]?.target && c.r2 >= MINIMUM_STRAIGHT,
+  );
+  if (narrowest.length === 0) return [chosen.from, chosen.to];
+  const steepest = narrowest.reduce((a, b) => (b.steepness > a.steepness ? b : a));
+  // The chosen line meets y = 0 at its gap. A gap above the steepest rise contradicts the data,
+  // and a gap at or below zero is no gap at all.
+  const gap = -chosen.intercept / chosen.slope;
+  if (gap > 0 && gap <= steepest.to) return [chosen.from, chosen.to];
+  const best = straightestWidest(
+    candidates.filter((c) => c.from <= steepest.to && c.to >= steepest.from),
+  );
+  return [best.from, best.to];
+}
+
+/** The widest window with R² ≥ 0.995 (else 0.98), the straightest among those; else the straightest. */
+function straightestWidest<T extends { target: number; r2: number }>(candidates: T[]): T {
   for (const threshold of [STRAIGHT, MINIMUM_STRAIGHT]) {
     const good = candidates.filter((c) => c.r2 >= threshold);
     if (good.length > 0) {
       const widest = Math.max(...good.map((c) => c.target));
-      const best = good.filter((c) => c.target === widest).reduce((a, b) => (b.r2 > a.r2 ? b : a));
-      return [best.from, best.to];
+      return good.filter((c) => c.target === widest).reduce((a, b) => (b.r2 > a.r2 ? b : a));
     }
   }
-  const best = candidates.reduce((a, b) => (b.r2 > a.r2 ? b : a));
-  return [best.from, best.to];
+  return candidates.reduce((a, b) => (b.r2 > a.r2 ? b : a));
 }
 
 /*

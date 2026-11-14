@@ -1,0 +1,77 @@
+{
+ "source": "numpy 2.5.4, scipy 1.18.1; scripts/validation/spectra/uvvis_real.py; data: Zenodo 10.5281/zenodo.14608640 (CC BY 4.0)",
+ "files": {
+  "DRS_TiO2_annealed_at_200_oC.csv": {
+   "md5": "2ad94a2d3ba46de4a9c9335caaaffde8",
+   "points": 325,
+   "wavelengthRangeNm": [
+    200.0,
+    848.0
+   ],
+   "kubelkaMunk": {
+    "0": 0.15512337139390375,
+    "100": 0.15040937277587726,
+    "200": 0.1818859984664592,
+    "300": 4.551574916811884
+   },
+   "fits": {
+    "direct": {
+     "exponent": 2.0,
+     "window": [
+      3.25,
+      3.6
+     ],
+     "n": 18,
+     "egEv": 3.231272603882969,
+     "egSigma": 0.005694831397331423
+    },
+    "indirect": {
+     "exponent": 0.5,
+     "window": [
+      3.1,
+      3.3
+     ],
+     "n": 12,
+     "egEv": 2.8842683643496385,
+     "egSigma": 0.0029537380265488933
+    }
+   }
+  },
+  "DRS_TiO2_annealed_at_300_oC.csv": {
+   "md5": "639fb40f71c45147d8b73b7f28fa374f",
+   "points": 325,
+   "wavelengthRangeNm": [
+    200.0,
+    848.0
+   ],
+   "kubelkaMunk": {
+    "0": 0.14829764752362765,
+    "100": 0.15542767780440306,
+    "200": 0.19672131923746403,
+    "300": 4.809861003520799
+   },
+   "fits": {
+    "direct": {
+     "exponent": 2.0,
+     "window": [
+      3.25,
+      3.6
+     ],
+     "n": 18,
+     "egEv": 3.216719776144626,
+     "egSigma": 0.005072373724544714
+    },
+    "indirect": {
+     "exponent": 0.5,
+     "window": [
+      3.1,
+      3.3
+     ],
+     "n": 12,
+     "egEv": 2.872416762418971,
+     "egSigma": 0.002302955034502375
+    }
+   }
+  }
+ }
+}
