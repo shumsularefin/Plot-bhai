@@ -20,6 +20,7 @@ export type SourceFormat =
   | 'rasx'
   | 'brml'
   | 'raw'
+  | 'cif'
   | 'pasted'
   | 'synthetic'
   | 'digitized';
