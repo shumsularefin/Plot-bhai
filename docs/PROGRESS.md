@@ -1,5 +1,34 @@
 # Progress
 
+## Stage 20: open items of 17a to 17i (done, owner request November 2026)
+
+Branch `claude/trusting-faraday-1pfp92`. No new packages (periodictable, mendeleev and xraylib are
+used only by scripts/validation/tables/make_tables.py to write a fixture). Checks in
+docs/validation.md, section 20.
+
+- **Bérar–Lelann switch:** Step 5, Advanced, "Apply the Bérar–Lelann factor to the ±" multiplies
+  every s.u. (and the covariance behind the bond s.u.) by the factor; off by default. The stats line
+  and the methods text say whether it was applied.
+- **Rescaled intensities:** `countingNoiseRatio` (statistics.ts) estimates variance / intensity
+  from fourth differences; a refinement warns when it is above 2 or below 0.5 (counts per second,
+  averaged or smoothed data), because R_exp, χ², the s.u. and the factor then mislead.
+- **Series:** the atoms refined on one pattern are copied to the next together with the cell; the
+  series plot draws ± 1 s.u. error bars (`PlotMarker.error`).
+- **Labels:** the three Step 5 selects whose help button wrapped onto its own line keep label and
+  button together; two inputs without an accessible name got one.
+- **Checks:** covalent radii and wavelengths against periodictable, mendeleev and xraylib;
+  bvparm2020.cif identical to the copies in VESTA and pparBVM; the capillary absorption formula
+  against the cylinder integral (1.1 % for μR up to 8); GSAS-II's capillary fit now reaches the
+  noise (its 10 µm size limit had added width in the script).
+- **Tracker:** rows "17" and "18" renumbered 18 and 19; validation.md sections follow.
+- **Decisions:** Kα2 stays at the exact Bragg angle; the factor is not applied by default; texture
+  stays cylindrical only.
+- **Known issues / needs the owner:** the IUCr copy of bvparm2020 (download refused); approval of
+  the oxidation-state suggestion and the 10 % note; measured patterns with known answers for 17d
+  to 17h; Bruker .raw versions 1 to 3 and multi-scan files. The differences found in GSAS-II and
+  pymatgen are theirs and stay documented.
+- **Next:** nothing scheduled; the owner decides.
+
 ## Stage 17i: Bérar–Lelann correction of the standard uncertainties (done, roadmap item 11)
 
 Branch `claude/sleepy-turing-hb1ofu`. No new packages. Checks in docs/validation.md, 17i.
@@ -318,7 +347,7 @@ Built:
   (scripts/validation/gsas2/index_cells.py and indexing.py, tests/xrd-indexing.test.ts).
 - `refinedStructure` moved from the Export step's component to src/core/xrd/export/gsas.ts, so
   the test writes the same CIF as the site.
-- docs/validation.md section 18 lists the checks and what is still open.
+- docs/validation.md section 19 lists the checks and what is still open.
 
 Decisions:
 
