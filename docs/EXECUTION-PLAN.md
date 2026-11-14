@@ -57,6 +57,13 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 17i       | Rietveld: Bérar–Lelann correction of the s.u.                    | done    |
 | 17        | Review fixes: example data, readability, validation page, report | done    |
 | 18        | Open validation items checked with Fityk and GSAS-II             | done    |
+| 19a       | UV-Vis, FTIR: four audit bugs (docs/STAGE-19-PROMPTS.md)         | todo    |
+| 19b       | Validation of UV-Vis, FTIR and particles, three ways             | todo    |
+| 19c       | FTIR peaks: editing, table, comparison across samples            | todo    |
+| 19d       | FTIR processing, reflectance data, wider group table             | todo    |
+| 19e       | UV-Vis: peak table, path length, figures, gap methods            | todo    |
+| 19f       | Particles: session file, report, statistics                      | todo    |
+| 19g       | Binary FTIR and UV-Vis instrument files (needs real files)       | todo    |
 
 ## The one prompt you paste in every new session
 
@@ -610,3 +617,12 @@ list are in docs/rietveld-roadmap.md. Every sub-stage adds a GSAS-II case to
 - **17i (done)** Bérar–Lelann factor for the standard uncertainties of a refinement whose
   residuals are serially correlated, shown beside the Durbin–Watson d and in the methods text;
   checked by hand, against an independent Python implementation and by point duplication.
+
+---
+
+## 16. Stage 19: UV-Vis, FTIR and particle size, audit fixes and completion (November 2026)
+
+An audit of the three tools on 2026-11-14 found four bugs, no validation record for these tools, and
+a list of missing features. The prompts for sub-stages 19a to 19g are in `docs/STAGE-19-PROMPTS.md`.
+Use Opus 5.5 for these sessions. Start each with the guardrail block and the line
+`Sub-stage 19x: do it exactly as written in docs/STAGE-19-PROMPTS.md.`
