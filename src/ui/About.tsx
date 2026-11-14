@@ -1,4 +1,5 @@
 import { CreditsText } from './Credits';
+import { DOI, VERSION } from './software';
 import './about.css';
 
 /** One equation with a plain-language reading. Static text, so no maths renderer is needed. */
@@ -23,6 +24,22 @@ export default function About() {
       <section aria-labelledby="about-credits">
         <h2 id="about-credits">Credits</h2>
         <CreditsText />
+      </section>
+
+      <section aria-labelledby="about-cite">
+        <h2 id="about-cite">How to cite</h2>
+        <p>
+          Arefin, S. (2026). Plot Bhai: a client-side wizard for XRD, UV-Vis, FTIR, particle size
+          and thermal analysis (Version {VERSION}) [Computer software]. Zenodo.{' '}
+          <a href={`https://doi.org/${DOI}`} target="_blank" rel="noopener noreferrer">
+            https://doi.org/{DOI}
+          </a>
+        </p>
+        <p>
+          The DOI always points to the latest version; the methods text of every tool names the
+          version you used. Please also cite the original paper or COD entry of every reference
+          pattern you used.
+        </p>
       </section>
 
       <section aria-labelledby="about-privacy">
