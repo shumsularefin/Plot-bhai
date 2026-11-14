@@ -2,6 +2,7 @@ import { useRef, useState } from 'preact/hooks';
 import { readInstprm } from '../../core/xrd/export/gsas';
 import type { InstrumentProfile, RietveldResult } from '../../core/xrd/rietveld/refine';
 import type { ReferencePhase } from '../../core/xrd/reference/types';
+import { CAPILLARY_MAX_MU_R } from '../../core/xrd/rietveld/sample';
 import { Advanced } from '../../ui/Advanced';
 import { HelpTip } from '../../ui/HelpTip';
 import { DEFAULT_OPTICS, type MonochromatorChoice, type RietveldState } from './data';
@@ -192,7 +193,7 @@ export function RietveldSetup({ settings, set, phases, lambda, result, patternNa
             label="μR (absorption × radius)"
             value={optics.muR ?? 0}
             min={0}
-            max={20}
+            max={CAPILLARY_MAX_MU_R}
             onChange={(v) => v !== null && set({ optics: { ...optics, muR: v } })}
           />
         )}
@@ -200,7 +201,8 @@ export function RietveldSetup({ settings, set, phases, lambda, result, patternNa
           <p class="field-hint">
             μR = μ·ρ_packing·R: μ the linear absorption coefficient of the compact material at this
             wavelength, ρ_packing the fraction of the capillary filled (often 0.4 to 0.6), R the
-            inner radius. Tick “Capillary absorption μR” under “What to refine” to refine it.
+            inner radius. Tick “Capillary absorption μR” under “What to refine” to refine it. The
+            absorption formula is valid up to μR = {CAPILLARY_MAX_MU_R}.
           </p>
         )}
       </fieldset>

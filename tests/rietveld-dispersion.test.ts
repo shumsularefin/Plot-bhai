@@ -7,7 +7,7 @@ import type { ReferenceFamilyFile, ReferencePhase } from '../src/core/xrd/refere
 import { applySymop } from '../src/core/xrd/structure/geometry';
 import { dispersionFor, type DispersionFile } from '../src/core/xrd/rietveld/dispersion';
 import type { Hkl } from '../src/core/xrd/rietveld/reflections';
-import { cylinderAbsorption } from '../src/core/xrd/rietveld/sample';
+import { CAPILLARY_MAX_MU_R, cylinderAbsorption } from '../src/core/xrd/rietveld/sample';
 import {
   structureFactorSquared,
   structureModel,
@@ -228,14 +228,72 @@ describe('capillary absorption formula against the absorption integral', () => {
     }
   });
 
-  it('agrees within 1.1 % for μR from 0.1 to 8 and 2θ from 10° to 150°', () => {
+  it('agrees within 1.4 % for μR from 0.1 to 10 and 2θ from 10° to 170°', () => {
     let worst = 0;
-    for (const m of [0.1, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 5, 8])
-      for (const t of [10, 30, 60, 90, 120, 150]) {
+    for (const m of [0.1, 0.5, 1, 1.5, 2, 2.5, 2.9, 3, 3.1, 3.5, 5, 8, 10])
+      for (const t of [10, 30, 60, 90, 120, 150, 170]) {
         const exact = cylinderIntegral(m, (t / 2) * RAD, 600);
         worst = Math.max(worst, Math.abs(cylinderAbsorption(m, (t / 2) * RAD) / exact - 1));
       }
-    expect(worst).toBeLessThan(0.011);
+    expect(worst).toBeLessThan(0.014);
     expect(worst).toBeGreaterThan(0.005); // a fitted formula, not the integral itself
+  });
+
+  it('fails above μR = 10, the limit the GSAS manual gives, so the site stops there', () => {
+    expect(CAPILLARY_MAX_MU_R).toBe(10);
+    const error = (m: number) =>
+      Math.abs(cylinderAbsorption(m, 5 * RAD) / cylinderIntegral(m, 5 * RAD, 1200) - 1);
+    expect(error(12)).toBeGreaterThan(0.04);
+    expect(error(15)).toBeGreaterThan(0.12);
+  });
+});
+
+/*
+ * The coefficients as printed by A. C. Larson and R. B. Von Dreele, GSAS Technical Manual (2004),
+ * pp. 134–135 (k0 to k7, functions of sin Θ), typed from the pages the owner supplied. Only k1
+ * differs from GSAS-II's (0.024514 and 26.0456 against 0.024551 and 26.04556); the manual's second
+ * branch gives A in per cent.
+ */
+function manualAbsorption(muR: number, theta: number): number {
+  const s = Math.sin(theta);
+  if (muR < 3) {
+    const k0 = 1.697653;
+    const k1 =
+      (25.99978 - 0.01911 * s ** 0.5) * Math.exp(-0.024514 * s ** 2) + 0.109561 * s - 26.0456;
+    const k2 =
+      -0.02489 -
+      0.39499 * s ** 2 +
+      1.219077 * s ** 3 -
+      1.31268 * s ** 4 +
+      0.871081 * s ** 5 -
+      0.2327 * s ** 6;
+    const k3 = 0.003045 + 0.018167 * s ** 2 - 0.03305 * s ** 4;
+    return Math.exp(-k0 * muR - k1 * muR ** 2 - k2 * muR ** 3 - k3 * muR ** 4);
+  }
+  const k4 = 1.433902 + 11.07504 * s ** 2 - 8.77629 * s ** 4 + 10.02088 * s ** 6 - 3.36778 * s ** 8;
+  const k5 =
+    (0.013869 - 0.01249 * s ** 2) * Math.exp(3.27094 * s ** 2) +
+    (0.337894 + 13.77317 * s ** 2) / (1 + 11.53544 * s ** 2) ** 1.555039;
+  const k6 = 1.933433 / (1 + 23.12967 * s ** 2) ** 1.686715 - 0.13576 * s + 1.163198;
+  const k7 = 0.044365 - 0.04259 / (1 + 0.41051 * s ** 2) ** 148.4202;
+  return ((k4 - k7) / (1 + k5 * (muR - 3)) ** k6 + k7) / 100;
+}
+
+describe('capillary absorption formula against the GSAS Technical Manual', () => {
+  const angles = [5, 15, 30, 45, 60, 75, 85].map((t) => t * RAD);
+
+  it('is the manual formula exactly above μR = 3', () => {
+    for (const m of [3.5, 5, 8, 10])
+      for (const t of angles)
+        expect(cylinderAbsorption(m, t) / manualAbsorption(m, t) - 1).toBeCloseTo(0, 12);
+  });
+
+  it('differs below μR = 3 only by the k1 coefficients, by at most 0.8 %', () => {
+    let worst = 0;
+    for (const m of [0.5, 1, 2, 2.9])
+      for (const t of angles)
+        worst = Math.max(worst, Math.abs(cylinderAbsorption(m, t) / manualAbsorption(m, t) - 1));
+    expect(worst).toBeGreaterThan(1e-5);
+    expect(worst).toBeLessThan(0.008);
   });
 });
