@@ -1,5 +1,57 @@
 # Progress
 
+## Stage 19b: validation of the UV-Vis, FTIR and Particles tools (done)
+
+Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md, 19b.
+
+- **Inventory.** Every numerical method of the three tools is listed with its tests and its three
+  kinds of check (synthetic, independent, invariance). Methods with no independent check are
+  marked and explained.
+- **Independent references, new scripts.** All run in the new `spectra-particles` job of
+  .github/workflows/validation.yml and write fixtures to tests/fixtures/validation/:
+  - scripts/validation/spectra/uvvis.py (SciPy, lmfit): Tauc fit with σ(Eg) by the delta method,
+    Urbach, derivative maximum, savgol_filter, Beer–Lambert, kinetics, plasmon band.
+  - scripts/validation/spectra/ftir.py (SciPy, pybaselines, lmfit): find_peaks and
+    peak_prominences, second derivative, trapezoid band area, lstsq subtraction factor, AsLS,
+    arPLS, modpoly, Qhull rubber band, a two-band fit.
+  - scripts/validation/particles/make_particles.py (scikit-image, SciPy, NumPy): a test image of
+    14 known ellipses, thresholds, label and regionprops, percentiles, bins, normal and lognormal
+    fits.
+  - scripts/validation/particles/ImageJCheck.java (ImageJ 1.54f from Maven Central, SHA-256
+    pinned): Auto Threshold and Analyze Particles on the same image.
+- **Python packages** (CI only, not in the app): numpy, scipy, lmfit, pybaselines, scikit-image,
+  pinned in the workflow.
+- **New tests.** tests/validation-uvvis.test.ts, tests/validation-ftir.test.ts and
+  tests/validation-particles.test.ts. Round trips and invariances: %T↔A, λ↔E, reversed point
+  order, a scaled signal (Tauc and Urbach), the same spectrum given as %T, a constant offset and a
+  scaled FTIR spectrum, a known amount of reference, ATR dp ∝ 1/ν̃, a particle image turned 90°,
+  mirrored, flipped and enlarged ×2, and pooled images in either order.
+- **Fault found and fixed.** arPLS (src/core/math/whittaker.ts) took the standard deviation of the
+  negative residuals with divisor n; pybaselines uses n − 1. Baselines moved by up to 0.015 %;
+  now equal to pybaselines to 10⁻⁹. It is used by the FTIR and XRD baselines; every earlier test
+  still passes.
+- **Recorded, not changed:**
+  - The modified polyfit clips the already clipped data each pass. pybaselines calls this the Gan
+    et al. form and attributes clipping the original data to Lieber. The code comment now says
+    so, and the paper is listed as open.
+  - Pixel perimeters do not double when an image is enlarged: a two-pixel staircase is cut at
+    the same corners, up to 1.207 × for 45° edges. The site never enlarges; its working copy is
+    made by averaging.
+- **FTIR group table.** Still one review article, flagged for the owner. The record lists the rows
+  to compare with a textbook: two zero-width ranges, four very wide ones, a duplicated range, an
+  odd "amide III (2° amines)" label, and the metal-oxide band positions.
+- **Open:**
+  - The ImageJ comparison runs in the workflow: running the downloaded jar in the container was
+    not allowed. Its three tests are skipped until particles-imagej.json is committed.
+  - No published ATR depth table could be read.
+  - The clipping rule in the Lieber paper.
+  - No real UV-Vis, FTIR or particle file in tests/fixtures-real/. The files and numbers needed
+    are listed in the record.
+- **Verification:** lint clean, type check clean (app and tests), 1575 tests pass and 3 are
+  skipped (the ImageJ ones, waiting for the workflow), 136 files. Production build OK, bundle size
+  within budget, e2e passed.
+- **Next:** 19c, FTIR peaks: editing, table, comparison across samples.
+
 ## Stage 19a: four bugs found by the audit of UV-Vis and FTIR (done)
 
 Branch `claude/charming-wozniak-qix1hp`. No new packages. Checks in docs/validation.md, 19a.

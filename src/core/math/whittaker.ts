@@ -106,7 +106,8 @@ function penalty(n: number, lambda: number): [Float64Array, Float64Array, Float6
  * of pybaselines 1.2.1, which cites it, to 0.001 on a noisy synthetic pattern
  * (tests/baseline-validation.test.ts). Start with all
  * weights 1; solve the Whittaker problem; with d = y − z, take the mean m and standard deviation
- * s of the negative residuals (the points below the curve, which are noise around the baseline)
+ * s (divisor n − 1) of the negative residuals (the points below the curve, which are noise
+ * around the baseline)
  * and set
  *   wᵢ = 1 / (1 + exp(2 (dᵢ − (2s − m)) / s)),
  * so points well above the noise band (peaks) get weights near 0 and points within it near 1;
@@ -145,7 +146,9 @@ export function arplsBaseline(
     }
     if (count < 2) break;
     const m = sum / count;
-    const sd = Math.sqrt(Math.max(sum2 / count - m * m, 0));
+    // Sample standard deviation (divisor count − 1), as pybaselines (ddof = 1, "since sampling a
+    // subset"); the divisor count gave baselines up to 0.02 % away from it (19b validation).
+    const sd = Math.sqrt(Math.max((sum2 - count * m * m) / (count - 1), 0));
     if (!(sd > 0)) break;
     const next = new Float64Array(n);
     let change = 0;

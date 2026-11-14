@@ -790,3 +790,234 @@ Open:
 | UV-Vis heading "Reflectance" or "Transmittance" names the type only; "%R", "R (%)", "T%" name percent | tests/uvvis-kind-scale.test.ts      |
 | FTIR assignments re-attach to the nearest peak (20 cm⁻¹) after reprocessing; none dropped silently    | tests/ftir-assignments.test.ts      |
 | FTIR files stating reflectance (heading or ##YUNITS) are read as transmittance with a warning         | tests/ftir-reflectance-kind.test.ts |
+
+## 19b: validation of the UV-Vis, FTIR and Particles tools
+
+Every numerical method of the three tools, with its tests and which of the three kinds of check
+it has:
+
+- S: synthetic data with a known answer.
+- I: an independent implementation or a published worked example.
+- R: a round-trip or invariance check.
+
+The independent references are new in 19b:
+
+- Scripts: scripts/validation/spectra/uvvis.py, scripts/validation/spectra/ftir.py,
+  scripts/validation/particles/make_particles.py and
+  scripts/validation/particles/ImageJCheck.java.
+- They run in the "spectra-particles" job of .github/workflows/validation.yml and write the
+  fixtures uvvis-reference.json, ftir-reference.json, particles.pgm, particles-skimage.json and
+  particles-imagej.json to tests/fixtures/validation/.
+- The tests tests/validation-uvvis.test.ts, tests/validation-ftir.test.ts and
+  tests/validation-particles.test.ts compare the site with those fixtures.
+- Versions used for the committed fixtures: NumPy 2.5.4, SciPy 1.18.1, scikit-image 0.26.0,
+  lmfit 1.3.4, pybaselines 1.2.1, ImageJ 1.54f.
+
+### Inventory
+
+| Tool      | Method (code)                                                           | Tests                                                    | S   | I                                      | R   |
+| --------- | ----------------------------------------------------------------------- | -------------------------------------------------------- | --- | -------------------------------------- | --- |
+| UV-Vis    | E = hc/λ, %T ↔ A, Kubelka–Munk (conversions.ts)                         | uvvis-conversions, validation-uvvis                      | ✓   | scipy.constants hc/e                   | ✓   |
+| UV-Vis    | Blank, offset, smoothing, λmax (process.ts)                             | uvvis-process, validation-uvvis                          | ✓   | savgol_filter (smoothing)              | ✓   |
+| UV-Vis    | α from A and thickness, Tauc quantity (tauc.ts `absorptionSignal`)      | uvvis-tauc, validation-uvvis                             | ✓   | NumPy                                  | ✓   |
+| UV-Vis    | Tauc line, Eg and σ(Eg) (`fitBandGap`)                                  | uvvis-tauc, validation-uvvis                             | ✓   | curve_fit, delta method                | ✓   |
+| UV-Vis    | Baseline crossing, subtraction, second component (19a)                  | uvvis-tauc-baseline, uvvis-component                     | ✓   | hand results, Monte Carlo              | ✓   |
+| UV-Vis    | Urbach energy (`urbachFit`)                                             | uvvis-tauc, validation-uvvis                             | ✓   | curve_fit                              | ✓   |
+| UV-Vis    | Derivative maximum (`derivativeMaximum`)                                | uvvis-tauc, validation-uvvis                             | ✓   | numpy.polyfit lines                    | –   |
+| UV-Vis    | Beer–Lambert calibration (concentration.ts)                             | uvvis-concentration, validation-uvvis                    | ✓   | linregress, curve_fit                  | ✓   |
+| UV-Vis    | Pseudo-first-order kinetics                                             | uvvis-concentration, validation-uvvis                    | ✓   | curve_fit                              | –   |
+| UV-Vis    | Plasmon band fit on the energy axis (plasmon.ts)                        | uvvis-film, validation-uvvis                             | ✓   | lmfit Lorentzian                       | –   |
+| UV-Vis    | Swanepoel envelope method (swanepoel.ts)                                | uvvis-film                                               | ✓   | Swanepoel (1983) Table 1               | ✓   |
+| FTIR      | %T ↔ A (process.ts)                                                     | ftir-core, validation-ftir                               | ✓   | –                                      | ✓   |
+| FTIR      | ATR depth and correction (atr.ts)                                       | ftir-atr, validation-ftir                                | ✓   | open (no published table read)         | ✓   |
+| FTIR      | Rubber band (baseline.ts)                                               | ftir-core, validation-ftir                               | ✓   | Qhull (scipy ConvexHull)               | ✓   |
+| FTIR      | Modified polyfit (xrd/process/background.ts)                            | ftir-core, validation-ftir                               | ✓   | pybaselines modpoly                    | ✓   |
+| FTIR      | AsLS, arPLS (math/whittaker.ts)                                         | ftir-core, baseline-validation, validation-ftir          | ✓   | pybaselines asls, arpls                | –   |
+| FTIR      | Peak picking, prominence, parabola vertex (peaks.ts)                    | ftir-core, validation-ftir                               | ✓   | find_peaks, peak_prominences           | ✓   |
+| FTIR      | Second derivative (bands.ts, Savitzky–Golay)                            | ftir-bands, validation-ftir                              | ✓   | savgol_filter deriv=2                  | –   |
+| FTIR      | Band area above a straight line                                         | ftir-bands, validation-ftir                              | ✓   | scipy trapezoid                        | ✓   |
+| FTIR      | Spectrum subtraction and its factor                                     | ftir-bands, validation-ftir                              | ✓   | numpy lstsq                            | ✓   |
+| FTIR      | Band fitting (`fitBandRegion`, the XRD peak fit)                        | ftir-bands, validation-ftir, validation-lmfit (stage 18) | ✓   | lmfit Gaussian × 2                     | –   |
+| FTIR      | JCAMP-DX reading (jcamp.ts)                                             | ftir-core                                                | ✓   | open (no instrument file)              | –   |
+| FTIR      | Group suggestions (assign.ts, data/ftir/groups.json)                    | ftir-groups, ftir-assignments                            | ✓   | one review article (see below)         | –   |
+| Particles | Auto thresholds (autoThreshold.ts, threshold.ts)                        | particles-imagej, particles-detect, validation-particles | ✓   | scikit-image; ImageJ (workflow)        | –   |
+| Particles | Grey, blur, median, background, range, equalise (image.ts, adjust.ts)   | particles-detect, particles-imagej                       | ✓   | –                                      | –   |
+| Particles | Labelling, morphology, distance, watershed (label.ts, morphology.ts, …) | particles-detect                                         | ✓   | skimage.measure.label (count)          | –   |
+| Particles | Area, centroid, equal-area diameter, Feret, perimeter (regions.ts)      | particles-detect, validation-particles                   | ✓   | regionprops; ImageJ (workflow)         | ✓   |
+| Particles | Fitted ellipse (measure.ts)                                             | particles-imagej, validation-particles                   | ✓   | regionprops moments; ImageJ (workflow) | ✓   |
+| Particles | Scale bar, calibration, working copy (scaleBar.ts, geometry.ts)         | particles-stereology, particles-geometry                 | ✓   | –                                      | ✓   |
+| Particles | Percentiles, summary, bins, histogram (distribution.ts)                 | particles-distribution, validation-particles             | ✓   | numpy percentile, histogram_bin_edges  | ✓   |
+| Particles | Normal and lognormal fits                                               | particles-distribution, validation-particles             | ✓   | scipy norm.fit, lognorm.fit(floc=0)    | –   |
+| Particles | Pooling images (modules/particles/sizes.ts `collectSizes`)              | particlesDistribution, validation-particles              | ✓   | –                                      | ✓   |
+| Particles | Area fraction, intercepts, ASTM grain size (stereology.ts)              | particles-stereology                                     | ✓   | ASTM E112-13 Table 4                   | ✓   |
+
+A dash under I means that no second program computes the same thing in a way worth comparing:
+image filters whose exact kernels differ between programs, or a parser. A dash under R means
+that no natural invariance exists beyond the ones already tested.
+
+### UV-Vis
+
+Data: tests/fixtures/validation/uvvis-reference.json, written by uvvis.py. Seeded synthetic
+spectra, stored with the expected numbers so both programs use the same input:
+
+- A direct gap at 3.2 eV in a 250 nm film, 300–600 nm in 0.5 nm steps, noise 0.002 in A.
+- An Urbach tail with Eu = 0.08 eV.
+- Six Beer–Lambert standards and a kinetic series with a dark period.
+- A Lorentzian plasmon band at 2.38 eV.
+
+| Check                                                                     | Reference                              | Tolerance                   |
+| ------------------------------------------------------------------------- | -------------------------------------- | --------------------------- |
+| hc/e in eV nm                                                             | scipy.constants (CODATA 2022)          | 10⁻¹⁵ relative              |
+| α = ln 10 · A / t and (αE)² from absorbance and thickness                 | NumPy                                  | 10⁻¹² relative              |
+| Tauc line slope and intercept, Eg = −a/b                                  | scipy curve_fit                        | 10⁻⁷ relative; 10⁻⁸ eV      |
+| σ(Eg) from the full covariance of (a, b)                                  | delta method on curve_fit's covariance | 10⁻⁶ relative               |
+| Urbach Eu and σ(Eu)                                                       | curve_fit of ln S                      | 10⁻⁹; 10⁻⁶ relative         |
+| Derivative maximum of A and of ln A                                       | numpy.polyfit lines through 9 points   | same point; slope 10⁻⁹      |
+| Savitzky–Golay smoothing (11 points, order 3), ends included              | savgol_filter(mode='interp')           | 10⁻¹²                       |
+| Beer–Lambert slope, intercept, their σ and R²; line through the origin    | scipy.stats.linregress; curve_fit      | 10⁻⁹ to 10⁻¹² relative      |
+| Rate constant k and σ(k)                                                  | curve_fit of ln(C₀/C) = k t            | 10⁻⁹; 10⁻⁶ relative         |
+| Plasmon centre, FWHM, height, σ of centre and FWHM                        | lmfit LorentzianModel + LinearModel    | 10⁻⁶ eV, 10⁻⁵, 10⁻³ (σ)     |
+| %T → A → %T and λ → E → λ                                                 | round trip                             | 10⁻¹²; 10⁻¹⁰ nm             |
+| Points given in reverse order                                             | invariance                             | same Eg and σ to 10⁻¹²      |
+| Signal × 10⁻⁴, 0.37 and 52 (unknown thickness, other units); Urbach × 10³ | invariance                             | Eg to 10⁻¹⁰ eV; Eu to 10⁻¹⁰ |
+| The same spectrum given as %T                                             | invariance                             | same α to 10⁻¹⁰ relative    |
+
+Definitions:
+
+- σ(Eg) uses s² = RSS/(n − 2), as curve_fit's default (absolute_sigma=False).
+- The line through the origin uses s² = RSS/(n − 1), as curve_fit with one parameter.
+- lmfit's Lorentzian has FWHM = 2σ and height = amplitude/(πσ); the fixture is converted to
+  this site's centre, FWHM and height.
+
+### FTIR
+
+Data: tests/fixtures/validation/ftir-reference.json, written by ftir.py. A seeded spectrum from
+400 to 4000 cm⁻¹ in 2 cm⁻¹ steps: nine Gaussian and Lorentzian bands on a curved background,
+noise 0.002.
+
+| Check                                                                   | Reference                                          | Tolerance                  |
+| ----------------------------------------------------------------------- | -------------------------------------------------- | -------------------------- |
+| Peaks above prominence 0.02: count, height, prominence                  | scipy.signal.find_peaks, peak_prominences          | same peaks; 10⁻¹²          |
+| Peak position (vertex of the parabola through three points)             | numpy.polyfit order 2                              | 10⁻⁷ cm⁻¹                  |
+| Second derivative (15 points, order 3), ends included                   | savgol_filter(deriv=2, delta=2, mode='interp')     | 10⁻¹²                      |
+| Band area 1551.3–1799.1 cm⁻¹ above the line between the ends            | scipy.integrate.trapezoid with numpy.interp ends   | 10⁻¹² relative             |
+| Subtraction factor, reference on a grid shifted by 1 cm⁻¹               | numpy.linalg.lstsq                                 | 10⁻¹² relative             |
+| AsLS baseline (λ 10⁵, p 0.01, 10 solves)                                | pybaselines whittaker.asls                         | 10⁻⁸                       |
+| arPLS baseline (λ 10⁵, ratio 10⁻⁶)                                      | pybaselines whittaker.arpls                        | 10⁻⁹ (after the fix below) |
+| Modified polyfit, order 3, 200 fits                                     | pybaselines polynomial.modpoly(use_original=False) | 10⁻⁹                       |
+| Rubber band                                                             | lower hull from Qhull (scipy.spatial.ConvexHull)   | 10⁻¹²                      |
+| Two overlapping Gaussian bands: centre, FWHM, height, σ                 | lmfit GaussianModel × 2 + LinearModel              | 10⁻⁴ cm⁻¹, 10⁻⁵, 10⁻³ (σ)  |
+| %T → A → %T                                                             | round trip                                         | 10⁻¹²                      |
+| Constant offset added: peaks, prominences, band area                    | invariance                                         | unchanged to 10⁻⁹          |
+| Spectrum × 2.5: band area and subtraction factor                        | invariance                                         | × 2.5 to 10⁻¹²             |
+| Known amount (0.6) of reference: factor, and nothing left after removal | synthetic, known answer                            | 10⁻¹²                      |
+| ATR depth at 500, 1000 and 2000 cm⁻¹; correction at the reference       | invariance (dp ∝ 1/ν̃)                              | 10⁻¹²                      |
+| Straight background added: rubber band and polyfit follow it            | invariance                                         | 10⁻¹⁰; 10⁻⁸                |
+
+Fault found and fixed: the arPLS weights used the standard deviation of the negative residuals
+with divisor n; pybaselines uses n − 1 (ddof = 1, "since sampling a subset"). The baselines
+differed by up to 1.7 × 10⁻⁵ in absorbance, 0.015 % of the baseline. src/core/math/whittaker.ts
+now uses n − 1, and the comparison holds to 10⁻⁹. Every earlier test, including the earlier check
+against pybaselines (tests/baseline-validation.test.ts) and the XRD backgrounds, still passes.
+
+Definitions that differ between programs:
+
+- Modified polyfit. Each pass clips the data that the earlier passes already clipped. pybaselines
+  calls this the form of Gan et al. (2006) and makes it its default (use_original=False). It
+  attributes clipping the original data each pass to Lieber and Mahadevan-Jansen (2003), whom the
+  code comment cites. The two programs also stop differently: this site stops when the clipped
+  data change by less than 10⁻³, pybaselines when the fit does. They are compared after the same
+  number of fits.
+- Peak positions. scipy's find_peaks takes the middle of a flat top; this site takes the first
+  point. Measured spectra have no exactly flat tops, so both find the same peaks.
+
+### Particles
+
+Data: tests/fixtures/validation/particles.pgm, a 192 × 160 8-bit test image written by
+make_particles.py. It holds 14 bright ellipses of known axes (7 to 34 px) and angles on a dark
+background with noise σ 11, with edges supersampled 4 × 4. scikit-image, NumPy and SciPy results
+are in particles-skimage.json. ImageJ's results go to particles-imagej.json, written by
+ImageJCheck.java in the workflow.
+
+| Check                                                                          | Reference                                        | Tolerance                                     |
+| ------------------------------------------------------------------------------ | ------------------------------------------------ | --------------------------------------------- |
+| Otsu, Default (IsoData), Minimum, Triangle                                     | skimage.filters threshold_*                      | same grey level (118, 118, 115, 82)           |
+| Li; Mean                                                                       | threshold_li (103.49); threshold_mean (66.86)    | within 1 level; ⌊mean⌋                        |
+| Particles above 127: number, pixel count, centroid, equal-area diameter        | skimage.measure.label (8-connected), regionprops | exact; 10⁻⁹                                   |
+| Ellipse axes from the second moments                                           | regionprops inertia_tensor_eigvals               | 10⁻⁹                                          |
+| Ellipse axes and angle against the drawn ellipses                              | synthetic, known answer                          | 1.2 px; 3°                                    |
+| 90° turn, left-right mirror, top-bottom flip                                   | invariance                                       | sizes unchanged to 10⁻⁹; angle +90°, 180° − θ |
+| Image enlarged × 2 (nearest neighbour)                                         | invariance                                       | area × 4, Feret × 2 exactly; ellipse 1 %      |
+| Percentiles (10, 25, 50, 75, 90), mean, sample SD of 300 lognormal sizes       | numpy.percentile (linear), mean, std(ddof=1)     | 10⁻¹⁰                                         |
+| Sturges and Freedman–Diaconis bins, bin width and counts                       | numpy.histogram_bin_edges, numpy.histogram       | exact; 10⁻¹⁰                                  |
+| Normal and lognormal fits and their log-likelihoods                            | scipy.stats norm.fit, lognorm.fit(floc=0)        | 10⁻⁹; 10⁻⁷                                    |
+| Two pooled images, in either order                                             | invariance                                       | same summary as all sizes together            |
+| Every automatic threshold; area, centroid, ellipse, Feret, MinFeret, perimeter | ImageJ 1.54f (AutoThresholder, ParticleAnalyzer) | same level; 10⁻³ (runs in the workflow)       |
+
+Definitions that differ between programs:
+
+- scikit-image puts pixel centres at whole numbers; this site and ImageJ put pixel corners there.
+  The fixture adds 0.5.
+- scikit-image's ellipse axes are 4√λ of the pixel-centre covariance. ImageJ's, which this site
+  copies, add 1/12 for each pixel's own extent and then scale both axes so that the ellipse area is
+  the pixel count. The test applies that step to scikit-image's eigenvalues.
+- scikit-image's feret_diameter_max and perimeter use the marching-squares contour through pixel
+  centres. This site and ImageJ use the pixel-edge outline. These are different quantities and are
+  compared only with ImageJ.
+- scikit-image's Li iterates on continuous values and its Mean is not rounded; ImageJ rounds to a
+  whole grey level.
+- The perimeter of a × 2 enlarged image is not twice the perimeter. Each one-pixel step of the
+  outline becomes a two-pixel step, and the same amount, 1 − √2/2, is cut at every corner. A 45°
+  staircase reads (4 − 0.586)/(2 · 1.414) = 1.207 times twice its first length. This is a property
+  of every pixel-edge perimeter, ImageJ's included. The site measures on a working copy made by
+  averaging, never by enlarging. The test checks that the ratio lies between 1 and 1.207.
+
+### Real files
+
+tests/fixtures-real/ holds only XRD files: Bruker .raw and .brml, Rigaku .rasx. There is none for
+the three tools. Each is listed under Open with the file needed and, for the same file, the numbers
+the instrument software gives.
+
+### FTIR group table
+
+data/ftir/groups.json comes from one review article: Pasieczna-Patkowska, Cichy and Flieger,
+Molecules 30 (2025) 684, Tables 3 and 2. Its transcription was checked against the article on
+2026-10-28. It is still one review's typical ranges, not a textbook table, and is flagged for the
+owner's verification; the site shows every suggestion as a ranked estimate with this source.
+
+Rows the owner should compare with a textbook (for example Socrates, Infrared and Raman
+Characteristic Group Frequencies, or Silverstein's tables). The reasons below come from the table
+itself, not from other values:
+
+- Single wavenumber given as a range: fg-25 aromatic ring C=C str. (phenol) 1660–1660
+- Single wavenumber given as a range: fg-47 aromatic C–H def. vib. in phenolic compounds 1110–1110
+- Unusually wide range: fg-35 in-plane O–H def. vib. (alcohol) 1260–1440
+- Unusually wide range: fg-54 N–H out-of-plane b. vib. 650–895
+- Unusually wide range: fg-23 COO⁻ asym. str. 1540–1695
+- Unusually wide range: fg-19 C=O (carboxylic acids) 1650–1740
+- The same range under two labels: fg-7 (2° amides, N–H str.) and fg-8 (O–H, N–H) are both
+  3270–3370.
+- A label that names amines under "amide III": fg-44 C–N str. (amide III) (2° amines),
+  1200–1305, 1170–1190 and 1130–1145.
+- The metal-oxide rows (13), single band positions, for example ZnO 440 to 878 cm⁻¹ and TiO₂
+  anatase 431 to 800 cm⁻¹. A position depends strongly on particle size and shape, so compare
+  these with measured references of the same material.
+
+### Open
+
+- ImageJ comparison. ImageJ could not be run in the development container (running a downloaded
+  jar there was not allowed), so its three tests wait for particles-imagej.json. The Validation
+  workflow writes and commits that file on its next run. Until then the tests are skipped and
+  this row is open. Expected to need a look: ImageJ's traced perimeter may count corners
+  differently from this site's (edge length − corners · (1 − √2/2)); any difference will be
+  recorded here.
+- ATR penetration depth: no published table could be read. The PIKE application note at the old
+  address returned 404. The formula is Harrick's and is checked by invariance only. Needed: one
+  printed row with crystal, n₁, n₂, angle, wavenumber and dp.
+- Modified polyfit: which clipping rule Lieber and Mahadevan-Jansen (2003) use, the clipped data
+  or the original data each pass, should be checked in the paper (Appl. Spectrosc. 57,
+  1363–1367). pybaselines' description and the earlier "checked against the paper" note do not
+  agree.
+- Real UV-Vis file wanted: a film or powder spectrum (.csv or .txt export) with the Eg that the instrument or Origin gives for a stated Tauc region.
+- Real FTIR file wanted: a JCAMP-DX (.jdx) export and the peak table the instrument software (OMNIC, OPUS or Spectrum) prints for it, with its threshold.
+- Real particle image wanted: an SEM or TEM image with a scale bar and the ImageJ Analyze Particles table (Area, Feret, MinFeret, Perim.) for a stated threshold.

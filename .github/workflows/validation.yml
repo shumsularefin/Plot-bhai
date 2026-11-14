@@ -1,4 +1,4 @@
-name: Validation (GSAS-II and pymatgen)
+name: Validation (GSAS-II, pymatgen, SciPy, scikit-image, ImageJ)
 
 # Independent checks of the Rietveld, structure-refinement and crystal-geometry code: builds GSAS-II
 # from source and installs pymatgen, writes reference fixtures to tests/fixtures/validation/ and
@@ -73,4 +73,48 @@ jobs:
           git add tests/fixtures/validation data/reference/anomalous-dispersion.json
           if git diff --cached --quiet; then echo 'Fixtures unchanged.'; exit 0; fi
           git commit -m 'Validation fixtures from GSAS-II and pymatgen'
+          git pull --rebase
+          git push
+
+  # UV-Vis, FTIR and Particles (stage 19b): NumPy, SciPy, lmfit, pybaselines, scikit-image and
+  # ImageJ itself. Independent of the GSAS-II job, so it finishes in a few minutes.
+  spectra-particles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      IMAGEJ_VERSION: 1.54f
+      IMAGEJ_SHA256: e5ee9b846e3c2f819d945e6d3fca5641ca690b1ef28591415ae0dc7c6d82fcd9
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install NumPy, SciPy, lmfit, pybaselines and scikit-image
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install numpy==2.5.4 scipy==1.18.1 lmfit==1.3.4 pybaselines==1.2.1 scikit-image==0.26.0
+      - name: UV-Vis references (scipy, lmfit)
+        run: python -I scripts/validation/spectra/uvvis.py tests/fixtures/validation
+      - name: FTIR references (scipy, pybaselines, lmfit)
+        run: python -I scripts/validation/spectra/ftir.py tests/fixtures/validation
+      - name: Particle references (scikit-image, scipy) and the test image
+        run: python -I scripts/validation/particles/make_particles.py tests/fixtures/validation
+      - name: ImageJ Auto Threshold and Analyze Particles on the same image
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/ij.jar" "https://repo1.maven.org/maven2/net/imagej/ij/$IMAGEJ_VERSION/ij-$IMAGEJ_VERSION.jar"
+          echo "$IMAGEJ_SHA256  $RUNNER_TEMP/ij.jar" | sha256sum -c -
+          javac -cp "$RUNNER_TEMP/ij.jar" -d "$RUNNER_TEMP/ijbuild" scripts/validation/particles/ImageJCheck.java
+          java -Djava.awt.headless=true -cp "$RUNNER_TEMP/ij.jar:$RUNNER_TEMP/ijbuild" ImageJCheck tests/fixtures/validation/particles.pgm tests/fixtures/validation/particles-imagej.json
+      - name: Commit the fixtures
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tests/fixtures/validation
+          if git diff --cached --quiet; then echo 'Fixtures unchanged.'; exit 0; fi
+          git commit -m 'Validation fixtures for UV-Vis, FTIR and Particles'
+          git pull --rebase
           git push
