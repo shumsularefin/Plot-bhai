@@ -15,6 +15,7 @@ const FORMAT_LABELS: Record<Pattern['source'], string> = {
   rasx: 'Rigaku RASX',
   brml: 'Bruker BRML',
   raw: 'Bruker RAW',
+  cif: 'Powder CIF',
   pasted: 'Pasted',
   synthetic: 'Example',
   digitized: 'From an image',

@@ -111,14 +111,23 @@ export const MONOCHROMATORS = {
   germanium: { d: 5.65754 / Math.sqrt(3), perfect: true },
 } as const;
 
+/** Largest μR for which the cylinder absorption fit is valid (GSAS Technical Manual, p. 135). */
+export const CAPILLARY_MAX_MU_R = 10;
+
 /**
  * Absorption factor of a cylindrical (capillary, Debye–Scherrer) sample fully bathed in the beam,
- * A(μR, θ), exactly as GSAS-II's Absorb('Cylinder') in GSASIIpwd.py (commit 2c62562), whose source
- * comment attributes the fit to Lobanov & Alte da Veiga (the original publication could not be
- * read here, so it is not cited further). The fit agrees within 1.1 % with the absorption integral
- * itself, the mean of exp(−μ(t_in + t_out)) over the circular cross-section, for μR from 0.1 to 8
- * and 2θ from 10° to 150° (tests/rietveld-dispersion.test.ts). μR is the linear absorption coefficient times the capillary
- * radius (dimensionless), θ the Bragg angle in radians, S = sin²θ:
+ * A(μR, θ), exactly as GSAS-II's Absorb('Cylinder') in GSASIIpwd.py (commit 2c62562). The fit is
+ * the empirical one of N. N. Lobanov and L. Alte da Veiga (6th European Powder Diffraction
+ * Conference, abstract P12-16, 1998, and private communication), as printed in A. C. Larson and
+ * R. B. Von Dreele, GSAS Technical Manual (2004), pp. 134–135, which gives an average accuracy of
+ * 0.2 % (largest 0.5 %) against International Tables Vol. II for μR up to 10; there is no full
+ * paper. The coefficients equal the manual's except k1, where the manual prints exp(−0.024514 S)
+ * and 26.0456 and GSAS-II uses 0.024551 and 26.04556 (A changes by at most 0.8 %); the manual's
+ * second branch is in percent, hence the /100. Against the absorption integral itself, the mean
+ * of exp(−μ(t_in + t_out)) over the circular cross-section, the fit agrees within 1.4 % for μR
+ * from 0.1 to 10 and 2θ from 10° to 170°, and fails above (5 % at μR 12, 16 % at 15), so μR is
+ * limited to CAPILLARY_MAX_MU_R (tests/rietveld-dispersion.test.ts). μR is the linear absorption
+ * coefficient times the capillary radius (dimensionless), θ the Bragg angle in radians, S = sin²θ:
  *   μR ≤ 3:  A = exp(−T0 μR − T1 μR² − T2 μR³ − T3 μR⁴)
  *            T0 = 16/(3π)
  *            T1 = (25.99978 − 0.01911 S^¼) exp(−0.024551 S) + 0.109561 √S − 26.04556

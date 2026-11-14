@@ -164,7 +164,7 @@ loop_
  bq 'Hu ShengZhi (2014) to be published'
  br 'Czervinska, Madura, Zachara (2016) Acta Cryst. B72, 241-248'
  bs 'Gagne & Hawthorne (2015) Acta Cryst. B71, 561-578'
- bt 'Yee, Suesdn & Rbuffetti (2018) J.Solid State Chem. 270, 242-246.'
+ bt 'Yee, Suescun & Rabuffetti (2018) J.Solid State Chem. 270, 242-246.'
  bu  'Zheng et al. (2017) Acta Cryst. D73, 316-125'
  bv  'Sdidey & Shteyfan (2017) J. Phys. Chem. Solids, 103, 73-75.'
 
@@ -1065,7 +1065,7 @@ Mn 2   S  -2    2.22     0.37     e   unchecked
 Mn 2   F  -1    1.698    0.37     a   ?
 Mn 2   Cl -1    2.133    0.37     a   ?
 Mn 2   Br -1    2.34     0.37     e   unchecked
-Mn 2   I  -2    2.52     0.37     e   unchecked
+Mn 2   I  -1    2.52     0.37     e   unchecked
 Mn 2   N  -3    1.84     0.37     bq  'high spin'
 Mn 2   N  -3    1.68     0.37     bq  'intermediate spin'
 Mn 2   N  -3    1.53     0.37     bq  'low spin'

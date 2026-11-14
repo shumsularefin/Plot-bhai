@@ -202,8 +202,8 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
   const measured = useMemo(
     () =>
       pattern && !useCleaned
-        ? { x: pattern.twoTheta, y: pattern.intensity }
-        : processed && { x: processed.twoTheta, y: processed.intensity },
+        ? { x: pattern.twoTheta, y: pattern.intensity, sigma: pattern.sigma }
+        : processed && { x: processed.twoTheta, y: processed.intensity, sigma: undefined },
     [pattern, useCleaned, processed],
   );
   const cleaningSteps = cleaning ? cleaningNames(cleaning) : [];
@@ -294,6 +294,7 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
       }),
       variableSlit: optics.variableSlit,
       capillary,
+      fileWeights: Boolean(measured?.sigma),
       ...(instrument && { instrumentSource: instrument.source }),
     })} ${
       useCleaned && cleaningSteps.length > 0
@@ -380,6 +381,9 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
     const input: RietveldInput = {
       x: Float64Array.from(keep, (i) => measured.x[i] as number),
       y: Float64Array.from(keep, (i) => measured.y[i] as number),
+      ...(measured.sigma && {
+        sigma: Float64Array.from(keep, (i) => measured.sigma?.[i] as number),
+      }),
       ...sharedInput(),
     };
     setError(null);

@@ -72,13 +72,15 @@ describe('K-alpha wavelengths against xraylib', () => {
 
 describe('bond-valence source table', () => {
   /*
-   * The same text (apart from line endings) is distributed with VESTA and is held in the pparBVM
-   * repository; both were compared line by line in November 2026. The hash keeps the copy fixed.
+   * The copy the owner downloaded from the IUCr page (November 2026). The copies distributed with
+   * VESTA, pparBVM and matminer differ from it in two lines only (the authors of reference bt and
+   * an "unchecked" Mn²⁺–I row, left out of the site's table); crystchemlib's copy is identical.
+   * The hash keeps the copy fixed.
    */
   it('is the file that was compared', () => {
     const sha1 = createHash('sha1')
       .update(readFileSync(join(root, 'data/reference/source/bvparm2020.cif')))
       .digest('hex');
-    expect(sha1).toBe('54640352675869efaa9264bb1b9b1cd3c43d03e5');
+    expect(sha1).toBe('141eb3c7baefcc9598de3cae3903d5efa7489fae');
   });
 });

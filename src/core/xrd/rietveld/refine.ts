@@ -78,6 +78,7 @@ import {
 } from './model';
 import { fillJacobian } from './derivatives';
 import type { StructureGeometry } from '../structure/bonds';
+import { CAPILLARY_MAX_MU_R } from './sample';
 import { refinementReflections, type Hkl } from './reflections';
 import {
   MAX_TEXTURE_ORDER,
@@ -214,6 +215,11 @@ export interface RietveldInput {
   x: Float64Array;
   /** Measured intensity, counts. */
   y: Float64Array;
+  /**
+   * Standard uncertainty of each intensity, same units as y, when the file gives one (an .xye
+   * column or a powder CIF's weights). Points are then weighted by 1/σ² instead of 1/y.
+   */
+  sigma?: Float64Array;
   wavelengths: Wavelengths;
   phases: RietveldPhaseInput[];
   choices: RefineChoices;
@@ -480,7 +486,10 @@ export function refineRietveld(
     .filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b) && b > a);
   const keep: number[] = [];
   input.x.forEach((v, i) => {
-    if (Number.isFinite(input.y[i]) && !excluded.some(([a, b]) => v >= a && v <= b)) keep.push(i);
+    const s = input.sigma?.[i];
+    const sigmaOk = !input.sigma || (s !== undefined && Number.isFinite(s) && s > 0);
+    if (Number.isFinite(input.y[i]) && sigmaOk && !excluded.some(([a, b]) => v >= a && v <= b))
+      keep.push(i);
   });
   const x = Float64Array.from(keep, (i) => input.x[i] as number);
   const y = Float64Array.from(keep, (i) => input.y[i] as number);
@@ -565,7 +574,11 @@ export function refineRietveld(
   const terms = Math.min(12, Math.max(2, Math.round(input.backgroundTerms)));
   const layout: Layout = makeLayout(phases, terms);
   const basis = chebyshevBasis(x, terms);
-  const sw = y.map((v) => 1 / Math.sqrt(Math.max(v, 1)));
+  // Square root of the weight of each point: 1/σ from the file, else 1/√y (counting statistics).
+  const sigma = input.sigma;
+  const sw = sigma
+    ? Float64Array.from(keep, (i) => 1 / (sigma[i] as number))
+    : y.map((v) => 1 / Math.sqrt(Math.max(v, 1)));
   const target = y.map((v, i) => v * (sw[i] as number));
 
   // Starting values and bounds.
@@ -587,7 +600,13 @@ export function refineRietveld(
   bound(layout.roughness[0], 0, 1, 0, 0.1);
   bound(layout.roughness[1], 0, 2, 0, 0.01);
   const capillary = wavelengths.capillary === true;
-  bound(layout.absorption, 0, 20, capillary ? Math.max(0, input.muR ?? 0) : 0, 0.1);
+  bound(
+    layout.absorption,
+    0,
+    CAPILLARY_MAX_MU_R,
+    capillary ? Math.min(CAPILLARY_MAX_MU_R, Math.max(0, input.muR ?? 0)) : 0,
+    0.1,
+  );
   bound(
     layout.axial,
     0,
@@ -1584,11 +1603,12 @@ export function refineRietveld(
 
   const warnings: string[] = [];
   const integerCounts = y.every((v) => Math.abs(v - Math.round(v)) < 1e-6);
-  if (!integerCounts || yMax < 100)
+  // With the file's own uncertainties the counting-statistics checks do not apply.
+  if (!sigma && (!integerCounts || yMax < 100))
     warnings.push(
       'The intensities do not look like raw counts (they are not whole numbers, or are very small). The weights 1/y then mean little, so R_exp, χ² and the uncertainties are not reliable. R_wp can still be compared between refinements of this pattern.',
     );
-  else if (stats.noiseRatio > 2 || stats.noiseRatio < 0.5)
+  else if (!sigma && (stats.noiseRatio > 2 || stats.noiseRatio < 0.5))
     warnings.push(
       `The scatter of the points is not that of raw counts: its variance is about ${stats.noiseRatio.toPrecision(2)} times the intensity (1 for counts). ${
         stats.noiseRatio > 2
@@ -1605,6 +1625,15 @@ export function refineRietveld(
   if (capillary && wavelengths.variableSlit)
     warnings.push(
       'An automatic divergence slit belongs to flat-plate (Bragg–Brentano) geometry, so its correction was not used for the capillary.',
+    );
+  const muRBeyondFit =
+    capillary &&
+    ((input.muR ?? 0) > CAPILLARY_MAX_MU_R ||
+      (mask[layout.absorption] === true &&
+        (params[layout.absorption] as number) > CAPILLARY_MAX_MU_R - 0.01));
+  if (muRBeyondFit)
+    warnings.push(
+      `The capillary absorption formula is valid only up to μR = ${CAPILLARY_MAX_MU_R}, so μR was kept at or below ${CAPILLARY_MAX_MU_R}. Above it the intensities at low angles are wrong by several per cent or more. Use a thinner capillary, dilute the sample, or change to a less absorbed wavelength.`,
     );
   if (capillary && choices.absorption && mask[layout.absorption])
     warnings.push(
