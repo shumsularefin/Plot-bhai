@@ -152,6 +152,21 @@ describe('FTIR peaks and assignment steps', () => {
 });
 
 describe('FTIR results step', () => {
+  it('lists an assignment without a peak, keeps it out of the table, and removes it', () => {
+    const spectra = exampleSpectra();
+    const sample = spectra[0];
+    if (!sample) throw new Error('missing');
+    const assignments = { [sample.id]: [{ id: 'far', wavenumber: 2500, label: 'lost band' }] };
+    const store = setup(AssignStep, { spectra, assignments });
+    expect(screen.getByText('Assignments not attached to a peak')).toBeTruthy();
+    expect(screen.getByText(/lost band/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Remove the assignment made at 2500/ }));
+    expect(store.get().assignments[sample.id]).toEqual([]);
+    expect(screen.queryByText('Assignments not attached to a peak')).toBeNull();
+    setup(ResultsStep, { spectra, assignments });
+    expect(screen.getByText(/1 assignment is not attached to a peak/)).toBeTruthy();
+  });
+
   it('lists peaks with only the assignments the user accepted, and writes honest methods text', () => {
     const spectra = exampleSpectra();
     const sample = spectra[0];
@@ -182,7 +197,7 @@ describe('FTIR results step', () => {
     );
     const withAssignment = methodsText({
       ...data,
-      assignments: { [sample.id]: [{ wavenumber: 2920, label: 'x' }] },
+      assignments: { [sample.id]: [{ id: 'a', wavenumber: 2920, label: 'x' }] },
     });
     expect(withAssignment).toContain('not proof of the groups present');
     expect(withAssignment).toContain('10.3390/molecules30030684');

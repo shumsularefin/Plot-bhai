@@ -6,7 +6,7 @@ import { HelpTip } from '../../ui/HelpTip';
 import { SessionSection } from '../../ui/SessionSection';
 import type { StepContext } from '../../ui/wizard/types';
 import { downloadCsv } from '../xrd/csv';
-import { peakRows, processAll } from './analysis';
+import { detachedAssignments, peakRows, processAll } from './analysis';
 import type { FtirData } from './data';
 import { curveOf, FtirPlot, peakLabelsFor } from './FtirPlot';
 import type { PeakLabelSet } from '../../ui/plot/peakLabels';
@@ -30,6 +30,7 @@ export function ResultsStep({ data, update }: StepContext<FtirData>) {
       ),
     [data],
   );
+  const detached = useMemo(() => detachedAssignments(data), [data]);
   const methods = useMemo(() => methodsText(data), [data]);
   const processed = useMemo(
     () => processAll(data.spectra, data.processing),
@@ -121,6 +122,18 @@ export function ResultsStep({ data, update }: StepContext<FtirData>) {
             </tbody>
           </table>
         </div>
+        {detached.length > 0 && (
+          <p class="message is-warning">
+            <strong>Check:</strong>{' '}
+            {detached.length === 1 ? '1 assignment is' : `${detached.length} assignments are`} not
+            attached to a peak with the current settings, so{' '}
+            {detached.length === 1 ? 'it is' : 'they are'} not in the table (
+            {detached
+              .map((d) => `${d.spectrum.name}: ${formatNumber(d.assignment.wavenumber, 1)} cm⁻¹`)
+              .join('; ')}
+            ). Step 4 lists {detached.length === 1 ? 'it' : 'them'}.
+          </p>
+        )}
         {rows.length === 0 && (
           <p class="message is-warning">
             <strong>Check:</strong> no peaks were picked. Go back to step 3 and lower the minimum

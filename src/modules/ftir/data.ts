@@ -28,8 +28,17 @@ export const DEFAULT_PEAK_SETTINGS: PeakSettings = {
   toCm: null,
 };
 
-/** An assignment the user accepted or typed for the peak at this wavenumber. */
+/**
+ * An assignment the user accepted or typed for a peak. A picked peak has no identity of its own
+ * (peaks are picked again whenever the processing changes), so the assignment keeps the position
+ * of its peak at the moment it was made and is re-attached to the nearest peak after every
+ * reprocessing (`attachAssignments` in analysis.ts). `id` identifies the assignment itself, so
+ * that it can be edited or removed while it is not attached to a peak; a peak added by hand
+ * (sub-stage 19c) can be referred to by an optional id added to this shape without a migration.
+ */
 export interface Assignment {
+  id: string;
+  /** Position of the peak when the assignment was made, cm⁻¹. */
   wavenumber: number;
   label: string;
 }
@@ -119,26 +128,34 @@ export const initialFtirData: FtirData = {
 };
 
 /** Version of the saved shape. Bump it, and add a migration, when the shape changes. */
-export const FTIR_STATE_VERSION = 3;
+export const FTIR_STATE_VERSION = 4;
 
 /** Index of the Bands step, which version 1 did not have. */
 const BANDS_STEP = 3;
 
 /**
- * Upgrades version 1 (no band analysis and no Bands step) and version 2 (no ATR correction);
- * newer or unknown versions are discarded.
+ * Upgrades version 1 (no band analysis and no Bands step), version 2 (no ATR correction) and
+ * version 3 (assignments without an id); newer or unknown versions are discarded.
  */
 export function migrateFtirData(
   saved: unknown,
   version: number,
 ): WizardState<FtirData> | undefined {
-  if (version !== 1 && version !== 2) return undefined;
+  if (version !== 1 && version !== 2 && version !== 3) return undefined;
   const state = saved as WizardState<Partial<FtirData>>;
   if (!state || typeof state !== 'object' || !state.data) return undefined;
+  const assignments: Record<string, Assignment[]> = {};
+  for (const [id, list] of Object.entries(state.data.assignments ?? {})) {
+    assignments[id] = (list as Omit<Assignment, 'id'>[]).map((a) => ({
+      id: newId(),
+      wavenumber: a.wavenumber,
+      label: a.label,
+    }));
+  }
   const shift = (step: number) => (version === 1 && step >= BANDS_STEP ? step + 1 : step);
   const processing: Record<string, FtirProcessing> = {};
   for (const [id, p] of Object.entries(state.data.processing ?? {})) {
-    processing[id] = { ...p, atr: DEFAULT_FTIR_PROCESSING.atr };
+    processing[id] = version === 3 ? p : { ...p, atr: DEFAULT_FTIR_PROCESSING.atr };
   }
   return {
     step: shift(state.step),
@@ -147,6 +164,7 @@ export function migrateFtirData(
       ...initialFtirData,
       ...state.data,
       processing,
+      assignments,
       bands: version === 1 ? {} : (state.data.bands ?? {}),
     },
   };

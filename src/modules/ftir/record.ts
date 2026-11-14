@@ -1,6 +1,6 @@
 import { processSpectrum } from '../../core/ftir/process';
 import { fingerprint, type AnalysisRecord, type RecordData } from '../../ui/report/record';
-import { peaksOf } from './analysis';
+import { ASSIGNMENT_MATCH_CM, attachAssignments, peaksOf } from './analysis';
 import { peaksFor, processingFor, type FtirData } from './data';
 import { methodsText } from './methodsText';
 import { shownQuantity, valueIn } from './quantity';
@@ -75,16 +75,25 @@ export async function ftirRecord(data: FtirData): Promise<AnalysisRecord> {
         },
       ],
     });
-    const assigned = data.assignments[s.id] ?? [];
+    const { byPeak, detached } = attachAssignments(data.assignments[s.id], peaks);
     results.push({
       title: `Peaks: ${s.name}`,
       lines: peaks.length
-        ? peaks.map((p) => {
-            const label = assigned.find((a) => Math.abs(a.wavenumber - p.wavenumber) <= 2)?.label;
+        ? peaks.map((p, k) => {
+            const label = byPeak[k]?.label;
             return `${n(p.wavenumber, 6)} cm⁻¹: absorbance ${n(p.height)}${shown.quantity === 'transmittance' ? `, ${n(valueIn('transmittance', p.height))} %T` : ''}, prominence ${n(p.prominence)}${label ? `, assigned (suggestion accepted or typed by the user): ${label}` : ''}`;
           })
         : ['No peaks picked.'],
     });
+    if (detached.length > 0) {
+      results.push({
+        title: `Assignments not attached to a peak: ${s.name}`,
+        lines: detached.map(
+          (a) =>
+            `${n(a.wavenumber, 6)} cm⁻¹ (where it was made): ${a.label}; no peak within ${ASSIGNMENT_MATCH_CM} cm⁻¹ with the current settings`,
+        ),
+      });
+    }
   }
   return {
     tool: 'FTIR',

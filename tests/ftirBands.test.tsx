@@ -153,6 +153,6 @@ describe('FTIR saved state', () => {
     expect(upgraded?.step).toBe(4);
     expect(upgraded?.furthest).toBe(5);
     expect(upgraded?.data.bands).toEqual({});
-    expect(migrateFtirData(v1, 3)).toBeUndefined();
+    expect(migrateFtirData(v1, 4)).toBeUndefined();
   });
 });
