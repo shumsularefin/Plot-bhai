@@ -107,6 +107,11 @@ const CHOICE_LABELS: [keyof RefineChoices, string, string][] = [
     'Capillary absorption μR',
     'Refines μR of a capillary sample (set the geometry under “Instrument, sample and quantification”). μR is strongly correlated with the displacement parameters B: prefer typing the value calculated from the composition, packing and capillary radius and keeping it fixed.',
   ],
+  [
+    'berarLelann',
+    'Apply the Bérar–Lelann factor to the ±',
+    'Not a refined parameter: every standard uncertainty (±), also those of bond lengths, weight fractions and series lines, is multiplied by the Bérar–Lelann factor of the fit, which allows for neighbouring points of the difference curve being correlated. Leave it off to compare the ± with GSAS-II, which reports them unmultiplied. Only meaningful when the intensities are raw counts.',
+  ],
 ];
 
 /** The cleaning steps switched on, in words, for the plot legend and the methods text. */
@@ -671,16 +676,19 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
           <div class="radiation-fields">
             {settings.choices.size && (
               <label class="inline-field">
-                Size model{' '}
-                <HelpTip term="uniaxial size">
-                  <p>
-                    Isotropic: one crystallite size for every direction. Uniaxial (GSAS-II’s): one
-                    size along an axis you choose (for example 0 0 1 for platelets or needles of a
-                    hexagonal phase) and one across it; each reflection gets the size for its
-                    direction.
-                  </p>
-                </HelpTip>
+                <span>
+                  Size model{' '}
+                  <HelpTip term="uniaxial size">
+                    <p>
+                      Isotropic: one crystallite size for every direction. Uniaxial (GSAS-II’s): one
+                      size along an axis you choose (for example 0 0 1 for platelets or needles of a
+                      hexagonal phase) and one across it; each reflection gets the size for its
+                      direction.
+                    </p>
+                  </HelpTip>
+                </span>
                 <select
+                  aria-label="Size model"
                   value={settings.choices.sizeModel ?? 'isotropic'}
                   onChange={(e) =>
                     set({
@@ -698,17 +706,21 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
             )}
             {settings.choices.strain && (
               <label class="inline-field">
-                Microstrain model{' '}
-                <HelpTip term="generalized microstrain">
-                  <p>
-                    Isotropic: one microstrain. Uniaxial: one along an axis, one across it.
-                    Generalized (Stephens, as in GSAS-II): the strain may differ in every direction
-                    the crystal symmetry allows, with 2 (cubic) to 15 (triclinic) coefficients
-                    S_hkl. It starts from the isotropic result. Use it only when the difference
-                    curve shows widths that do not follow 2θ smoothly, and with good data.
-                  </p>
-                </HelpTip>
+                <span>
+                  Microstrain model{' '}
+                  <HelpTip term="generalized microstrain">
+                    <p>
+                      Isotropic: one microstrain. Uniaxial: one along an axis, one across it.
+                      Generalized (Stephens, as in GSAS-II): the strain may differ in every
+                      direction the crystal symmetry allows, with 2 (cubic) to 15 (triclinic)
+                      coefficients S_hkl. It starts from the isotropic result. Use it only when the
+                      difference curve shows widths that do not follow 2θ smoothly, and with good
+                      data.
+                    </p>
+                  </HelpTip>
+                </span>
                 <select
+                  aria-label="Microstrain model"
                   value={settings.choices.strainModel ?? 'isotropic'}
                   onChange={(e) =>
                     set({
@@ -773,18 +785,20 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
           included.map((phase) => (
             <div key={phase.id} class="radiation-fields">
               <label class="inline-field">
-                {phase.name}: orientation model{' '}
-                <HelpTip term="preferred orientation model">
-                  <p>
-                    March–Dollase needs one direction (h k l) along which the crystallites line up,
-                    for example 0 0 1 for platelets of a hexagonal phase. Spherical harmonics
-                    (GSAS-II's model, cylindrical sample symmetry) needs no direction: it fits a
-                    smooth correction over all directions the crystal symmetry allows. A higher
-                    order follows a stronger texture with more coefficients; start at 4 and go up
-                    only if the fit improves clearly. A lab pattern rarely supports more than order
-                    8.
-                  </p>
-                </HelpTip>
+                <span>
+                  {phase.name}: orientation model{' '}
+                  <HelpTip term="preferred orientation model">
+                    <p>
+                      March–Dollase needs one direction (h k l) along which the crystallites line
+                      up, for example 0 0 1 for platelets of a hexagonal phase. Spherical harmonics
+                      (GSAS-II's model, cylindrical sample symmetry) needs no direction: it fits a
+                      smooth correction over all directions the crystal symmetry allows. A higher
+                      order follows a stronger texture with more coefficients; start at 4 and go up
+                      only if the fit improves clearly. A lab pattern rarely supports more than
+                      order 8.
+                    </p>
+                  </HelpTip>
+                </span>
                 <select
                   aria-label={`${phase.name}: orientation model`}
                   value={String(settings.texture?.[phase.id] ?? 0)}
@@ -1013,14 +1027,18 @@ function Results({
               <HelpTip term="Bérar–Lelann factor">
                 <p>
                   How much larger the standard uncertainties (±) should be because neighbouring
-                  points of the difference curve are correlated. Multiply each ± by this factor for
-                  a realistic error. About 1.13 means the residuals are pure noise; larger values
-                  mean the profile is systematically misfitted (Bérar and Lelann, J. Appl. Cryst. 24
-                  (1991) 1–5).
+                  points of the difference curve are correlated. About 1.13 means the residuals are
+                  pure noise; larger values mean the profile is systematically misfitted (Bérar and
+                  Lelann, J. Appl. Cryst. 24 (1991) 1–5). Tick “Apply the Bérar–Lelann factor to the
+                  ±” under “What to refine” to have every ± multiplied by it; otherwise multiply
+                  them yourself. It is only right when the intensities are raw counts.
                 </p>
               </HelpTip>
             </dt>
-            <dd>×{stats.berarLelann.toFixed(2)}</dd>
+            <dd>
+              ×{stats.berarLelann.toFixed(2)}
+              {stats.berarLelannApplied ? ' (applied to the ±)' : ' (not applied)'}
+            </dd>
           </div>
         )}
         {result.transparency?.refined && (
