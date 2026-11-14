@@ -4,7 +4,7 @@ import { baseName } from '../xrd/import';
 import { formatNumber } from '../xrd/parsers/numbers';
 import type { DataMessage } from '../xrd/types';
 import { looksLikeJcamp, parseJcamp } from './jcamp';
-import { ftirKindFromText, suggestFtirKind } from './kind';
+import { REFLECTANCE_NOTE, ftirKindFromText, ftirStatesReflectance, suggestFtirKind } from './kind';
 import type { FtirImportResult, FtirKind, FtirSource, FtirSpectrum } from './types';
 
 /** FTIR exports are small; larger files are refused before reading. */
@@ -69,16 +69,18 @@ export function importFtirText(
     const parsed = parseJcamp(text);
     if (!parsed.ok) return parsed;
     const { spectrum } = parsed;
-    const kindHint = spectrum.yUnits.startsWith('TRANSMITTANCE')
-      ? 'transmittance'
-      : spectrum.yUnits.startsWith('ABSORBANCE')
-        ? 'absorbance'
-        : undefined;
+    const reflectance = ftirStatesReflectance(spectrum.yUnits);
+    const kindHint =
+      spectrum.yUnits.startsWith('TRANSMITTANCE') || reflectance
+        ? 'transmittance'
+        : spectrum.yUnits.startsWith('ABSORBANCE')
+          ? 'absorbance'
+          : undefined;
     return build(
       spectrum.title || title,
       'jcamp',
       spectrum.wavenumber,
-      [{ values: spectrum.values, columnName: '', hint: kindHint }],
+      [{ values: spectrum.values, columnName: '', hint: kindHint, reflectance }],
       spectrum.notes,
       1,
     );
@@ -140,10 +142,17 @@ export function importFtirText(
   const sets = [];
   for (let c = 1; c < columns; c++) {
     const columnName = named ? (headerFields[c] as string) : '';
+    const columnKind = ftirKindFromText(columnName);
+    // A column heading decides; the whole header counts only when the column names nothing.
+    const reflectance =
+      columnKind === undefined &&
+      (ftirStatesReflectance(columnName) ||
+        (wholeHint === undefined && ftirStatesReflectance(headerText)));
     sets.push({
       values: good.map((row) => row.values[c] as number),
       columnName,
-      hint: ftirKindFromText(columnName) ?? wholeHint,
+      hint: columnKind ?? (reflectance ? 'transmittance' : wholeHint),
+      reflectance,
     });
   }
   return build(
@@ -160,7 +169,12 @@ function build(
   title: string,
   source: FtirSource,
   wavenumberIn: number[],
-  sets: { values: number[]; columnName: string; hint: FtirKind | undefined }[],
+  sets: {
+    values: number[];
+    columnName: string;
+    hint: FtirKind | undefined;
+    reflectance: boolean;
+  }[],
   baseNotes: DataMessage[],
   columnCount: number,
 ): FtirImportResult {
@@ -236,7 +250,7 @@ function build(
       scale: suggestion.scale,
       kindOrigin: suggestion.origin,
       synthetic: false,
-      notes: [...notes],
+      notes: set.reflectance ? [...notes, REFLECTANCE_NOTE] : [...notes],
     });
   });
   if (spectra.length === 0) {

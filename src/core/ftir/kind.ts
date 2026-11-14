@@ -18,6 +18,21 @@ export function ftirKindFromText(text: string): FtirKind | undefined {
 }
 
 /**
+ * True when header, column or JCAMP-DX ##YUNITS text states reflectance ("Reflectance", "%R",
+ * "R (%)"). The FTIR tool has no reflectance data type yet, so such a file is read as
+ * transmittance and the spectrum carries `REFLECTANCE_NOTE`.
+ */
+export function ftirStatesReflectance(text: string): boolean {
+  return /%\s*r\b|\br\s*[([]?\s*%|reflect/i.test(text);
+}
+
+/** Warning shown on the spectrum card of a file that states reflectance. */
+export const REFLECTANCE_NOTE: DataMessage = {
+  level: 'warning',
+  text: 'The file says these values are reflectance. This tool treats them as transmittance for now, so the absorbance view, band heights and areas are calculated as if light had passed through the sample. Reflectance bands can have different shapes and relative heights from a transmittance spectrum of the same material, so compare positions only with care. A proper reflectance data type is planned.',
+};
+
+/**
  * Suggests whether the values are absorbance or transmittance. A word in the header decides when
  * there is one. Otherwise values above 8 are taken as percent transmittance (a normal absorbance
  * never gets that high) and smaller values as absorbance. This is a guess: a transmittance
