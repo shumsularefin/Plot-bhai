@@ -358,6 +358,7 @@ export function RietveldSetup({ settings, set, phases, lambda, result, patternNa
           </HelpTip>
         </span>
         <input
+          aria-label="Leave out 2θ ranges (°)"
           value={rangesText}
           placeholder="for example 38–39, 44.5–45"
           aria-invalid={!rangesOk}

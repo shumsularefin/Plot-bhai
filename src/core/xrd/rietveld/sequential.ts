@@ -2,14 +2,16 @@
  * Sequential refinement of a series of patterns (temperature, composition, time …), as GSAS-II's
  * sequential refinement with "copy results to next histogram": the patterns are refined one after
  * another in order of the series value, with the same settings, and each starts from the cell
- * refined on the one before (the shift between neighbours is small, so the cell starts close to
- * its answer and the reflections line up). Everything else is released in stages from the same
- * start on every pattern, so a pattern's result does not depend on how it was reached.
+ * and, when the structure was refined, the atoms (positions, occupancies, displacement) refined on
+ * the one before: the shift between neighbours is small, so they start close to their answer and
+ * the reflections line up. Scale, background and profile are released in stages from the same
+ * start on every pattern.
  *
  * The results keep only what the series table and plot need (cells, volume, weight fractions,
  * size, microstrain, R values), not the calculated patterns, so long series stay small.
  */
 import type { WeightedLinearFit } from '../../math/linearFit';
+import { refinedStructure } from '../export/gsas';
 import type { Cell } from '../reference/powder';
 // Types only, so the page can use the helpers below without loading the refinement itself.
 import type {
@@ -106,8 +108,8 @@ export const seriesOrder = <T extends { value: number }>(items: readonly T[]): T
 
 /**
  * Refines every pattern in order of value. With `copyForward`, each phase starts from the cell
- * refined on the previous pattern that succeeded (matched by phase id); otherwise every pattern
- * starts from the input cells. `refine` is the single refinement (refineRietveld, or a stand-in
+ * and the refined atoms of the previous pattern that succeeded (matched by phase id); otherwise
+ * every pattern starts from the input cells and structures. `refine` is the single refinement (refineRietveld, or a stand-in
  * in tests); `progress` is told which pattern is running and its stage.
  */
 export function refineSeries(
@@ -127,7 +129,14 @@ export function refineSeries(
             ...item.input,
             phases: item.input.phases.map((phase) => {
               const refined = start.phases.find((p) => p.id === phase.id);
-              return refined ? { ...phase, cell: cellOf(refined) } : phase;
+              if (!refined) return phase;
+              return {
+                ...phase,
+                cell: cellOf(refined),
+                ...(phase.structure
+                  ? { structure: refinedStructure(phase.structure, refined) }
+                  : {}),
+              };
             }),
           }
         : item.input;
@@ -338,8 +347,8 @@ export function seriesMethods(options: {
   const parts = [
     `The ${points.length} patterns of the series (${range}) were refined sequentially with the same model and settings, in order of increasing ${name.toLowerCase()}, ${
       copyForward
-        ? 'each starting from the unit cells refined on the previous pattern'
-        : 'each starting from the reference unit cells'
+        ? 'each starting from the unit cells (and, where refined, the atomic parameters) refined on the previous pattern'
+        : 'each starting from the reference unit cells and structures'
     }; the other parameters were released in the same stages from the same starting values for every pattern.`,
   ];
   const failed = points.length - good.length;

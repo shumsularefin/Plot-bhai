@@ -115,7 +115,9 @@ export const MONOCHROMATORS = {
  * Absorption factor of a cylindrical (capillary, Debye–Scherrer) sample fully bathed in the beam,
  * A(μR, θ), exactly as GSAS-II's Absorb('Cylinder') in GSASIIpwd.py (commit 2c62562), whose source
  * comment attributes the fit to Lobanov & Alte da Veiga (the original publication could not be
- * checked here, so it is not cited further). μR is the linear absorption coefficient times the capillary
+ * read here, so it is not cited further). The fit agrees within 1.1 % with the absorption integral
+ * itself, the mean of exp(−μ(t_in + t_out)) over the circular cross-section, for μR from 0.1 to 8
+ * and 2θ from 10° to 150° (tests/rietveld-dispersion.test.ts). μR is the linear absorption coefficient times the capillary
  * radius (dimensionless), θ the Bragg angle in radians, S = sin²θ:
  *   μR ≤ 3:  A = exp(−T0 μR − T1 μR² − T2 μR³ − T3 μR⁴)
  *            T0 = 16/(3π)

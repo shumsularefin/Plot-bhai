@@ -55,8 +55,9 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 17g       | Rietveld: sequential refinement of a series                      | done    |
 | 17h       | Rietveld: bond lengths and angles with s.u., bond valence        | done    |
 | 17i       | Rietveld: Bérar–Lelann correction of the s.u.                    | done    |
-| 17        | Review fixes: example data, readability, validation page, report | done    |
-| 18        | Open validation items checked with Fityk and GSAS-II             | done    |
+| 18        | Review fixes: example data, readability, validation page, report | done    |
+| 19        | Open validation items checked with Fityk and GSAS-II             | done    |
+| 20        | Open items of 17a–17i: checks, s.u. switch, series, labels       | done    |
 
 ## The one prompt you paste in every new session
 

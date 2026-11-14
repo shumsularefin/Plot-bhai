@@ -90,8 +90,8 @@ export function visibleYDomain(
   let hi = -Infinity;
   for (const marker of markers) {
     if (marker.x < xDomain[0] || marker.x > xDomain[1]) continue;
-    lo = Math.min(lo, marker.y);
-    hi = Math.max(hi, marker.y);
+    lo = Math.min(lo, marker.y - (marker.error ?? 0));
+    hi = Math.max(hi, marker.y + (marker.error ?? 0));
   }
   for (const s of series) {
     const end = Math.min(s.y.length, lowerBound(s.x, xDomain[1]) + 1);
@@ -410,6 +410,23 @@ export function PlotSvg(props: PlotSvgProps) {
               {b.label}
             </text>
           ))}
+          {markers?.map((m, i) => {
+            if (!m.error) return null;
+            // Error bar with caps: y − error to y + error.
+            const cap = style.fontSize * 0.3;
+            const top = py(m.y + m.error);
+            const bottom = py(m.y - m.error);
+            return (
+              <path
+                key={`e${i}`}
+                class={print ? undefined : 'plot-marker'}
+                d={`M${px(m.x)} ${top}V${bottom}M${px(m.x) - cap} ${top}h${2 * cap}M${px(m.x) - cap} ${bottom}h${2 * cap}`}
+                fill="none"
+                stroke={print ? ink : undefined}
+                stroke-width={style.lineWidth}
+              />
+            );
+          })}
           {markers?.map((m, i) => (
             <circle
               key={i}

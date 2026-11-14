@@ -99,7 +99,8 @@ export function SeriesSection(props: SeriesSectionProps) {
         ? points
             .flatMap((p, i) => {
               const v = quantity.values[i];
-              return v && Number.isFinite(v.value) ? [{ x: p.value, y: v.value }] : [];
+              if (!v || !Number.isFinite(v.value)) return [];
+              return [{ x: p.value, y: v.value, ...(v.esd > 0 && { error: v.esd }) }];
             })
             .sort((p, q) => p.x - q.x)
         : [],
@@ -179,10 +180,11 @@ export function SeriesSection(props: SeriesSectionProps) {
           <p>
             As GSAS-II’s sequential refinement with “copy results to next histogram”: with Start
             from the previous result on, each pattern starts from the unit cells refined on the
-            pattern before it, so the peaks line up even when the cell changes a lot along the
-            series. Everything else starts from the same values on every pattern. The phases, the
-            parameters to refine and the 2θ range are the same for every pattern; each pattern uses
-            its own cleaning from step 2.
+            pattern before it, and from its atom positions, occupancies and displacement factors
+            when the structure is refined, so the peaks line up even when the cell changes a lot
+            along the series. Scale, background and peak shape start from the same values on every
+            pattern. The phases, the parameters to refine and the 2θ range are the same for every
+            pattern; each pattern uses its own cleaning from step 2.
           </p>
         </HelpTip>
       </p>
@@ -259,9 +261,10 @@ export function SeriesSection(props: SeriesSectionProps) {
         Start from the previous result{' '}
         <HelpTip term="start from the previous result">
           <p>
-            Each pattern starts from the unit cells refined on the one before it in the series. Keep
-            it on when the cell changes along the series; off, every pattern starts from the
-            reference cells. With a good fit both give the same answer.
+            Each pattern starts from the unit cells (and the atoms, when the structure is refined)
+            refined on the one before it in the series. Keep it on when the cell changes along the
+            series; off, every pattern starts from the reference cells and structures. With a good
+            fit both give the same answer.
           </p>
         </HelpTip>
       </label>
@@ -379,6 +382,12 @@ export function SeriesSection(props: SeriesSectionProps) {
               showOverlayOptions={false}
               points={plotted}
             />
+          )}
+          {plotted.some((p) => p.error) && (
+            <p class="field-hint">
+              The bars are ± one standard uncertainty of each refinement; where none shows, it is
+              smaller than the symbol.
+            </p>
           )}
           {trend && relative ? (
             <dl class="fit-values">
