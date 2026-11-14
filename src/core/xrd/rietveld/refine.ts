@@ -98,6 +98,7 @@ import {
 } from './structure';
 import {
   berarLelann,
+  countingNoiseRatio,
   durbinWatson,
   internalStandard,
   strongCorrelations,
@@ -190,6 +191,11 @@ export interface RefineChoices {
   axialDivergence?: boolean;
   /** Capillary absorption μR (sample.ts), in capillary geometry only; otherwise fixed. */
   absorption?: boolean;
+  /**
+   * Multiply every s.u. (and the covariance, by the square) by the Bérar–Lelann factor
+   * (statistics.ts). Off by default, so the s.u. are the least-squares ones, as GSAS-II reports.
+   */
+  berarLelann?: boolean;
 }
 
 export const DEFAULT_CHOICES: RefineChoices = {
@@ -360,6 +366,13 @@ export interface RietveldStats {
   durbinWatson: number;
   /** Bérar–Lelann factor (statistics.ts) by which the s.u. should be multiplied; about 1.13 is ideal. */
   berarLelann: number;
+  /** True when the s.u. of this result are already multiplied by `berarLelann`. */
+  berarLelannApplied?: boolean;
+  /**
+   * Variance of the point-to-point noise over the intensity (statistics.ts, countingNoiseRatio):
+   * about 1 for raw counts. NaN when the pattern is too short or too weak to tell.
+   */
+  noiseRatio: number;
 }
 
 export interface RietveldResult {
@@ -1138,10 +1151,12 @@ export function refineRietveld(
 
   // Results.
   const params = final.parameters;
-  const errors = final.standardErrors;
+  // Set below, once the residuals are known: the Bérar–Lelann factor when the user applies it.
+  let suFactor = 1;
+  const su = (j: number) => (mask[j] ? suFactor * (final.standardErrors[j] as number) : 0);
   const estimate = (j: number): Estimate => ({
     value: params[j] as number,
-    esd: mask[j] ? (errors[j] as number) : 0,
+    esd: su(j),
     refined: mask[j] as boolean,
   });
   const bg = backgroundCurve(basis, layout, params, n);
@@ -1178,10 +1193,16 @@ export function refineRietveld(
     parameters: refinedCount,
     durbinWatson: durbinWatson(weightedResiduals),
     berarLelann: berarLelann(weightedResiduals),
+    noiseRatio: countingNoiseRatio(y),
   };
+  if (choices.berarLelann && Number.isFinite(stats.berarLelann)) {
+    suFactor = stats.berarLelann;
+    stats.berarLelannApplied = true;
+  }
 
   const m = layout.size;
-  const covariance = final.covariance;
+  const covariance =
+    suFactor === 1 ? final.covariance : final.covariance.map((v) => v * suFactor * suFactor);
   const cov = (i: number, j: number) => covariance[i * m + j] as number;
   // Cell contents with each dopant moved onto its site: n = (site multiplicity) × occupancy × x
   // atoms of the host element become the dopant.
@@ -1518,7 +1539,7 @@ export function refineRietveld(
             index: textureIndex(
               phase.texture.terms,
               pl.texture.map((j) => params[j] as number),
-              pl.texture.map((j) => (mask[j] ? (errors[j] as number) : 0)),
+              pl.texture.map(su),
             ),
             range: [
               Math.min(...inRange.map((peak) => peak.orientation)),
@@ -1566,6 +1587,14 @@ export function refineRietveld(
   if (!integerCounts || yMax < 100)
     warnings.push(
       'The intensities do not look like raw counts (they are not whole numbers, or are very small). The weights 1/y then mean little, so R_exp, χ² and the uncertainties are not reliable. R_wp can still be compared between refinements of this pattern.',
+    );
+  else if (stats.noiseRatio > 2 || stats.noiseRatio < 0.5)
+    warnings.push(
+      `The scatter of the points is not that of raw counts: its variance is about ${stats.noiseRatio.toPrecision(2)} times the intensity (1 for counts). ${
+        stats.noiseRatio > 2
+          ? 'The intensities were probably multiplied by a factor'
+          : 'The intensities were probably divided by a factor (for example counts per second), averaged or smoothed'
+      }. R_exp, χ², the uncertainties and the Bérar–Lelann factor are then not reliable.`,
     );
   if (!final.converged)
     warnings.push('The refinement stopped before it converged. Check the fit, then refine again.');

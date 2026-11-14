@@ -262,7 +262,9 @@ export function rietveldMethods(input: RietveldMethodsInput): string {
     );
   if (Number.isFinite(result.stats.berarLelann))
     sentences.push(
-      `The standard uncertainties given are those of the least-squares fit; to allow for serial correlation of the residuals they should be multiplied by the Bérar–Lelann factor ${result.stats.berarLelann.toFixed(2)} (Bérar and Lelann, J. Appl. Cryst. 24 (1991) 1–5).`,
+      result.stats.berarLelannApplied
+        ? `The standard uncertainties given are those of the least-squares fit multiplied by the Bérar–Lelann factor ${result.stats.berarLelann.toFixed(2)}, which allows for serial correlation of the residuals (Bérar and Lelann, J. Appl. Cryst. 24 (1991) 1–5).`
+        : `The standard uncertainties given are those of the least-squares fit; to allow for serial correlation of the residuals they should be multiplied by the Bérar–Lelann factor ${result.stats.berarLelann.toFixed(2)} (Bérar and Lelann, J. Appl. Cryst. 24 (1991) 1–5).`,
     );
   return sentences.join(' ');
 }
