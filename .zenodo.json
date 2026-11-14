@@ -1,0 +1,41 @@
+{
+  "title": "Plot Bhai: a client-side wizard for XRD, UV-Vis, FTIR, particle size and thermal analysis",
+  "upload_type": "software",
+  "description": "Free, in-browser tools that guide researchers step by step through XRD, UV-Vis, FTIR, particle size (SEM/TEM) and thermal (TGA/DSC) analysis, with publication-ready figures, tables and methods text. All processing runs in the browser. Live site: https://plot-bhai.web.app",
+  "creators": [
+    {
+      "name": "Arefin, Shumsul",
+      "affiliation": "Department of Applied Chemistry and Chemical Engineering, Gopalganj Science and Technology University"
+    }
+  ],
+  "contributors": [
+    {
+      "name": "Kamruzzaman, MD",
+      "type": "Supervisor",
+      "affiliation": "Department of Applied Chemistry and Chemical Engineering, Gopalganj Science and Technology University"
+    },
+    {
+      "name": "Rabbi, S. M. Fazle",
+      "type": "Supervisor",
+      "affiliation": "Department of Applied Chemistry and Chemical Engineering, Gopalganj Science and Technology University"
+    }
+  ],
+  "license": "MIT",
+  "keywords": [
+    "X-ray diffraction",
+    "crystallite size",
+    "Rietveld refinement",
+    "UV-Vis",
+    "FTIR",
+    "thermal analysis",
+    "particle size",
+    "materials characterisation"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://plot-bhai.web.app",
+      "relation": "isDocumentedBy",
+      "resource_type": "other"
+    }
+  ]
+}

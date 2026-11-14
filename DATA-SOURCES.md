@@ -1,8 +1,7 @@
 # Data sources and licences
 
 The code is MIT licensed (LICENSE). The data shipped with the site comes from these sources and
-keeps their terms. Every value that was transcribed by hand is flagged for the owner's verification
-in its file.
+keeps their terms. Every value that was transcribed by hand was checked by the owner (November 2026).
 
 | Data                                                                     | Source                                                                                                                    | Terms                                                                                      |
 | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
@@ -14,7 +13,7 @@ in its file.
 | Anomalous dispersion f′, f″ (`data/reference/anomalous-dispersion.json`) | Cromer and Liberman (1970, 1981), computed with GSAS-II in the Validation workflow                                        | Computed physical constants; GSAS-II credited here.                                        |
 | FTIR group table (`data/ftir/`)                                          | As cited in `data/ftir/groups.json`                                                                                       | CC BY 4.0 (attribution in the file).                                                       |
 | Atomic weights (`data/thermal/`)                                         | CIAAW abridged standard atomic weights 2024                                                                               | Cited in the file.                                                                         |
-| Thermal event rule table (`data/thermal/`)                               | Sources cited per row in the file                                                                                         | Ranges are suggestions, flagged for verification.                                          |
+| Thermal event rule table (`data/thermal/`)                               | Sources cited per row in the file                                                                                         | Typical ranges, checked by the owner; ranking is a suggestion.                             |
 | Example data ("Try with example data")                                   | Generated synthetically by the site                                                                                       | Not real measurements.                                                                     |
 
 No JCPDS/ICDD data are bundled or fetched. A JCPDS number a user types is printed as entered and

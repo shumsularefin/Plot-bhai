@@ -38,7 +38,7 @@ export function dscMethodsInput(
       ...Object.values(data.assignments),
       ...(combined.ok ? Object.values(data.stepAssignments) : []),
     ].filter((a) => a.status !== 'rejected').length,
-    rangeSource: 'typical temperature ranges that are not yet checked against a published source',
+    rangeSource: 'the typical temperature ranges tabulated in Plot Bhai',
     glass: view.glass?.ok ? { windowsEditedByHand: data.glassWindows !== null } : null,
     crystallinity:
       cryst.result?.ok && cryst.melting

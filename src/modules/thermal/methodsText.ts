@@ -39,7 +39,7 @@ export function methodsInput(
       const a = data.assignments[s.id];
       return a !== undefined && a.status !== 'rejected';
     }).length,
-    rangeSource: 'typical temperature ranges that are not yet checked against a published source',
+    rangeSource: 'the typical temperature ranges tabulated in Plot Bhai',
     theory:
       used && theory.result.ok
         ? {

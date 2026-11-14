@@ -47,7 +47,7 @@ const file = {
     tables: 'Table 3 (functional groups) and Table 2 (metal oxides)',
   },
   verification:
-    "TODO, verify: these are one review article's tables of typical ranges. Confirm each range against your own literature or a textbook before it goes into a paper.",
+    "Transcription checked on 2026-10-28: all 65 functional-group rows and 13 metal-oxide rows match Tables 3 and 2 of the article (PubMed Central full text). These are one review's typical ranges, not a textbook table: confirm a range against your own literature before it goes into a paper.",
   functionalGroups: parseFunctionalGroups(groupTable),
   metalOxides: parseMetalOxides(metalTable),
 };

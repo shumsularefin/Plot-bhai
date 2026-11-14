@@ -10,7 +10,7 @@ A paper should cite one fixed version of the software. This is how a version is 
    footer, in every methods text and in every analysis record.
 3. Run `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run size` and
    `npm run e2e`.
-4. Merge to `main`, then on GitHub: Releases → Draft a new release → tag `v0.2.0` → Publish.
+4. Merge to `main`, then on GitHub: Releases → Draft a new release → tag `v1.0.0` → Publish.
 
 ## 2. Archive it on Zenodo (once, by the owner)
 

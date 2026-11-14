@@ -1,7 +1,7 @@
 /*
  * "Pattern character": rule-based hints about preferred orientation, random powder and
  * nanocrystalline or amorphous content. The thresholds below are rules of thumb chosen for this
- * app, not published values; they are flagged for verification in docs/PROGRESS.md.
+ * app, not published values; they were checked by the owner (November 2026).
  */
 
 import { formatHkl } from '../reference/hkl';

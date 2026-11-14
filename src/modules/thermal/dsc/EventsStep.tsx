@@ -243,12 +243,11 @@ export function DscEventsStep({ data, update }: StepContext<DscData>) {
         <p class="message is-info" role="note">
           {DSC_NO_CERTAINTY_NOTE}
         </p>
-        <p class="message is-warning" role="note">
-          <strong>Ranges not verified yet:</strong> whether each kind of event is endothermic or
-          exothermic is checked against Gaisford, Kett and Haines (2016), but the typical
-          temperature ranges are broad placeholders flagged "TODO, verify" in{' '}
-          <code>data/thermal/dsc-events.json</code>. Treat the ranking as a rough guide until you
-          have checked the ranges against your own sources.
+        <p class="message" role="note">
+          <strong>Typical ranges:</strong> whether each kind of event is endothermic or exothermic
+          follows Gaisford, Kett and Haines (2016). The temperature ranges are wide on purpose: real
+          temperatures depend on the material, scan rate, atmosphere, pan and sample mass, so the
+          ranking is a suggestion to compare with your own references.
         </p>
         {events.map((event) => {
           const ranked = guidance(data, event, curve.cooling);

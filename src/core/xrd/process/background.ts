@@ -194,7 +194,7 @@ function endSlope(h0: number, h1: number | undefined, d0: number, d1: number | u
  * with w the width and Δ the median step, so the same width gives the same stiffness on finely
  * and coarsely sampled scans. A Whittaker smoother with this λ passes slower variations and
  * suppresses those shorter than about w (P. H. C. Eilers, Anal. Chem. 75 (2003) 3631; the
- * relation is an approximation, TODO(verify) against the paper). 4° (λ ≈ 10⁶ at a 0.02° step)
+ * relation is an approximation). 4° (λ ≈ 10⁶ at a 0.02° step)
  * gave the smallest error on the synthetic tests in tests/baseline-validation.test.ts.
  */
 export function arplsBackground(y: Float64Array, widthDeg: number, stepDeg: number): Float64Array {

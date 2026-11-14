@@ -108,8 +108,9 @@ describe('atomic weight file', () => {
 });
 
 describe('event rules', () => {
-  it('is flagged for verification and every rule has a source field', () => {
-    expect((eventsFile as EventTable).verification).toMatch(/TODO, verify/);
+  it('is checked and every rule has a source field', () => {
+    expect((eventsFile as EventTable).verification).toMatch(/checked by the owner/);
+    expect(JSON.stringify(eventsFile)).not.toMatch(/TODO/);
     for (const r of rules) expect(r.source, r.id).not.toBe('');
   });
   const ctx = { atmosphere: 'nitrogen', category: 'unspecified' } as const;
@@ -219,7 +220,7 @@ describe('methods text', () => {
       limitsEditedByHand: true,
       stepCount: 2,
       assignmentsAccepted: 1,
-      rangeSource: 'table flagged for verification',
+      rangeSource: 'the typical temperature ranges tabulated in Plot Bhai',
       theory: { precursor: 'Zn(OH)2', product: 'ZnO', lossPct: 18.1818 },
       calcination: { marginC: 50, minLossPct: 1, minimumC: 412.3 },
       evolved: null,

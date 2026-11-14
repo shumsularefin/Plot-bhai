@@ -1,5 +1,23 @@
 # Progress
 
+## Launch fixes: one width everywhere, owner check, export clipping, v1.0.0 (done, owner request November 2026)
+
+- Layout: the reading pages (home, About, Validation) no longer stop running text at 35rem while
+  the boxes and tables beside it run to the full width. Every page now has one left and one right
+  edge; the unused `--measure` token was removed.
+- Owner verification: the owner checked the thermal and DSC event ranges, the combined TGA-DSC
+  rules, the plot colours, journal styles, element data and wavelengths (November 2026). The
+  "TODO, verify" flags and the "Ranges not verified yet" warnings were replaced by "checked by the
+  owner, November 2026"; event assignments are still labelled ranked suggestions.
+- Export: the y-axis title of exported figures (Tauc "(αhν)²", TGA "Mass (%)", DTG) reached past
+  the left edge of the SVG. The left margin is now 5.3 font sizes, and a short panel (the DTG
+  strip) thins its tick labels to at least 1.8 font sizes apart. Checked by exporting every tool's
+  figure and testing that no text lies outside the viewBox.
+- Release: version 1.0.0. Added `.zenodo.json` (title, creator, supervisors, licence, keywords)
+  so Zenodo archives the GitHub release with the right metadata; CITATION.cff has the affiliation.
+  Still for the owner: switch the repository on in Zenodo, publish the v1.0.0 release, then add
+  the DOI and an ORCID to CITATION.cff (docs/RELEASING.md).
+
 ## Owner fixes: one column width, crystal viewer (done, owner request November 2026)
 
 - Layout: running text in the tool steps no longer stops at 35rem while cards and tables run to
