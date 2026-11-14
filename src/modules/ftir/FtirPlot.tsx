@@ -54,8 +54,9 @@ export function ftirSources(curves: readonly FtirCurve[], quantity: FtirQuantity
   });
 }
 
+/** Axis titles; `name` is the absorbance-like quantity (ShownQuantity.name). */
 export const ftirLabels =
-  (quantity: FtirQuantity) =>
+  (quantity: FtirQuantity, name = 'Absorbance') =>
   (normalised: boolean): AxisLabels => ({
     x: (
       <>
@@ -71,9 +72,11 @@ export const ftirLabels =
         ? normalised
           ? 'Transmittance / maximum'
           : 'Transmittance (%)'
-        : normalised
-          ? 'Normalised absorbance (a.u.)'
-          : 'Absorbance (a.u.)',
+        : name === 'Absorbance'
+          ? normalised
+            ? 'Normalised absorbance (a.u.)'
+            : 'Absorbance (a.u.)'
+          : `${name}${normalised ? ', normalised' : ''} (a.u.)`,
     reversed: true,
   });
 
@@ -114,6 +117,10 @@ interface FtirPlotProps {
   toolbar?: ComponentChildren;
   /** Y axis title for curves that are not absorbance (for example a derivative); shown as is. */
   yLabel?: string;
+  /** Name of the absorbance-like quantity (ShownQuantity.name); default "Absorbance". */
+  absorbanceName?: string;
+  /** Range replaced by a straight line (the CO₂ region), cm⁻¹, marked on the plot. */
+  edited?: { fromCm: number; toCm: number } | null;
   /** Clicking and markers, in plotted units (x is −wavenumber). */
   interaction?: PlotInteraction;
   /** Shaded wavenumber ranges with a name, cm⁻¹. */
@@ -124,18 +131,18 @@ interface FtirPlotProps {
 export function FtirPlot(props: FtirPlotProps) {
   const { curves, quantity, settings, onSettingsChange, exportName } = props;
   const sources = useMemo(() => ftirSources(curves, quantity), [curves, quantity]);
-  const yLabel = props.yLabel;
+  const { yLabel, absorbanceName } = props;
   const labels = useMemo(() => {
-    const base = ftirLabels(quantity);
+    const base = ftirLabels(quantity, absorbanceName);
     return yLabel ? (normalised: boolean) => ({ ...base(normalised), y: yLabel }) : base;
-  }, [quantity, yLabel]);
+  }, [quantity, yLabel, absorbanceName]);
   const focus: Domain | null = props.focusCm ? [-props.focusCm[0], -props.focusCm[1]] : null;
-  const regions = props.regions;
-  const bands = useMemo(
-    (): PlotBand[] | undefined =>
-      regions?.map((r) => ({ fromX: -r.toCm, toX: -r.fromCm, label: r.label })),
-    [regions],
-  );
+  const { regions, edited } = props;
+  const bands = useMemo((): PlotBand[] => {
+    const list = (regions ?? []).map((r) => ({ fromX: -r.toCm, toX: -r.fromCm, label: r.label }));
+    if (edited) list.push({ fromX: -edited.toCm, toX: -edited.fromCm, label: 'CO₂ line' });
+    return list;
+  }, [regions, edited]);
   return (
     <PlotPanel
       sources={sources}
@@ -150,7 +157,7 @@ export function FtirPlot(props: FtirPlotProps) {
       })}
       {...(props.peakLabels && { peakLabels: props.peakLabels })}
       {...(props.interaction && { interaction: props.interaction })}
-      {...(bands && bands.length > 0 && { bands })}
+      {...(bands.length > 0 && { bands })}
       toolbar={props.toolbar}
       {...(focus && { focusRange: focus })}
     />

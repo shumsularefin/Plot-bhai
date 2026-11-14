@@ -218,7 +218,7 @@ describe('processSpectrum', () => {
       { wavenumber, values: absorbance, kind: 'absorbance', scale: 'percent' },
       settings({
         baseline: { ...DEFAULT_FTIR_PROCESSING.baseline, enabled: true, method: 'rubber-band' },
-        normalise: { enabled: true, method: 'max' },
+        normalise: { ...DEFAULT_FTIR_PROCESSING.normalise, enabled: true, method: 'max' },
       }),
     );
     expect(Math.max(...out.absorbance)).toBeCloseTo(1, 12);

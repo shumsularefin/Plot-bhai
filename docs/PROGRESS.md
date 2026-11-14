@@ -1,5 +1,43 @@
 # Progress
 
+## Stage 19d: FTIR processing, reflectance data and a wider group table (done, item 4 blocked)
+
+Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md, 19d.
+
+- **Reflectance (DRIFTS).** A third data type, "Diffuse reflectance (%R, DRIFTS)", read from a
+  "Reflectance" or "%R" heading or JCAMP YUNITS=REFLECTANCE (replaces the 19a warning). Step 2
+  converts it to the Kubelka–Munk function F(R) by default (the usual quantity for diffuse
+  reflectance) or to log₁₀(1/R). The assumptions are stated on the card and in step 2; specular
+  reflectance is not handled (no Kramers–Kronig). Axes, tables, CSV headers and the methods text
+  name the quantity (for example "Kubelka-Munk F(R) (processed)").
+- **CO₂ band, off by default.** 2280–2400 cm⁻¹ (adjustable) is replaced by a straight line, first in
+  the processing order so that the baseline and normalisation do not see the band. Shown on the
+  plot as "CO₂ line", excluded from peak picking and hand peaks, stated in the methods text.
+- **Normalise to a band.** Height or area of a chosen range; a warning, and no change, when the
+  band is absent (maximum at an end of the range or not above 3 × the local noise), negative, or
+  outside the data.
+- **Broad flag.** Table rows whose label says "broad" rank a broad peak higher (and a narrow one
+  lower) at equal distance; the reason says so. Suggestions stay estimates.
+- **State.** FTIR state version 6; version 5 and older sessions get the defaults, which change
+  nothing (test in tests/ftir-processing-19d.test.ts).
+- **Wider group table: blocked.** No rows added. The candidate sources are reported to the owner
+  (see the stage report); none could yet be confirmed for licence and coverage, because the
+  publisher pages refused the automated fetch.
+
+Decisions: Kubelka–Munk as the default for diffuse reflectance (common DRIFTS practice; log(1/R)
+offered because it is preferred for quantitative work on undiluted samples); CO₂ line before all
+other steps, because a straight line over the band is a cosmetic edit that later steps should
+treat as data; the 3σ noise floor for "band absent", so rounding noise is not normalised to 1;
+the broad rule only breaks ties after distance, so a nearer row still wins.
+
+Known issues: no real DRIFTS file to test with; the CO₂ default range is not measured on a real
+spectrum; open items in docs/validation.md, 19d.
+
+Verification: lint and type check clean; the changed and dependent tests pass (FTIR, validation-ftir, digitize and record: 19 files, 164 tests, plus 20 new 19d tests); production build and bundle size within budget; e2e passed, including "FTIR: CO₂ region replaced by a straight line".
+
+Next: sub-stage 19e (UV-Vis: peak table, path length, figures, gap methods), and item 4 of 19d
+once the owner approves a source.
+
 ## Stage 19c: FTIR peaks, editing, table and comparison across samples (done)
 
 Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md, 19c.

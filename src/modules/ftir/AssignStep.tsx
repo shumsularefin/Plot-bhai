@@ -53,7 +53,16 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
           peak,
           assignment,
           label: assignment?.label ?? '',
-          suggestions: suggestAssignments(peak.wavenumber, table, data.toleranceCm, 6, atmosphere),
+          suggestions: suggestAssignments(
+            peak.wavenumber,
+            table,
+            data.toleranceCm,
+            6,
+            atmosphere,
+            peak.intensity && peak.shape?.fwhm != null && !peak.overlap
+              ? { broad: peak.intensity.broad, fwhm: peak.shape.fwhm }
+              : null,
+          ),
         };
       }),
     [peaks, attached, data.toleranceCm],
@@ -161,6 +170,8 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
         quantity={quantity}
         settings={data.plot}
         onSettingsChange={(plot) => update({ plot: { ...data.plot, ...plot } })}
+        absorbanceName={shown.name}
+        edited={result.edited}
         exportName={`${spectrum.name}-assigned`}
         showOverlayOptions={false}
         peakLabels={labels}
@@ -202,6 +213,7 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
               key={row.peak.wavenumber}
               row={row}
               quantity={quantity}
+              name={shown.name}
               toleranceCm={data.toleranceCm}
               setLabel={setLabel}
             />
@@ -314,11 +326,14 @@ interface PeakRow {
 function PeakCard({
   row,
   quantity,
+  name,
   toleranceCm,
   setLabel,
 }: {
   row: PeakRow;
   quantity: FtirQuantity;
+  /** The absorbance-like quantity (ShownQuantity.name). */
+  name: string;
   toleranceCm: number;
   setLabel: (row: PeakRow, label: string) => void;
 }) {
@@ -334,9 +349,9 @@ function PeakCard({
         {formatNumber(peak.wavenumber, 1)} cm⁻¹{' '}
         <span class="field-hint">
           {quantity === 'absorbance'
-            ? `absorbance ${formatNumber(peak.height, 3)}`
+            ? `${name === 'Absorbance' ? 'absorbance' : name} ${formatNumber(peak.height, 3)}`
             : `transmittance ${formatNumber(valueIn(quantity, peak.height), 1)} %`}
-          , {formatNumber(peak.relative, 0)} % of the highest absorbance
+          , {formatNumber(peak.relative, 0)} % of the highest peak
         </span>
       </h4>
       <div class="inline-field">

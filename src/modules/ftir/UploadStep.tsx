@@ -6,12 +6,12 @@ import { FileDrop } from '../../ui/FileDrop';
 import { HelpTip } from '../../ui/HelpTip';
 import { MAX_SERIES } from '../../ui/plot/palette';
 import type { StepContext } from '../../ui/wizard/types';
-import { exampleSpectra, newId, type FtirData } from './data';
+import { exampleSpectra, newId, processingFor, type FtirData } from './data';
 import { FtirPlot, type FtirCurve } from './FtirPlot';
 import { FtirSpectrumCard } from './FtirSpectrumCard';
 import { QuantityChoice } from './QuantityChoice';
 import { defaultQuantity, shownQuantity } from './quantity';
-import { toAbsorbance } from '../../core/ftir/process';
+import { DEFAULT_FTIR_PROCESSING, toAbsorbance } from '../../core/ftir/process';
 
 type Request = { kind: 'file'; file: File } | { kind: 'text'; name: string; text: string };
 
@@ -38,17 +38,30 @@ export function UploadStep({ data, update }: StepContext<FtirData>) {
   const spectra = data.spectra;
   const full = spectra.length >= MAX_SERIES;
   // The raw data are drawn here, before any processing, so nothing is normalised yet.
-  const shown = shownQuantity({ view: data.view, processing: {} }, spectra);
+  // Only the reflectance choice of step 2 applies here.
+  const raw = Object.fromEntries(
+    spectra.map((s) => [
+      s.id,
+      { ...DEFAULT_FTIR_PROCESSING, reflectance: processingFor(data, s.id).reflectance },
+    ]),
+  );
+  const shown = shownQuantity({ view: data.view, processing: raw }, spectra);
 
+  const processing = data.processing;
   const curves = useMemo<FtirCurve[]>(
     () =>
       spectra.map((s) => ({
         id: s.id,
         name: s.name,
         wavenumber: s.wavenumber,
-        absorbance: toAbsorbance(s.values, s.kind, s.scale),
+        absorbance: toAbsorbance(
+          s.values,
+          s.kind,
+          s.scale,
+          processingFor({ processing }, s.id).reflectance,
+        ),
       })),
-    [spectra],
+    [spectra, processing],
   );
 
   /** Adds spectra; the first ones loaded also set the display quantity to match the data. */
@@ -254,6 +267,7 @@ export function UploadStep({ data, update }: StepContext<FtirData>) {
         <FtirPlot
           curves={curves}
           quantity={shown.quantity}
+          absorbanceName={shown.name}
           settings={data.plot}
           onSettingsChange={(patch) => update({ plot: { ...data.plot, ...patch } })}
           exportName={spectra.length === 1 ? (spectra[0] as FtirSpectrum).name : 'ftir-spectra'}

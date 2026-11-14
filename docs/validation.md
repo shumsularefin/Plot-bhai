@@ -1114,3 +1114,51 @@ grouping tolerance (2.5 times the common 4 cm⁻¹ resolution).
 
 - Peak table against instrument software: the FWHM and area that OMNIC, OPUS or Spectrum report for one band of a real file, with their baseline points. No such file is in tests/fixtures-real/.
 - Grouping across samples: no other program with the same rule (one peak per sample, span at most the tolerance) was found, so the rule is checked by the known-answer and order tests only.
+
+## 19d: FTIR reflectance, CO₂ line and normalisation to a band
+
+New methods (src/core/ftir/process.ts, src/core/ftir/assign.ts):
+
+- Kubelka–Munk function F(R) = (1 − R)² / (2R), R the diffuse reflectance as a fraction (default
+  for reflectance data), and the apparent absorbance log₁₀(1/R) as the alternative.
+- CO₂ line: the absorbance between two wavenumbers (default 2280–2400 cm⁻¹, around the 2349 cm⁻¹
+  band of data/ftir/atmosphere.json; the width is this site's choice, adjustable) is replaced by
+  the straight line between the values interpolated at the two limits. It runs first, before ATR,
+  baseline, smoothing and normalisation, and peaks are not picked inside it.
+- Normalisation to a band: the spectrum is divided by the height or the trapezoid area of a
+  chosen range, both measured above the straight line between the range ends (bandArea, the
+  local baseline of the Bands step). A band is counted as absent, and the spectrum is left unchanged with a
+  warning, when the maximum lies at an end of the range, when the height is not above
+  max(3 × the local noise, 10⁻⁹ × the largest |A|), or when the value is zero or negative.
+- Suggestions: when a table label says "broad", a broad peak (from the peak's FWHM and the 19c
+  broad class) is ranked before a narrow one at the same distance, and the reason says so.
+
+### Checks
+
+Data: tests/fixtures/validation/ftir-processing-reference.json, written by
+scripts/validation/spectra/ftir_processing.py (numpy 2.5.4, scipy 1.18.1), a step in the
+Validation workflow.
+
+| Check                                                                       | Reference                                    | Tolerance    |
+| --------------------------------------------------------------------------- | -------------------------------------------- | ------------ |
+| F(R) at R = 0.5, 0.2, 1 (0.25, 1.6, 0); percent and fraction give the same  | synthetic, exact values                      | 10⁻¹²        |
+| R recovered from F(R): R = 1 + F − √(F² + 2F)                               | round trip                                   | 10⁻¹²        |
+| Zero reflectance points removed with a message                              | synthetic                                    | exact        |
+| CO₂ line on a band over a linear baseline recovers the line at its ends     | synthetic, known answer                      | 10⁻⁶         |
+| CO₂ line with the limits swapped; applied twice                             | invariance, idempotence                      | identical    |
+| Peaks inside the CO₂ range (picked and added by hand) are not reported      | synthetic                                    | exact        |
+| Band height and area of a Gaussian (1400–1800 cm⁻¹): h and h·FWHM·√(π/4ln2) | synthetic, known answer                      | 10⁻¹⁰; 10⁻⁶  |
+| Normalisation of the spectrum × 7.5; limits swapped                         | invariance                                   | 10⁻¹²        |
+| Absent, end-of-range, outside, untyped and negative bands give a warning    | synthetic                                    | exact        |
+| F(R), log₁₀(1/R), CO₂ line, band height and area on a noisy spectrum        | numpy (np.interp), scipy.integrate.trapezoid | 10⁻¹²; 10⁻¹⁰ |
+| Broad table row ranked first for a broad peak, last for a narrow one        | synthetic                                    | exact        |
+
+The numpy and scipy check is a second implementation of the same equations, not another
+program's own conversion; it catches indexing, interpolation and integration errors only.
+
+### Open
+
+- Kubelka–Munk: no published worked example (a measured R with its tabulated F(R)) was found to compare with, and no real DRIFTS file is in tests/fixtures-real/. The assumptions shown on screen (optically thick, diluted, strongly scattering layer) are the general conditions of the theory, stated without a specific citation.
+- CO₂ region: the real width of the CO₂ doublet in a lab spectrum was not measured; 2280–2400 cm⁻¹ is a default to adjust.
+- Broad ranking: only four rows of data/ftir/groups.json say "broad", so the rule is tested on those.
+- Wider group table (19d item 4): no rows added; it waits for the owner's approval of a source.

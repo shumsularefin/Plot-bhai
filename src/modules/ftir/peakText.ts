@@ -9,14 +9,15 @@ export const ORIGIN_TEXT: Record<TablePeak['origin'], string> = {
   shoulder: 'shoulder (accepted by hand)',
 };
 
-export const peakCsvNote = (prominencePercent: number, percentT: boolean) =>
-  `FTIR peaks picked on the processed absorbance with a minimum prominence of ${prominencePercent} % of the absorbance range, plus peaks added or removed by hand. FWHM and area are measured above a straight local baseline through the lowest point on each side of the band; flagged widths and areas overlap a neighbour and are unreliable. Intensity classes: strong >= ${STRONG_PERCENT} %, medium >= ${MEDIUM_PERCENT} % of the highest band above its local baseline, broad FWHM >= ${BROAD_CM} cm-1 (thresholds chosen by this site).${percentT ? ' Transmittance (%) = 100 x 10^(-absorbance) of the processed spectrum.' : ''}`;
+/** `csvName`: ShownQuantity.csvName, the processed quantity the heights and areas are in. */
+export const peakCsvNote = (prominencePercent: number, percentT: boolean, csvName = 'Absorbance') =>
+  `FTIR peaks picked on the processed ${csvName === 'Absorbance' ? 'absorbance' : `${csvName} (from diffuse reflectance)`} with a minimum prominence of ${prominencePercent} % of the absorbance range, plus peaks added or removed by hand. FWHM and area are measured above a straight local baseline through the lowest point on each side of the band; flagged widths and areas overlap a neighbour and are unreliable. Intensity classes: strong >= ${STRONG_PERCENT} %, medium >= ${MEDIUM_PERCENT} % of the highest band above its local baseline, broad FWHM >= ${BROAD_CM} cm-1 (thresholds chosen by this site).${percentT ? ' Transmittance (%) = 100 x 10^(-absorbance) of the processed spectrum.' : ''}`;
 
 /** CSV columns of a peak table. */
-export function peakColumns(percentT: boolean) {
+export function peakColumns(percentT: boolean, csvName = 'Absorbance') {
   return [
     { header: 'Wavenumber (cm-1)', value: (p: TablePeak) => p.wavenumber },
-    { header: 'Absorbance (processed)', value: (p: TablePeak) => p.height },
+    { header: `${csvName} (processed)`, value: (p: TablePeak) => p.height },
     ...(percentT
       ? [
           {
@@ -29,7 +30,7 @@ export function peakColumns(percentT: boolean) {
     { header: 'Prominence', value: (p: TablePeak) => p.prominence },
     { header: 'Height above local baseline', value: (p: TablePeak) => p.shape?.heightAbove ?? '' },
     { header: 'FWHM (cm-1)', value: (p: TablePeak) => p.shape?.fwhm ?? '' },
-    { header: 'Area (absorbance cm-1)', value: (p: TablePeak) => p.shape?.area ?? '' },
+    { header: `Area (${csvName} x cm-1)`, value: (p: TablePeak) => p.shape?.area ?? '' },
     {
       header: 'Intensity class',
       value: (p: TablePeak) => (p.intensity ? intensityText(p.intensity) : ''),

@@ -31,16 +31,37 @@ export async function ftirRecord(data: FtirData): Promise<AnalysisRecord> {
     const peaks = peaksOf(processed, peakSettings, edits);
     records.push({
       name: s.name,
-      description: `${s.source}, ${s.wavenumber.length} points, ${n(s.wavenumber[0] as number, 6)} to ${n(s.wavenumber[s.wavenumber.length - 1] as number, 6)} cm⁻¹, values read as ${s.kind}${s.kind === 'transmittance' ? ` (${s.scale})` : ''}, type from ${s.kindOrigin}${s.synthetic ? ', synthetic example data' : ''}`,
+      description: `${s.source}, ${s.wavenumber.length} points, ${n(s.wavenumber[0] as number, 6)} to ${n(s.wavenumber[s.wavenumber.length - 1] as number, 6)} cm⁻¹, values read as ${s.kind}${s.kind !== 'absorbance' ? ` (${s.scale})` : ''}, type from ${s.kindOrigin}${s.synthetic ? ', synthetic example data' : ''}`,
       fingerprint: await fingerprint([s.wavenumber, s.values]),
       fromFile: [],
       notes: s.notes,
       steps: [
         {
-          name: 'Conversion to absorbance',
-          used: s.kind === 'transmittance',
-          parameters: [`A = −log10(T)${s.scale === 'percent' ? ', T = %T / 100' : ''}`],
+          name:
+            s.kind === 'reflectance'
+              ? 'Conversion of diffuse reflectance'
+              : 'Conversion to absorbance',
+          used: s.kind !== 'absorbance',
+          parameters: [
+            s.kind === 'reflectance'
+              ? settings.reflectance === 'kubelka-munk'
+                ? 'Kubelka–Munk F(R) = (1 − R)² / (2R)'
+                : 'log10(1/R)'
+              : 'A = −log10(T)',
+            ...(s.scale === 'percent'
+              ? [`${s.kind === 'reflectance' ? 'R = %R' : 'T = %T'} / 100`]
+              : []),
+          ],
           messages: [],
+        },
+        {
+          name: 'CO₂ region replaced by a straight line',
+          used: settings.co2.enabled,
+          parameters: [
+            `${n(settings.co2.fromCm)} to ${n(settings.co2.toCm)} cm⁻¹`,
+            'no peaks picked there',
+          ],
+          messages: processed.messages.co2 ?? [],
         },
         {
           name: 'Baseline correction',
@@ -63,7 +84,9 @@ export async function ftirRecord(data: FtirData): Promise<AnalysisRecord> {
           parameters: [
             settings.normalise.method === 'max'
               ? 'divide by the highest absorbance'
-              : 'lowest 0, highest 1',
+              : settings.normalise.method === 'minmax'
+                ? 'lowest 0, highest 1'
+                : `divide by the band ${settings.normalise.band.measure} between ${settings.normalise.band.fromCm ?? '?'} and ${settings.normalise.band.toCm ?? '?'} cm⁻¹, above the straight line between those ends`,
           ],
           messages: processed.messages.normalise ?? [],
         },
@@ -89,6 +112,8 @@ export async function ftirRecord(data: FtirData): Promise<AnalysisRecord> {
       ],
     });
     const { byPeak, detached } = attachAssignments(data.assignments[s.id], peaks);
+    const own = shownQuantity(data, [s]).name;
+    const quantityName = own === 'Absorbance' ? 'absorbance' : own;
     results.push({
       title: `Peaks: ${s.name}`,
       lines: peaks.length
@@ -97,11 +122,11 @@ export async function ftirRecord(data: FtirData): Promise<AnalysisRecord> {
             const shape = p.shape;
             const measures =
               shape && shape.fwhm !== null && shape.area !== null
-                ? `, FWHM ${n(shape.fwhm)} cm⁻¹, area ${n(shape.area)} absorbance·cm⁻¹ above the local baseline${p.overlap ? ' (overlaps a neighbour: unreliable)' : ''}`
+                ? `, FWHM ${n(shape.fwhm)} cm⁻¹, area ${n(shape.area)} ${quantityName}·cm⁻¹ above the local baseline${p.overlap ? ' (overlaps a neighbour: unreliable)' : ''}`
                 : '';
             const origin = p.origin === 'picked' ? '' : `, ${ORIGIN_TEXT[p.origin]}`;
             const strength = p.intensity ? `, ${intensityText(p.intensity)}` : '';
-            return `${n(p.wavenumber, 6)} cm⁻¹: absorbance ${n(p.height)}${shown.quantity === 'transmittance' ? `, ${n(valueIn('transmittance', p.height))} %T` : ''}, prominence ${n(p.prominence)}${measures}${strength}${origin}${label ? `, assigned (suggestion accepted or typed by the user): ${label}` : ''}`;
+            return `${n(p.wavenumber, 6)} cm⁻¹: ${quantityName} ${n(p.height)}${shown.quantity === 'transmittance' ? `, ${n(valueIn('transmittance', p.height))} %T` : ''}, prominence ${n(p.prominence)}${measures}${strength}${origin}${label ? `, assigned (suggestion accepted or typed by the user): ${label}` : ''}`;
           })
         : ['No peaks picked.'],
     });

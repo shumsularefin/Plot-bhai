@@ -63,8 +63,12 @@ export function pickedPeaksOf(processed: FtirProcessed, settings: PeakSettings):
     minProminence: ((hi - lo) * settings.prominencePercent) / 100,
     ...(settings.fromCm !== null && { fromCm: settings.fromCm }),
     ...(settings.toCm !== null && { toCm: settings.toCm }),
-  });
+  }).filter((p) => !inEdited(processed, p.wavenumber));
 }
+
+/** True inside the range replaced by a straight line (the CO₂ region), where no peak is kept. */
+const inEdited = (processed: Pick<FtirProcessed, 'edited'>, cm: number) =>
+  processed.edited !== null && cm >= processed.edited.fromCm && cm <= processed.edited.toCm;
 
 /**
  * Peaks of one processed spectrum: those picked with the prominence threshold (a percentage of
@@ -97,7 +101,7 @@ export function peaksOf(
       ? hand.wavenumber
       : (nearestMaximum(x, y, hand.wavenumber, SNAP_CM) ?? hand.wavenumber);
     // A picked peak at the same place is the same band; keep it once.
-    if (peaks.some((p) => Math.abs(p.wavenumber - at) <= step)) continue;
+    if (inEdited(processed, at) || peaks.some((p) => Math.abs(p.wavenumber - at) <= step)) continue;
     const p = peakAt(x, y, at);
     if (p) peaks.push({ ...p, origin: hand.shoulder ? 'shoulder' : 'hand', handId: hand.id });
   }

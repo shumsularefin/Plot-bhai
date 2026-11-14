@@ -3,8 +3,7 @@ import { importFtirText } from '../src/core/ftir/import';
 import { ftirStatesReflectance } from '../src/core/ftir/kind';
 
 // Audit 2026-11-14, bug 4: a file that states reflectance must not be taken silently as
-// transmittance. Until the reflectance data type exists (19d) the values are treated as
-// transmittance with a plain warning on the spectrum.
+// transmittance. Since 19d it is read as the reflectance data type.
 
 const n = 200;
 const wavenumber = Array.from({ length: n }, (_, i) => 4000 - i * 15);
@@ -33,9 +32,6 @@ function jcamp(yUnits: string): string {
   ].join('\n');
 }
 
-const warned = (notes: { text: string }[]) =>
-  notes.some((note) => /reflectance/i.test(note.text) && /transmittance/i.test(note.text));
-
 describe('FTIR reflectance stated in the file (bug 4)', () => {
   it('recognises reflectance wording', () => {
     for (const text of ['Reflectance', '%R', 'R (%)', 'Diffuse reflectance', 'REFLECTANCE']) {
@@ -46,27 +42,27 @@ describe('FTIR reflectance stated in the file (bug 4)', () => {
     }
   });
 
-  it('a Reflectance heading gives transmittance in percent with a warning', () => {
-    const result = importFtirText('r.csv', csv('Reflectance'), 'csv');
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    const spectrum = result.spectra[0];
-    expect(spectrum?.kind).toBe('transmittance');
-    expect(spectrum?.scale).toBe('percent');
-    expect(warned(spectrum?.notes ?? [])).toBe(true);
+  it('a Reflectance or %R heading gives reflectance in percent, from the header', () => {
+    for (const heading of ['Reflectance', '%R']) {
+      const result = importFtirText('r.csv', csv(heading), 'csv');
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const spectrum = result.spectra[0];
+      expect(spectrum?.kind).toBe('reflectance');
+      expect(spectrum?.scale).toBe('percent');
+      expect(spectrum?.kindOrigin).toBe('header');
+    }
   });
 
-  it('a JCAMP-DX file with YUNITS=REFLECTANCE gets the same warning', () => {
+  it('a JCAMP-DX file with YUNITS=REFLECTANCE is reflectance', () => {
     const result = importFtirText('r.jdx', jcamp('REFLECTANCE'), 'jcamp');
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(warned(result.spectra[0]?.notes ?? [])).toBe(true);
+    expect(result.ok && result.spectra[0]?.kind).toBe('reflectance');
   });
 
-  it('transmittance files carry no such warning', () => {
+  it('transmittance files stay transmittance', () => {
     const text = importFtirText('t.csv', csv('Transmittance'), 'csv');
     const jdx = importFtirText('t.jdx', jcamp('TRANSMITTANCE'), 'jcamp');
-    expect(text.ok && warned(text.spectra[0]?.notes ?? [])).toBe(false);
-    expect(jdx.ok && warned(jdx.spectra[0]?.notes ?? [])).toBe(false);
+    expect(text.ok && text.spectra[0]?.kind).toBe('transmittance');
+    expect(jdx.ok && jdx.spectra[0]?.kind).toBe('transmittance');
   });
 });

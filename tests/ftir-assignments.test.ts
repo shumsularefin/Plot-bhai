@@ -29,6 +29,7 @@ function withProcessing(
 ): FtirData {
   const p = DEFAULT_FTIR_PROCESSING;
   const processing: FtirProcessing = {
+    ...p,
     atr: { ...p.atr, enabled: change.atr ?? false },
     baseline: { ...p.baseline, enabled: change.baseline ?? false },
     smoothing: { ...p.smoothing, enabled: change.smoothing ?? false },
@@ -141,7 +142,7 @@ describe('assignments follow their peaks through reprocessing', () => {
 
 describe('saved FTIR sessions', () => {
   it('version 3 assignments get an id and keep their position and text', () => {
-    expect(FTIR_STATE_VERSION).toBe(5);
+    expect(FTIR_STATE_VERSION).toBe(6);
     const v3 = {
       step: 3,
       furthest: 5,
@@ -158,6 +159,6 @@ describe('saved FTIR sessions', () => {
     expect(a?.label).toBe('CH₂ bend');
     expect(typeof a?.id).toBe('string');
     expect(upgraded?.data.processing.s).toEqual(DEFAULT_FTIR_PROCESSING);
-    expect(migrateFtirData(v3, 5)).toBeUndefined();
+    expect(migrateFtirData(v3, 6)).toBeUndefined();
   });
 });

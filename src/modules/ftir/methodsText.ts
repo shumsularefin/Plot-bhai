@@ -25,6 +25,8 @@ export function methodsInput(data: FtirData): FtirMethodsInput {
       const own = rows.filter((r) => r.spectrum.id === s.id);
       return {
         kind: s.kind,
+        reflectance: s.kind === 'reflectance' ? p.reflectance : null,
+        co2: curve?.edited ?? null,
         atrReferenceCm: p.atr.enabled ? p.atr.referenceCm : null,
         baseline: p.baseline.enabled
           ? {
@@ -37,7 +39,10 @@ export function methodsInput(data: FtirData): FtirMethodsInput {
         smoothing: p.smoothing.enabled
           ? { window: p.smoothing.window, order: p.smoothing.order }
           : null,
-        normalise: p.normalise.enabled ? p.normalise.method : null,
+        normalise:
+          p.normalise.enabled && !curve?.messages.normalise?.some((m) => m.level === 'warning')
+            ? { method: p.normalise.method, ...p.normalise.band }
+            : null,
         prominencePercent: own.length > 0 ? peaksFor(data, s.id).prominencePercent : null,
         assignments: own.filter((r) => r.assignment !== '').length,
         handAdded: own.filter((r) => r.peak.origin === 'hand').length,

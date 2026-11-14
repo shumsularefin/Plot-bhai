@@ -157,7 +157,7 @@ export function ResultsStep({ data, update }: StepContext<FtirData>) {
               <tr>
                 <th scope="col">Sample</th>
                 <th scope="col">Wavenumber (cm⁻¹)</th>
-                <th scope="col">Absorbance</th>
+                <th scope="col">{shown.name}</th>
                 {percentT && <th scope="col">{quantityHeading(quantity)}</th>}
                 <th scope="col">Relative (%)</th>
                 <th scope="col">FWHM (cm⁻¹)</th>
@@ -212,11 +212,11 @@ export function ResultsStep({ data, update }: StepContext<FtirData>) {
             onClick={() =>
               downloadCsv(
                 'ftir-peaks',
-                'FTIR peaks picked on the processed absorbance. Assignments were accepted or typed by the user from typical ranges; they are estimates.',
+                `FTIR peaks picked on the processed ${shown.csvName === 'Absorbance' ? 'absorbance' : shown.csvName}. Assignments were accepted or typed by the user from typical ranges; they are estimates.`,
                 rows,
                 [
                   { header: 'Sample', value: (r) => r.spectrum.name },
-                  ...peakColumns(percentT).map((c) => ({
+                  ...peakColumns(percentT, shown.csvName).map((c) => ({
                     header: c.header,
                     value: (r: (typeof rows)[number]) => c.value(r.peak),
                   })),
@@ -239,12 +239,12 @@ export function ResultsStep({ data, update }: StepContext<FtirData>) {
               });
               downloadCsv(
                 'ftir-processed-spectra',
-                `FTIR spectra after the processing of step 2. Absorbance is unitless; measured transmittance was converted with A = 2 - log10(%T) before processing.${percentT ? ' Transmittance (%) = 100 x 10^(-A) of the processed absorbance, the quantity shown in the figure.' : ''}`,
+                `FTIR spectra after the processing of step 2. Values are unitless (${shown.csvName}); measured transmittance was converted with A = 2 - log10(%T) and diffuse reflectance R (fraction) with F(R) = (1 - R)^2 / (2R) (Kubelka-Munk) or log10(1/R), as chosen, before processing.${percentT ? ' Transmittance (%) = 100 x 10^(-A) of the processed absorbance, the quantity shown in the figure.' : ''}`,
                 long,
                 [
                   { header: 'Sample', value: (r) => r.s.name },
                   { header: 'Wavenumber (cm-1)', value: (r) => r.wn },
-                  { header: 'Absorbance (processed)', value: (r) => r.a },
+                  { header: `${shown.csvName} (processed)`, value: (r) => r.a },
                   ...(percentT
                     ? [
                         {
@@ -269,12 +269,12 @@ export function ResultsStep({ data, update }: StepContext<FtirData>) {
               const indices = Array.from(grid, (_, k) => k);
               downloadCsv(
                 'ftir-processed-spectra-wide',
-                `FTIR spectra after the processing of step 2, one column per sample on the shared wavenumber points. ${percentT ? 'Transmittance (%) = 100 x 10^(-A) of the processed absorbance, the quantity shown in the figure.' : 'Absorbance is unitless.'}`,
+                `FTIR spectra after the processing of step 2, one column per sample on the shared wavenumber points. ${percentT ? 'Transmittance (%) = 100 x 10^(-A) of the processed absorbance, the quantity shown in the figure.' : `Values are unitless (${shown.csvName}).`}`,
                 indices,
                 [
                   { header: 'Wavenumber (cm-1)', value: (k) => grid[k] as number },
                   ...data.spectra.map((s, i) => ({
-                    header: `${s.name} ${percentT ? 'transmittance (%)' : 'absorbance'}`,
+                    header: `${s.name} ${percentT ? 'transmittance (%)' : shownQuantity(data, [s]).csvName}`,
                     value: (k: number) => {
                       const a = processed[i]?.absorbance[k] as number;
                       return percentT ? valueIn(quantity, a) : a;
@@ -485,6 +485,7 @@ export function ResultsStep({ data, update }: StepContext<FtirData>) {
           quantity={quantity}
           settings={data.plot}
           onSettingsChange={(plot) => update({ plot: { ...data.plot, ...plot } })}
+          absorbanceName={shown.name}
           exportName="ftir-spectra"
           {...(peakLabels && { peakLabels })}
           {...(regions && { regions })}

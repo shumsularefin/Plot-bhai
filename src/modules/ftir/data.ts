@@ -179,28 +179,53 @@ export const initialFtirData: FtirData = {
 };
 
 /** Version of the saved shape. Bump it, and add a migration, when the shape changes. */
-export const FTIR_STATE_VERSION = 5;
+export const FTIR_STATE_VERSION = 6;
 
 /** Index of the Bands step, which version 1 did not have. */
 const BANDS_STEP = 3;
 
 /**
  * Upgrades version 1 (no band analysis and no Bands step), version 2 (no ATR correction),
- * version 3 (assignments without an id) and version 4 (no hand-edited peaks and no comparison
- * settings); newer or unknown versions are discarded.
+ * version 3 (assignments without an id), version 4 (no hand-edited peaks and no comparison
+ * settings) and version 5 (no reflectance choice, CO₂ line or band normalisation, all of which
+ * get their defaults, which leave the processing as it was); newer or unknown versions are
+ * discarded.
  */
 export function migrateFtirData(
   saved: unknown,
   version: number,
 ): WizardState<FtirData> | undefined {
-  if (version < 1 || version > 4 || !Number.isInteger(version)) return undefined;
+  if (version < 1 || version > 5 || !Number.isInteger(version)) return undefined;
   const state = saved as WizardState<Partial<FtirData>>;
   if (!state || typeof state !== 'object' || !state.data) return undefined;
+  const upgraded = version === 5 ? state : migrateToV5(state, version);
+  const processing: Record<string, FtirProcessing> = {};
+  for (const [id, p] of Object.entries(upgraded.data.processing ?? {})) {
+    const old = p as Omit<FtirProcessing, 'reflectance' | 'co2' | 'normalise'> & {
+      normalise: { enabled: boolean; method: 'max' | 'minmax' };
+    };
+    processing[id] = {
+      ...old,
+      reflectance: DEFAULT_FTIR_PROCESSING.reflectance,
+      co2: DEFAULT_FTIR_PROCESSING.co2,
+      normalise: { ...old.normalise, band: DEFAULT_FTIR_PROCESSING.normalise.band },
+    };
+  }
+  return {
+    ...upgraded,
+    data: { ...initialFtirData, ...upgraded.data, processing },
+  } as WizardState<FtirData>;
+}
+
+function migrateToV5(
+  state: WizardState<Partial<FtirData>>,
+  version: number,
+): WizardState<Partial<FtirData>> {
   if (version === 4) {
     return {
       ...state,
-      data: { ...initialFtirData, ...state.data, peakEdits: {}, compare: DEFAULT_COMPARE_SETTINGS },
-    } as WizardState<FtirData>;
+      data: { ...state.data, peakEdits: {}, compare: DEFAULT_COMPARE_SETTINGS },
+    };
   }
   const assignments: Record<string, Assignment[]> = {};
   for (const [id, list] of Object.entries(state.data.assignments ?? {})) {

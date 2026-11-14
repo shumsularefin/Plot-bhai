@@ -299,6 +299,8 @@ export function PeaksStep({ data, update }: StepContext<FtirData>) {
         quantity={quantity}
         settings={data.plot}
         onSettingsChange={(plot) => update({ plot: { ...data.plot, ...plot } })}
+        absorbanceName={shown.name}
+        edited={result.edited}
         exportName={`${spectrum.name}-peaks`}
         showOverlayOptions={false}
         peakLabels={labels}
@@ -331,9 +333,13 @@ export function PeaksStep({ data, update }: StepContext<FtirData>) {
             onClick={() =>
               downloadCsv(
                 `${spectrum.name}-peaks`,
-                peakCsvNote(settings.prominencePercent, quantity === 'transmittance'),
+                peakCsvNote(
+                  settings.prominencePercent,
+                  quantity === 'transmittance',
+                  shown.csvName,
+                ),
                 peaks,
-                peakColumns(quantity === 'transmittance'),
+                peakColumns(quantity === 'transmittance', shown.csvName),
               )
             }
           >
@@ -357,12 +363,12 @@ export function PeaksStep({ data, update }: StepContext<FtirData>) {
             <thead>
               <tr>
                 <th scope="col">Wavenumber (cm⁻¹)</th>
-                <th scope="col">Absorbance</th>
+                <th scope="col">{shown.name}</th>
                 {quantity === 'transmittance' && <th scope="col">{quantityHeading(quantity)}</th>}
                 <th scope="col">Relative intensity (%)</th>
                 <th scope="col">Prominence</th>
                 <th scope="col">FWHM (cm⁻¹)</th>
-                <th scope="col">Area (A·cm⁻¹)</th>
+                <th scope="col">Area ({shown.name === 'Absorbance' ? 'A' : shown.name}·cm⁻¹)</th>
                 <th scope="col">Intensity</th>
                 <th scope="col">Origin</th>
                 <th scope="col">

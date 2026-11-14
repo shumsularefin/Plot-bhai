@@ -45,6 +45,8 @@ describe('ATR correction', () => {
       spectra: [
         {
           kind: 'absorbance',
+          reflectance: null,
+          co2: null,
           atrReferenceCm: 1000,
           baseline: null,
           smoothing: null,

@@ -572,11 +572,14 @@ try {
   await page.getByText('Example absorbance (synthetic)').first().waitFor();
   await next('Clean data');
   await page.getByRole('switch', { name: 'Baseline correction' }).check();
+  await page.getByRole('switch', { name: 'Remove the CO₂ band' }).check();
+  await page.getByText(/2280–2400 cm⁻¹ was replaced by a straight line/).waitFor();
+  step('FTIR: CO₂ region replaced by a straight line');
   await next('Pick peaks');
   await page.locator('.peak-table tbody tr').first().waitFor();
   assert.equal(await page.locator('.peak-table tbody tr').count(), 6);
   step('FTIR: six peaks found in the example spectrum');
-  await page.getByLabel('Add a peak at (cm⁻¹)').fill('2400');
+  await page.getByLabel('Add a peak at (cm⁻¹)').fill('2500');
   await page.getByRole('button', { name: 'Add peak', exact: true }).click();
   await page.getByText('added by hand').first().waitFor();
   assert.equal(await page.locator('.peak-table tbody tr').count(), 7);
@@ -617,6 +620,7 @@ try {
   const ftirText = await page.getByLabel('Methods paragraph').inputValue();
   assert.match(ftirText, /generated example data/);
   assert.match(ftirText, /edited by hand: 1 added by hand/);
+  assert.match(ftirText, /To remove the atmospheric CO2 band, 2280–2400 cm⁻¹ was replaced/);
   assert.match(ftirText, /not proof of the groups present/);
   const [ftirCsv] = await Promise.all([
     page.waitForEvent('download'),
