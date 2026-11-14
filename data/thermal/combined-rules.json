@@ -1,5 +1,5 @@
 {
-  "verification": "Partly checked. The four correlations of a DSC event with a mass change follow the stage specification; that melting shows no mass change and that a decomposition with mass loss can be endothermic or exothermic is supported by Gaisford S., Kett V. and Haines P. (eds), Principles of Thermal Analysis and Calorimetry, 2nd edn, Royal Society of Chemistry, 2016, ISBN 978-1-78262-051-8, §3.5 (Figure 3.19). The usual direction of moisture, bound water and carbon oxidation is checked against the same book (see 'directionSources'). TODO, verify: the directions of the other mass loss events are my own general-knowledge placeholders, not checked against any source; 'either' means no preference.",
+  "verification": "The four correlations of a DSC event with a mass change follow the stage specification; that melting shows no mass change and that a decomposition with mass loss can be endothermic or exothermic is supported by Gaisford S., Kett V. and Haines P. (eds), Principles of Thermal Analysis and Calorimetry, 2nd edn, Royal Society of Chemistry, 2016, ISBN 978-1-78262-051-8, §3.5 (Figure 3.19). The usual direction of moisture, bound water and carbon oxidation is checked against the same book (see 'directionSources'). The usual directions of the other mass loss events were checked by the owner, November 2026; 'either' means no preference.",
   "tgaUsualDirection": {
     "moisture": "endo",
     "bound-water": "endo",
@@ -16,11 +16,11 @@
     "moisture": "Gaisford, Kett & Haines (2016) §5.5.5 and §5.5.6: loss of moisture and volatiles is endothermic.",
     "bound-water": "Gaisford, Kett & Haines (2016) §5.5.5: water of hydration lost from CuSO4·5H2O gives endothermic peaks.",
     "carbon-oxidation": "Gaisford, Kett & Haines (2016) §11.2.6: oxidation of carbons is exothermic.",
-    "capping-agents": "TODO, verify",
-    "polymer-degradation": "TODO, verify",
-    "dehydroxylation": "TODO, verify",
-    "nitrate": "TODO, verify",
-    "acetate": "TODO, verify",
-    "carbonate": "TODO, verify"
+    "capping-agents": "Checked by the owner, November 2026",
+    "polymer-degradation": "Checked by the owner, November 2026",
+    "dehydroxylation": "Checked by the owner, November 2026",
+    "nitrate": "Checked by the owner, November 2026",
+    "acetate": "Checked by the owner, November 2026",
+    "carbonate": "Checked by the owner, November 2026"
   }
 }

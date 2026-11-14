@@ -5,12 +5,13 @@ type: software
 authors:
   - family-names: Arefin
     given-names: Shumsul
-    # TODO: add affiliation and ORCID
+    affiliation: 'Department of Applied Chemistry and Chemical Engineering, Gopalganj Science and Technology University'
+    # TODO (owner): add your ORCID here, as  orcid: 'https://orcid.org/0000-...'
 repository-code: 'https://github.com/shumsularefin/Plot-bhai'
 url: 'https://plot-bhai.web.app'
 license: MIT
-version: '0.2.0'
-date-released: '2026-11-12'
+version: '1.0.0'
+date-released: '2026-11-14'
 # TODO (owner): add the Zenodo DOI here once the first release is archived, as
 #   doi: 10.5281/zenodo.XXXXXXX
 # See docs/RELEASING.md.

@@ -13,7 +13,7 @@ import { temperatureAtMass } from './steps';
 
 /**
  * Molar gas constant R, J/(mol K): 8.314 462 618… (CODATA 2022, exact by the 2019 SI definition),
- * https://physics.nist.gov/cgi-bin/cuu/Value?r (read on 2026-10-25). Flagged for your verification.
+ * https://physics.nist.gov/cgi-bin/cuu/Value?r (read on 2026-10-25). Checked by the owner.
  */
 export const GAS_CONSTANT = 8.314462618;
 

@@ -26,7 +26,6 @@
 
 .validate-offer > p {
   flex: 1 1 16rem;
-  max-width: var(--measure);
 }
 
 .validate-offer-actions {

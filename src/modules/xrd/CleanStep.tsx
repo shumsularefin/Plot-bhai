@@ -218,7 +218,7 @@ export function CleanStep({ data, update }: StepContext<XrdData>) {
           Source: {lines.source}
           {lines.source === 'Hölzer 1997'
             ? ' (Phys. Rev. A 56, 4554).'
-            : '. Not yet checked against International Tables for Crystallography.'}
+            : ' (Rev. Mod. Phys. 75, 35).'}
         </p>
         {wavelengthMismatch && (
           <p class="message is-warning">

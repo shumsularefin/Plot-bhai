@@ -69,8 +69,9 @@ export default function About() {
           <li>
             Thermal event tables: whether each DSC event is endothermic or exothermic is checked
             against Gaisford, Kett and Haines, Principles of Thermal Analysis and Calorimetry (2nd
-            edn, 2016); the typical temperature ranges are still marked for verification. Check them
-            against your own references before publishing.
+            edn, 2016); the typical temperature ranges were checked by the author in November 2026.
+            Real temperatures depend on the sample and the run, so compare them with your own
+            references before publishing.
           </li>
           <li>
             JCPDS/ICDD data is not included. A JCPDS number you type is printed as typed and is
@@ -316,9 +317,8 @@ export default function About() {
           </Eq>
         </ul>
         <p>
-          Event rule tables (typical temperature ranges) are stored with their sources and are
-          flagged for verification. A suggested calcination temperature is a starting point, not an
-          optimum.
+          Event rule tables (typical temperature ranges) are stored with their sources. A suggested
+          calcination temperature is a starting point, not an optimum.
         </p>
         <h3>Activation energy from several heating rates</h3>
         <p>

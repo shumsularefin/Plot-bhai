@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { niceTicks } from '../src/ui/plot/axes';
+import { niceTicks, spacedTicks } from '../src/ui/plot/axes';
+import { plotMargins } from '../src/ui/plot/PlotSvg';
 import { decimate, lowerBound, nearestIndex } from '../src/ui/plot/decimate';
 import {
   DEFAULT_EXPORT_SETTINGS,
@@ -67,6 +68,25 @@ describe('axes', () => {
       '32.0',
     ]);
     expect(niceTicks(-1, 1, 2).map((t) => t.label)).toEqual(['\u22121', '0', '1']);
+  });
+
+  it('thins ticks on a short axis so labels stay apart', () => {
+    // d3 gives 0, 0.05, …, 0.25 for a count of 4: on a 40 px strip that is 8 px apart.
+    const crowded = niceTicks(0, 0.25, 4);
+    expect(crowded.length).toBe(6);
+    const fitted = spacedTicks(0, 0.25, 4, 40, 1.8 * 8);
+    const [first, second] = fitted.map((t) => t.value);
+    const gap = (((second ?? 0) - (first ?? 0)) / 0.25) * 40;
+    expect(gap).toBeGreaterThanOrEqual(1.8 * 8);
+    expect(fitted.length).toBeGreaterThanOrEqual(2);
+    // A tall axis keeps what niceTicks gives.
+    expect(spacedTicks(10, 80, 7, 500, 14)).toEqual(niceTicks(10, 80, 7));
+  });
+
+  it('leaves room left of the axis for the y title and its superscripts', () => {
+    const m = plotMargins(8, true);
+    // Title baseline at 4 font sizes, its letters about one font size further out.
+    expect(m.left).toBeGreaterThanOrEqual(8 * (4 + 1.1));
   });
 });
 

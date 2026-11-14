@@ -67,7 +67,7 @@ Open:
 
 Formulas: src/core/xrd/structure/geometry.ts (metric tensor, orthogonalisation, drawn cell,
 bonds). Tests: tests/structure-geometry.test.ts. Covalent radii: data/reference/covalent-radii.json
-(Cordero et al., Dalton Trans. 2008, 2832–2838, as tabulated in ASE; flagged for verification).
+(Cordero et al., Dalton Trans. 2008, 2832–2838, as tabulated in ASE; checked by the owner, November 2026).
 
 | Method              | Check                                                                                                                                               | Source                                                       | Tolerance               | Result |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ----------------------- | ------ |

@@ -539,10 +539,10 @@ describe('event type guidance', () => {
     expect(DSC_NO_CERTAINTY_NOTE).toMatch(/DSC alone cannot/);
   });
 
-  it('flags the table as unverified', () => {
-    expect(table.verification).toMatch(/TODO, verify/);
-    // Directions are cited to the textbook; every temperature range is still a placeholder.
-    expect(table.events.every((r) => /TODO, verify/.test(r.source))).toBe(true);
+  it('cites a source or the owner check for every row, with no TODO left', () => {
+    expect(table.verification).toMatch(/checked by the owner/);
+    expect(table.events.every((r) => /checked by the owner/.test(r.source))).toBe(true);
+    expect(JSON.stringify(table)).not.toMatch(/TODO/);
     for (const id of ['melting', 'dehydration-evaporation', 'crystallisation', 'oxidation'])
       expect(table.events.find((r) => r.id === id)?.source, id).toMatch(
         /Gaisford, Kett & Haines \(2016\) §/,

@@ -6,7 +6,7 @@
 /**
  * Fundamental constants, 2022 CODATA recommended values, https://physics.nist.gov/cgi-bin/cuu/Value
  * (pages for h, c and e, read on 2026-10-24). All three are exact by the 2019 SI definition.
- * Flagged for your verification.
+ * Checked by the owner (November 2026).
  */
 /** Planck constant h, J s. */
 const PLANCK_J_S = 6.62607015e-34;

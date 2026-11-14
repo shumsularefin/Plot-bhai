@@ -1,6 +1,6 @@
 import type { ComponentChildren, SVGAttributes } from 'preact';
 import { useId } from 'preact/hooks';
-import { niceTicks } from './axes';
+import { niceTicks, spacedTicks } from './axes';
 import { decimate, lowerBound, type Decimated } from './decimate';
 import {
   labelKey,
@@ -34,13 +34,17 @@ export interface Margins {
   left: number;
 }
 
-/** Space around the plot area, sized from the font so labels never clip. */
+/**
+ * Space around the plot area, sized from the font so labels never clip. With tick values the
+ * y title's baseline sits 4 font sizes left of the axis; its letters and superscripts reach about
+ * one more font size beyond that, so the left margin is 5.3 font sizes.
+ */
 export function plotMargins(fontSize: number, yValues = false): Margins {
   return {
     top: fontSize * 0.8,
     right: fontSize * 1.2,
     bottom: fontSize * 3.3,
-    left: fontSize * (yValues ? 4.6 : 2.1),
+    left: fontSize * (yValues ? 5.3 : 2.1),
   };
 }
 
@@ -194,7 +198,14 @@ export function PlotSvg(props: PlotSvgProps) {
   const xTicks = labels.reversed
     ? niceTicks(-x1, -x0, xTickCount).map((t) => ({ value: -t.value, label: t.label }))
     : niceTicks(x0, x1, xTickCount);
-  const allYTicks = niceTicks(y0, y1, Math.max(2, Math.round(innerH / (style.fontSize * 5))));
+  // Labels at least 1.8 font sizes apart, so a short panel (the DTG strip) is not crowded.
+  const allYTicks = spacedTicks(
+    y0,
+    y1,
+    Math.max(2, Math.round(innerH / (style.fontSize * 5))),
+    innerH,
+    style.fontSize * 1.8,
+  );
   const yTicks = labels.yValues ? allYTicks : [];
   const grid = figure?.axes.grid ?? 'none';
   const ticksOut = figure?.axes.ticks === 'out';
