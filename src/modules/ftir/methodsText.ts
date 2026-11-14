@@ -4,8 +4,7 @@ import { ftirMethodsParagraph, type FtirMethodsInput } from '../../core/ftir/met
 import { DEFAULT_FTIR_PROCESSING } from '../../core/ftir/process';
 import { bandArea } from '../../core/ftir/bands';
 import { bandsFor, peaksFor, processingFor, type FtirData } from './data';
-import { processAll } from './analysis';
-import { peakRows } from './analysis';
+import { peakRows, pickedPeaksOf, processAll } from './analysis';
 import { shownQuantity } from './quantity';
 
 /** The settings that went into the analysis, read from the saved session. */
@@ -41,6 +40,12 @@ export function methodsInput(data: FtirData): FtirMethodsInput {
         normalise: p.normalise.enabled ? p.normalise.method : null,
         prominencePercent: own.length > 0 ? peaksFor(data, s.id).prominencePercent : null,
         assignments: own.filter((r) => r.assignment !== '').length,
+        handAdded: own.filter((r) => r.peak.origin === 'hand').length,
+        shoulders: own.filter((r) => r.peak.origin === 'shoulder').length,
+        removed: curve
+          ? pickedPeaksOf(curve, peaksFor(data, s.id)).length -
+            own.filter((r) => r.peak.origin === 'picked').length
+          : 0,
         fit: fit
           ? {
               fromCm: fit.start,
@@ -63,6 +68,7 @@ export function methodsInput(data: FtirData): FtirMethodsInput {
           : 0,
       };
     }),
+    groupToleranceCm: data.spectra.length > 1 && rows.length > 0 ? data.compare.toleranceCm : null,
     differences: data.spectra.filter((s) => s.source === 'computed').length,
     toleranceCm: data.toleranceCm,
     rangeSource: `${groups.source.citation}, doi:${groups.source.doi}`,

@@ -1,7 +1,9 @@
+import { intensityText } from '../../core/ftir/peakShape';
 import { processSpectrum } from '../../core/ftir/process';
+import { ORIGIN_TEXT } from './peakText';
 import { fingerprint, type AnalysisRecord, type RecordData } from '../../ui/report/record';
 import { ASSIGNMENT_MATCH_CM, attachAssignments, peaksOf } from './analysis';
-import { peaksFor, processingFor, type FtirData } from './data';
+import { peakEditsFor, peaksFor, processingFor, type FtirData } from './data';
 import { methodsText } from './methodsText';
 import { shownQuantity, valueIn } from './quantity';
 
@@ -25,7 +27,8 @@ export async function ftirRecord(data: FtirData): Promise<AnalysisRecord> {
             ? ['iterative polynomial', `degree ${b.degree}`]
             : ['rubber band (lower convex hull)'];
     const peakSettings = peaksFor(data, s.id);
-    const peaks = peaksOf(processed, peakSettings);
+    const edits = peakEditsFor(data, s.id);
+    const peaks = peaksOf(processed, peakSettings, edits);
     records.push({
       name: s.name,
       description: `${s.source}, ${s.wavenumber.length} points, ${n(s.wavenumber[0] as number, 6)} to ${n(s.wavenumber[s.wavenumber.length - 1] as number, 6)} cm⁻¹, values read as ${s.kind}${s.kind === 'transmittance' ? ` (${s.scale})` : ''}, type from ${s.kindOrigin}${s.synthetic ? ', synthetic example data' : ''}`,
@@ -73,6 +76,16 @@ export async function ftirRecord(data: FtirData): Promise<AnalysisRecord> {
           ],
           messages: [],
         },
+        {
+          name: 'Peaks edited by hand',
+          used: edits.added.length + edits.removed.length > 0,
+          parameters: [
+            `${edits.added.filter((a) => !a.shoulder).length} added`,
+            `${edits.added.filter((a) => a.shoulder).length} shoulders accepted from the second derivative`,
+            `${edits.removed.length} picked peaks removed`,
+          ],
+          messages: [],
+        },
       ],
     });
     const { byPeak, detached } = attachAssignments(data.assignments[s.id], peaks);
@@ -81,7 +94,14 @@ export async function ftirRecord(data: FtirData): Promise<AnalysisRecord> {
       lines: peaks.length
         ? peaks.map((p, k) => {
             const label = byPeak[k]?.label;
-            return `${n(p.wavenumber, 6)} cm⁻¹: absorbance ${n(p.height)}${shown.quantity === 'transmittance' ? `, ${n(valueIn('transmittance', p.height))} %T` : ''}, prominence ${n(p.prominence)}${label ? `, assigned (suggestion accepted or typed by the user): ${label}` : ''}`;
+            const shape = p.shape;
+            const measures =
+              shape && shape.fwhm !== null && shape.area !== null
+                ? `, FWHM ${n(shape.fwhm)} cm⁻¹, area ${n(shape.area)} absorbance·cm⁻¹ above the local baseline${p.overlap ? ' (overlaps a neighbour: unreliable)' : ''}`
+                : '';
+            const origin = p.origin === 'picked' ? '' : `, ${ORIGIN_TEXT[p.origin]}`;
+            const strength = p.intensity ? `, ${intensityText(p.intensity)}` : '';
+            return `${n(p.wavenumber, 6)} cm⁻¹: absorbance ${n(p.height)}${shown.quantity === 'transmittance' ? `, ${n(valueIn('transmittance', p.height))} %T` : ''}, prominence ${n(p.prominence)}${measures}${strength}${origin}${label ? `, assigned (suggestion accepted or typed by the user): ${label}` : ''}`;
           })
         : ['No peaks picked.'],
     });

@@ -103,6 +103,8 @@ jobs:
         run: python -I scripts/validation/spectra/uvvis_real.py tests/fixtures-real/uvvis tests/fixtures/validation
       - name: FTIR references (scipy, pybaselines, lmfit)
         run: python -I scripts/validation/spectra/ftir.py tests/fixtures/validation
+      - name: FTIR peak width and area references (scipy)
+        run: python -I scripts/validation/spectra/ftir_peaks.py tests/fixtures/validation
       - name: Particle references (scikit-image, scipy) and the test image
         run: python -I scripts/validation/particles/make_particles.py tests/fixtures/validation
       - name: ImageJ Auto Threshold and Analyze Particles on the same image

@@ -17,7 +17,7 @@ import {
   peaksOf,
   processAll,
 } from './analysis';
-import { newId, peaksFor, type Assignment, type FtirData } from './data';
+import { newId, peakEditsFor, peaksFor, type Assignment, type FtirData } from './data';
 import { curveOf, FtirPlot, peakLabelsFor } from './FtirPlot';
 import { QuantityChoice } from './QuantityChoice';
 import { shownQuantity, valueIn, type FtirQuantity } from './quantity';
@@ -37,7 +37,10 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
   );
   const result = spectrum ? processed[data.spectra.indexOf(spectrum)] : undefined;
   const peaks = useMemo(
-    () => (spectrum && result ? peaksOf(result, peaksFor(data, spectrum.id)) : []),
+    () =>
+      spectrum && result
+        ? peaksOf(result, peaksFor(data, spectrum.id), peakEditsFor(data, spectrum.id))
+        : [],
     [spectrum, result, data],
   );
   const stored = spectrum ? data.assignments[spectrum.id] : undefined;

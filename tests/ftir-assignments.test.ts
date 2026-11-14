@@ -141,7 +141,7 @@ describe('assignments follow their peaks through reprocessing', () => {
 
 describe('saved FTIR sessions', () => {
   it('version 3 assignments get an id and keep their position and text', () => {
-    expect(FTIR_STATE_VERSION).toBe(4);
+    expect(FTIR_STATE_VERSION).toBe(5);
     const v3 = {
       step: 3,
       furthest: 5,
@@ -158,6 +158,6 @@ describe('saved FTIR sessions', () => {
     expect(a?.label).toBe('CH₂ bend');
     expect(typeof a?.id).toBe('string');
     expect(upgraded?.data.processing.s).toEqual(DEFAULT_FTIR_PROCESSING);
-    expect(migrateFtirData(v3, 4)).toBeUndefined();
+    expect(migrateFtirData(v3, 5)).toBeUndefined();
   });
 });

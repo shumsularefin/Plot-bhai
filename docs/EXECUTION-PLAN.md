@@ -59,7 +59,7 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 18        | Open validation items checked with Fityk and GSAS-II             | done    |
 | 19a       | UV-Vis, FTIR: four audit bugs (docs/STAGE-19-PROMPTS.md)         | done    |
 | 19b       | Validation of UV-Vis, FTIR and particles, three ways             | done    |
-| 19c       | FTIR peaks: editing, table, comparison across samples            | todo    |
+| 19c       | FTIR peaks: editing, table, comparison across samples            | done    |
 | 19d       | FTIR processing, reflectance data, wider group table             | todo    |
 | 19e       | UV-Vis: peak table, path length, figures, gap methods            | todo    |
 | 19f       | Particles: session file, report, statistics                      | todo    |

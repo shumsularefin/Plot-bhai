@@ -1069,3 +1069,48 @@ itself, not from other values:
 - Suggested Tauc region, general case: a long straight stretch above the edge whose line meets the axis below the edge still wins (a piecewise-linear test curve gave 0.40 eV for a 3.20 eV edge). The guard above covers the saturated diffuse reflectance seen in real files, not this. A general rule would change the 19a synthetic results, so it needs a published automatic method to follow; none has been checked yet.
 - Real FTIR file wanted: a JCAMP-DX (.jdx) export and the peak table the instrument software (OMNIC, OPUS or Spectrum) prints for it, with its threshold.
 - Real particle image wanted: an SEM or TEM image with a scale bar and the ImageJ Analyze Particles table (Area, Feret, MinFeret, Perim.) for a stated threshold.
+
+## 19c: FTIR peak table, hand edits and comparison across samples
+
+New methods: width at half height and area above a local baseline, an intensity class, hand-added
+and removed peaks, and the grouping of peaks of several samples into bands
+(src/core/ftir/peakShape.ts, src/core/ftir/compare.ts, src/modules/ftir/analysis.ts).
+
+Local baseline: the straight line through the lowest data point on each side of a band, searched
+up to the neighbouring band or the end of the search range (the valley-to-valley baseline of band
+integration). Width: where the absorbance above that line falls to half the band's height, with
+linear interpolation between points. Area: trapezoid rule above the line, in absorbance · cm⁻¹.
+
+### Checks
+
+Data: tests/fixtures/validation/ftir-peaks-reference.json, written by
+scripts/validation/spectra/ftir_peaks.py (numpy 2.5.4, scipy 1.18.1).
+
+| Check                                                                          | Reference                                                       | Tolerance            |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------- | -------------------- |
+| Isolated Gaussian, FWHM 30 cm⁻¹, height 0.5: width and area                    | synthetic: FWHM, h · FWHM · √(π / (4 ln 2))                     | 0.05 cm⁻¹; 5 × 10⁻⁴  |
+| Isolated Lorentzian, FWHM 20 cm⁻¹, ±500 cm⁻¹: width and area                   | synthetic: exact values for the band cut at ±500 cm⁻¹           | 0.05 cm⁻¹; 5 × 10⁻⁴  |
+| The same two bands                                                             | scipy.signal.peak_widths (rel_height 0.5), trapezoid            | 10⁻⁶                 |
+| Two bands on a sloping, curved, noisy background: limits, height, FWHM, area   | baseline written with numpy; peak_widths and trapezoid above it | same points; 10⁻⁶    |
+| Constant offset added; spectrum × 3                                            | invariance                                                      | unchanged; × 3, 10⁻⁹ |
+| Mirror image of the spectrum (wavenumber reversed)                             | invariance                                                      | 10⁻⁹                 |
+| Bands 25 cm⁻¹ apart (FWHM 30) flagged as overlapping; 100 cm⁻¹ apart not       | synthetic, known answer                                         | exact                |
+| Grouping of three samples with known shifts (+3 and −4 cm⁻¹, one band missing) | synthetic, known answer                                         | exact                |
+| Grouping after 20 random reorderings of samples and peaks                      | invariance                                                      | identical            |
+| Removed and added peaks with baseline and smoothing switched on and off        | invariance (edits kept by position)                             | same peaks           |
+| Spectral regions of the figure                                                 | envelope of the named rows of data/ftir/groups.json             | exact                |
+
+The Lorentzian area above the local baseline is smaller than the full analytic area π · h · FWHM /
+2, because the line between the two ends removes the wings; the test uses the exact value for the
+cut band. This is why the table marks areas as measured above a local baseline.
+
+Choices of this site, stated on screen: the intensity classes (strong from 60 %, medium from 25 %
+of the highest band above its local baseline, broad from 100 cm⁻¹ FWHM; IR tables use s, m, w and
+br without numeric limits), the overlap flag (the valley to a neighbour lies above half the
+band's height), the 10 cm⁻¹ snap distance for a peak added by hand and the 10 cm⁻¹ default
+grouping tolerance (2.5 times the common 4 cm⁻¹ resolution).
+
+### Open
+
+- Peak table against instrument software: the FWHM and area that OMNIC, OPUS or Spectrum report for one band of a real file, with their baseline points. No such file is in tests/fixtures-real/.
+- Grouping across samples: no other program with the same rule (one peak per sample, span at most the tolerance) was found, so the rule is checked by the known-answer and order tests only.

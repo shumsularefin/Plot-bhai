@@ -576,6 +576,17 @@ try {
   await page.locator('.peak-table tbody tr').first().waitFor();
   assert.equal(await page.locator('.peak-table tbody tr').count(), 6);
   step('FTIR: six peaks found in the example spectrum');
+  await page.getByLabel('Add a peak at (cm⁻¹)').fill('2400');
+  await page.getByRole('button', { name: 'Add peak', exact: true }).click();
+  await page.getByText('added by hand').first().waitFor();
+  assert.equal(await page.locator('.peak-table tbody tr').count(), 7);
+  // The first row is the highest wavenumber, the broad O–H band of the example.
+  await page
+    .getByRole('button', { name: /^Remove peak at 3[\d.]+ cm⁻¹$/ })
+    .first()
+    .click();
+  assert.equal(await page.locator('.peak-table tbody tr').count(), 6);
+  step('FTIR: a peak added and a peak removed by hand');
   await next('Bands');
   // Band fitting runs in the worker: the example's 1720 cm⁻¹ band is Lorentzian, 25 cm⁻¹ wide.
   await page.getByLabel('Fit from (cm⁻¹)').fill('1620');
@@ -593,8 +604,19 @@ try {
   await next('Assign groups');
   await page.getByRole('button', { name: /Accept the best suggestion for every peak/ }).click();
   await next('Results and export');
+  const compareTable = page.getByRole('region', { name: /Comparison table/ });
+  await compareTable.locator('tbody tr').first().waitFor();
+  assert.ok((await compareTable.locator('tbody tr').count()) >= 6);
+  assert.ok((await compareTable.locator('tbody td', { hasText: /^–$/ }).count()) > 0);
+  const [compareCsv] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Download comparison (CSV)' }).click(),
+  ]);
+  assert.match(readFileSync(await compareCsv.path(), 'utf8'), /Shift /);
+  step('FTIR: comparison table across the two samples');
   const ftirText = await page.getByLabel('Methods paragraph').inputValue();
   assert.match(ftirText, /generated example data/);
+  assert.match(ftirText, /edited by hand: 1 added by hand/);
   assert.match(ftirText, /not proof of the groups present/);
   const [ftirCsv] = await Promise.all([
     page.waitForEvent('download'),

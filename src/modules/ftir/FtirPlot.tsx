@@ -1,11 +1,11 @@
 import type { ComponentChildren } from 'preact';
 import { useMemo } from 'preact/hooks';
 import { toPercentTransmittance, type FtirProcessed } from '../../core/ftir/process';
-import { PlotPanel, type PlotSettings } from '../../ui/plot/PlotPanel';
+import { PlotPanel, type PlotInteraction, type PlotSettings } from '../../ui/plot/PlotPanel';
 import type { FtirPeak } from '../../core/ftir/peaks';
 import type { PeakLabelSet } from '../../ui/plot/peakLabels';
 import type { SeriesSource } from '../../ui/plot/series';
-import type { AxisLabels, Domain } from '../../ui/plot/types';
+import type { AxisLabels, Domain, PlotBand } from '../../ui/plot/types';
 import { valueIn, type FtirQuantity } from './quantity';
 
 /** One curve to draw: absorbance on increasing wavenumber. */
@@ -86,12 +86,13 @@ export function peakLabelsFor(
   peaks: readonly FtirPeak[],
   quantity: FtirQuantity,
   seriesId?: string,
+  text: (peak: FtirPeak, index: number) => string = (p) => String(Math.round(p.wavenumber)),
 ): PeakLabelSet {
   return {
-    labels: peaks.map((p) => ({
+    labels: peaks.map((p, i) => ({
       x: -p.wavenumber,
       y: valueIn(quantity, p.height),
-      text: String(Math.round(p.wavenumber)),
+      text: text(p, i),
       ...(seriesId !== undefined && { seriesId }),
     })),
     key: [],
@@ -113,6 +114,10 @@ interface FtirPlotProps {
   toolbar?: ComponentChildren;
   /** Y axis title for curves that are not absorbance (for example a derivative); shown as is. */
   yLabel?: string;
+  /** Clicking and markers, in plotted units (x is −wavenumber). */
+  interaction?: PlotInteraction;
+  /** Shaded wavenumber ranges with a name, cm⁻¹. */
+  regions?: readonly { fromCm: number; toCm: number; label: string }[];
 }
 
 /** The shared plot panel set up for FTIR spectra, with the wavenumber axis reversed. */
@@ -125,6 +130,12 @@ export function FtirPlot(props: FtirPlotProps) {
     return yLabel ? (normalised: boolean) => ({ ...base(normalised), y: yLabel }) : base;
   }, [quantity, yLabel]);
   const focus: Domain | null = props.focusCm ? [-props.focusCm[0], -props.focusCm[1]] : null;
+  const regions = props.regions;
+  const bands = useMemo(
+    (): PlotBand[] | undefined =>
+      regions?.map((r) => ({ fromX: -r.toCm, toX: -r.fromCm, label: r.label })),
+    [regions],
+  );
   return (
     <PlotPanel
       sources={sources}
@@ -138,6 +149,8 @@ export function FtirPlot(props: FtirPlotProps) {
         showOverlayOptions: props.showOverlayOptions,
       })}
       {...(props.peakLabels && { peakLabels: props.peakLabels })}
+      {...(props.interaction && { interaction: props.interaction })}
+      {...(bands && bands.length > 0 && { bands })}
       toolbar={props.toolbar}
       {...(focus && { focusRange: focus })}
     />

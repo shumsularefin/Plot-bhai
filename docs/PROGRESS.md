@@ -1,5 +1,46 @@
 # Progress
 
+## Stage 19c: FTIR peaks, editing, table and comparison across samples (done)
+
+Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md, 19c.
+
+- **Peaks by hand (Pick peaks step).** Modes "Add peaks" and "Remove peaks" on the plot (a tap
+  within 10 cm⁻¹ of a local maximum adds the maximum, further away adds exactly there), a typed
+  "Add a peak at (cm⁻¹)" box for the keyboard, a Remove button on every table row, and "Reset
+  hand edits". Edits are stored per spectrum by position (`peakEdits`), re-attached after
+  reprocessing with the assignment pairing rule, and undone with the wizard's Undo.
+- **Shoulders.** Second-derivative minima (settings of the Bands step) with no peak within 10 cm⁻¹
+  are offered as "Accept shoulder at …"; accepted ones are marked "shoulder" and flagged.
+- **New columns.** Height above a local baseline, FWHM, area (absorbance · cm⁻¹), intensity class,
+  origin (picked, added by hand, shoulder) and an overlap flag that points to band fitting.
+  Definitions in src/core/ftir/peakShape.ts. The class thresholds are my own (no numeric
+  convention exists; IR tables use s, m, w, br without limits) and are stated on screen and in the CSV.
+- **Comparison across samples (Results).** One row per band, one column per sample, a dash when
+  absent, shifts from a chosen reference sample, assignments, optional relative intensity, CSV.
+  Grouping (src/core/ftir/compare.ts) sorts all peaks by wavenumber, so the sample order does not
+  matter (tested); default tolerance 10 cm⁻¹, my own choice (2.5 × the common 4 cm⁻¹ resolution).
+- **Combined figure.** Labels: wavenumber, assignment, both, or none (long assignments are cut at
+  28 characters; labels can be edited on the plot). Optional spectral regions, each the envelope
+  of named rows of data/ftir/groups.json (src/modules/ftir/regions.ts), drawn in the SVG and PNG.
+  Shared plot fixes: band names are stacked in rows when they would overlap and move to the
+  bottom edge when peak labels use the top; peak labels near the frame are moved inside it with a
+  leader line.
+- **Wide CSV.** "Download processed spectra, one column per sample" when all grids match.
+- **Methods text and record.** Hand edits are counted ("The peak list was edited by hand: …"), the
+  width and area definition is given, and the comparison tolerance when there are several samples.
+- **State.** FTIR state version 5 (`peakEdits`, `compare`); version 4 sessions are migrated
+  (tests/ftir-peak-edits.test.ts).
+- **Validation.** Synthetic Gaussian and Lorentzian bands with exact widths and areas; scipy
+  peak_widths and trapezoid (scripts/validation/spectra/ftir_peaks.py, a step in the Validation
+  workflow) agree to 10⁻⁶; offset, scale and mirror invariance; grouping with known shifts and
+  under 20 reorderings. Open: a real instrument peak table to compare widths and areas with.
+
+Verification: lint and type check clean; 1613 tests pass, 1 todo (140 files); production build
+and bundle size within budget (initial JavaScript 20.0 KB gzipped); e2e passed, including the new
+FTIR steps (adding a peak, removing one, assigning, the comparison table and its CSV).
+
+Next: sub-stage 19d (FTIR processing, reflectance data and a wider group table).
+
 ## Stage 19b: validation of the UV-Vis, FTIR and Particles tools (done)
 
 Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md, 19b.

@@ -60,3 +60,53 @@ function vertex(x: Float64Array, y: Float64Array, i: number): number {
   const xv = (x0 + x1) / 2 - d1 / curvature;
   return Math.min(Math.max(xv, x0), x2);
 }
+
+/**
+ * The local maximum of y nearest to `cm` within `windowCm` (position refined as in pickPeaks), or
+ * null when there is none, for example on the flank of a band where a shoulder sits. x increasing.
+ */
+export function nearestMaximum(
+  x: Float64Array,
+  y: Float64Array,
+  cm: number,
+  windowCm: number,
+): number | null {
+  let best: number | null = null;
+  let bestDistance = Infinity;
+  for (let i = 1; i < y.length - 1; i++) {
+    const xi = x[i] as number;
+    const d = Math.abs(xi - cm);
+    if (d > windowCm || d >= bestDistance) continue;
+    const yi = y[i] as number;
+    if (yi > (y[i - 1] as number) && yi >= (y[i + 1] as number)) {
+      best = vertex(x, y, i);
+      bestDistance = d;
+    }
+  }
+  return best;
+}
+
+/**
+ * A peak at a position chosen by hand, cm⁻¹: the height is the data point nearest to it and the
+ * prominence follows the definition of pickPeaks at that point (0 on a flank, as for a shoulder).
+ */
+export function peakAt(
+  x: Float64Array,
+  y: Float64Array,
+  cm: number,
+): Omit<FtirPeak, 'relative'> | null {
+  const n = y.length;
+  if (n === 0) return null;
+  let i = 0;
+  for (let k = 1; k < n; k++)
+    if (Math.abs((x[k] as number) - cm) < Math.abs((x[i] as number) - cm)) i = k;
+  const yi = y[i] as number;
+  if (!Number.isFinite(yi)) return null;
+  let leftMin = yi;
+  for (let j = i - 1; j >= 0 && (y[j] as number) <= yi; j--)
+    leftMin = Math.min(leftMin, y[j] as number);
+  let rightMin = yi;
+  for (let j = i + 1; j < n && (y[j] as number) <= yi; j++)
+    rightMin = Math.min(rightMin, y[j] as number);
+  return { wavenumber: cm, height: yi, prominence: yi - Math.max(leftMin, rightMin) };
+}

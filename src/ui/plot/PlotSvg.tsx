@@ -177,6 +177,7 @@ export function PlotSvg(props: PlotSvgProps) {
       })),
       lineHeight,
       0,
+      innerW,
     );
     return visible.map((label, i) => {
       const placed = placements[i] as (typeof placements)[number];
@@ -186,6 +187,27 @@ export function PlotSvg(props: PlotSvgProps) {
           ? { ...placed, baseline: innerH - placed.baseline + lineHeight * 0.6 }
           : placed,
       };
+    });
+  })();
+
+  // Band names: at the top, or at the bottom when peak labels take the top; a name that would
+  // overlap one already placed goes one row further in.
+  const bandLabels = (() => {
+    const atBottom = !!peakLabels && !below;
+    const rows: { left: number; right: number }[][] = [];
+    const gap = style.fontSize * 0.5;
+    return (bands ?? []).map((b) => {
+      const x = (px(Math.min(b.fromX, b.toX)) + px(Math.max(b.fromX, b.toX))) / 2;
+      const half = textWidth(b.label, style.fontSize) / 2;
+      let row = rows.findIndex((r) =>
+        r.every((o) => x + half + gap <= o.left || x - half - gap >= o.right),
+      );
+      if (row < 0) row = rows.push([]) - 1;
+      rows[row]?.push({ left: x - half, right: x + half });
+      const y = atBottom
+        ? innerH - (legendAtBottom ? legendHeight : 0) - style.fontSize * 0.4 - row * lineHeight
+        : style.fontSize * 1.1 + row * lineHeight;
+      return { x, y };
     });
   })();
 
@@ -401,8 +423,8 @@ export function PlotSvg(props: PlotSvgProps) {
               key={`band-label-${i}`}
               class={print ? undefined : 'plot-text'}
               {...text}
-              x={(px(Math.min(b.fromX, b.toX)) + px(Math.max(b.fromX, b.toX))) / 2}
-              y={style.fontSize * 1.1}
+              x={bandLabels[i]?.x}
+              y={bandLabels[i]?.y}
               text-anchor="middle"
               stroke="none"
               fill={print ? ink : undefined}

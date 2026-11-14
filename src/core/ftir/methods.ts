@@ -22,6 +22,10 @@ export interface FtirMethodsInput {
     prominencePercent: number | null;
     /** Number of assignments the user accepted. */
     assignments: number;
+    /** Peaks added by hand, shoulders accepted from the second derivative, picked peaks removed. */
+    handAdded: number;
+    shoulders: number;
+    removed: number;
     /** The band fit of step 4, when one was made on the current processing. */
     fit: {
       fromCm: number;
@@ -35,6 +39,8 @@ export interface FtirMethodsInput {
     /** Number of band-area ranges with an area. */
     areas: number;
   }[];
+  /** Tolerance of the comparison across samples, cm⁻¹; null with one sample. */
+  groupToleranceCm: number | null;
   /** Number of difference spectra made in step 4. */
   differences: number;
   toleranceCm: number;
@@ -136,6 +142,25 @@ export function ftirMethodsParagraph(input: FtirMethodsInput): string {
     sentences.push(
       `Band positions were taken as the maxima of local peaks in the absorbance spectrum whose prominence was at least ${list(prominences)} of the absorbance range, refined with a parabola through the maximum and its two neighbouring points.`,
     );
+    const sum = (key: 'handAdded' | 'shoulders' | 'removed') =>
+      spectra.reduce((total, s) => total + s[key], 0);
+    const edits = [
+      sum('handAdded') > 0 &&
+        `${sum('handAdded')} added by hand at local maxima or chosen positions`,
+      sum('shoulders') > 0 &&
+        `${sum('shoulders')} shoulder${sum('shoulders') === 1 ? '' : 's'} accepted from minima of the second derivative`,
+      sum('removed') > 0 &&
+        `${sum('removed')} picked peak${sum('removed') === 1 ? '' : 's'} removed by hand`,
+    ].filter((e): e is string => typeof e === 'string');
+    if (edits.length > 0) sentences.push(`The peak list was edited by hand: ${list(edits)}.`);
+    sentences.push(
+      'Band widths (full width at half height) and integrated areas were measured above a straight local baseline joining the lowest points on either side of each band; values for bands that overlap a neighbour are approximate.',
+    );
+    if (input.groupToleranceCm !== null) {
+      sentences.push(
+        `For comparison between samples, peaks within ${number(input.groupToleranceCm)} cm⁻¹ of each other were treated as the same band.`,
+      );
+    }
   }
   if (input.differences > 0) {
     sentences.push(
