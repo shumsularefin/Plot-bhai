@@ -952,7 +952,7 @@ ImageJCheck.java in the workflow.
 | Sturges and Freedman–Diaconis bins, bin width and counts                       | numpy.histogram_bin_edges, numpy.histogram       | exact; 10⁻¹⁰                                  |
 | Normal and lognormal fits and their log-likelihoods                            | scipy.stats norm.fit, lognorm.fit(floc=0)        | 10⁻⁹; 10⁻⁷                                    |
 | Two pooled images, in either order                                             | invariance                                       | same summary as all sizes together            |
-| Every automatic threshold; area, centroid, ellipse, Feret, MinFeret, perimeter | ImageJ 1.54f (AutoThresholder, ParticleAnalyzer) | same level; 10⁻³ (runs in the workflow)       |
+| Every automatic threshold; area, centroid, ellipse, Feret, MinFeret, perimeter | ImageJ 1.54f (AutoThresholder, ParticleAnalyzer) | same level; 10⁻³ (from the workflow)          |
 
 Definitions that differ between programs:
 
@@ -966,11 +966,31 @@ Definitions that differ between programs:
   compared only with ImageJ.
 - scikit-image's Li iterates on continuous values and its Mean is not rounded; ImageJ rounds to a
   whole grey level.
-- The perimeter of a × 2 enlarged image is not twice the perimeter. Each one-pixel step of the
-  outline becomes a two-pixel step, and the same amount, 1 − √2/2, is cut at every corner. A 45°
-  staircase reads (4 − 0.586)/(2 · 1.414) = 1.207 times twice its first length. This is a property
-  of every pixel-edge perimeter, ImageJ's included. The site measures on a working copy made by
-  averaging, never by enlarging. The test checks that the ratio lies between 1 and 1.207.
+- Perimeter: this site now uses ImageJ's traced perimeter (PolygonRoi.getTracedPerimeter):
+  summed sides minus 2 − √2 at each counted corner, where on a staircase of unit steps only every
+  other vertex counts, starting where ImageJ's Wand starts. Before the ImageJ comparison the site
+  cut 1 − √2/2 at every corner, which read up to 2.9 % longer (62.77 against 61.01 px); fixed, see
+  "Faults found by ImageJ" below. Because the count depends on the start, a turned or mirrored
+  image can change a perimeter by a whole number of (2 − √2), within 5 % (tested).
+- The perimeter of a × 2 enlarged image is not always twice the perimeter. Enlarged, every corner
+  counts; a unit staircase doubles exactly and a 2 × 2 square reads 1.207 times twice. The test
+  checks that the ratio lies between 1 and 1.207 (1.02 to 1.04 on the test image). The site
+  measures on a working copy made by averaging, never by enlarging.
+- Triangle threshold: this site follows ImageJ, which moves the split one more level towards the
+  tail. scikit-image's threshold_triangle stops one level short for a bright tail (82 against 83
+  on the test image); the test expects that one level.
+
+Faults found by ImageJ (the workflow's ImageJ 1.54f run, 2026-11-14), both fixed with tests:
+
+- Perimeter and circularity used a different corner rule from ImageJ's (above). Now equal to
+  ImageJ's Perim. to 10⁻³ px for all 14 particles; a square's circularity reads 0.886, as in
+  ImageJ.
+- Triangle gave 82 where ImageJ gives 83: the extra level towards the tail was applied only for a
+  dark tail. Rewritten step by step from ij/process/AutoThresholder.Triangle.
+
+All other ImageJ checks passed on the first run: Default, Intermodes, IsoData, Li, MaxEntropy,
+Mean, Minimum, Moments and Otsu levels; area exactly; centroid to 10⁻⁶ px; Major, Minor, Feret and
+MinFeret to 10⁻³; ellipse angle to 0.01°.
 
 ### Real files
 
@@ -1037,12 +1057,6 @@ itself, not from other values:
 
 ### Open
 
-- ImageJ comparison. ImageJ could not be run in the development container (running a downloaded
-  jar there was not allowed), so its three tests wait for particles-imagej.json. The Validation
-  workflow writes and commits that file on its next run. Until then the tests are skipped and
-  this row is open. Expected to need a look: ImageJ's traced perimeter may count corners
-  differently from this site's (edge length − corners · (1 − √2/2)); any difference will be
-  recorded here.
 - ATR penetration depth: no published table could be read. The PIKE application note at the old
   address returned 404. The formula is Harrick's and is checked by invariance only. Needed: one
   printed row with crystal, n₁, n₂, angle, wavenumber and dp.

@@ -105,11 +105,15 @@ const angleDifference = (a: number, b: number) => {
 };
 
 describe('automatic thresholds against scikit-image 0.26', () => {
-  it('Otsu, IsoData (ImageJ Default), Minimum and Triangle give the same grey level', () => {
+  it('Otsu, IsoData (ImageJ Default) and Minimum give the same grey level', () => {
     expect(level('otsu')).toBe(skimage.thresholds.otsu);
     expect(level('default')).toBe(skimage.thresholds.isodata);
     expect(level('minimum')).toBe(skimage.thresholds.minimum);
-    expect(level('triangle')).toBe(skimage.thresholds.triangle);
+  });
+
+  it('Triangle is one level above scikit-image for a bright tail, as in ImageJ', () => {
+    // ImageJ moves the split one more level towards the tail; scikit-image does not.
+    expect(level('triangle')).toBe((skimage.thresholds.triangle as number) + 1);
   });
 
   it('Li and Mean agree once ImageJ’s whole-level rounding is allowed for', () => {
@@ -201,7 +205,6 @@ describe('invariance of the measurements', () => {
         (p) => p.shape.area,
         (p) => p.shape.feretMax,
         (p) => p.shape.feretMin,
-        (p) => p.shape.perimeter,
         (p) => p.shape.convexArea,
         (p) => p.ellipse.major,
         (p) => p.ellipse.minor,
@@ -211,6 +214,19 @@ describe('invariance of the measurements', () => {
         const after = sorted(moved, key);
         before.forEach((v, i) => expect(after[i]).toBeCloseTo(v, 9));
       }
+      // ImageJ's traced perimeter counts corners from where its walk starts, so turning or
+      // mirroring the image can change the count: by a whole number of (2 − √2), and only a little.
+      const pair = (p: Particle) => p.shape.area * 1e6 + p.shape.feretMax;
+      const a = [...particles].sort((p, q) => pair(p) - pair(q));
+      const b = [...moved].sort((p, q) => pair(p) - pair(q));
+      a.forEach((p, i) => {
+        const q = b[i] as Particle;
+        const steps = (q.shape.perimeter - p.shape.perimeter) / (2 - Math.SQRT2);
+        expect(Math.abs(steps - Math.round(steps))).toBeLessThan(1e-9);
+        expect(Math.abs(q.shape.perimeter - p.shape.perimeter)).toBeLessThan(
+          0.05 * p.shape.perimeter,
+        );
+      });
     });
   }
 
@@ -254,10 +270,11 @@ describe('invariance of the measurements', () => {
       expect(item.shape.area).toBe(4 * p.shape.area);
       expect(item.shape.eqDiameter).toBeCloseTo(2 * p.shape.eqDiameter, 9);
       // The pixel-corner hull scales exactly. The 1/12 pixel term of the ellipse does not, so the
-      // axes agree to 1 %. The perimeter cannot double exactly: enlarging turns every one-pixel
-      // step of the outline into a two-pixel step, and the corner cutting removes the same
-      // (1 − √2/2) per corner from both, so a 45° staircase reads (4 − 0.586) / (2 · 1.414) =
-      // 1.207 times twice its first length. The ratio lies between 1 (straight edges) and that.
+      // axes agree to 1 %. ImageJ's perimeter cannot always double: enlarged, every corner counts
+      // (no side is one pixel long), so P₂ = 2S − n(2 − √2) for S the summed sides and n corners,
+      // against 2P₁ = 2S − 2n₁(2 − √2) with n/2 ≤ n₁ ≤ n. A unit staircase (n₁ = n/2) doubles
+      // exactly; for a 2 × 2 square (n₁ = n), P₂ = 16 − 4(2 − √2) and 2P₁ = 16 − 8(2 − √2), a
+      // ratio of 1.207. So the ratio lies between 1 and 1.207 (1.02 to 1.04 on this image).
       expect(item.shape.feretMax).toBeCloseTo(2 * p.shape.feretMax, 9);
       expect(item.shape.feretMin).toBeCloseTo(2 * p.shape.feretMin, 9);
       const ratio = item.shape.perimeter / (2 * p.shape.perimeter);

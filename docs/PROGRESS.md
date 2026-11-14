@@ -41,8 +41,6 @@ Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs
   to compare with a textbook: two zero-width ranges, four very wide ones, a duplicated range, an
   odd "amide III (2° amines)" label, and the metal-oxide band positions.
 - **Open:**
-  - The ImageJ comparison runs in the workflow: running the downloaded jar in the container was
-    not allowed. Its three tests are skipped until particles-imagej.json is committed.
   - No published ATR depth table could be read.
   - The clipping rule in the Lieber paper.
   - No real UV-Vis, FTIR or particle file in tests/fixtures-real/. The files and numbers needed
@@ -63,10 +61,17 @@ Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs
     region be chosen again among windows that overlap that part. No synthetic result changes.
     Still open: the 300 °C indirect suggestion after baseline subtraction, and the general case
     (both in docs/validation.md, 19b Open).
+  - ImageJ: the workflow ran ImageJ 1.54f and committed particles-imagej.json. Nine of ten
+    thresholds and area, centroid, ellipse, Feret and MinFeret agreed at once. Two faults found
+    and fixed, each from ImageJ's own source (v1.54f on GitHub): the perimeter now follows
+    PolygonRoi.getTracedPerimeter, with the walk starting where the Wand starts (it read up to
+    2.9 % long before, so circularity was low); Triangle now moves the split one level towards
+    the tail on both sides (82 → 83 on the test image; scikit-image keeps 82). The help text on
+    circularity says a square reads about 0.89, as in ImageJ.
   - CLAUDE.md section 10 now records the owner's standing instruction to decide by published
     practice without waiting, with unverifiable data still left as TODO.
-  - Verification: lint clean, type check clean, 1588 tests pass, 3 skipped (ImageJ) and 1 todo
-    (137 files), production build OK, bundle size within budget, e2e passed.
+  - Verification: lint clean, type check clean, 1592 tests pass and 1 todo (137 files), none
+    skipped, production build OK, bundle size within budget, e2e passed.
 - **Next:** 19c, FTIR peaks: editing, table, comparison across samples.
 
 ## Stage 19a: four bugs found by the audit of UV-Vis and FTIR (done)
