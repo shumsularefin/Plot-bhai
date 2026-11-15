@@ -6,7 +6,9 @@ import { formatNumber } from '../../core/xrd/parsers/numbers';
 import { HelpTip } from '../../ui/HelpTip';
 import { SessionSection } from '../../ui/SessionSection';
 import type { StepContext } from '../../ui/wizard/types';
-import { resultRows } from './analysis';
+import { resultJobs, rowsFrom } from './analysis';
+import type { BandGapAnalysis } from './bandGap';
+import { useBandGaps } from './bandGapClient';
 import { BAND_COLUMNS, BAND_NOTE, bandRows } from './bands';
 import { ResultsFigures } from './ResultsFigures';
 import type { UvvisData } from './data';
@@ -22,13 +24,28 @@ const eV = (value: number, digits = 3) => formatNumber(value, digits);
 
 /** Wizard step 5: results table, figures, methods text and the session file. */
 export function ResultsStep({ data, update }: StepContext<UvvisData>) {
-  const rows = useMemo(() => resultRows(data), [data]);
-  const methods = useMemo(() => methodsText(data), [data]);
+  const pending = useMemo(() => resultJobs(data), [data]);
+  const jobs = useMemo(() => pending.map((r) => r.job), [pending]);
+  const gaps = useBandGaps(jobs);
+  const rows = useMemo(
+    () => (gaps.analyses ? rowsFrom(pending, gaps.analyses) : null),
+    [pending, gaps.analyses],
+  );
+  const methods = useMemo(() => (rows ? methodsText(data, rows) : ''), [data, rows]);
   const bands = useMemo(() => bandRows(data), [data]);
   const [copied, setCopied] = useState<string | null>(null);
 
   if (data.spectra.length === 0) {
     return <p>No spectra are loaded. Go back to Upload to add one.</p>;
+  }
+  if (!rows) {
+    return gaps.error ? (
+      <p class="message is-warning" role="alert">
+        The band gaps could not be found: {gaps.error}
+      </p>
+    ) : (
+      <p role="status">Finding the band gaps…</p>
+    );
   }
 
   const copy = async () => {
@@ -216,7 +233,7 @@ export function ResultsStep({ data, update }: StepContext<UvvisData>) {
 }
 
 /** Cody and sigmoid band gaps of a row, for example "Cody 3.21 ± 0.01; sigmoid 3.19". */
-function crossChecks(analysis: ReturnType<typeof resultRows>[number]['analysis']): string {
+function crossChecks(analysis: BandGapAnalysis): string {
   const parts: string[] = [];
   if (analysis.cody?.fit) parts.push(`Cody ${gapText(analysis.cody.fit)}`);
   if (analysis.sigmoid?.fit) parts.push(`sigmoid ${gapText(analysis.sigmoid.fit)}`);
