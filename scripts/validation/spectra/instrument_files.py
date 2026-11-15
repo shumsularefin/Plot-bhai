@@ -14,7 +14,7 @@ instead of stopping the run, so the JSON says which comparisons were made. x val
 in the order the reader gives them; the test sorts both sides before comparing.
 
 specio 0.1.0 imports collections.Iterable, which Python 3.10 removed, so the workflow runs it in a
-Python 3.9 venv of its own, as a second run with --add (which adds its readings to the JSON the
+Python 3.9 venv of its own (made by uv), as a second run with --add (which adds its readings to the JSON the
 first run wrote).
 
 Run:  python -I scripts/validation/spectra/instrument_files.py tests/fixtures-real/spectra tests/fixtures/validation [--only specio] [--add]
