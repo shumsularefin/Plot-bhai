@@ -197,6 +197,7 @@ p_four, cov_four = optimize.curve_fit(
     s_energy[s_below],
     s_signal[s_below],
     p0=[0.0, 0.01],
+    method='trf',
     **tight,
 )
 cov_four3 = np.zeros((3, 3))

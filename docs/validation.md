@@ -1284,14 +1284,16 @@ covariance and the root finding, not the equations themselves.
 ### Open
 
 - The original papers of Cody (1981), Moss (1950), Ravindra et al. (1979) and Hervé–Vandamme (1994)
-  were not opened; the equations are taken from Zanatta (2019) and Tripathy (2015).
+  were not opened; the equations are taken from Zanatta (2019) and Tripathy (2015). Still open after
+  stage 22 (part A skipped: the papers were not supplied).
 - Hervé–Vandamme B: Tripathy prints B = 3.47 eV; other secondary sources give 3.4 eV. 3.47 is used
   and flagged for verification.
 - The default sigmoid range (±0.25 eV around the midpoint of the rise near the Tauc gap) is my
   reading of Zanatta's "~500 meV energy range centered in between the min-max α values".
 - Zanatta gives no worked table of a fit to compare with, so no published example was run.
 - Optical conductivity (σ = αnc/4π) was not built: it needs n at each wavelength together with α,
-  and no SI form of the equation from a source opened in the session was found.
+  and no SI form of the equation from a source opened in the session was found. Still open after stage
+  22 (part D1 skipped: the textbook page was not supplied).
 - The reflection correction models a free-standing slab; the substrate is not included, which
   Kasikov and Aarik find matters for films thinner than about 1 µm.
 

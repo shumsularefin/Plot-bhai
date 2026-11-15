@@ -1,5 +1,29 @@
 # Progress
 
+## Stage 22: UV-Vis open items (done, A and D1 skipped: sources not supplied)
+
+Branch `stage-22-uvvis-open-items`. No new packages. Checks in docs/validation.md, section 22.
+
+- **Part B, suggested Tauc region:** anchored on the steepest part of the edge (maximum of the
+  local slope on the main rise); only windows that contain it compete, and lines meeting y = 0 at
+  or below zero energy, inside or above the window, or above the steepest point are rejected. The
+  300 °C TiO₂ indirect case went from 2.691 to 2.901 eV (hand region 2.87 eV); the piecewise
+  curve from 0.40 to 3.200 eV. When the slope still rises at the end of the data (a curved
+  background under a straight-line correction) the earlier rule is used. Own choice, no paper
+  opened states it. Saved sessions keep their region and rule (session version 6).
+- **Part C, power-law baseline:** S_b = a + c·Eᵐ under "Baseline shape" in the subtraction method
+  (Kubetschek et al. 2024, eq 8: λ⁻ᵐ, m = 4 Rayleigh, about 2 Mie). m is fitted in [0, 4] or
+  typed; σ(Eg) carries the full (a, c, m) covariance; a warning appears when the background is
+  poorly determined; it is suggested (never switched on) when its residual is at most half the
+  straight line's. Shown in the results table, figure legend, CSV, record and methods text. A
+  c·E⁴ background now gives 3.200 eV instead of 3.265 eV; SciPy curve_fit is the independent check.
+- **Part D2:** no PDI for image sizes (owner decision); the help beside the CV says why.
+- **Skipped:** part A (Cody, Moss, Ravindra–Srivastava, Hervé–Vandamme originals) and part D1
+  (optical conductivity) need the papers and the textbook page from the owner.
+- **Known issues:** a 50,000-point UV-Vis spectrum takes about a minute to analyse on the main
+  thread, almost all in the region search of earlier stages; it should move to a worker.
+- **Next:** nothing scheduled; the owner decides.
+
 ## Stage 19d item 4 extension and closing the raw-file items (done)
 
 Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md,
