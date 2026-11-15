@@ -1682,6 +1682,21 @@ Open:
   region search of earlier stages). It should move to a Web Worker or be made faster.
 - No real spectrum of a scattering sample with a known gap was available to test the power law on.
 
+### Own choices, decided by the owner's rule (2026-11-15)
+
+The owner asked for the choices labelled "own choice" in parts B and C to be decided from standard
+practice and the literature, without waiting for the owner. They are kept as built:
+
+| Choice                                                             | Kept as | Basis                                                                                                                                                                                     |
+| ------------------------------------------------------------------ | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fit the power law to all the data below the edge                   | kept    | Kubetschek et al. 2024, p. 8: the exponents were "fitted in the linear region below 850 nm", that is over the whole non-resonant range below the transitions                              |
+| Bounds 0 ≤ m ≤ 4                                                   | kept    | the same page gives m = 4 (Rayleigh) and m = 2 (van de Hulst, Mie) as the two limits; 0 is included so that a flat level is also covered. No higher value is physical for this scattering |
+| Constant a in a + c·Eᵐ                                             | kept    | own choice: the straight-line baseline of 19a has an offset as well, and a sample or cuvette offset does not follow λ⁻ᵐ                                                                   |
+| Steepest-point anchor (±0.05 eV slope, 3σ bound, half-height rise) | kept    | own choice: the Tauc line is fitted on the linear part of the rising edge; no paper stating the steepest-point rule was opened, so the 19b and 22 checks are its only support             |
+| Fallback to the earlier rule when the slope still rises at the end | kept    | own choice, needed by the curved-background case above                                                                                                                                    |
+| Warning at σ(Eg) > 0.05 eV                                         | kept    | own choice: larger than the ±0.03 eV margin Makuła et al. 2018 state for their gaps, so the warning appears only when the background, not the edge fit, dominates the uncertainty         |
+| Suggestion when the power-law residual is at most half the line's  | kept    | own choice: it fires on the c·E² and c·E⁴ cases and not on a straight level or a c·E background (above)                                                                                   |
+
 ### Part D: optical conductivity; polydispersity index
 
 | Item                    | Check                                                                | Source                    | Result                            |

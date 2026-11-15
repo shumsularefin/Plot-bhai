@@ -17,6 +17,9 @@ Branch `stage-22-uvvis-open-items`. No new packages. Checks in docs/validation.m
   poorly determined; it is suggested (never switched on) when its residual is at most half the
   straight line's. Shown in the results table, figure legend, CSV, record and methods text. A
   c·E⁴ background now gives 3.200 eV instead of 3.265 eV; SciPy curve_fit is the independent check.
+- **Own choices:** the owner asked (2026-11-15) for them to be decided from standard practice; all
+  are kept as built, with the basis of each in docs/validation.md, section 22. Fitting the power law
+  to the whole range below the edge and the m = 2 to 4 range follow Kubetschek et al. 2024, p. 8.
 - **Part D2:** no PDI for image sizes (owner decision); the help beside the CV says why.
 - **Skipped:** part A (Cody, Moss, Ravindra–Srivastava, Hervé–Vandamme originals) and part D1
   (optical conductivity) need the papers and the textbook page from the owner.
