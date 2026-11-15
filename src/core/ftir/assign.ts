@@ -1,15 +1,43 @@
-/** The functional group table of data/ftir/groups.json (see scripts/build-ftir-groups.ts). */
-export interface GroupTable {
-  source: { citation: string; doi: string; licence: string; url: string; retrieved: string };
+/** One source of the group table: an open-licence article and the table taken from it. */
+export interface GroupSource {
+  /** Short name shown next to each suggestion, for example "Al-Amin et al. 2025, Table 1". */
+  short: string;
+  citation: string;
+  doi: string;
+  licence: string;
+  url: string;
+  retrieved: string;
+  tables: string;
+  /** How the transcription was checked, and what the user should still check. */
   verification: string;
+}
+
+/**
+ * The functional group table of data/ftir/groups.json (see scripts/build-ftir-groups.ts). Every
+ * row names its source; rows of different sources that disagree are all kept.
+ */
+export interface GroupTable {
+  sources: Record<string, GroupSource>;
   functionalGroups: {
     id: string;
+    source: string;
     label: string;
     ranges: { from: number; to: number }[];
     approximate?: boolean;
   }[];
-  metalOxides: { id: string; label: string; bands: { cm: number; note?: string }[] }[];
+  metalOxides: {
+    id: string;
+    source: string;
+    label: string;
+    bands: { cm: number; note?: string }[];
+  }[];
 }
+
+/** The sources as one text for a methods paragraph: "citation, doi:…; citation, doi:…". */
+export const sourcesText = (table: Pick<GroupTable, 'sources'>): string =>
+  Object.values(table.sources)
+    .map((s) => `${s.citation}, doi:${s.doi}`)
+    .join('; ');
 
 /** Gas-phase bands of air in the beam path (data/ftir/atmosphere.json). */
 export interface AtmosphereTable {
@@ -23,6 +51,8 @@ export interface Suggestion {
   /** The band assignment or oxide as printed in the source. */
   label: string;
   kind: 'group' | 'oxide' | 'atmosphere';
+  /** Key of the source table (GroupTable.sources) of a group or oxide row; none for air bands. */
+  source?: string;
   /** Distance from the typical range (0 inside it) or from the nearest listed band, cm⁻¹. */
   distance: number;
   /** The listed range or band the peak was matched to, as printed, for example "1715–1745 cm⁻¹". */
@@ -67,7 +97,12 @@ export interface PeakCharacter {
  */
 export function suggestAssignments(
   wavenumber: number,
-  table: Pick<GroupTable, 'functionalGroups' | 'metalOxides'>,
+  table: {
+    functionalGroups: (Omit<GroupTable['functionalGroups'][number], 'source'> & {
+      source?: string;
+    })[];
+    metalOxides: (Omit<GroupTable['metalOxides'][number], 'source'> & { source?: string })[];
+  },
   tolerance: number = DEFAULT_TOLERANCE_CM,
   limit = 6,
   atmosphere?: Pick<AtmosphereTable, 'bands'>,
@@ -95,6 +130,7 @@ export function suggestAssignments(
       id: group.id,
       label: group.label,
       kind: 'group',
+      ...(group.source !== undefined && { source: group.source }),
       distance: best.distance,
       width: best.width,
       fit: fits === null ? 0 : fits ? -1 : 1,
@@ -122,6 +158,7 @@ export function suggestAssignments(
       id: oxide.id,
       label: `${oxide.label} (metal–oxygen and lattice bands)`,
       kind: 'oxide',
+      ...(oxide.source !== undefined && { source: oxide.source }),
       distance: nearest.distance <= POINT_MATCH_CM ? 0 : nearest.distance,
       width: 0,
       fit: 0,

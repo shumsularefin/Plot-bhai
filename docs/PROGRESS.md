@@ -1,5 +1,37 @@
 # Progress
 
+## Stage 19d item 4: wider FTIR group table (done)
+
+Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md,
+"19d item 4".
+
+- **53 new rows** from three CC BY tables in the PDFs the owner supplied: Al-Amin et al. 2025
+  (27 inorganic rows: metal–oxygen, M=O, carbonate, sulfate, phosphate, Si–O–Si and Si–O, nitrate,
+  borate, S–H, metal–halide, metal–sulphur, metal–nitrogen), Elgayyar et al. 2025 (the four
+  carbonate modes) and Gautam et al. 2012 (22 bands of borate glasses).
+- **A source on every row.** groups.json has a `sources` map (citation, DOI, licence, table,
+  verification) and each row a `source` key. Each suggestion shows its source in a new column;
+  the reference table lists all sources; the methods text cites all four. Rows that disagree
+  (carbonate near 880 cm⁻¹: "symmetric stretching" 880–900 in one, "out-of-plane bend" 850–880 in
+  the other) are both kept and both offered.
+- **Transcription.** The table text is cached unedited from pdftotext; the parser fixes the PDF
+  font glyphs and formula sub/superscripts by explicit pairs; every row was compared with the
+  rendered page and the check is recorded in each source's `verification`.
+- The spectral regions of the combined figure still come from the first source only, so they do
+  not change.
+
+Decisions: only CC BY tables were added; the CC BY-NC and CC BY-NC-ND articles (Bishop 2021,
+Heliyon 2024, RSC Adv. 2022, Chem. Rev. 2021) wait for the owner, and Socrates (all rights
+reserved) is not used. Papers that report bands of one sample, not a table of typical ranges, were
+not transcribed. Gautam's "<600" row has no lower limit and was left out rather than given one.
+
+Known issues: still missing nitro, alkyne, aldehyde C–H, organic S=O, P=O, C–halogen, Al–O and
+band lists of individual oxides (see docs/validation.md).
+
+Verification: lint, type check and Prettier clean; FTIR and dependent tests pass (20 files, 172
+tests, including the new source and transcription tests); production build and bundle size within
+budget; e2e passed, including "FTIR: peaks, accepted assignments, methods text and session file".
+
 ## Stage 19f: particle size session file, report, statistics and shapes (done)
 
 Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md, 19f.

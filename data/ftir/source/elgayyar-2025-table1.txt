@@ -1,0 +1,8 @@
+# Table 1 of T. Elgayyar, F. Azzolina-Jury, F. Thibault-Starzyk, Phys. Chem. Chem. Phys. 27 (2025) 22871-22879, doi:10.1039/d5cp02197a, CC BY 4.0.
+# Text of page 22872 from the PDF supplied by the owner (2026-11-15): pdftotext -layout -f 2 -l 2 d5cp02197ar.pdf. Not edited.
+# The PDF font prints the Greek nu as 'n' and drops the minus of cm-1 (checked against the rendered page).
+Table 1   Approximate IR frequency ranges of the four fundamental vibration modes of carbonate10,11
+
+Vibration mode                n1                                  n2                          n3                                     n4
+Assignment                    Symmetric in-plane stretch          Out-of-plane bend           Asymmetric in-plane stretch            In-plane bend
+Wavenumber (cm 1)             1070–1090                           850–880                     1400–1500                              700–750

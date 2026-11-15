@@ -26,6 +26,9 @@ import groups from '../../../data/ftir/groups.json';
 import { useSelectedSpectrum } from './useSelected';
 
 const table = groups as GroupTable;
+
+/** Short name of a row's source, for example "Al-Amin et al. 2025, Table 1". */
+const sourceName = (key: string): string => table.sources[key]?.short ?? key;
 const atmosphere = atmosphereBands as AtmosphereTable;
 
 /** Wizard step 4: suggested assignments for each peak, which the user accepts, edits or removes. */
@@ -271,9 +274,18 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
       <details class="paste-box">
         <summary>The reference table used</summary>
         <p class="field-hint">
-          Source: {table.source.citation}, doi:{table.source.doi} ({table.source.licence}),
-          retrieved {table.source.retrieved}. {table.verification}
+          The rows come from {Object.keys(table.sources).length} open-licence articles. Each
+          suggestion names its source; where two sources list the same band differently, both rows
+          are kept and shown.
         </p>
+        <ul class="field-hint">
+          {Object.entries(table.sources).map(([key, s]) => (
+            <li key={key}>
+              <strong>{s.short}:</strong> {s.citation}, doi:{s.doi} ({s.licence}), {s.tables},
+              retrieved {s.retrieved}. {s.verification}
+            </li>
+          ))}
+        </ul>
         <div
           class="table-scroll"
           tabIndex={0}
@@ -285,6 +297,7 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
               <tr>
                 <th scope="col">Range or band (cm⁻¹)</th>
                 <th scope="col">Assignment</th>
+                <th scope="col">Source</th>
               </tr>
             </thead>
             <tbody>
@@ -297,12 +310,14 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
                       .join(', ')}
                   </td>
                   <th scope="row">{g.label}</th>
+                  <td>{sourceName(g.source)}</td>
                 </tr>
               ))}
               {table.metalOxides.map((m) => (
                 <tr key={m.id}>
                   <td>{m.bands.map((b) => b.cm).join(', ')}</td>
                   <th scope="row">{m.label} (bands)</th>
+                  <td>{sourceName(m.source)}</td>
                 </tr>
               ))}
             </tbody>
@@ -386,6 +401,7 @@ function PeakCard({
                   <th scope="col">Suggestion</th>
                   <th scope="col">Listed at</th>
                   <th scope="col">Distance (cm⁻¹)</th>
+                  <th scope="col">Source</th>
                   <th scope="col">
                     <span class="visually-hidden">Action</span>
                   </th>
@@ -397,6 +413,7 @@ function PeakCard({
                     <th scope="row">{s.label}</th>
                     <td>{s.listed}</td>
                     <td>{s.offset === 0 ? 'inside' : formatNumber(s.offset, 0)}</td>
+                    <td>{s.source ? sourceName(s.source) : 'air in the beam'}</td>
                     <td>
                       <button
                         type="button"

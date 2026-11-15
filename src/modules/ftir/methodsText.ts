@@ -1,5 +1,6 @@
 import { SOFTWARE } from '../../ui/software';
 import groups from '../../../data/ftir/groups.json';
+import { sourcesText, type GroupTable } from '../../core/ftir/assign';
 import { ftirMethodsParagraph, type FtirMethodsInput } from '../../core/ftir/methods';
 import { DEFAULT_FTIR_PROCESSING } from '../../core/ftir/process';
 import { bandArea } from '../../core/ftir/bands';
@@ -76,7 +77,7 @@ export function methodsInput(data: FtirData): FtirMethodsInput {
     groupToleranceCm: data.spectra.length > 1 && rows.length > 0 ? data.compare.toleranceCm : null,
     differences: data.spectra.filter((s) => s.source === 'computed').length,
     toleranceCm: data.toleranceCm,
-    rangeSource: `${groups.source.citation}, doi:${groups.source.doi}`,
+    rangeSource: sourcesText(groups as GroupTable),
     shown: shownQuantity(data, data.spectra).quantity,
   };
 }

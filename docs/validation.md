@@ -1161,7 +1161,58 @@ program's own conversion; it catches indexing, interpolation and integration err
 - Kubelka–Munk: no published worked example (a measured R with its tabulated F(R)) was found to compare with, and no real DRIFTS file is in tests/fixtures-real/. The assumptions shown on screen (optically thick, diluted, strongly scattering layer) are the general conditions of the theory, stated without a specific citation.
 - CO₂ region: the real width of the CO₂ doublet in a lab spectrum was not measured; 2280–2400 cm⁻¹ is a default to adjust.
 - Broad ranking: only four rows of data/ftir/groups.json say "broad", so the rule is tested on those.
-- Wider group table (19d item 4): no rows added; it waits for the owner's approval of a source.
+- Wider group table (19d item 4): done on 2026-11-15, see "19d item 4" below.
+
+## 19d item 4: wider FTIR group table (2026-11-15)
+
+The owner supplied the PDFs of the candidate sources. Only tables under a licence that allows
+redistribution without conditions beyond attribution (CC BY) were added; each row keeps its
+source, and each suggestion names it.
+
+| Source                                                                                    | Licence   | Rows added                                   |
+| ----------------------------------------------------------------------------------------- | --------- | -------------------------------------------- |
+| Al-Amin et al., Nanoscale Adv. 7 (2025) 6677, Table 1, doi:10.1039/d5na00522a             | CC BY 4.0 | 27 (inorganic: M–O, carbonate, sulfate, ...) |
+| Elgayyar et al., Phys. Chem. Chem. Phys. 27 (2025) 22871, Table 1, doi:10.1039/d5cp02197a | CC BY 4.0 | 4 (the four fundamental modes of carbonate)  |
+| Gautam et al., ISRN Ceramics 2012 (2012) 428497, Table 6, doi:10.5402/2012/428497         | CC BY     | 22 of 23 (borate glasses; "<600" left out)   |
+
+Method: the text of each table page is taken from the PDF with `pdftotext -layout` and cached
+unedited in data/ftir/source/*.txt; scripts/ftir-groups-parse.ts reads it and
+scripts/build-ftir-groups.ts writes data/ftir/groups.json. Glyphs the PDF fonts print wrongly
+("]" for "=", "^" for "≡", "n" for ν) and the lost sub- and superscripts of formulas are written
+back by explicit pairs in the parser. Every row was compared with the rendered page.
+
+### Checks
+
+Tests: tests/ftir-groups.test.ts.
+
+| Check                                                                              | Reference                        | Tolerance |
+| ---------------------------------------------------------------------------------- | -------------------------------- | --------- |
+| groups.json equals what the parser reads from each cached table                    | round trip, the cached text      | identical |
+| Row counts 27, 4, 22 (Gautam's open-ended "<600" row left out)                     | the printed tables               | exact     |
+| S–H 2550–2600, M=O 850–1000, M≡N 1000–1100, nitrate bend 800–850 (Al-Amin)         | the rendered page                | exact     |
+| Carbonate ν2 850–880 (Elgayyar); "∼875" approximate and "806" not (Gautam)         | the rendered page                | exact     |
+| Formula pairs change only the formulas                                             | synthetic text                   | exact     |
+| Every row's source exists, with a CC BY licence, a DOI and a verification note     | the data file                    | —         |
+| 890 cm⁻¹: Al-Amin's 880–900 (inside) and Elgayyar's 850–880 (10 cm⁻¹) both offered | sources that disagree, both kept | exact     |
+
+The second of the three ways (an independent implementation) does not apply to a transcription;
+the check is the row-by-row comparison with the rendered page, recorded in each source's
+`verification` field.
+
+### Open
+
+- Not added, licence: Bishop et al., Earth Space Sci. 2021 (carbonate and nitrate band tables,
+  CC BY-NC); Kaaouass et al., Heliyon 2024 (CC BY-NC); Luo et al., RSC Adv. 2022 (CeO₂, CC BY-NC);
+  Hadjiivanov et al., Chem. Rev. 2021 (MOFs, CC BY-NC-ND); Socrates, Infrared and Raman
+  Characteristic Group Frequencies (Wiley, all rights reserved); Taylor, Proc. Indian Acad. Sci.
+  1990 (no open licence stated); Naumenko et al. 2008 (Raman of zirconia, not IR; no licence
+  stated). The non-commercial ones wait for the owner's decision.
+- Not added, no general table: Kaaouass et al., Biointerface Res. Appl. Chem. 2022 (CC BY; bands
+  observed in one glass system) and Alnehia et al., Discover Nano 2026 (CC BY; one sample, no band
+  table).
+- Still missing from the table: nitro, alkyne, aldehyde C–H, organic S=O, P=O, C–F, C–Cl, C–Br and
+  Al–O, and band lists for individual oxides (Al₂O₃, MgO, ZrO₂, CeO₂, MnO₂, WO₃, V₂O₅, ferrites);
+  Al-Amin et al. give only class-wide ranges (M–O, M=O, Fe–O/Co–O/Zn–O).
 
 ## 19e: UV-Vis peak table, path length, cross-checks and optical constants
 

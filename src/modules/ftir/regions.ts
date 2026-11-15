@@ -45,7 +45,7 @@ export function spectralRegions(): SpectralRegion[] {
     let lo = Infinity;
     let hi = -Infinity;
     if (d.rows === 'metal-oxides') {
-      for (const oxide of groups.metalOxides)
+      for (const oxide of groups.metalOxides.filter((m) => m.source === 'pasieczna-2025'))
         for (const band of oxide.bands)
           if (band.cm <= METAL_OXYGEN_MAX_CM) {
             lo = Math.min(lo, band.cm);
@@ -54,6 +54,7 @@ export function spectralRegions(): SpectralRegion[] {
     } else {
       const ids = d.rows;
       for (const row of groups.functionalGroups) {
+        if (row.source !== 'pasieczna-2025') continue;
         // Row ids start with "fg-<number>-"; match the number exactly.
         if (!ids.some((id) => row.id.startsWith(`${id}-`))) continue;
         for (const r of row.ranges) {
@@ -66,4 +67,5 @@ export function spectralRegions(): SpectralRegion[] {
   });
 }
 
-export const REGION_SOURCE = `${groups.source.citation}, doi:${groups.source.doi}`;
+const molecules = groups.sources['pasieczna-2025'];
+export const REGION_SOURCE = `${molecules.citation}, doi:${molecules.doi}`;
