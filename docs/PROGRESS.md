@@ -64,7 +64,8 @@ reader takes the last block.
 
 Known issues: no file from the owner's instruments read yet; PerkinElmer nm files, OPUS TR and
 other result types, and several Galactic codes are unconfirmed and not mapped; the CI readers have
-not run yet. All open in docs/validation.md, 19g.
+since run: ten readings by SpectroChemPy, brukeropusreader, spc-io and specio agree point by
+point (SpectroChemPy cannot read the OPUS file, specio not the Galactic ones). All open in docs/validation.md, 19g.
 
 Verification: lint, type check and Prettier clean; the changed and dependent tests pass (FTIR,
 UV-Vis and the new instrument-file tests: 29 files, 302 tests, the independent-reader test skipped
