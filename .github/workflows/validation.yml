@@ -101,6 +101,8 @@ jobs:
         run: python -I scripts/validation/spectra/uvvis.py tests/fixtures/validation
       - name: UV-Vis references for the real TiO2 files (scipy)
         run: python -I scripts/validation/spectra/uvvis_real.py tests/fixtures-real/uvvis tests/fixtures/validation
+      - name: UV-Vis completion references, sigmoid, Cody, slab, k, n and bands (numpy, scipy)
+        run: python -I scripts/validation/spectra/uvvis_completion.py tests/fixtures/validation
       - name: FTIR references (scipy, pybaselines, lmfit)
         run: python -I scripts/validation/spectra/ftir.py tests/fixtures/validation
       - name: FTIR peak width and area references (scipy)

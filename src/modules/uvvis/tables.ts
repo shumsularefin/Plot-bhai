@@ -1,3 +1,5 @@
+import { SIGMOID_N } from '../../core/uvvis/crossChecks';
+import { indexFromGap } from '../../core/uvvis/optics';
 import { DISPLAY_LABELS } from '../../core/uvvis/process';
 import { GAP_METHODS, TRANSITIONS } from '../../core/uvvis/tauc';
 import type { CsvColumn } from '../../core/xrd/peaks/table';
@@ -50,13 +52,35 @@ export const RESULT_COLUMNS: readonly CsvColumn<ResultRow>[] = [
           : '',
   },
   { header: 'Transition', value: (r) => TRANSITIONS[r.choice.transition].label },
+  {
+    header: 'Transition role',
+    value: (r) => (r.primary ? 'in use' : 'also reported'),
+  },
   { header: 'n', value: (r) => TRANSITIONS[r.choice.transition].nText },
   { header: 'R2', value: (r) => num(r.analysis.fit?.rSquared) },
   { header: 'Fit from (eV)', value: (r) => num(r.analysis.fit?.fromEv) },
   { header: 'Fit to (eV)', value: (r) => num(r.analysis.fit?.toEv) },
   { header: 'Points in fit', value: (r) => num(r.analysis.fit?.n) },
   { header: 'Region', value: (r) => (r.analysis.suggested ? 'suggested' : 'set by user') },
-  { header: 'Film thickness (nm)', value: (r) => num(r.choice.thicknessNm) },
+  { header: 'Sample type', value: (r) => r.choice.sample },
+  {
+    header: 'Film thickness (nm)',
+    value: (r) => (r.choice.sample === 'film' ? num(r.choice.thicknessNm) : ''),
+  },
+  {
+    header: 'Path length (cm)',
+    value: (r) => (r.choice.sample === 'solution' ? num(r.choice.pathCm) : ''),
+  },
+  { header: 'Signal', value: (r) => SIGNAL_TEXT[r.analysis.signal.unit] },
+  {
+    header: 'Reflection correction',
+    value: (r) =>
+      r.analysis.reflection?.state === 'corrected'
+        ? `corrected with ${r.analysis.reflection.name}`
+        : r.analysis.reflection
+          ? 'none'
+          : '',
+  },
   {
     header: 'Urbach energy (meV)',
     value: (r) => num((r.analysis.urbach?.fit?.euEv ?? NaN) * 1000),
@@ -70,10 +94,43 @@ export const RESULT_COLUMNS: readonly CsvColumn<ResultRow>[] = [
     value: (r) => (r.analysis.derivative ? r.choice.derivative : ''),
   },
   { header: 'Derivative Eg (eV)', value: (r) => num(r.analysis.derivative?.egEv) },
+  { header: 'Cody Eg (eV)', value: (r) => num(r.analysis.cody?.fit?.egEv) },
+  { header: 'Cody Eg uncertainty (eV)', value: (r) => num(r.analysis.cody?.fit?.egSigma) },
+  { header: 'Cody fit from (eV)', value: (r) => num(r.analysis.cody?.fit?.fromEv) },
+  { header: 'Cody fit to (eV)', value: (r) => num(r.analysis.cody?.fit?.toEv) },
+  { header: 'Sigmoid type', value: (r) => r.analysis.sigmoid?.fit?.type ?? '' },
+  {
+    header: 'Sigmoid n_type',
+    value: (r) => (r.analysis.sigmoid?.fit ? SIGMOID_N[r.analysis.sigmoid.fit.type] : ''),
+  },
+  { header: 'Sigmoid E0 (eV)', value: (r) => num(r.analysis.sigmoid?.fit?.e0Ev) },
+  { header: 'Sigmoid dE (eV)', value: (r) => num(r.analysis.sigmoid?.fit?.deltaEv) },
+  { header: 'Sigmoid Eg (eV)', value: (r) => num(r.analysis.sigmoid?.fit?.egEv) },
+  { header: 'Sigmoid Eg uncertainty (eV)', value: (r) => num(r.analysis.sigmoid?.fit?.egSigma) },
+  { header: 'Sigmoid fit from (eV)', value: (r) => num(r.analysis.sigmoid?.fit?.fromEv) },
+  { header: 'Sigmoid fit to (eV)', value: (r) => num(r.analysis.sigmoid?.fit?.toEv) },
+  {
+    header: 'n Moss (estimate)',
+    value: (r) => num(r.analysis.fit ? indexFromGap('moss', r.analysis.fit.egEv) : null),
+  },
+  {
+    header: 'n Ravindra (estimate)',
+    value: (r) => num(r.analysis.fit ? indexFromGap('ravindra', r.analysis.fit.egEv) : null),
+  },
+  {
+    header: 'n Herve-Vandamme (estimate)',
+    value: (r) => num(r.analysis.fit ? indexFromGap('herve-vandamme', r.analysis.fit.egEv) : null),
+  },
 ];
 
+const SIGNAL_TEXT = {
+  alpha: 'alpha (cm-1)',
+  proportional: 'absorbance (proportional to alpha)',
+  'kubelka-munk': 'F(R)',
+} as const;
+
 export const RESULTS_NOTE =
-  'UV-Vis results. Eg is an estimate from the Tauc method, read as stated in the Eg read from column; its uncertainty is that of the straight-line fits only. lambda_max is the highest data point of the absorbance (F(R) for reflectance). Example data are synthetic.';
+  'UV-Vis results, one row per sample and reported transition. Eg is an estimate from the Tauc method, read as stated in the Eg read from column; its uncertainty is that of the straight-line fits only. Cody (Eg where (S/E)^(1/2) meets zero) and sigmoid (Zanatta, Sci. Rep. 9 (2019) 11225: Eg = E0 - n_type*dE) values are cross-check estimates, not replacements. Refractive indices n from Eg (Moss n^4*Eg = 95 eV; Ravindra n = 4.084 - 0.62*Eg; Herve-Vandamme n^2 = 1 + (13.6/(Eg + 3.47))^2, as given by Tripathy, Opt. Mater. 46 (2015) 240) are rough empirical estimates. lambda_max is the highest data point of the absorbance (F(R) for reflectance). Example data are synthetic.';
 
 /** Band gap with its uncertainty for display, in eV, for example "3.204 ± 0.005" or "3.200 ± < 0.001". */
 export function gapText(fit: { egEv: number; egSigma: number }): string {

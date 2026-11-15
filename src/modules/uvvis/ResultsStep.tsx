@@ -7,6 +7,8 @@ import { HelpTip } from '../../ui/HelpTip';
 import { SessionSection } from '../../ui/SessionSection';
 import type { StepContext } from '../../ui/wizard/types';
 import { resultRows } from './analysis';
+import { BAND_COLUMNS, BAND_NOTE, bandRows } from './bands';
+import { ResultsFigures } from './ResultsFigures';
 import type { UvvisData } from './data';
 import { downloadCsv } from '../xrd/csv';
 import { methodsText } from './methodsText';
@@ -14,14 +16,15 @@ import { uvvisSession } from './session';
 import { gapText, RESULTS_NOTE, RESULT_COLUMNS } from './tables';
 
 /** Index of this step in the wizard, saved in the session file as the step on screen. */
-const RESULTS_STEP = 3;
+const RESULTS_STEP = 4;
 
 const eV = (value: number, digits = 3) => formatNumber(value, digits);
 
-/** Wizard step 4: results table, methods text and the session file. */
+/** Wizard step 5: results table, figures, methods text and the session file. */
 export function ResultsStep({ data, update }: StepContext<UvvisData>) {
   const rows = useMemo(() => resultRows(data), [data]);
   const methods = useMemo(() => methodsText(data), [data]);
+  const bands = useMemo(() => bandRows(data), [data]);
   const [copied, setCopied] = useState<string | null>(null);
 
   if (data.spectra.length === 0) {
@@ -54,7 +57,8 @@ export function ResultsStep({ data, update }: StepContext<UvvisData>) {
         </h3>
         <p class="message">
           <strong>Estimates:</strong> the band gaps depend on the transition type and fit region you
-          chose in step 3. Report them together.
+          chose in step 4. Report them together. Cody and sigmoid values are cross-checks, shown
+          next to the Tauc value, not in its place.
         </p>
         <div
           class="table-scroll"
@@ -79,6 +83,7 @@ export function ResultsStep({ data, update }: StepContext<UvvisData>) {
                 <th scope="col">
                   E<sub>u</sub> (meV)
                 </th>
+                <th scope="col">Cross-checks (eV)</th>
               </tr>
             </thead>
             <tbody>
@@ -86,8 +91,11 @@ export function ResultsStep({ data, update }: StepContext<UvvisData>) {
                 const fit = r.analysis.fit;
                 const urbach = r.analysis.urbach?.fit;
                 return (
-                  <tr key={r.spectrum.id}>
-                    <th scope="row">{r.spectrum.name}</th>
+                  <tr key={`${r.spectrum.id}-${r.choice.transition}`}>
+                    <th scope="row">
+                      {r.spectrum.name}
+                      {r.primary ? '' : ' (also reported)'}
+                    </th>
                     <td>{r.lambdaMax ? eV(r.lambdaMax.wavelengthNm, 2) : '–'}</td>
                     <td>{r.edgeNm !== null ? eV(r.edgeNm, 1) : '–'}</td>
                     <td>{fit ? gapText(fit) : 'no fit'}</td>
@@ -105,6 +113,7 @@ export function ResultsStep({ data, update }: StepContext<UvvisData>) {
                         ? `${eV(urbach.euEv * 1000, 1)} ± ${Number.isFinite(urbach.euSigma) ? eV(urbach.euSigma * 1000, 1) : '?'}`
                         : '–'}
                     </td>
+                    <td>{crossChecks(r.analysis)}</td>
                   </tr>
                 );
               })}
@@ -116,9 +125,12 @@ export function ResultsStep({ data, update }: StepContext<UvvisData>) {
             <strong>Check:</strong>{' '}
             {rows
               .filter((r) => !r.analysis.fit)
-              .map((r) => r.spectrum.name)
+              .map(
+                (r) =>
+                  `${r.spectrum.name} (${TRANSITIONS[r.choice.transition].label.toLowerCase()})`,
+              )
               .join(', ')}{' '}
-            has no band gap fit. Go back to step 3 and choose a fit region.
+            has no band gap fit. Go back to step 4 and choose a fit region.
           </p>
         )}
         <div class="export-actions">
@@ -132,15 +144,35 @@ export function ResultsStep({ data, update }: StepContext<UvvisData>) {
         </div>
       </section>
 
+      <section aria-labelledby="bands-title">
+        <h3 id="bands-title" class="export-title">
+          Absorption bands ({bands.length})
+        </h3>
+        <p class="field-hint">
+          The band tables of step 3 for every spectrum: position in nm and eV, value, prominence and
+          origin. λmax above is still the highest data point.
+        </p>
+        <div class="export-actions">
+          <button
+            type="button"
+            class="btn"
+            disabled={bands.length === 0}
+            onClick={() => downloadCsv('uvvis-bands', BAND_NOTE, bands, BAND_COLUMNS)}
+          >
+            Download band table (CSV)
+          </button>
+        </div>
+      </section>
+
       <section aria-labelledby="figures-title">
         <h3 id="figures-title" class="export-title">
           Figures
         </h3>
         <p class="field-hint">
-          Every plot has its own export panel (SVG, and PNG at 300 or 600 dpi, in single or double
-          column width): the spectra in step 2, and the Tauc plot with its fit line in step 3. Go
-          back to that step to export the figure you need.
+          Each figure has its own export panel (SVG, and PNG at 300 or 600 dpi, in single or double
+          column width). The plots of each step can be exported there too.
         </p>
+        <ResultsFigures data={data} update={update} />
       </section>
 
       <section aria-labelledby="methods-title">
@@ -180,4 +212,12 @@ export function ResultsStep({ data, update }: StepContext<UvvisData>) {
       />
     </div>
   );
+}
+
+/** Cody and sigmoid band gaps of a row, for example "Cody 3.21 ± 0.01; sigmoid 3.19". */
+function crossChecks(analysis: ReturnType<typeof resultRows>[number]['analysis']): string {
+  const parts: string[] = [];
+  if (analysis.cody?.fit) parts.push(`Cody ${gapText(analysis.cody.fit)}`);
+  if (analysis.sigmoid?.fit) parts.push(`sigmoid ${gapText(analysis.sigmoid.fit)}`);
+  return parts.length > 0 ? parts.join('; ') : '–';
 }

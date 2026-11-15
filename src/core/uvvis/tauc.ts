@@ -1,6 +1,7 @@
 import { linearFit } from '../math/linearFit';
 import { energyFromWavelength } from './conversions';
 import { toQuantity } from './process';
+import { alphaWithReflection } from './optics';
 import type { SpectrumKind, ValueScale } from './types';
 
 /*
@@ -50,25 +51,36 @@ export interface AbsorptionSignal {
  * (t in nm is converted to cm, so α is in cm⁻¹); without t the absorbance A itself is used and the
  * Tauc axis is only proportional to the true quantity, which does not move Eg. Reflectance: the
  * Kubelka–Munk function F(R) replaces α. The result is returned with increasing energy.
+ * `thicknessNm` is the optical path: a film thickness, or a cuvette path length converted to nm.
+ * With `reflectance` (the film's reflectance as a fraction on the same wavelengths) and a
+ * thickness, α is corrected for reflection (`alphaWithReflection`, T = 10^(−A)); NaN where R is NaN.
  */
 export function absorptionSignal(
   wavelengthNm: Float64Array,
   values: Float64Array,
   meaning: { kind: SpectrumKind; scale: ValueScale },
   thicknessNm: number | null,
+  reflectance: Float64Array | null = null,
 ): AbsorptionSignal {
   const n = wavelengthNm.length;
   const quantity = meaning.kind === 'reflectance' ? 'kubelka-munk' : 'absorbance';
   const base = toQuantity(values, meaning, quantity) ?? new Float64Array(n).fill(NaN);
   const useThickness = quantity === 'absorbance' && thicknessNm !== null && thicknessNm > 0;
   const factor = useThickness ? Math.LN10 / ((thicknessNm as number) * 1e-7) : 1;
+  const corrected = useThickness && reflectance !== null;
   const energyEv = new Float64Array(n);
   const signal = new Float64Array(n);
   for (let i = 0; i < n; i++) {
     // Reverse so that energy increases.
     const j = n - 1 - i;
     energyEv[i] = energyFromWavelength(wavelengthNm[j] as number);
-    signal[i] = (base[j] as number) * factor;
+    signal[i] = corrected
+      ? alphaWithReflection(
+          10 ** -(base[j] as number),
+          reflectance[j] as number,
+          (thicknessNm as number) * 1e-7,
+        )
+      : (base[j] as number) * factor;
   }
   return {
     energyEv,

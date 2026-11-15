@@ -1,5 +1,19 @@
 import { energyFromWavelength } from '../../core/uvvis/conversions';
-import { cleanSpectrum, DEFAULT_CLEANING, lambdaMax, type Cleaned } from '../../core/uvvis/process';
+import {
+  codyGap,
+  sigmoidGap,
+  suggestSigmoidRange,
+  type CodyGap,
+  type SigmoidFit,
+  type SigmoidType,
+} from '../../core/uvvis/crossChecks';
+import {
+  cleanSpectrum,
+  DEFAULT_CLEANING,
+  lambdaMax,
+  toQuantity,
+  type Cleaned,
+} from '../../core/uvvis/process';
 import {
   absorptionSignal,
   analyseTaucGap,
@@ -15,10 +29,17 @@ import {
   type DerivativePeak,
   type TaucGap,
   type TransitionComparison,
+  type TransitionId,
   type UrbachFit,
 } from '../../core/uvvis/tauc';
 import type { Spectrum } from '../../core/uvvis/types';
-import { bandGapFor, type BandGapChoice, type UvvisData } from './data';
+import {
+  bandGapFor,
+  opticalPathNm,
+  reportedTransitions,
+  type BandGapChoice,
+  type UvvisData,
+} from './data';
 
 /** Cleans every spectrum with its own settings (the blank is the spectrum chosen for it). */
 export function cleanAll(spectra: readonly Spectrum[], cleaning: UvvisData['cleaning']): Cleaned[] {
@@ -41,7 +62,35 @@ export interface BandGapAnalysis extends TaucGap {
   comparison: TransitionComparison[];
   urbach: { region: [number, number] | null; fit: UrbachFit | null } | null;
   derivative: DerivativePeak | null;
+  /** What was measured, from the settings: it decides what α means. */
+  sample: BandGapChoice['sample'];
+  /** How reflection was treated in α (films with a thickness only; null otherwise). */
+  reflection: Reflection | null;
+  /** Cody plot cross-check, when switched on. */
+  cody: CodyGap | null;
+  /** Sigmoid (Boltzmann) cross-check, when switched on. */
+  sigmoid: SigmoidCheck | null;
 }
+
+/**
+ * Reflection in α of a film: 'corrected' with the chosen reflectance spectrum, 'none' when no
+ * spectrum is chosen (α is then overestimated where the film reflects), or why the chosen one
+ * cannot be used.
+ */
+export type Reflection =
+  | { state: 'corrected'; name: string }
+  | { state: 'none' }
+  | { state: 'not-reflectance' | 'no-overlap'; name: string };
+
+export interface SigmoidCheck {
+  type: SigmoidType;
+  range: [number, number] | null;
+  fit: SigmoidFit | null;
+}
+
+/** The sigmoid type that matches a Tauc transition, used when the user has not chosen one. */
+export const sigmoidTypeFor = (transition: TransitionId): SigmoidType =>
+  transition.startsWith('direct') ? 'direct' : 'indirect';
 
 /** A spectrum with its cleaned data, as passed for the second component. */
 export interface CleanedSpectrum {
@@ -58,12 +107,38 @@ export function analyseBandGap(
   cleaned: Pick<Cleaned, 'wavelengthNm' | 'values'>,
   choice: BandGapChoice,
   component: CleanedSpectrum | null = null,
+  reflectance: CleanedSpectrum | null = null,
 ): BandGapAnalysis {
+  const path = opticalPathNm(choice);
+  const film = choice.sample === 'film' && path !== null && spectrum.kind !== 'reflectance';
+  let reflection: Reflection | null = film ? { state: 'none' } : null;
+  let reflectanceValues: Float64Array | null = null;
+  if (film && reflectance) {
+    const name = reflectance.spectrum.name;
+    const percent =
+      reflectance.spectrum.kind === 'reflectance'
+        ? toQuantity(reflectance.cleaned.values, reflectance.spectrum, 'reflectance')
+        : null;
+    if (!percent) reflection = { state: 'not-reflectance', name };
+    else {
+      reflectanceValues = interpolateOnto(
+        reflectance.cleaned.wavelengthNm,
+        percent.map((v) => v / 100),
+        cleaned.wavelengthNm,
+      );
+      if (reflectanceValues.some(Number.isFinite)) reflection = { state: 'corrected', name };
+      else {
+        reflectanceValues = null;
+        reflection = { state: 'no-overlap', name };
+      }
+    }
+  }
   const signal = absorptionSignal(
     cleaned.wavelengthNm,
     cleaned.values,
     spectrum,
-    choice.thicknessNm,
+    path,
+    reflectanceValues,
   );
   // The component is converted to the same quantity (A or F(R)); its scale, including any
   // thickness, is absorbed by the factor c.
@@ -129,6 +204,23 @@ export function analyseBandGap(
           region ? region[0] - 0.3 : -Infinity,
           region ? region[1] + 0.3 : Infinity,
         );
+  const cody = choice.cody.enabled
+    ? codyGap(signal.energyEv, signal.signal, choice.cody.region)
+    : null;
+  let sigmoid: SigmoidCheck | null = null;
+  if (choice.sigmoid.enabled) {
+    const type = choice.sigmoid.type ?? sigmoidTypeFor(choice.transition);
+    const range =
+      choice.sigmoid.range ??
+      (fit ? suggestSigmoidRange(signal.energyEv, signal.signal, fit.egEv) : null);
+    sigmoid = {
+      type,
+      range,
+      fit: range
+        ? sigmoidGap(signal.energyEv, signal.signal, range, type, choice.sigmoid.range === null)
+        : null,
+    };
+  }
   return {
     ...gap,
     signal,
@@ -138,12 +230,19 @@ export function analyseBandGap(
     comparison,
     urbach,
     derivative,
+    sample: choice.sample,
+    reflection,
+    cody,
+    sigmoid,
   };
 }
 
 export interface ResultRow {
   spectrum: Spectrum;
+  /** The settings of this row: the spectrum's, with `transition` set to the row's transition. */
   choice: BandGapChoice;
+  /** True for the transition in use in the Band gap step; the others are reported next to it. */
+  primary: boolean;
   lambdaMax: ReturnType<typeof lambdaMax>;
   analysis: BandGapAnalysis;
   /** Wavelength at the band gap energy, nm. */
@@ -171,31 +270,78 @@ export function componentFor(
   return spectrum && clean ? { spectrum, cleaned: clean } : null;
 }
 
-/** One result row per spectrum, from the cleaned data. */
+/** The reflectance spectrum chosen to correct the α of a film, with its cleaned data. */
+export function reflectanceFor(
+  spectra: readonly Spectrum[],
+  cleaned: readonly Cleaned[],
+  choice: BandGapChoice,
+  ownId: string,
+): CleanedSpectrum | null {
+  const index = spectra.findIndex((s) => s.id === choice.reflectanceId && s.id !== ownId);
+  const spectrum = spectra[index];
+  const clean = cleaned[index];
+  return spectrum && clean ? { spectrum, cleaned: clean } : null;
+}
+
+/** The band gap analysis of one spectrum of the session with its saved settings. */
+export function analyseSpectrum(
+  data: UvvisData,
+  cleaned: readonly Cleaned[],
+  index: number,
+  choice: BandGapChoice = bandGapFor(data, data.spectra[index]?.id ?? ''),
+): BandGapAnalysis | null {
+  const spectrum = data.spectra[index];
+  const clean = cleaned[index];
+  if (!spectrum || !clean) return null;
+  return analyseBandGap(
+    spectrum,
+    clean,
+    choice,
+    componentFor(data.spectra, cleaned, choice, spectrum.id),
+    reflectanceFor(data.spectra, cleaned, choice, spectrum.id),
+  );
+}
+
+/**
+ * Result rows from the cleaned data: per spectrum, one for the transition in use and one for each
+ * other transition chosen to be reported, each with its own fit region. The cross-checks (Cody,
+ * sigmoid) belong to the spectrum and are kept on its first row only.
+ */
 export function resultRows(data: UvvisData): ResultRow[] {
   const cleaned = cleanAll(data.spectra, data.cleaning);
-  return data.spectra.map((spectrum, i) => {
+  return data.spectra.flatMap((spectrum, i) => {
     const clean = cleaned[i] ?? spectrum;
-    const choice = bandGapFor(data, spectrum.id);
-    const analysis = analyseBandGap(
+    const saved = bandGapFor(data, spectrum.id);
+    const max = lambdaMax(
+      clean.wavelengthNm,
+      clean.values,
       spectrum,
-      clean,
-      choice,
-      componentFor(data.spectra, cleaned, choice, spectrum.id),
+      data.lambdaRange.fromNm ?? -Infinity,
+      data.lambdaRange.toNm ?? Infinity,
     );
-    return {
-      spectrum,
-      choice,
-      lambdaMax: lambdaMax(
-        clean.wavelengthNm,
-        clean.values,
-        spectrum,
-        data.lambdaRange.fromNm ?? -Infinity,
-        data.lambdaRange.toNm ?? Infinity,
-      ),
-      analysis,
-      edgeNm: analysis.fit ? energyFromWavelength(analysis.fit.egEv) : null,
-    };
+    return reportedTransitions(saved).flatMap((transition, k) => {
+      const choice: BandGapChoice =
+        k === 0
+          ? saved
+          : {
+              ...saved,
+              transition,
+              cody: { ...saved.cody, enabled: false },
+              sigmoid: { ...saved.sigmoid, enabled: false },
+            };
+      const analysis = analyseSpectrum(data, cleaned, i, choice);
+      if (!analysis) return [];
+      return [
+        {
+          spectrum,
+          choice,
+          primary: k === 0,
+          lambdaMax: max,
+          analysis,
+          edgeNm: analysis.fit ? energyFromWavelength(analysis.fit.egEv) : null,
+        },
+      ];
+    });
   });
 }
 
@@ -316,7 +462,35 @@ export function fitMessages(analysis: BandGapAnalysis): FitMessage[] {
   if (signal.unit === 'proportional') {
     messages.push({
       level: 'info',
-      text: 'No film thickness is given, so the vertical axis is only proportional to (αhν)^(1/n). The band gap is not affected, but the axis has no absolute scale.',
+      text: 'No film thickness or path length is given, so the vertical axis is only proportional to (αhν)^(1/n). The band gap is not affected, but the axis has no absolute scale.',
+    });
+  }
+  if (signal.unit === 'alpha' && analysis.sample === 'solution') {
+    messages.push({
+      level: 'info',
+      text: 'For a solution or dispersion, α = ln(10)·A/l is the absorption coefficient of the whole liquid in the cuvette (it grows with the concentration), not that of the solid. The band gap read from the edge is not affected; the vertical axis is (αhν)^(1/n) of the solution.',
+    });
+  }
+  const reflection = analysis.reflection;
+  if (reflection?.state === 'none') {
+    messages.push({
+      level: 'info',
+      text: 'α = ln(10)·A/t treats all light that does not pass the film as absorbed. Where the film reflects, α is therefore overestimated. Choose the reflectance spectrum of the same film to correct for it.',
+    });
+  } else if (reflection?.state === 'not-reflectance') {
+    messages.push({
+      level: 'warning',
+      text: `${reflection.name} is not a reflectance spectrum, so α is not corrected for reflection. Choose the film's measured reflectance.`,
+    });
+  } else if (reflection?.state === 'no-overlap') {
+    messages.push({
+      level: 'warning',
+      text: `${reflection.name} does not cover the wavelengths of this spectrum, so α is not corrected for reflection.`,
+    });
+  } else if (reflection?.state === 'corrected') {
+    messages.push({
+      level: 'info',
+      text: `α is corrected for reflection with ${reflection.name}, treating the film as a free-standing slab with multiple internal reflections; the substrate is not modelled, which matters most for films thinner than about 1 µm.`,
     });
   }
   if (signal.unit === 'kubelka-munk') {

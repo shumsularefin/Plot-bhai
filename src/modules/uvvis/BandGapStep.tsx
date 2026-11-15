@@ -13,14 +13,9 @@ import type { SeriesSource } from '../../ui/plot/series';
 import type { PlotMarker } from '../../ui/plot/types';
 import type { StepContext } from '../../ui/wizard/types';
 import { NumberInput } from '../xrd/NumberInput';
-import {
-  analyseBandGap,
-  cleanAll,
-  componentFor,
-  fitMessages,
-  type BandGapAnalysis,
-} from './analysis';
+import { analyseSpectrum, cleanAll, fitMessages, type BandGapAnalysis } from './analysis';
 import { bandGapFor, type BandGapChoice, type UvvisData } from './data';
+import { CrossChecks, OpticalConstants } from './OpticalExtras';
 import { taucLabels, urbachLabels } from './labels';
 import { gapText } from './tables';
 
@@ -61,7 +56,7 @@ function curveSource(
   };
 }
 
-/** Wizard step 3: Tauc band gap with a draggable fit region, the four transitions, Urbach energy. */
+/** Wizard step 4: Tauc band gap with a draggable fit region, the four transitions, Urbach energy. */
 export function BandGapStep({ data, update }: StepContext<UvvisData>) {
   const spectra = data.spectra;
   const [selectedId, setSelectedId] = useState(spectra[0]?.id);
@@ -71,17 +66,11 @@ export function BandGapStep({ data, update }: StepContext<UvvisData>) {
   const cleanedSpectrum = spectrum ? cleaned[spectra.indexOf(spectrum)] : undefined;
   const choice = spectrum ? bandGapFor(data, spectrum.id) : undefined;
 
+  const index = spectrum ? spectra.indexOf(spectrum) : -1;
   const analysis = useMemo(
-    () =>
-      spectrum && cleanedSpectrum && choice
-        ? analyseBandGap(
-            spectrum,
-            cleanedSpectrum,
-            choice,
-            componentFor(spectra, cleaned, choice, spectrum.id),
-          )
-        : null,
-    [spectrum, cleanedSpectrum, choice, spectra, cleaned],
+    () => (choice && cleanedSpectrum ? analyseSpectrum(data, cleaned, index, choice) : null),
+    // `data` matters here only through the spectra, which `cleaned` follows.
+    [choice, cleanedSpectrum, cleaned, index], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   if (!spectrum || !analysis || !choice) {
@@ -152,24 +141,14 @@ export function BandGapStep({ data, update }: StepContext<UvvisData>) {
               ))}
             </select>
           </label>
-          {spectrum.kind !== 'reflectance' && (
-            <>
-              <NumberInput
-                label="Film thickness (nm, optional)"
-                value={choice.thicknessNm}
-                min={0}
-                onChange={(thicknessNm) => change({ thicknessNm })}
-              />
-              <HelpTip term="film thickness">
-                <p>
-                  With a thickness t, the absorption coefficient is α = ln(10) · A / t, in cm⁻¹.
-                  Without it the absorbance itself is used and the vertical axis is only
-                  proportional to the true quantity. The band gap is the same either way.
-                </p>
-              </HelpTip>
-            </>
-          )}
         </div>
+        {spectrum.kind !== 'reflectance' && (
+          <SampleFields
+            choice={choice}
+            change={change}
+            reflectances={spectra.filter((s) => s.kind === 'reflectance' && s.id !== spectrum.id)}
+          />
+        )}
         {spectrum.kind === 'reflectance' && (
           <p class="field-hint">
             Diffuse reflectance: the Kubelka–Munk function F(R) is used in place of α, so no
@@ -217,7 +196,9 @@ export function BandGapStep({ data, update }: StepContext<UvvisData>) {
       <ComparisonTable
         analysis={analysis}
         selected={choice.transition}
+        reported={choice.reported}
         onChoose={(id) => change({ transition: id })}
+        onReport={(reported) => change({ reported })}
       />
 
       <section class="process-step" aria-labelledby="extra-title">
@@ -294,8 +275,104 @@ export function BandGapStep({ data, update }: StepContext<UvvisData>) {
             onRegion={(region) => change({ urbach: { ...choice.urbach, region } })}
           />
         )}
+        <CrossChecks
+          analysis={analysis}
+          choice={choice}
+          data={data}
+          update={update}
+          change={change}
+          name={spectrum.name}
+        />
       </section>
+
+      <OpticalConstants analysis={analysis} data={data} update={update} name={spectrum.name} />
     </div>
+  );
+}
+
+/** Film or solution, with the thickness or path length, and the film's reflectance spectrum. */
+function SampleFields({
+  choice,
+  change,
+  reflectances,
+}: {
+  choice: BandGapChoice;
+  change: (patch: Partial<BandGapChoice>) => void;
+  reflectances: readonly { id: string; name: string }[];
+}) {
+  const film = choice.sample === 'film';
+  return (
+    <>
+      <div class="radiation-fields">
+        <label class="inline-field">
+          Sample
+          <select
+            value={choice.sample}
+            onChange={(e) => change({ sample: e.currentTarget.value as BandGapChoice['sample'] })}
+          >
+            <option value="film">Film (thickness in nm)</option>
+            <option value="solution">Solution or dispersion in a cuvette (path in cm)</option>
+          </select>
+        </label>
+        {film ? (
+          <NumberInput
+            label="Film thickness t (nm, optional)"
+            value={choice.thicknessNm}
+            min={0}
+            onChange={(thicknessNm) => change({ thicknessNm })}
+          />
+        ) : (
+          <NumberInput
+            label="Path length l (cm, optional)"
+            value={choice.pathCm}
+            min={0}
+            onChange={(pathCm) => change({ pathCm })}
+          />
+        )}
+        <HelpTip term="absorption coefficient">
+          <p>
+            Film: α = ln(10) · A / t, with t converted from nm to cm, so α is in cm⁻¹. Solution: α =
+            ln(10) · A / l, with the cuvette path l in cm (usually 1 cm); this α belongs to the
+            whole liquid and grows with the concentration. Without a thickness or path the
+            absorbance itself is used and the vertical axis is only proportional to the true
+            quantity. The band gap is the same either way.
+          </p>
+        </HelpTip>
+        {film && choice.thicknessNm !== null && (
+          <>
+            <label class="inline-field">
+              Reflectance of the same film
+              <select
+                value={choice.reflectanceId ?? ''}
+                onChange={(e) => change({ reflectanceId: e.currentTarget.value || null })}
+              >
+                <option value="">None (no reflection correction)</option>
+                {reflectances.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <HelpTip term="reflection correction">
+              <p>
+                With the measured reflectance R of the film, α is found from T = (1 − R)² x / (1 −
+                R² x²), x = exp(−αt), the transmittance of a slab with multiple reflections inside
+                it (A. R. Zanatta, Sci. Rep. 9 (2019) 11225, Eq. 6; A. Kasikov and L. Aarik, Bulg.
+                J. Phys. 51 (2024) 311, Eq. 27). The substrate is not modelled, so for films thinner
+                than about 1 µm the result is still approximate. Load R on the Upload step as a
+                reflectance spectrum.
+              </p>
+            </HelpTip>
+          </>
+        )}
+      </div>
+      <p class="field-hint">
+        {film
+          ? 'α = ln(10)·A/t, t the film thickness converted to cm; α in cm⁻¹.'
+          : 'α = ln(10)·A/l, l the path length in cm; α in cm⁻¹, of the solution.'}
+      </p>
+    </>
   );
 }
 
@@ -641,11 +718,15 @@ function GapMethodChoice({
 function ComparisonTable({
   analysis,
   selected,
+  reported,
   onChoose,
+  onReport,
 }: {
   analysis: BandGapAnalysis;
   selected: TransitionId;
+  reported: readonly TransitionId[];
   onChoose: (id: TransitionId) => void;
+  onReport: (reported: TransitionId[]) => void;
 }) {
   return (
     <section class="peak-table-section" aria-labelledby="compare-title">
@@ -662,7 +743,9 @@ function ComparisonTable({
       </h3>
       <p class="message">
         <strong>Guide only:</strong> choose the transition type from the literature for your
-        material, not from the highest R².
+        material, not from the highest R². Tick Report in Results to list another type there too,
+        for example when a paper gives both a direct and an indirect gap; each keeps its own region
+        (to set it, Use that type and move the markers).
       </p>
       <div
         class="table-scroll"
@@ -682,6 +765,7 @@ function ComparisonTable({
               <th scope="col">Region (eV)</th>
               <th scope="col">Eg read from</th>
               <th scope="col">Use</th>
+              <th scope="col">Report in Results</th>
             </tr>
           </thead>
           <tbody>
@@ -701,6 +785,21 @@ function ComparisonTable({
                       Use<span class="visually-hidden"> {TRANSITIONS[id].label}</span>
                     </button>
                   )}
+                </td>
+                <td>
+                  <input
+                    type="checkbox"
+                    aria-label={`Report ${TRANSITIONS[id].label} in Results`}
+                    checked={id === selected || reported.includes(id)}
+                    disabled={id === selected}
+                    onChange={(e) =>
+                      onReport(
+                        e.currentTarget.checked
+                          ? [...reported.filter((t) => t !== id), id]
+                          : reported.filter((t) => t !== id),
+                      )
+                    }
+                  />
                 </td>
               </tr>
             ))}

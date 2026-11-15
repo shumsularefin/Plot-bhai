@@ -1,5 +1,6 @@
 import { digitizedSentence } from '../digitize/methods';
 import { HC_EV_NM } from './conversions';
+import { SIGMOID_N, type SigmoidType } from './crossChecks';
 import { TRANSITIONS, type GapMethod, type TransitionId } from './tauc';
 import type { SpectrumKind } from './types';
 
@@ -30,9 +31,24 @@ export interface UvvisMethodsInput {
     baselineEv: [number, number] | null;
     /** For 'subtract-component': the component spectrum and its factor c (fitted or typed). */
     component: { name: string; factor: number; fitted: boolean } | null;
+    /** Film (thickness in nm) or solution (path length in cm); `thicknessNm` is the film's. */
+    sample: 'film' | 'solution';
     thicknessNm: number | null;
+    pathCm: number | null;
+    /** Name of the reflectance spectrum α was corrected with, or null. */
+    reflectance: string | null;
     urbach: boolean;
     derivative: 'off' | 'linear' | 'log';
+    /** Other transitions reported in the results, each with its own fit; only those fitted. */
+    alsoReported: TransitionId[];
+    /** Cody fit region (eV), when the cross-check gave a gap. */
+    cody: [number, number] | null;
+    /** Sigmoid fit, when the cross-check gave a gap. */
+    sigmoid: { type: SigmoidType; fromEv: number; toEv: number } | null;
+    /** Bands of the band table, and the prominence threshold used. */
+    bands: { count: number; prominencePercent: number; shoulders: number; hand: number };
+    /** Band fit on the energy axis, when one was made. */
+    bandFit: { profile: string; fromNm: number; toNm: number; count: number } | null;
   }[];
 }
 
@@ -150,26 +166,53 @@ export function uvvisMethodsParagraph(input: UvvisMethodsInput): string {
     `The optical band gap Eg was estimated with the Tauc method: (αhν)^(1/n) was plotted against hν, with ${list(byTransition)}, and Eg was taken as ${readings.join('; or as ')}. The fit region was chosen for each spectrum and is listed with its R² in the results table; the uncertainty of Eg comes from the covariance of the fitted line${methods.some((m) => m !== 'axis') ? 's' : ''}${fitted.some((s) => s.component?.fitted) ? ' (including that of a fitted factor c)' : ''} and does not include systematic errors.`,
   );
 
+  const films = fitted.filter((s) => s.kind !== 'reflectance' && s.sample === 'film');
+  const solutions = fitted.filter((s) => s.kind !== 'reflectance' && s.sample === 'solution');
   const thicknesses = unique(
-    fitted.flatMap((s) =>
-      s.kind !== 'reflectance' && s.thicknessNm !== null ? [`${number(s.thicknessNm)} nm`] : [],
-    ),
+    films.flatMap((s) => (s.thicknessNm !== null ? [`${number(s.thicknessNm)} nm`] : [])),
   );
-  const proportional = fitted.some((s) => s.kind !== 'reflectance' && s.thicknessNm === null);
+  const paths = unique(
+    solutions.flatMap((s) => (s.pathCm !== null ? [`${number(s.pathCm)} cm`] : [])),
+  );
+  const proportional =
+    films.some((s) => s.thicknessNm === null) || solutions.some((s) => s.pathCm === null);
+  const corrected = films.filter((s) => s.thicknessNm !== null && s.reflectance !== null);
   const alphaParts: string[] = [];
   if (thicknesses.length > 0)
     alphaParts.push(
-      `the absorption coefficient was calculated as α = ln(10)·A/t with film thickness t = ${list(thicknesses)}`,
+      `for films the absorption coefficient was calculated as α = ln(10)·A/t with film thickness t = ${list(thicknesses)}`,
+    );
+  if (corrected.length > 0)
+    alphaParts.push(
+      `for ${list(corrected.map((s) => `${s.name} (reflectance ${s.reflectance})`))} α was instead obtained from the measured transmittance T and reflectance R as α = (1/t)·ln[(1 − R)²/(2T) + √((1 − R)⁴/(4T²) + R²)], which treats the film as a slab with incoherent multiple internal reflections and neglects the substrate (A. R. Zanatta, Sci. Rep. 9 (2019) 11225, Eq. 6)`,
+    );
+  if (films.length > corrected.length && thicknesses.length > 0)
+    alphaParts.push(
+      'without a reflectance spectrum no correction for reflection was made, so α is overestimated where the film reflects',
+    );
+  if (paths.length > 0)
+    alphaParts.push(
+      `for solutions α = ln(10)·A/l with path length l = ${list(paths)}, the absorption coefficient of the solution`,
     );
   if (proportional)
     alphaParts.push(
-      'where no thickness was given, the absorbance itself was used in place of α (the plot is then only proportional to the true quantity, which does not shift Eg)',
+      'where no thickness or path length was given, the absorbance itself was used in place of α (the plot is then only proportional to the true quantity, which does not shift Eg)',
     );
   if (fitted.some((s) => s.kind === 'reflectance'))
     alphaParts.push(
       'for diffuse reflectance the Kubelka–Munk function F(R) = (1 − R)²/(2R) replaced α',
     );
-  if (alphaParts.length > 0) sentences.push(`${capitalise(list(alphaParts))}.`);
+  if (alphaParts.length > 0) sentences.push(`${capitalise(alphaParts.join('; '))}.`);
+
+  const reported = fitted.filter((s) => s.alsoReported.length > 0);
+  if (reported.length > 0)
+    sentences.push(
+      `Band gaps for ${list(
+        reported.map(
+          (s) => `${list(s.alsoReported.map((t) => `n = ${TRANSITIONS[t].nText}`))} (${s.name})`,
+        ),
+      )} are also reported, each fitted over its own region of the corresponding Tauc plot.`,
+    );
 
   if (fitted.some((s) => s.urbach))
     sentences.push(
@@ -181,6 +224,55 @@ export function uvvisMethodsParagraph(input: UvvisMethodsInput): string {
       `As a cross-check the energy of the steepest rise was taken from the maximum of ${derivatives
         .map((d) => (d === 'linear' ? 'dS/dE' : 'd(ln S)/dE'))
         .join(' or ')}, where S is the plotted absorption quantity.`,
+    );
+  const cody = fitted.filter((s) => s.cody);
+  if (cody.length > 0)
+    sentences.push(
+      `As a cross-check, a Cody plot, (α/hν)^(1/2) against hν, was fitted by a straight line (${list(
+        unique(
+          cody.map(
+            (s) =>
+              `${number((s.cody as [number, number])[0])}–${number((s.cody as [number, number])[1])} eV`,
+          ),
+        ),
+      )}) and Eg read where it meets zero (no refractive index factor).`,
+    );
+  const sigmoid = fitted.filter((s) => s.sigmoid);
+  if (sigmoid.length > 0) {
+    const types = unique(sigmoid.map((s) => (s.sigmoid as { type: SigmoidType }).type));
+    sentences.push(
+      `As a further cross-check the absorption edge was fitted by least squares with the sigmoid (Boltzmann) function S(E) = S_max + (S_min − S_max)/[1 + exp((E − E0)/δE)] over ${list(
+        unique(
+          sigmoid.map((s) => {
+            const g = s.sigmoid as { fromEv: number; toEv: number };
+            return `${number(g.fromEv)}–${number(g.toEv)} eV`;
+          }),
+        ),
+      )}, and Eg was estimated as E0 − n·δE with ${list(types.map((t) => `n = ${SIGMOID_N[t]} (${t})`))}, following A. R. Zanatta, Sci. Rep. 9 (2019) 11225.`,
+    );
+  }
+  sentences.push(
+    'Refractive indices listed with the band gaps are rough empirical estimates from Eg by the relations of Moss (n⁴Eg = 95 eV), Ravindra (n = 4.084 − 0.62Eg) and Hervé–Vandamme (n² = 1 + (13.6/(Eg + 3.47))², energies in eV), as given by S. K. Tripathy, Opt. Mater. 46 (2015) 240.',
+  );
+
+  const banded = spectra.filter((s) => s.bands.count > 0);
+  if (banded.length > 0) {
+    const thresholds = unique(banded.map((s) => `${number(s.bands.prominencePercent)} %`));
+    const hand = banded.reduce((n, s) => n + s.bands.hand, 0);
+    const shoulders = banded.reduce((n, s) => n + s.bands.shoulders, 0);
+    sentences.push(
+      `Absorption band maxima were located as local maxima of the absorbance (F(R) for diffuse reflectance) with a prominence of at least ${list(thresholds)} of the value range, the position taken from a parabola through the highest point and its two neighbours${hand > 0 ? `; ${hand} band${hand === 1 ? ' was' : 's were'} added by hand` : ''}${shoulders > 0 ? `; ${shoulders} shoulder${shoulders === 1 ? ' was' : 's were'} taken from minima of the Savitzky–Golay second derivative` : ''}.`,
+    );
+  }
+  const fits = spectra.filter((s) => s.bandFit);
+  if (fits.length > 0)
+    sentences.push(
+      `Overlapping bands were fitted on the photon energy axis with ${list(
+        fits.map((s) => {
+          const f = s.bandFit as NonNullable<(typeof s)['bandFit']>;
+          return `${f.count} ${f.profile} band${f.count === 1 ? '' : 's'} plus a straight background over ${number(f.fromNm)}–${number(f.toNm)} nm (${s.name})`;
+        }),
+      )}, by least squares.`,
     );
   sentences.push(`Analysis used ${input.software}.`);
   return sentences.join(' ');
