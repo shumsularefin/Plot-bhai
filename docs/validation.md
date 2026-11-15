@@ -1375,16 +1375,43 @@ A finding of the OPUS check: peach_juice.0 holds two final-spectrum (type 15) bl
 reader took the first, which differs from OPUS's own export by up to 0.017. The last block matches
 the export and Orange-spectroscopy's published value, so the reader takes the last block.
 
+### Independent readers (Validation workflow, first run 2026-11-15)
+
+| File                            | SpectroChemPy 1.3.1                       | brukeropusreader 1.3.4 | spc-io 0.2.1 | specio 0.1.0 |
+| ------------------------------- | ----------------------------------------- | ---------------------- | ------------ | ------------ |
+| omnic_sample1.spa               | every point agrees                        | —                      | —            | —            |
+| opus_peach_juice.0              | not read (see below)                      | every point agrees     | —            | —            |
+| perkinelmer\_\*.sp              | —                                         | —                      | see below    | see below    |
+| galactic_Ft-ir.spc, s_evenx.spc | every point agrees (x to 1e-3, see below) | —                      | see below    | see below    |
+| galactic_nir.spc (20 subfiles)  | subfile 1 agrees; 2–20 misread (below)    | —                      | see below    | see below    |
+
+- SpectroChemPy prints x to 3 decimals from a float32 axis, so its x is compared to 1e-3 cm⁻¹;
+  its y agrees to 1e-6.
+- SpectroChemPy scales every subfile of galactic_nir.spc by the main header's exponent (4), also
+  subfiles 2 to 20, whose own exponent is −128 (float32 values). The test checks that its values
+  are exactly the same bytes read as int32 · 2^(4 − 32), so the difference is explained to the
+  bit. rohanisaac/spc reads those subfiles as float32, as this site does, and its text agrees with
+  this site to 1e-10.
+- The first run's script called an spc-io method that does not exist (it reads subfiles by
+  iteration) and asked SpectroChemPy for an OPUS file without naming the data type, so
+  SpectroChemPy returned nothing; specio could not import on Python 3.13. All three are fixed in
+  the script and the workflow (specio runs on Python 3.9); their rows above are filled from the
+  next run's fixture.
+
 ### Open
 
-- The independent readers run only in the Validation workflow (they cannot be installed in the
-  session container). Until it has run, tests/spectrum-files-independent.test.ts is skipped; a
-  reader that could not read a file is recorded with its error in
-  tests/fixtures/validation/instrument-files-reference.json.
 - Unit codes not held in any real file are not mapped: PerkinElmer x labels other than "cm-1"
   (a UV WinLab file in nm), OPUS result types other than AB and RFL (for example TR), Galactic y
-  codes other than absorbance and transmittance, OMNIC codes other than wavenumber and absorbance.
-- No file from the owner's instruments has been read yet; one of each with its text export would
-  close this.
+  codes other than absorbance and transmittance (galactic_nir.spc's code 3, which SpectroChemPy
+  calls Kubelka–Munk, is left for the user to choose), OMNIC codes other than wavenumber and
+  absorbance. The tool asks the user for the kind instead.
 - Not read: old-layout and big-endian Galactic files, XYXY Galactic files, OPUS files in another
-  number format, PerkinElmer images and maps, Shimadzu .spc (a compound document).
+  number format, PerkinElmer images and maps, Shimadzu .spc (a compound document). Each is refused
+  with an export hint.
+
+### Closed by the owner
+
+- Files from the owner's own instruments: closed by the owner on 2026-11-15 ("I don't have
+  currently any raw files to test or validate with so close those section"). The readers are
+  validated on the public real files above; a user's file that differs is refused or asks for the
+  kind rather than being guessed.

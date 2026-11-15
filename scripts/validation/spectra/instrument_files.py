@@ -13,7 +13,11 @@ A reader that fails (an API change, a format it does not support) is recorded wi
 instead of stopping the run, so the JSON says which comparisons were made. x values are written
 in the order the reader gives them; the test sorts both sides before comparing.
 
-Run:  python -I scripts/validation/spectra/instrument_files.py tests/fixtures-real/spectra tests/fixtures/validation
+specio 0.1.0 imports collections.Iterable, which Python 3.10 removed, so the workflow runs it in a
+Python 3.9 venv of its own, as a second run with --add (which adds its readings to the JSON the
+first run wrote).
+
+Run:  python -I scripts/validation/spectra/instrument_files.py tests/fixtures-real/spectra tests/fixtures/validation [--only specio] [--add]
 """
 
 import hashlib
@@ -26,6 +30,8 @@ from pathlib import Path
 import numpy as np
 
 folder, out = Path(sys.argv[1]), Path(sys.argv[2])
+only = sys.argv[sys.argv.index('--only') + 1].split(',') if '--only' in sys.argv else None
+add = '--add' in sys.argv
 
 
 def rows(x, ys):
@@ -37,8 +43,14 @@ def rows(x, ys):
 def spectrochempy(path, kind):
     import spectrochempy as scp
 
-    read = {'spa': scp.read_omnic, 'opus': scp.read_opus, 'spc': scp.read_spc}[kind]
-    d = read(str(path))
+    if kind == 'opus':
+        # The final spectrum (AB) named explicitly: SpectroChemPy returns None, with only a
+        # logged warning, when it cannot choose the data type itself.
+        d = scp.read_opus(str(path), type='AB')
+    else:
+        d = {'spa': scp.read_omnic, 'spc': scp.read_spc}[kind](str(path))
+    if d is None:
+        raise RuntimeError('the reader returned no dataset (its warning is in the workflow log)')
     data = np.atleast_2d(np.asarray(d.data, dtype=float))
     return rows(d.x.data, list(data)) | {'yTitle': str(d.title), 'yUnits': str(d.units)}
 
@@ -57,9 +69,8 @@ def spcio(path, _kind):
 
     with open(path, 'rb') as f:
         spc = SPC.from_bytes_io(f)
-    frames = spc.to_dataframe_list()
-    x = frames[0].iloc[:, 0].to_numpy()
-    return rows(x, [frame.iloc[:, 1].to_numpy() for frame in frames])
+    subfiles = list(spc)
+    return rows(subfiles[0].xarray, [sub.yarray for sub in subfiles])
 
 
 def specio(path, _kind):
@@ -96,11 +107,19 @@ def version(package):
         return None
 
 
-result = {'readers': {name: version(p) for name, p in PACKAGES.items()}, 'files': {}}
+target = out / 'instrument-files-reference.json'
+result = (json.loads(target.read_text()) if add else
+          {'readers': {}, 'files': {}})
+for name, p in PACKAGES.items():
+    if only is None or name in only:
+        result['readers'][name] = version(p)
 for name, kind in FILES.items():
     path = folder / name
-    entry = {'sha256': hashlib.sha256(path.read_bytes()).hexdigest(), 'readings': {}}
+    entry = result['files'].get(name) if add else None
+    entry = entry or {'sha256': hashlib.sha256(path.read_bytes()).hexdigest(), 'readings': {}}
     for reader, function in READERS[kind]:
+        if only is not None and reader not in only:
+            continue
         try:
             entry['readings'][reader] = function(path, kind)
         except Exception as error:  # recorded, not fatal: see the docstring
@@ -109,4 +128,4 @@ for name, kind in FILES.items():
     result['files'][name] = entry
     print(name, {r: ('ok' if 'x' in v else v['error'][:80]) for r, v in entry['readings'].items()})
 
-(out / 'instrument-files-reference.json').write_text(json.dumps(result) + '\n')
+target.write_text(json.dumps(result) + '\n')
