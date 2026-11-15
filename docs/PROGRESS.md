@@ -1,5 +1,49 @@
 # Progress
 
+## Stage 19g: binary FTIR and UV-Vis instrument files (done)
+
+Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md, 19g.
+
+- **Readers** in src/core/spectrumFiles, pure TypeScript, run in the browser: Thermo OMNIC .spa,
+  Bruker OPUS (.0, .1, …), PerkinElmer .sp (Spectrum and UV WinLab "2D constant interval" files)
+  and Galactic .spc (new layout, one or many subfiles, even axis or stored x values, float32 or
+  scaled integer y). The format is told by the file's contents, not its extension. Each reader's
+  comment states the byte layout as confirmed on the real files.
+- **Wiring.** The FTIR tool loads wavenumber files and the UV-Vis tool wavelength (nm) files;
+  each sends the other's files on with a plain message ("open it in the FTIR tool"). The y kind
+  is taken from the file when its code is confirmed (the spectrum card then says it came from the
+  file), and an "Instrument file" badge and a "Read from a … file" note are shown. A Shimadzu-style
+  compound-document ".spc" and the layouts not read are refused with an export hint. The UV-Vis
+  importer's wavelength checks were moved into one function shared by text and instrument files.
+- **Real files.** The owner has none yet, so, as for the XRD packed formats, eight openly licensed
+  files from public test corpora are kept in tests/fixtures-real/spectra (Orange-spectroscopy
+  GPL-3.0, rohanisaac/spc GPL-3.0, specio BSD-3-Clause), with an OPUS text export and the text
+  rohanisaac/spc wrote for the Galactic files. GPL test data in a test folder do not change the
+  licence of the site's code, which shares none of their code.
+- **Independent readers in CI.** SpectroChemPy, brukeropusreader, spc-io and specio could not be
+  installed in the session container, so the Validation workflow installs them in a venv of their
+  own and writes tests/fixtures/validation/instrument-files-reference.json;
+  tests/spectrum-files-independent.test.ts compares every point once it exists.
+
+Decisions: a unit code becomes an axis or a y kind only where a real file confirms it (no
+guessing from format documents for codes no file holds); anything else is "not stated" and the
+user chooses. A finding while validating: the OPUS test file holds two final-spectrum blocks, and
+only the last one matches OPUS's own .dpt export and Orange-spectroscopy's published value, so the
+reader takes the last block.
+
+Known issues: no file from the owner's instruments read yet; PerkinElmer nm files, OPUS TR and
+other result types, and several Galactic codes are unconfirmed and not mapped; the CI readers have
+not run yet. All open in docs/validation.md, 19g.
+
+Verification: lint, type check and Prettier clean; the changed and dependent tests pass (FTIR,
+UV-Vis and the new instrument-file tests: 29 files, 302 tests, the independent-reader test skipped
+until the workflow has run); production build and bundle size within budget (shell 15.3 KB of
+150 KB); e2e passed, including the new "FTIR: Bruker OPUS and Thermo OMNIC files read in the
+browser".
+
+Next: the extension of 19d item 4 the owner approved (Socrates, the CC BY-NC tables, and the
+alumina and zirconia papers).
+
 ## Stage 19d item 4: wider FTIR group table (done)
 
 Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md,

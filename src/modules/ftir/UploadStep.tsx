@@ -153,7 +153,7 @@ export function UploadStep({ data, update }: StepContext<FtirData>) {
         <>
           <DataSources imageHref="#/ftir/image">
             <FileDrop
-              formats=".csv, .txt, .dpt or JCAMP-DX (.jdx, .dx) with wavenumber (cm⁻¹) in the first column and one or more spectra in the other columns. Files stay on your device."
+              formats=".csv, .txt, .dpt or JCAMP-DX (.jdx, .dx) with wavenumber (cm⁻¹) in the first column and one or more spectra in the other columns, or an instrument file: Thermo OMNIC .spa, Bruker OPUS (.0, .1, …), PerkinElmer .sp or Galactic .spc. Files stay on your device."
               onFiles={importFiles}
               disabled={full}
             />
@@ -231,7 +231,7 @@ export function UploadStep({ data, update }: StepContext<FtirData>) {
       {spectra.length > 0 && (
         <section class="add-more" aria-label="Add more data">
           <FileDrop
-            formats=".csv, .txt, .dpt or JCAMP-DX (.jdx, .dx) with wavenumber (cm⁻¹) in the first column and one or more spectra in the other columns. Files stay on your device."
+            formats=".csv, .txt, .dpt or JCAMP-DX (.jdx, .dx) with wavenumber (cm⁻¹) in the first column and one or more spectra in the other columns, or an instrument file: Thermo OMNIC .spa, Bruker OPUS (.0, .1, …), PerkinElmer .sp or Galactic .spc. Files stay on your device."
             onFiles={importFiles}
             disabled={full}
             compact

@@ -68,7 +68,7 @@ describe('text import', () => {
 
   it('refuses binary instrument files with an export hint, and empty input', () => {
     const spa = importFtirFile('sample.spa', new Uint8Array([1, 2, 3, 4, 0, 5]));
-    expect(!spa.ok && spa.error).toContain('Thermo OMNIC');
+    expect(!spa.ok && spa.error).toContain('OMNIC .spa files this site reads');
     expect(!spa.ok && spa.error).toContain('JCAMP-DX');
     expect(importFtirFile('a.csv', new Uint8Array(0)).ok).toBe(false);
   });

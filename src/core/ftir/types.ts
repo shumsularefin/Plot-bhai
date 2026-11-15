@@ -5,9 +5,12 @@ export type { ValueScale };
 /** FTIR spectra are absorbance, transmittance or diffuse reflectance (DRIFTS). */
 export type FtirKind = Extract<UvvisKind, 'absorbance' | 'transmittance' | 'reflectance'>;
 
-/** 'computed': made in this site from other spectra (for example a difference spectrum). */
+/**
+ * 'computed': made in this site from other spectra (for example a difference spectrum).
+ * 'instrument': a binary instrument file (src/core/spectrumFiles).
+ */
 export type FtirSource =
-  'text' | 'csv' | 'jcamp' | 'pasted' | 'synthetic' | 'digitized' | 'computed';
+  'text' | 'csv' | 'jcamp' | 'pasted' | 'synthetic' | 'digitized' | 'computed' | 'instrument';
 
 /** A validated spectrum: wavenumber in cm⁻¹, strictly increasing. */
 export interface FtirSpectrum {

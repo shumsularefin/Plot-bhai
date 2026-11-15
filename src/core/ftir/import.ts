@@ -3,6 +3,8 @@ import { COMMENT, detectLayout, numericRow, splitFields } from '../text/delimite
 import { baseName } from '../xrd/import';
 import { formatNumber } from '../xrd/parsers/numbers';
 import type { DataMessage } from '../xrd/types';
+import { readInstrumentFile } from '../spectrumFiles';
+import type { InstrumentFile } from '../spectrumFiles';
 import { looksLikeJcamp, parseJcamp } from './jcamp';
 import { ftirKindFromText, suggestFtirKind } from './kind';
 import type { FtirImportResult, FtirKind, FtirSource, FtirSpectrum } from './types';
@@ -14,12 +16,15 @@ const MIN_POINTS = 10;
 const EXPORT_HINT =
   'In the instrument software, export the spectrum as .csv, .txt, .dpt or JCAMP-DX (.jdx), then load that file.';
 
-/** Binary formats we recognise by extension but cannot read. We say so rather than guess. */
+/**
+ * Binary formats named by extension. Files that src/core/spectrumFiles reads are read whatever
+ * their name; one with these extensions that it does not recognise gets this message.
+ */
 const BINARY_FORMATS: Record<string, string> = {
-  spa: 'Thermo OMNIC .spa files are a binary format that this site cannot read.',
-  spc: 'Galactic .spc files are a binary format that this site cannot read.',
-  sp: 'Perkin-Elmer .sp files are a binary format that this site cannot read.',
-  '0': 'Bruker OPUS files (such as .0) are a binary format that this site cannot read.',
+  spa: 'This .spa file is not laid out like the OMNIC .spa files this site reads.',
+  spc: 'This .spc file is not laid out like the Galactic .spc files this site reads.',
+  sp: 'This .sp file is not laid out like the PerkinElmer .sp files this site reads.',
+  '0': 'This file is not laid out like the Bruker OPUS files this site reads.',
 };
 
 function extensionOf(name: string): string {
@@ -41,6 +46,10 @@ export function importFtirFile(name: string, bytes: Uint8Array): FtirImportResul
   const extension = extensionOf(name);
   const utf16 =
     (bytes[0] === 0xff && bytes[1] === 0xfe) || (bytes[0] === 0xfe && bytes[1] === 0xff);
+  const instrument = utf16 ? undefined : readInstrumentFile(bytes, extension);
+  if (instrument) {
+    return instrument.ok ? importInstrumentFile(name, instrument.file) : instrument;
+  }
   if (isZip(bytes) || (!utf16 && hasNulBytes(bytes)) || (extension in BINARY_FORMATS && !utf16)) {
     const what =
       BINARY_FORMATS[extension] ??
@@ -49,6 +58,36 @@ export function importFtirFile(name: string, bytes: Uint8Array): FtirImportResul
   }
   const text = decodeText(bytes, 'latin1');
   return importFtirText(name, text, extension === 'csv' ? 'csv' : 'text');
+}
+
+/** A spectrum read from a binary instrument file (src/core/spectrumFiles); x must be in cm⁻¹. */
+function importInstrumentFile(name: string, file: InstrumentFile): FtirImportResult {
+  if (file.xUnit !== 'wavenumber') {
+    return {
+      ok: false,
+      error:
+        file.xUnit === 'nm'
+          ? `This ${file.format} file holds a spectrum against wavelength in nm, as UV-Vis instruments record it. Open it in the UV-Vis tool instead.`
+          : file.xUnit === 'raman-shift'
+            ? `This ${file.format} file holds a Raman spectrum (Raman shift), not an infrared spectrum, so this tool cannot use it.`
+            : `The x axis of this ${file.format} file is ${file.xLabel}, not wavenumber in cm⁻¹, so this tool cannot use it.`,
+    };
+  }
+  return build(
+    file.title || baseName(name),
+    'instrument',
+    Array.from(file.spectra[0]?.x ?? []),
+    file.spectra.map((s, i) => ({
+      values: Array.from(s.y),
+      columnName: `spectrum ${i + 1}`,
+      hint: file.yKind,
+    })),
+    [
+      { level: 'info', text: `Read from a ${file.format} file (y values: ${file.yLabel}).` },
+      ...file.notes,
+    ],
+    file.spectra.length,
+  );
 }
 
 /**

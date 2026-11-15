@@ -575,6 +575,32 @@ try {
   // FTIR: example data, baseline, peaks, accepted assignments, results, methods text, session.
   await page.goto(`http://localhost:${PORT}/#/ftir`);
   await heading().waitFor();
+  // Binary instrument files (stage 19g): a Bruker OPUS and a Thermo OMNIC file, then removed.
+  await page
+    .locator('input[type=file]')
+    .first()
+    .setInputFiles([
+      'tests/fixtures-real/spectra/opus_peach_juice.0',
+      'tests/fixtures-real/spectra/omnic_sample1.spa',
+    ]);
+  await page.locator('.badge', { hasText: 'Instrument file' }).nth(1).waitFor();
+  assert.equal(await page.locator('.badge', { hasText: 'Instrument file' }).count(), 2);
+  assert.ok(
+    (await page.getByLabel('Spectrum name').evaluateAll((e) => e.map((i) => i.value))).includes(
+      'Peach juice colorful spot',
+    ),
+  );
+  await page
+    .getByText(/Read from a Bruker OPUS file/)
+    .first()
+    .waitFor();
+  while ((await page.getByRole('button', { name: /^Remove / }).count()) > 0) {
+    await page
+      .getByRole('button', { name: /^Remove / })
+      .first()
+      .click();
+  }
+  step('FTIR: Bruker OPUS and Thermo OMNIC files read in the browser');
   await page.getByRole('button', { name: 'Try with example data' }).click();
   await page.getByText('Example absorbance (synthetic)').first().waitFor();
   await next('Clean data');

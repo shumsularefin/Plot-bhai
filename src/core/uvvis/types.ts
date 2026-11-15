@@ -6,7 +6,8 @@ export type SpectrumKind = 'absorbance' | 'transmittance' | 'reflectance';
 /** How transmittance and reflectance are written: 0 to 100 (percent) or 0 to 1 (fraction). */
 export type ValueScale = 'percent' | 'fraction';
 
-export type SpectrumSource = 'text' | 'csv' | 'pasted' | 'synthetic' | 'digitized';
+/** 'instrument': a binary instrument file (src/core/spectrumFiles). */
+export type SpectrumSource = 'text' | 'csv' | 'pasted' | 'synthetic' | 'digitized' | 'instrument';
 
 /** A validated spectrum: wavelength in nm, strictly increasing. */
 export interface Spectrum {

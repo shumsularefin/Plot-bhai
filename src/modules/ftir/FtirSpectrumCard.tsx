@@ -12,6 +12,7 @@ const SOURCE_LABELS: Record<FtirSource, string> = {
   synthetic: 'Example',
   digitized: 'From a graph image',
   computed: 'Made here (difference)',
+  instrument: 'Instrument file',
 };
 const KIND_LABELS: Record<FtirKind, string> = {
   absorbance: 'Absorbance',

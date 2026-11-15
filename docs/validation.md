@@ -1342,3 +1342,49 @@ the critical value.
   images. CV and the span are reported instead.
 - Surface- and volume-weighted values assume spheres of the equal-area diameter; for elongated or
   porous particles they are rough estimates.
+
+## 19g: binary FTIR and UV-Vis instrument files (2026-11-15)
+
+Readers in src/core/spectrumFiles for Thermo OMNIC .spa, Bruker OPUS (.0, .1, …), PerkinElmer .sp
+(Spectrum, UV WinLab) and Galactic .spc (new layout, little-endian, one or many subfiles, with or
+without stored x values). The owner has no instrument files yet, so, as for the XRD packed formats,
+the readers were written against openly licensed real files from public test corpora
+(tests/fixtures-real/README.md): Orange-spectroscopy (GPL-3.0), rohanisaac/spc (GPL-3.0) and
+specio (BSD-3-Clause). A unit code becomes an axis or a y kind only when one of these files
+confirms it; any other code is passed on as "not stated", and the tool asks the user.
+
+### Checks
+
+Tests: tests/spectrum-files.test.ts, tests/spectrum-files-independent.test.ts.
+
+| Check                                                                                                                                                                     | Reference                                                   | Tolerance                          |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ---------------------------------- |
+| Galactic .spc, 3 files (one with 20 subfiles), every x and y                                                                                                              | the text rohanisaac/spc wrote for the same files            | x 1e-6, y relative 1e-10           |
+| OPUS, every x and y of 1,816 points                                                                                                                                       | the .dpt text OPUS itself exported for the same measurement | 5e-6 (half the last printed digit) |
+| OPUS point 4 (3994.330014648437 cm⁻¹, 0.90655535)                                                                                                                         | Orange-spectroscopy's test for the same file                | 1e-9, 1e-8                         |
+| OMNIC .spa: 1,738 points from 3999.703125 to 649.903564453125 cm⁻¹, absorbance                                                                                            | Orange-spectroscopy's test for the same file                | 1e-6                               |
+| PerkinElmer .sp: y[4] = 100.65028381347656 %T, x from 750 to 4000 cm⁻¹                                                                                                    | Orange-spectroscopy's test for the same file                | exact                              |
+| PerkinElmer .sp: lowest and highest y equal the ordinate range stored in each file                                                                                        | invariant stored in the file                                | exact                              |
+| OPUS: the first final-spectrum block decodes to the MXY and MNY stored with it                                                                                            | invariant stored in the file                                | exact                              |
+| Galactic 32-bit and 16-bit integer y (integer · 2^(e − 32), 2^(e − 16)) on an even axis                                                                                   | synthetic files with known values                           | exact                              |
+| Old or big-endian .spc, XYXY .spc, truncated .spc, OLE ".spc", OPUS without a final spectrum, PerkinElmer range that disagrees with its interval                          | refused with a plain message, not guessed                   | —                                  |
+| FTIR loads all six infrared files, increasing in wavenumber, with the kind from the file; UV-Vis loads the 20 near-infrared spectra; each tool sends the other's files on | the importers                                               | —                                  |
+| Every point of each file read by SpectroChemPy, brukeropusreader, spc-io and specio                                                                                       | independent readers, run by the Validation workflow         | relative 1e-6                      |
+
+A finding of the OPUS check: peach_juice.0 holds two final-spectrum (type 15) blocks. The first
+reader took the first, which differs from OPUS's own export by up to 0.017. The last block matches
+the export and Orange-spectroscopy's published value, so the reader takes the last block.
+
+### Open
+
+- The independent readers run only in the Validation workflow (they cannot be installed in the
+  session container). Until it has run, tests/spectrum-files-independent.test.ts is skipped; a
+  reader that could not read a file is recorded with its error in
+  tests/fixtures/validation/instrument-files-reference.json.
+- Unit codes not held in any real file are not mapped: PerkinElmer x labels other than "cm-1"
+  (a UV WinLab file in nm), OPUS result types other than AB and RFL (for example TR), Galactic y
+  codes other than absorbance and transmittance, OMNIC codes other than wavenumber and absorbance.
+- No file from the owner's instruments has been read yet; one of each with its text export would
+  close this.
+- Not read: old-layout and big-endian Galactic files, XYXY Galactic files, OPUS files in another
+  number format, PerkinElmer images and maps, Shimadzu .spc (a compound document).
