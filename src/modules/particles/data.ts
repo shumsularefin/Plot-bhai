@@ -29,6 +29,12 @@ export interface ImageInfo {
   synthetic: boolean;
   /** Messages from reading the file, for example about a page that was skipped. */
   notes: string[];
+  /**
+   * Size of the file in bytes and its SHA-256 (hex), so that a session file opened later can tell
+   * whether the image loaded again is the same one. Null in sessions saved before version 7.
+   */
+  bytes: number | null;
+  sha256: string | null;
 }
 
 /** The scale bar the user drew; the length is filled in afterwards. */
@@ -126,6 +132,15 @@ export const SIZE_MEASURE_NAMES: Record<SizeMeasure, string> = {
   shortest: 'Shortest caliper (Feret) diameter',
 };
 
+/** Shape number of each particle shown as a second distribution. */
+export type ShapeMeasure = 'aspectRatio' | 'circularity' | 'solidity';
+
+export const SHAPE_MEASURE_NAMES: Record<ShapeMeasure, string> = {
+  aspectRatio: 'Aspect ratio',
+  circularity: 'Circularity',
+  solidity: 'Solidity',
+};
+
 /** One image's diameters, kept so that several images can be pooled into one distribution. */
 export interface PoolEntry {
   id: string;
@@ -136,6 +151,13 @@ export interface PoolEntry {
   equalArea: number[];
   longest: number[];
   shortest: number[];
+  /**
+   * Shape numbers of the detected particles (hand measurements have none), without unit. Null
+   * in entries saved before version 7, which did not keep them.
+   */
+  aspectRatio: number[] | null;
+  circularity: number[] | null;
+  solidity: number[] | null;
 }
 
 /** Settings of the distribution step. */
@@ -150,6 +172,8 @@ export interface DistributionSettings {
   includeHand: boolean;
   showFit: 'lognormal' | 'normal' | 'none';
   showCumulative: boolean;
+  /** Which shape number the shape histogram shows. */
+  shape: ShapeMeasure;
 }
 
 export const DEFAULT_DISTRIBUTION: DistributionSettings = {
@@ -161,6 +185,7 @@ export const DEFAULT_DISTRIBUTION: DistributionSettings = {
   includeHand: false,
   showFit: 'lognormal',
   showCumulative: false,
+  shape: 'aspectRatio',
 };
 
 /** Settings of the area fraction, line intercept and XRD comparison section. */
@@ -211,7 +236,7 @@ export const initialParticleData: ParticleData = {
 };
 
 /** Version of the saved shape. Bump it, and add a migration, when the shape changes. */
-export const PARTICLE_STATE_VERSION = 6;
+export const PARTICLE_STATE_VERSION = 7;
 
 /** Index of the "Measure by hand" step, which versions 1 to 3 had before the last step. */
 const OLD_MEASURE_STEP = 3;
@@ -224,12 +249,34 @@ const ADJUST_STEP = 2;
  * (10b) had no distribution settings or pool, and versions 1 to 3 had a separate step for hand
  * measurements (now part of Detect particles) and splitting by necks only, versions 1 to 4
  * had no area fraction and intercept settings, and versions 1 to 5 had no "Adjust the image"
- * step, image adjustments, choice of automatic threshold or extra measurements.
+ * step, image adjustments, choice of automatic threshold or extra measurements, and versions 1
+ * to 6 had no file size and hash of the image, no shape numbers in the pool and no shape choice.
  */
 export function migrateParticleData(
   saved: unknown,
   version: number,
 ): WizardState<ParticleData> | undefined {
+  const v6 = version === 6 ? (saved as WizardState<ParticleData>) : toVersion6(saved, version);
+  if (!v6 || typeof v6 !== 'object' || !v6.data) return undefined;
+  const { image, pool, distribution } = v6.data;
+  return {
+    ...v6,
+    data: {
+      ...v6.data,
+      image: image ? { ...image, bytes: image.bytes ?? null, sha256: image.sha256 ?? null } : null,
+      pool: (pool ?? []).map((entry) => ({
+        ...entry,
+        aspectRatio: entry.aspectRatio ?? null,
+        circularity: entry.circularity ?? null,
+        solidity: entry.solidity ?? null,
+      })),
+      distribution: { ...DEFAULT_DISTRIBUTION, ...distribution },
+    },
+  };
+}
+
+/** Versions 1 to 5 brought to the shape of version 6. */
+function toVersion6(saved: unknown, version: number): WizardState<ParticleData> | undefined {
   const v5 = version === 5 ? (saved as WizardState<ParticleData>) : toVersion5(saved, version);
   if (!v5 || typeof v5 !== 'object' || !v5.data) return undefined;
   const shift = (step: number) => (step >= ADJUST_STEP ? step + 1 : step);

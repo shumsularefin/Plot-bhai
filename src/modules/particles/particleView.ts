@@ -17,6 +17,8 @@ export interface ParticleSizes {
   feretMin: number;
   aspect: number;
   circularity: number;
+  /** Area over the area of the convex hull, at most 1 (ImageJ's Solidity). */
+  solidity: number;
   cx: number;
   cy: number;
 }
@@ -46,6 +48,7 @@ export function sizesOf(runs: Runs, scale: number): ParticleSizes {
     feretMin: s.feretMin / scale,
     aspect: s.aspect,
     circularity: s.circularity,
+    solidity: s.convexArea > 0 ? Math.min(1, s.area / s.convexArea) : Number.NaN,
     cx: s.cx / scale,
     cy: s.cy / scale,
   };

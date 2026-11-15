@@ -1,4 +1,10 @@
-import { calibrationOf, type ParticleData, type PoolEntry, type SizeMeasure } from './data';
+import {
+  calibrationOf,
+  type ParticleData,
+  type PoolEntry,
+  type ShapeMeasure,
+  type SizeMeasure,
+} from './data';
 import { measure, nmPerPixel, workingScale } from '../../core/particles/geometry';
 import { applyFilters, sizesOf } from './particleView';
 
@@ -10,6 +16,10 @@ export interface ImageSizes {
   shortest: number[];
   /** How many of them are hand measurements (the rest are detected particles). */
   hand: number;
+  /** Shape numbers of the detected particles only (a hand measurement has no outline). */
+  aspectRatio: number[];
+  circularity: number[];
+  solidity: number[];
 }
 
 /**
@@ -55,6 +65,9 @@ export function imageSizes(data: ParticleData, includeHand: boolean): ImageSizes
     longest: [],
     shortest: [],
     hand: 0,
+    aspectRatio: [],
+    circularity: [],
+    solidity: [],
   };
   if (!data.image) return out;
   for (const particle of kept) {
@@ -62,6 +75,9 @@ export function imageSizes(data: ParticleData, includeHand: boolean): ImageSizes
     out.equalArea.push(s.eqDiameter * factor);
     out.longest.push(s.feretMax * factor);
     out.shortest.push(s.feretMin * factor);
+    out.aspectRatio.push(s.aspect);
+    out.circularity.push(s.circularity);
+    out.solidity.push(s.solidity);
   }
   if (includeHand) {
     for (const m of data.measurements) {
@@ -90,6 +106,9 @@ export function poolEntryOf(id: string, name: string, sizes: ImageSizes): PoolEn
     equalArea: sizes.equalArea,
     longest: sizes.longest,
     shortest: sizes.shortest,
+    aspectRatio: sizes.aspectRatio,
+    circularity: sizes.circularity,
+    solidity: sizes.solidity,
   };
 }
 
@@ -136,4 +155,25 @@ export function collectSizes(data: ParticleData): Collected {
     sources.push({ name: entry.name, count: own.length });
   }
   return { unit, values, sources, skipped };
+}
+
+/**
+ * One shape number of every detected particle in the distribution: the image on screen (if
+ * chosen) and the pooled images, with the same rule as `collectSizes` for the image on screen.
+ * Shape numbers have no unit, so images with and without a scale can be combined. Pooled images
+ * saved before shape numbers were kept (version 6 and older) add nothing and are listed in
+ * `missing`.
+ */
+export function collectShapes(data: ParticleData, shape: ShapeMeasure) {
+  const current = data.distribution.useCurrent ? imageSizes(data, false) : null;
+  const values: number[] = [];
+  const missing: string[] = [];
+  if (current) values.push(...current[shape]);
+  for (const entry of data.pool) {
+    if (current && entry.name === data.image?.name) continue;
+    const own = entry[shape];
+    if (own === null) missing.push(entry.name);
+    else values.push(...own);
+  }
+  return { values, missing };
 }

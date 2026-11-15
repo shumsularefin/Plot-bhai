@@ -111,6 +111,8 @@ jobs:
         run: python -I scripts/validation/spectra/ftir_processing.py tests/fixtures/validation
       - name: Particle references (scikit-image, scipy) and the test image
         run: python -I scripts/validation/particles/make_particles.py tests/fixtures/validation
+      - name: Particle size statistics references, t, CI, moments, Dv and Anderson-Darling (numpy, scipy)
+        run: python -I scripts/validation/particles/distribution_stats.py tests/fixtures/validation
       - name: ImageJ Auto Threshold and Analyze Particles on the same image
         run: |
           curl -sSfL -o "$RUNNER_TEMP/ij.jar" "https://repo1.maven.org/maven2/net/imagej/ij/$IMAGEJ_VERSION/ij-$IMAGEJ_VERSION.jar"

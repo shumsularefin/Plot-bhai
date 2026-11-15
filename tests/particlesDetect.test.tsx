@@ -17,6 +17,8 @@ const image: ImageInfo = {
   format: 'png',
   synthetic: true,
   notes: [],
+  bytes: null,
+  sha256: null,
 };
 
 // jsdom has no canvas and no workers: the image decodes to a stub, and detection returns three discs.

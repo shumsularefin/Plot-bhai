@@ -1226,3 +1226,68 @@ covariance and the root finding, not the equations themselves.
   and no SI form of the equation from a source opened in the session was found.
 - The reflection correction models a free-standing slab; the substrate is not included, which
   Kasikov and Aarik find matters for films thinner than about 1 µm.
+
+## 19f: particle size statistics, shapes and the session file
+
+New methods (src/core/particles/statistics.ts):
+
+- Standard error and confidence interval of the mean: SEM = s/√N, Ȳ ± t(1 − α/2, N − 1)·s/√N
+  (NIST/SEMATECH e-Handbook of Statistical Methods, §1.3.5.2), s with divisor N − 1. The Student t
+  quantile is computed from the density of §1.3.6.6.4 by Simpson's rule and Newton's method.
+- Coefficient of variation CV = s/x̄ (NIST SP 960-1).
+- Moment means D[1,0] = Σd/n, D[3,2] = Σd³/Σd² and D[4,3] = Σd⁴/Σd³, from the volume forms
+  D[3,2] = ΣV/Σ(V/d) and D[4,3] = ΣVd/ΣV of A. Virden, "D[3,2] vs. D[4,3]" (Malvern Panalytical,
+  2026), with V ∝ d³ (each particle treated as a sphere).
+- Volume-weighted Dv10, Dv50, Dv90 and span: the inverted-CDF percentile with weights d³.
+- Goodness of fit: Anderson–Darling A² with the mean and SD estimated (NIST §1.3.5.14), on d for
+  the normal fit and on ln d for the lognormal fit, against the 5 % critical value
+  0.752/(1 + 0.75/N + 2.25/N²) (M. A. Stephens, J. Am. Stat. Assoc. 69 (1974) 730, as in
+  scipy.stats.anderson). Shown as a guide; Kolmogorov–Smirnov was not used because its critical
+  values are not valid once the parameters come from the data (NIST §1.3.5.16).
+- Shape distributions: aspect ratio (longest/shortest caliper), circularity (4π·area/perimeter²,
+  ImageJ's traced perimeter) and solidity (area/convex hull area, new), of detected particles.
+
+Number-based values stay the default; every table, CSV row and the methods text names the
+weighting (number, surface or volume, the last two "assumes spheres").
+
+### Checks
+
+Data: tests/fixtures/validation/particle-stats-reference.json, written by
+scripts/validation/particles/distribution_stats.py (numpy 2.5.4, scipy 1.18.1), a step in the
+Validation workflow, on four seeded samples (lognormal n = 400, normal n = 150, n = 12, bimodal
+n = 260). Tests: tests/particles-statistics.test.ts, tests/validation-particle-stats.test.ts and
+tests/particles-completion.test.tsx.
+
+| Check                                                                        | Reference                                    | Tolerance             |
+| ---------------------------------------------------------------------------- | -------------------------------------------- | --------------------- |
+| t(0.975, ν) for ν = 1, 2, 5, 10, 30, 100; ν → ∞ gives 1.960                  | NIST §1.3.6.7.2 table                        | 5·10⁻⁴                |
+| t, lower and upper limit of the NIST worked example (N = 195)                | NIST §1.3.5.2: 1.9723, 9.258242, 9.264679    | 5·10⁻⁵; 5·10⁻⁶        |
+| t(0.975, n − 1), SEM, CI on four samples                                     | scipy.stats.t.ppf, scipy.stats.sem           | 10⁻⁷; 10⁻¹⁰; 10⁻⁹ rel |
+| Interval covers the true mean in about 95 % of 2000 samples (n = 12)         | synthetic, known answer                      | 93.5–96.5 %           |
+| ln Φ(z) and ln(1 − Φ(z)) at nine z from −12 to 20                            | scipy.stats.norm.logcdf, logsf               | 10⁻⁹ rel              |
+| CV, D[1,0], D[3,2], D[4,3] on four samples                                   | numpy                                        | 10⁻¹⁰; 10⁻¹² rel      |
+| Dv10, Dv50, Dv90 on four samples                                             | numpy.percentile(weights = d³, inverted_cdf) | identical             |
+| Equal sizes give that size for every mean and percentile                     | synthetic, known answer                      | 10⁻¹²                 |
+| One 1 µm and one 10 µm sphere: D[4,3] = 10001/1001 µm, Dv10 = 10 µm          | hand value                                   | 10⁻¹²                 |
+| D[1,0] ≤ D[3,2] ≤ D[4,3]; sizes × k scale every value; order does not matter | invariance                                   | 10⁻¹²                 |
+| A² and the 5 % critical value for d and ln d on four samples                 | scipy.stats.anderson                         | 10⁻⁷ rel; 5·10⁻⁴      |
+| A² unchanged when the sizes are shifted or scaled                            | invariance                                   | 10⁻⁹                  |
+| About 5 % of normal samples rejected at the 5 % level; bimodal rejected      | synthetic, known answer                      | 3–7 % of 1000         |
+| Discs: aspect ratio < 1.1, solidity > 0.95, circularity 0.8 to 1             | synthetic, known answer                      | as stated             |
+| Session file round trip (Int32Array outlines, scale, hash); version 6 opens  | round trip                                   | identical             |
+
+scipy.stats.anderson rounds its critical values to three decimals, hence the 5·10⁻⁴ tolerance on
+the critical value.
+
+### Open
+
+- A real SEM or TEM micrograph measured in ImageJ by a person was not supplied, so the whole chain
+  (scale, threshold, split, sizes) has not been compared with ImageJ numbers on a real image. The
+  synthetic image of 19b is still the only ImageJ comparison.
+- ISO 9276-2 (moment means and weighting) was not opened; the moment-mean equations come from the
+  Malvern Panalytical article named above.
+- No polydispersity index is given: the PDI in common use is the cumulants quantity of dynamic light
+  scattering, and no source opened in the session defines a PDI for sizes measured on
+  images. CV and the span are reported instead.
+- Surface- and volume-weighted values assume spheres of the equal-area diameter; for elongated or
+  porous particles they are rough estimates.

@@ -26,6 +26,8 @@ const image: ImageInfo = {
   format: 'png',
   synthetic: false,
   notes: [],
+  bytes: null,
+  sha256: null,
 };
 
 vi.mock('../src/modules/particles/useImage', () => ({
@@ -69,6 +71,9 @@ const entry = (name: string, unit: 'nm' | 'px', values: number[]): PoolEntry => 
   equalArea: values,
   longest: values,
   shortest: values,
+  aspectRatio: [],
+  circularity: [],
+  solidity: [],
 });
 
 describe('sizes of the image on screen', () => {

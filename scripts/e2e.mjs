@@ -735,12 +735,12 @@ try {
   assert.ok(Math.abs(median - 43.75) / 43.75 < 0.03, `median ${median} nm`);
   const [histogramSvg] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Download SVG' }).click(),
+    page.getByRole('button', { name: 'Download SVG' }).first().click(),
   ]);
   assert.match(readFileSync(await histogramSvg.path(), 'utf8'), /Number of particles/);
   const [summaryCsv] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Summary (CSV)' }).click(),
+    page.getByRole('button', { name: 'Summary (CSV)', exact: true }).click(),
   ]);
   assert.match(readFileSync(await summaryCsv.path(), 'utf8'), /D90/);
   const [annotated] = await Promise.all([
@@ -764,6 +764,23 @@ try {
   await page.getByText(/example-particles-synthetic.png: 12 particles \(nm\)/).waitFor();
   assert.match(await page.getByLabel('Methods paragraph').inputValue(), /generated example/);
   step('Particles: distribution numbers, histogram SVG, summary CSV, annotated PNG, pooling');
+
+  // 19f: further statistics, shape distributions and the session file.
+  await page.getByText('95 % confidence interval of the mean').waitFor();
+  await page.getByText('D[3,2], Sauter mean').waitFor();
+  assert.match(await page.getByLabel('Methods paragraph').inputValue(), /Anderson–Darling/);
+  const shapes = page.getByRole('region', { name: 'Shape numbers, scrolls sideways' });
+  assert.match((await shapes.textContent()) ?? '', /Circularity/);
+  await page.getByRole('combobox', { name: 'Histogram of' }).selectOption('solidity');
+  const [particleSession] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Download session (JSON)' }).click(),
+  ]);
+  const savedParticles = JSON.parse(readFileSync(await particleSession.path(), 'utf8'));
+  assert.equal(savedParticles.kind, 'particles-session');
+  assert.equal(savedParticles.state.data.distribution.shape, 'solidity');
+  assert.equal(savedParticles.state.data.detect.particles.length, 12);
+  step('Particles: further statistics, shape distributions, session file');
 
   // Thermal: example run, then a 10,000-point semicolon/decimal-comma file typed up here.
   await page.goto(`http://localhost:${PORT}/#/thermal`);

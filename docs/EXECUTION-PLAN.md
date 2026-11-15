@@ -62,7 +62,7 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 19c       | FTIR peaks: editing, table, comparison across samples            | done                                                          |
 | 19d       | FTIR processing, reflectance data, wider group table             | done (item 4 blocked: owner approval of a group-table source) |
 | 19e       | UV-Vis: peak table, path length, figures, gap methods            | done (optical conductivity not built, see validation.md 19e)  |
-| 19f       | Particles: session file, report, statistics                      | todo                                                          |
+| 19f       | Particles: session file, report, statistics                      | done (no real micrograph, see validation.md 19f)              |
 | 19g       | Binary FTIR and UV-Vis instrument files (needs real files)       | todo                                                          |
 
 ## The one prompt you paste in every new session

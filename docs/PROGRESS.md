@@ -1,5 +1,52 @@
 # Progress
 
+## Stage 19f: particle size session file, report, statistics and shapes (done)
+
+Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md, 19f.
+
+- **Session file.** Download and open a particles session (JSON, kind `particles-session`) from
+  the Upload and Distribution steps, through the shared session section. It holds the scale, all
+  settings, detected and hand-edited particles (outlines as runs, stored as Int32Array), hand
+  measurements, the pool and the distribution settings, and the image's name, size, byte count and
+  SHA-256. Without the image the distribution, tables, pool and report work; the image steps ask
+  for the same file. Loading it again re-attaches the work when the SHA-256 matches; a different
+  file gets a plain "This is not the image the session was made with … the file contents differ"
+  confirmation before the work is replaced.
+- **Sample report.** The particle size distribution (number-based values, then surface- and
+  volume-weighted values labelled as estimates assuming spheres) and the DSC results (events with
+  the sign convention, glass transition, crystallinity, methods text) are now in the report.
+- **Statistics.** SEM and the 95 % confidence interval of the mean (Student t, n − 1 degrees of
+  freedom), CV, D[1,0], D[3,2], D[4,3], Dv10/50/90 and span, in a "Further statistics" table with a
+  Weighting column, in the summary CSV and in the methods text. Anderson–Darling A² for the normal
+  and lognormal fits with the 5 % critical value, worded as a guide.
+- **Shape distributions.** Summary table and histogram of aspect ratio, circularity and solidity
+  (new: area over convex hull area) of the detected particles, in the same chart component, with
+  the circularity ~0.9 note and a CSV. Pool entries saved before this version are named as lacking
+  shapes.
+- **Histogram figure.** A free height (30 to 250 mm) for the exported histograms.
+- **State.** Particle state version 7; version 6 sessions get null fingerprints, pool entries
+  without shapes and the default shape choice (test in tests/particles-completion.test.tsx).
+
+Decisions: Anderson–Darling, not Kolmogorov–Smirnov, because KS critical values are not valid with
+estimated parameters (NIST §1.3.5.14 and §1.3.5.16); the lognormal fit is tested on ln d. No PDI:
+the common PDI is a dynamic light scattering quantity and no source defines one for image sizes, so
+CV and span are given instead. Volume percentiles by the inverted CDF without interpolation, the
+weighted method of numpy.percentile. Hand measurements have no outline and are left out of the
+shapes. The image is matched by SHA-256 of the file bytes, computed in the browser with
+crypto.subtle; nothing leaves the device.
+
+Known issues: not tried on a real SEM or TEM image with ImageJ numbers (none supplied); ISO 9276-2
+not opened; volume and surface weighting assume spheres. All listed as open in docs/validation.md,
+19f.
+
+Verification: lint, type check and Prettier clean; the changed tests pass (particles, particle
+validation, sample report and session tests: 16 files, 247 tests, including 51 new statistics tests
+and 13 new completion tests); production build and bundle size within budget (shell 20.0 KB of
+150 KB); e2e passed, including "Particles: further statistics, shape distributions, session file".
+
+Next: sub-stage 19g (binary FTIR and UV-Vis instrument files), which needs real instrument
+files from the owner. 19d item 4 waits for the PDFs of the group-table sources.
+
 ## Stage 19e: UV-Vis peak table, path length, figures and gap cross-checks (done)
 
 Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md, 19e.
@@ -659,7 +706,7 @@ Known issues and TODO (owner):
 - **Still open in docs/validation.md:** Fityk or FullProf on a real pattern; DICVOL, TREOR or
   McMaille on an unknown pattern; VESTA; the exported GSAS-II files loaded into GSAS-II by hand;
   real Bruker .raw version 1 to 3 files and multi-scan .rasx/.brml files.
-- DSC results and the particle size distribution are not part of the sample report yet.
+- DSC results and the particle size distribution are not part of the sample report yet (done in 19f).
 - "Use the empty space under the docked plot" was not done: the plot panel keeps its own height.
 
 Next stage: none in the tracker; waiting for the owner.
@@ -2555,9 +2602,9 @@ Branch `claude/hopeful-dirac-72ak86`, stacked on 10b (pull request 18 is still n
 
 ### Known issues
 
-- No JSON session file for particles yet (the image itself lives in IndexedDB and is not in the file).
+- No JSON session file for particles yet (the image itself lives in IndexedDB and is not in the file). Done in 19f.
 - Circularity of a digital disc reads about 0.9 (see 10b).
-- Heights of the exported histogram follow the preset (65 mm single, 100 mm double); no free height.
+- Heights of the exported histogram follow the preset (65 mm single, 100 mm double); no free height. Done in 19f.
 - Not tried with a real SEM or TEM image.
 
 ### Needs from you

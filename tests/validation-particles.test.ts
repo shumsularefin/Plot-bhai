@@ -329,6 +329,9 @@ describe('size distribution against NumPy and SciPy', () => {
       equalArea: list,
       longest: list,
       shortest: list,
+      aspectRatio: [],
+      circularity: [],
+      solidity: [],
     });
     const a = entry('a', values.slice(0, 120));
     const b = entry('b', values.slice(120));

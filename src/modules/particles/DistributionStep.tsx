@@ -1,22 +1,16 @@
-import { SOFTWARE } from '../../ui/software';
 import { useMemo, useState } from 'preact/hooks';
 import {
-  betterFit,
   BIN_METHOD_NAMES,
-  cleanSizes,
   countWarning,
   cumulative,
-  fitLognormal,
-  fitNormal,
-  histogram,
   lognormalPdf,
   normalPdf,
-  summarise,
   type BinMethod,
 } from '../../core/particles/distribution';
-import { NM_PER_UNIT, UNIT_LABELS, type LengthUnit } from '../../core/particles/geometry';
-import { particleMethodsParagraph } from '../../core/particles/methods';
+import type { AndersonDarling } from '../../core/particles/statistics';
+import { UNIT_LABELS, type LengthUnit } from '../../core/particles/geometry';
 import { HelpTip } from '../../ui/HelpTip';
+import { SessionSection } from '../../ui/SessionSection';
 import { DEFAULT_EXPORT_SETTINGS, downloadBlob, fileStem } from '../../ui/plot/export';
 import type { ExportSettings } from '../../ui/plot/export';
 import type { StepContext } from '../../ui/wizard/types';
@@ -32,20 +26,22 @@ import {
 import { downloadParticles } from './DetectStep';
 import { grayOf } from './grayImage';
 import { HistogramChart } from './HistogramChart';
+import { ShapeSection } from './ShapeSection';
 import { GREY_GROUPS, measureColumns } from './measureColumns';
 import { useImage } from './useImage';
-import { collectSizes, imageSizes, keptParticles, poolEntryOf } from './sizes';
-import { stereologyMethods, stereologyOf } from './stereology';
+import { keptParticles, poolEntryOf } from './sizes';
+import { PARTICLE_SESSION_HINT, particleSession } from './session';
 import { StereologySection } from './StereologySection';
-
-const MEASURE_WORDS: Record<SizeMeasure, string> = {
-  'equal-area': 'equal-area diameter',
-  longest: 'longest caliper (Feret) diameter',
-  shortest: 'shortest caliper (Feret) diameter',
-};
+import { distributionResults, MEASURE_WORDS } from './results';
 
 const fmt = (value: number, digits = 4) =>
   Number.isFinite(value) ? String(Number(value.toPrecision(digits))) : '–';
+
+/** Anderson–Darling result in words: a guide, never proof that a fit is right. */
+const adText = (a: AndersonDarling | null) =>
+  a
+    ? `A² ${fmt(a.a2, 3)} ${a.rejected ? '>' : '≤'} ${fmt(a.critical5, 3)}: ${a.rejected ? 'not consistent' : 'consistent'}`
+    : '–';
 
 /** Wizard step 5: size distribution, fits, pooling of images, and export of figure, tables and text. */
 export function DistributionStep({ data, update }: StepContext<ParticleData>) {
@@ -60,23 +56,21 @@ export function DistributionStep({ data, update }: StepContext<ParticleData>) {
   const [copied, setCopied] = useState<string | null>(null);
   const imageState = useImage(data.image);
 
-  const collected = useMemo(() => collectSizes(data), [data]);
-  const current = useMemo(() => imageSizes(data, s.includeHand), [data, s.includeHand]);
-  const scaled = collected.unit === 'nm';
-  const unitLabel = scaled ? UNIT_LABELS[s.unit] : 'px';
-  const factor = scaled ? 1 / NM_PER_UNIT[s.unit] : 1;
-  const sorted = useMemo(
-    () => cleanSizes(collected.values.map((v) => v * factor)),
-    [collected, factor],
-  );
-  const summary = useMemo(() => summarise(sorted), [sorted]);
-  const hist = useMemo(
-    () => histogram(sorted, s.binMethod, s.manualBins),
-    [sorted, s.binMethod, s.manualBins],
-  );
-  const normal = useMemo(() => fitNormal(sorted), [sorted]);
-  const lognormal = useMemo(() => fitLognormal(sorted), [sorted]);
-  const better = betterFit(normal, lognormal);
+  const {
+    collected,
+    current,
+    scaled,
+    unitLabel,
+    factor,
+    sorted,
+    summary,
+    hist,
+    normal,
+    lognormal,
+    better,
+    stats,
+    methods,
+  } = useMemo(() => distributionResults(data), [data]);
   const warning = countWarning(sorted.length);
 
   const measureName = SIZE_MEASURE_NAMES[s.measure];
@@ -113,55 +107,6 @@ export function DistributionStep({ data, update }: StepContext<ParticleData>) {
   }, [hist, s.showFit, s.showCumulative, lognormal, normal, sorted, xLabel]);
 
   const hasImage = data.image !== null;
-  const stereology = useMemo(() => stereologyOf(data), [data]);
-  const methods = useMemo(() => {
-    if (!summary) return '';
-    const usesDetected =
-      s.useCurrent && data.detect.particles.length > 0 && current.equalArea.length > current.hand;
-    const paragraph = particleMethodsParagraph({
-      software: SOFTWARE,
-      allSynthetic: data.image?.synthetic === true && collected.sources.length <= 1,
-      images: collected.sources.length,
-      nmPerPixel: scaled && data.scale && s.useCurrent ? keptParticles(data).perPixelNm : null,
-      detection: usesDetected
-        ? {
-            settings: data.detect.settings,
-            edited: data.detect.edited,
-            byHand: data.detect.particles.every((p) => p.source === 'added'),
-            diameterUsed: data.detect.diameterUsed,
-            thresholdUsed: data.detect.thresholdUsed,
-            fellBack: data.detect.fellBack,
-            filters: data.detect.filters,
-          }
-        : null,
-      handCount: s.useCurrent && s.includeHand ? current.hand : 0,
-      measureName: MEASURE_WORDS[s.measure],
-      unit: unitLabel,
-      count: summary.count,
-      mean: summary.mean,
-      sd: summary.sd,
-      d10: summary.d10,
-      d50: summary.d50,
-      d90: summary.d90,
-      bins: { method: s.binMethod, count: hist.counts.length },
-      fits: { normal, lognormal },
-    });
-    return stereology
-      ? `${paragraph} ${stereologyMethods(stereology, data.stereology)}`
-      : paragraph;
-  }, [
-    summary,
-    data,
-    s,
-    current,
-    collected,
-    scaled,
-    unitLabel,
-    hist,
-    normal,
-    lognormal,
-    stereology,
-  ]);
 
   const stem = fileStem(data.image?.name.replace(/\.[^.]+$/, '') ?? 'particles');
 
@@ -201,41 +146,76 @@ export function DistributionStep({ data, update }: StepContext<ParticleData>) {
 
   const downloadSummary = () => {
     if (!summary) return;
+    const N = 'number';
+    const SPHERES = 'assumes spheres';
     const rows = [
-      ['Number of particles', summary.count, ''],
-      ['Mean', summary.mean, unitLabel],
-      ['Standard deviation (sample, n - 1)', summary.sd, unitLabel],
-      ['Median', summary.median, unitLabel],
-      ['Smallest', summary.min, unitLabel],
-      ['Largest', summary.max, unitLabel],
-      ['D10', summary.d10, unitLabel],
-      ['D50', summary.d50, unitLabel],
-      ['D90', summary.d90, unitLabel],
-      ['Span (D90 - D10) / D50', summary.span, ''],
+      ['Number of particles', summary.count, '', N],
+      ['Mean', summary.mean, unitLabel, N],
+      ['Standard deviation (sample, n - 1)', summary.sd, unitLabel, N],
+      ['Median', summary.median, unitLabel, N],
+      ['Smallest', summary.min, unitLabel, N],
+      ['Largest', summary.max, unitLabel, N],
+      ['D10', summary.d10, unitLabel, N],
+      ['D50', summary.d50, unitLabel, N],
+      ['D90', summary.d90, unitLabel, N],
+      ['Span (D90 - D10) / D50', summary.span, '', N],
+      ...(stats?.interval
+        ? [
+            ['Standard error of the mean (SD / sqrt n)', stats.interval.sem, unitLabel, N],
+            ['95 % confidence interval of the mean, lower', stats.interval.lower, unitLabel, N],
+            ['95 % confidence interval of the mean, upper', stats.interval.upper, unitLabel, N],
+            ['Student t used (0.975, n - 1)', stats.interval.t, '', ''],
+          ]
+        : []),
+      ...(stats
+        ? [
+            ['Coefficient of variation (SD / mean)', stats.cv * 100, '%', N],
+            ['D[1,0] (arithmetic mean)', stats.moments.d10, unitLabel, N],
+            ['D[3,2] (Sauter mean)', stats.moments.d32, unitLabel, `surface, ${SPHERES}`],
+            ['D[4,3] (De Brouckere mean)', stats.moments.d43, unitLabel, `volume, ${SPHERES}`],
+            ['Dv10', stats.volume.dv10, unitLabel, `volume, ${SPHERES}`],
+            ['Dv50', stats.volume.dv50, unitLabel, `volume, ${SPHERES}`],
+            ['Dv90', stats.volume.dv90, unitLabel, `volume, ${SPHERES}`],
+            ['Volume span (Dv90 - Dv10) / Dv50', stats.volume.span, '', `volume, ${SPHERES}`],
+          ]
+        : []),
       ...(lognormal
         ? [
-            ['Lognormal median (exp mu)', lognormal.median, unitLabel],
-            ['Lognormal mean', lognormal.mean, unitLabel],
-            ['Lognormal geometric SD (exp sigma)', lognormal.geometricSd, ''],
-            ['Lognormal mu (of ln of the size in ' + unitLabel + ')', lognormal.mu, ''],
-            ['Lognormal sigma (of ln of the size)', lognormal.sigma, ''],
+            ['Lognormal median (exp mu)', lognormal.median, unitLabel, N],
+            ['Lognormal mean', lognormal.mean, unitLabel, N],
+            ['Lognormal geometric SD (exp sigma)', lognormal.geometricSd, '', N],
+            ['Lognormal mu (of ln of the size in ' + unitLabel + ')', lognormal.mu, '', N],
+            ['Lognormal sigma (of ln of the size)', lognormal.sigma, '', N],
+          ]
+        : []),
+      ...(stats?.adLognormal
+        ? [
+            ['Lognormal fit: Anderson-Darling A2 (on ln size)', stats.adLognormal.a2, '', ''],
+            ['Lognormal fit: A2 critical value, 5 %', stats.adLognormal.critical5, '', ''],
           ]
         : []),
       ...(normal
         ? [
-            ['Normal mean', normal.mean, unitLabel],
-            ['Normal sigma (maximum likelihood, n)', normal.sigma, unitLabel],
+            ['Normal mean', normal.mean, unitLabel, N],
+            ['Normal sigma (maximum likelihood, n)', normal.sigma, unitLabel, N],
           ]
         : []),
-    ] as [string, number, string][];
+      ...(stats?.adNormal
+        ? [
+            ['Normal fit: Anderson-Darling A2', stats.adNormal.a2, '', ''],
+            ['Normal fit: A2 critical value, 5 %', stats.adNormal.critical5, '', ''],
+          ]
+        : []),
+    ] as [string, number, string, string][];
     downloadCsv(
       `${stem}-distribution-summary`,
-      `Size distribution of the ${MEASURE_WORDS[s.measure]} from ${collected.sources.length} image(s). D10, D50 and D90 are number-based percentiles (linear interpolation between sorted values).`,
+      `Size distribution of the ${MEASURE_WORDS[s.measure]} from ${collected.sources.length} image(s). D10, D50 and D90 are number-based percentiles (linear interpolation between sorted values). The Weighting column says what each number is weighted by; surface- and volume-weighted values treat every particle as a sphere of its measured diameter, and Dv values are the smallest measured size at which the cumulative volume share is reached (no interpolation). The 95 % interval uses Student t with n - 1 degrees of freedom. Anderson-Darling A2 above its 5 % critical value (Stephens 1974, mean and SD estimated) means the fit is unlikely; below it, the data are consistent with the fit but it is not proved.`,
       rows,
       [
         { header: 'Quantity', value: (r) => r[0] },
         { header: 'Value', value: (r) => r[1] },
         { header: 'Unit', value: (r) => r[2] },
+        { header: 'Weighting', value: (r) => r[3] },
       ],
     );
   };
@@ -286,8 +266,24 @@ export function DistributionStep({ data, update }: StepContext<ParticleData>) {
     );
   };
 
+  const session = (
+    <SessionSection
+      codec={particleSession}
+      data={data}
+      update={update}
+      step={4}
+      stem={stem}
+      hint={PARTICLE_SESSION_HINT}
+    />
+  );
+
   if (!hasImage && data.pool.length === 0) {
-    return <p>No image is loaded. Go back to step 1 to add one.</p>;
+    return (
+      <>
+        <p>No image is loaded. Go back to step 1 to add one.</p>
+        {session}
+      </>
+    );
   }
 
   return (
@@ -544,7 +540,116 @@ export function DistributionStep({ data, update }: StepContext<ParticleData>) {
                 </tbody>
               </table>
             </div>
-            <p class="field-hint">SD is the sample standard deviation (divisor n − 1).</p>
+            <p class="field-hint">
+              Counted by number. SD is the sample standard deviation (divisor n − 1).
+            </p>
+            {stats && (
+              <>
+                <h4 class="export-title">
+                  Further statistics{' '}
+                  <HelpTip term="weighting">
+                    <p>
+                      Number-based values count every particle once. Surface- and volume-weighted
+                      values give large particles more weight: each particle counts with d² or d³,
+                      as if it were a sphere of its measured diameter, which an image cannot check.
+                      D[3,2] = Σd³/Σd² (Sauter) and D[4,3] = Σd⁴/Σd³ (De Brouckere) are the means
+                      that laser diffraction reports; Dv10, Dv50 and Dv90 are the sizes below which
+                      10 %, 50 % and 90 % of the particle volume lies, read at a measured size (no
+                      interpolation). A few large particles hold much of the volume, so the volume
+                      values change most when more particles are measured.
+                    </p>
+                    <p>
+                      The confidence interval of the mean is mean ± t·SD/√n with Student t at n − 1
+                      degrees of freedom (NIST/SEMATECH e-Handbook of Statistical Methods,
+                      §1.3.5.2). It says how well the mean is known if the particles are a random
+                      sample, not how wide the distribution is; the SD and the CV say that.
+                    </p>
+                    <p>
+                      No polydispersity index (PDI) is given. The PDI of particle sizing instruments
+                      comes from dynamic light scattering, where it is a quantity of the cumulants
+                      analysis, not a statistic of measured diameters; no source we could check
+                      defines a PDI for image sizes. Report the CV (SD/mean) instead and say that it
+                      is from images.
+                    </p>
+                  </HelpTip>
+                </h4>
+                <div
+                  class="table-scroll"
+                  tabIndex={0}
+                  role="region"
+                  aria-label="Further statistics, scrolls sideways"
+                >
+                  <table class="peak-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Quantity</th>
+                        <th scope="col">Value</th>
+                        <th scope="col">Weighting</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stats.interval && (
+                        <>
+                          <tr>
+                            <th scope="row">Standard error of the mean</th>
+                            <td>
+                              {fmt(stats.interval.sem)} {unitLabel}
+                            </td>
+                            <td>number</td>
+                          </tr>
+                          <tr>
+                            <th scope="row">95 % confidence interval of the mean</th>
+                            <td>
+                              {fmt(stats.interval.lower)} – {fmt(stats.interval.upper)} {unitLabel}
+                            </td>
+                            <td>number (Student t = {fmt(stats.interval.t)})</td>
+                          </tr>
+                        </>
+                      )}
+                      <tr>
+                        <th scope="row">Coefficient of variation (SD/mean)</th>
+                        <td>{fmt(stats.cv * 100, 3)} %</td>
+                        <td>number</td>
+                      </tr>
+                      <tr>
+                        <th scope="row">D[1,0], arithmetic mean</th>
+                        <td>
+                          {fmt(stats.moments.d10)} {unitLabel}
+                        </td>
+                        <td>number</td>
+                      </tr>
+                      <tr>
+                        <th scope="row">D[3,2], Sauter mean</th>
+                        <td>
+                          {fmt(stats.moments.d32)} {unitLabel}
+                        </td>
+                        <td>surface (assumes spheres)</td>
+                      </tr>
+                      <tr>
+                        <th scope="row">D[4,3], De Brouckere mean</th>
+                        <td>
+                          {fmt(stats.moments.d43)} {unitLabel}
+                        </td>
+                        <td>volume (assumes spheres)</td>
+                      </tr>
+                      <tr>
+                        <th scope="row">Dv10 / Dv50 / Dv90</th>
+                        <td>
+                          {fmt(stats.volume.dv10)} / {fmt(stats.volume.dv50)} /{' '}
+                          {fmt(stats.volume.dv90)} {unitLabel}
+                        </td>
+                        <td>volume (assumes spheres)</td>
+                      </tr>
+                      <tr>
+                        <th scope="row">Volume span (Dv90 − Dv10)/Dv50</th>
+                        <td>{fmt(stats.volume.span, 3)}</td>
+                        <td>volume (assumes spheres)</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
             <h4 class="export-title">
               Fits by maximum likelihood{' '}
               <HelpTip term="maximum likelihood fit">
@@ -570,6 +675,7 @@ export function DistributionStep({ data, update }: StepContext<ParticleData>) {
                     <th scope="col">Centre ({unitLabel})</th>
                     <th scope="col">Spread</th>
                     <th scope="col">Log-likelihood</th>
+                    <th scope="col">Anderson–Darling (5 %)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -578,12 +684,14 @@ export function DistributionStep({ data, update }: StepContext<ParticleData>) {
                     <td>{lognormal ? `median ${fmt(lognormal.median)}` : '–'}</td>
                     <td>{lognormal ? `geometric SD ${fmt(lognormal.geometricSd, 3)}` : '–'}</td>
                     <td>{lognormal ? fmt(lognormal.logLikelihood, 6) : '–'}</td>
+                    <td>{adText(stats?.adLognormal ?? null)}</td>
                   </tr>
                   <tr>
                     <th scope="row">Normal</th>
                     <td>{normal ? `mean ${fmt(normal.mean)}` : '–'}</td>
                     <td>{normal ? `σ ${fmt(normal.sigma)} ${unitLabel}` : '–'}</td>
                     <td>{normal ? fmt(normal.logLikelihood, 6) : '–'}</td>
+                    <td>{adText(stats?.adNormal ?? null)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -593,7 +701,26 @@ export function DistributionStep({ data, update }: StepContext<ParticleData>) {
                 The {better} fit has the higher log-likelihood for these sizes.
               </p>
             )}
+            <p class="field-hint">
+              Anderson–Darling is a guide: A² above the 5 % critical value (adjusted for the number
+              of particles, Stephens 1974) means the sizes are unlikely to follow that fit; below
+              it, they are consistent with it, which does not prove it. With few particles almost
+              any fit passes, with many almost none.{' '}
+              <HelpTip term="Anderson–Darling">
+                <p>
+                  A² = −n − Σ (2i − 1)/n · [ln F(Y<sub>i</sub>) + ln(1 − F(Y<sub>n+1−i</sub>))] for
+                  the sorted sizes Y (NIST/SEMATECH e-Handbook, §1.3.5.14), with the normal F of the
+                  sample mean and SD; for the lognormal fit it is taken on ln(size). The mean and SD
+                  come from the same data, which is why the critical value 0.752 is smaller than for
+                  a fully specified distribution. It is used here instead of the Kolmogorov–Smirnov
+                  test, whose usual critical values are not valid when the parameters are estimated
+                  from the data.
+                </p>
+              </HelpTip>
+            </p>
           </section>
+
+          <ShapeSection data={data} update={update} stem={stem} />
 
           <StereologySection
             data={data}
@@ -670,6 +797,7 @@ export function DistributionStep({ data, update }: StepContext<ParticleData>) {
           </section>
         </>
       )}
+      {session}
     </div>
   );
 }
