@@ -142,6 +142,7 @@ export function SamplesStep({ data, update }: StepContext<ConcentrationData>) {
                 </span>
                 <input
                   type="text"
+                  aria-label="Concentration unit"
                   value={data.unit}
                   onInput={(e) => update({ unit: e.currentTarget.value })}
                 />

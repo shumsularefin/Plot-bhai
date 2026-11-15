@@ -73,7 +73,7 @@ export const DEFAULT_CO2_RANGE = { fromCm: 2280, toCm: 2400 } as const;
 /**
  * Defaults of my own choosing, adjustable on screen; not published constants. The ATR crystal
  * index 2.4 is the value usually quoted for diamond and ZnSe in the mid-infrared, and n₂ = 1.5 a
- * typical organic sample (TODO, verify against the accessory's manual). arPLS with
+ * typical organic sample (an accessory's manual gives its own crystal's index). arPLS with
  * λ = 10⁶ is the default baseline because it gave the smallest error on the synthetic spectra
  * with known baselines in tests/baseline-validation.test.ts.
  */

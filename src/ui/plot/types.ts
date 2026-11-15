@@ -23,6 +23,8 @@ export interface PlotSeries {
 export interface PlotMarker {
   x: number;
   y: number;
+  /** Standard uncertainty of y in data units, drawn as a bar from y − error to y + error. */
+  error?: number;
 }
 
 /** A shaded x range (for example one mass loss step) with a short label at its top, in data units. */

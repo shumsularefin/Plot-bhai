@@ -95,7 +95,6 @@
   --gutter: 16px;
   --content-max: 72rem;
   /* Longest line of running text: about 70 characters. */
-  --measure: 35rem;
   /*
    * Controls are compact (28 px) for a mouse, like a desktop app, and at least 44 px on touch
    * screens so a finger can hit them.

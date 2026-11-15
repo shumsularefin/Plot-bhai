@@ -176,12 +176,18 @@ debye(h, START['Absorption'], START['DisplaceX'], START['DisplaceY'], False)
 h.data['Sample Parameters']['Gonio. radius'] = radius
 h.data['Background'][0] = ['chebyschev-1', True, 6, 100.0, 0, 0, 0, 0, 0]
 gpx.data['Controls']['data']['max cyc'] = 30
-gpx.do_refinements([
+# One step at a time, with the size set again before each: when GSAS-II stores a result it limits
+# the crystallite size to 10 um (GSASIIstrIO, min(10., ...)), which adds a Lorentzian width of
+# about 0.0009 deg that the simulation (size 1e5 um) does not have. Left in, GSAS-II's R_wp ended
+# at 3.07 % against 2.86 % at the true parameters.
+for step in (
     {'set': {'Background': {'no. coeffs': 6, 'refine': True}, 'Sample Parameters': ['Scale']}},
     {'set': {'Cell': True, 'Sample Parameters': ['DisplaceX', 'DisplaceY']}},
     {'set': {'Sample Parameters': ['Absorption']}},
     {},
-])
+):
+    no_sample_broadening(ph)
+    gpx.do_refinements([step])
 cov = gpx['Covariance']['data']
 esd = dict(zip(cov['varyList'], [float(s) for s in cov['sig']]))
 s = h.data['Sample Parameters']

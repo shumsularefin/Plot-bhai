@@ -78,6 +78,7 @@ import {
 } from './model';
 import { fillJacobian } from './derivatives';
 import type { StructureGeometry } from '../structure/bonds';
+import { CAPILLARY_MAX_MU_R } from './sample';
 import { refinementReflections, type Hkl } from './reflections';
 import {
   MAX_TEXTURE_ORDER,
@@ -98,6 +99,7 @@ import {
 } from './structure';
 import {
   berarLelann,
+  countingNoiseRatio,
   durbinWatson,
   internalStandard,
   strongCorrelations,
@@ -190,6 +192,11 @@ export interface RefineChoices {
   axialDivergence?: boolean;
   /** Capillary absorption μR (sample.ts), in capillary geometry only; otherwise fixed. */
   absorption?: boolean;
+  /**
+   * Multiply every s.u. (and the covariance, by the square) by the Bérar–Lelann factor
+   * (statistics.ts). Off by default, so the s.u. are the least-squares ones, as GSAS-II reports.
+   */
+  berarLelann?: boolean;
 }
 
 export const DEFAULT_CHOICES: RefineChoices = {
@@ -208,6 +215,11 @@ export interface RietveldInput {
   x: Float64Array;
   /** Measured intensity, counts. */
   y: Float64Array;
+  /**
+   * Standard uncertainty of each intensity, same units as y, when the file gives one (an .xye
+   * column or a powder CIF's weights). Points are then weighted by 1/σ² instead of 1/y.
+   */
+  sigma?: Float64Array;
   wavelengths: Wavelengths;
   phases: RietveldPhaseInput[];
   choices: RefineChoices;
@@ -360,6 +372,13 @@ export interface RietveldStats {
   durbinWatson: number;
   /** Bérar–Lelann factor (statistics.ts) by which the s.u. should be multiplied; about 1.13 is ideal. */
   berarLelann: number;
+  /** True when the s.u. of this result are already multiplied by `berarLelann`. */
+  berarLelannApplied?: boolean;
+  /**
+   * Variance of the point-to-point noise over the intensity (statistics.ts, countingNoiseRatio):
+   * about 1 for raw counts. NaN when the pattern is too short or too weak to tell.
+   */
+  noiseRatio: number;
 }
 
 export interface RietveldResult {
@@ -467,7 +486,10 @@ export function refineRietveld(
     .filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b) && b > a);
   const keep: number[] = [];
   input.x.forEach((v, i) => {
-    if (Number.isFinite(input.y[i]) && !excluded.some(([a, b]) => v >= a && v <= b)) keep.push(i);
+    const s = input.sigma?.[i];
+    const sigmaOk = !input.sigma || (s !== undefined && Number.isFinite(s) && s > 0);
+    if (Number.isFinite(input.y[i]) && sigmaOk && !excluded.some(([a, b]) => v >= a && v <= b))
+      keep.push(i);
   });
   const x = Float64Array.from(keep, (i) => input.x[i] as number);
   const y = Float64Array.from(keep, (i) => input.y[i] as number);
@@ -552,7 +574,11 @@ export function refineRietveld(
   const terms = Math.min(12, Math.max(2, Math.round(input.backgroundTerms)));
   const layout: Layout = makeLayout(phases, terms);
   const basis = chebyshevBasis(x, terms);
-  const sw = y.map((v) => 1 / Math.sqrt(Math.max(v, 1)));
+  // Square root of the weight of each point: 1/σ from the file, else 1/√y (counting statistics).
+  const sigma = input.sigma;
+  const sw = sigma
+    ? Float64Array.from(keep, (i) => 1 / (sigma[i] as number))
+    : y.map((v) => 1 / Math.sqrt(Math.max(v, 1)));
   const target = y.map((v, i) => v * (sw[i] as number));
 
   // Starting values and bounds.
@@ -574,7 +600,13 @@ export function refineRietveld(
   bound(layout.roughness[0], 0, 1, 0, 0.1);
   bound(layout.roughness[1], 0, 2, 0, 0.01);
   const capillary = wavelengths.capillary === true;
-  bound(layout.absorption, 0, 20, capillary ? Math.max(0, input.muR ?? 0) : 0, 0.1);
+  bound(
+    layout.absorption,
+    0,
+    CAPILLARY_MAX_MU_R,
+    capillary ? Math.min(CAPILLARY_MAX_MU_R, Math.max(0, input.muR ?? 0)) : 0,
+    0.1,
+  );
   bound(
     layout.axial,
     0,
@@ -1138,10 +1170,12 @@ export function refineRietveld(
 
   // Results.
   const params = final.parameters;
-  const errors = final.standardErrors;
+  // Set below, once the residuals are known: the Bérar–Lelann factor when the user applies it.
+  let suFactor = 1;
+  const su = (j: number) => (mask[j] ? suFactor * (final.standardErrors[j] as number) : 0);
   const estimate = (j: number): Estimate => ({
     value: params[j] as number,
-    esd: mask[j] ? (errors[j] as number) : 0,
+    esd: su(j),
     refined: mask[j] as boolean,
   });
   const bg = backgroundCurve(basis, layout, params, n);
@@ -1178,10 +1212,16 @@ export function refineRietveld(
     parameters: refinedCount,
     durbinWatson: durbinWatson(weightedResiduals),
     berarLelann: berarLelann(weightedResiduals),
+    noiseRatio: countingNoiseRatio(y),
   };
+  if (choices.berarLelann && Number.isFinite(stats.berarLelann)) {
+    suFactor = stats.berarLelann;
+    stats.berarLelannApplied = true;
+  }
 
   const m = layout.size;
-  const covariance = final.covariance;
+  const covariance =
+    suFactor === 1 ? final.covariance : final.covariance.map((v) => v * suFactor * suFactor);
   const cov = (i: number, j: number) => covariance[i * m + j] as number;
   // Cell contents with each dopant moved onto its site: n = (site multiplicity) × occupancy × x
   // atoms of the host element become the dopant.
@@ -1518,7 +1558,7 @@ export function refineRietveld(
             index: textureIndex(
               phase.texture.terms,
               pl.texture.map((j) => params[j] as number),
-              pl.texture.map((j) => (mask[j] ? (errors[j] as number) : 0)),
+              pl.texture.map(su),
             ),
             range: [
               Math.min(...inRange.map((peak) => peak.orientation)),
@@ -1563,9 +1603,18 @@ export function refineRietveld(
 
   const warnings: string[] = [];
   const integerCounts = y.every((v) => Math.abs(v - Math.round(v)) < 1e-6);
-  if (!integerCounts || yMax < 100)
+  // With the file's own uncertainties the counting-statistics checks do not apply.
+  if (!sigma && (!integerCounts || yMax < 100))
     warnings.push(
       'The intensities do not look like raw counts (they are not whole numbers, or are very small). The weights 1/y then mean little, so R_exp, χ² and the uncertainties are not reliable. R_wp can still be compared between refinements of this pattern.',
+    );
+  else if (!sigma && (stats.noiseRatio > 2 || stats.noiseRatio < 0.5))
+    warnings.push(
+      `The scatter of the points is not that of raw counts: its variance is about ${stats.noiseRatio.toPrecision(2)} times the intensity (1 for counts). ${
+        stats.noiseRatio > 2
+          ? 'The intensities were probably multiplied by a factor'
+          : 'The intensities were probably divided by a factor (for example counts per second), averaged or smoothed'
+      }. R_exp, χ², the uncertainties and the Bérar–Lelann factor are then not reliable.`,
     );
   if (!final.converged)
     warnings.push('The refinement stopped before it converged. Check the fit, then refine again.');
@@ -1576,6 +1625,15 @@ export function refineRietveld(
   if (capillary && wavelengths.variableSlit)
     warnings.push(
       'An automatic divergence slit belongs to flat-plate (Bragg–Brentano) geometry, so its correction was not used for the capillary.',
+    );
+  const muRBeyondFit =
+    capillary &&
+    ((input.muR ?? 0) > CAPILLARY_MAX_MU_R ||
+      (mask[layout.absorption] === true &&
+        (params[layout.absorption] as number) > CAPILLARY_MAX_MU_R - 0.01));
+  if (muRBeyondFit)
+    warnings.push(
+      `The capillary absorption formula is valid only up to μR = ${CAPILLARY_MAX_MU_R}, so μR was kept at or below ${CAPILLARY_MAX_MU_R}. Above it the intensities at low angles are wrong by several per cent or more. Use a thinner capillary, dilute the sample, or change to a less absorbed wavelength.`,
     );
   if (capillary && choices.absorption && mask[layout.absorption])
     warnings.push(

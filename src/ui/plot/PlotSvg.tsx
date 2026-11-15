@@ -1,6 +1,6 @@
 import type { ComponentChildren, SVGAttributes } from 'preact';
 import { useId } from 'preact/hooks';
-import { niceTicks } from './axes';
+import { niceTicks, spacedTicks } from './axes';
 import { decimate, lowerBound, type Decimated } from './decimate';
 import {
   labelKey,
@@ -34,13 +34,17 @@ export interface Margins {
   left: number;
 }
 
-/** Space around the plot area, sized from the font so labels never clip. */
+/**
+ * Space around the plot area, sized from the font so labels never clip. With tick values the
+ * y title's baseline sits 4 font sizes left of the axis; its letters and superscripts reach about
+ * one more font size beyond that, so the left margin is 5.3 font sizes.
+ */
 export function plotMargins(fontSize: number, yValues = false): Margins {
   return {
     top: fontSize * 0.8,
     right: fontSize * 1.2,
     bottom: fontSize * 3.3,
-    left: fontSize * (yValues ? 4.6 : 2.1),
+    left: fontSize * (yValues ? 5.3 : 2.1),
   };
 }
 
@@ -90,8 +94,8 @@ export function visibleYDomain(
   let hi = -Infinity;
   for (const marker of markers) {
     if (marker.x < xDomain[0] || marker.x > xDomain[1]) continue;
-    lo = Math.min(lo, marker.y);
-    hi = Math.max(hi, marker.y);
+    lo = Math.min(lo, marker.y - (marker.error ?? 0));
+    hi = Math.max(hi, marker.y + (marker.error ?? 0));
   }
   for (const s of series) {
     const end = Math.min(s.y.length, lowerBound(s.x, xDomain[1]) + 1);
@@ -216,7 +220,14 @@ export function PlotSvg(props: PlotSvgProps) {
   const xTicks = labels.reversed
     ? niceTicks(-x1, -x0, xTickCount).map((t) => ({ value: -t.value, label: t.label }))
     : niceTicks(x0, x1, xTickCount);
-  const allYTicks = niceTicks(y0, y1, Math.max(2, Math.round(innerH / (style.fontSize * 5))));
+  // Labels at least 1.8 font sizes apart, so a short panel (the DTG strip) is not crowded.
+  const allYTicks = spacedTicks(
+    y0,
+    y1,
+    Math.max(2, Math.round(innerH / (style.fontSize * 5))),
+    innerH,
+    style.fontSize * 1.8,
+  );
   const yTicks = labels.yValues ? allYTicks : [];
   const grid = figure?.axes.grid ?? 'none';
   const ticksOut = figure?.axes.ticks === 'out';
@@ -432,6 +443,23 @@ export function PlotSvg(props: PlotSvgProps) {
               {b.label}
             </text>
           ))}
+          {markers?.map((m, i) => {
+            if (!m.error) return null;
+            // Error bar with caps: y − error to y + error.
+            const cap = style.fontSize * 0.3;
+            const top = py(m.y + m.error);
+            const bottom = py(m.y - m.error);
+            return (
+              <path
+                key={`e${i}`}
+                class={print ? undefined : 'plot-marker'}
+                d={`M${px(m.x)} ${top}V${bottom}M${px(m.x) - cap} ${top}h${2 * cap}M${px(m.x) - cap} ${bottom}h${2 * cap}`}
+                fill="none"
+                stroke={print ? ink : undefined}
+                stroke-width={style.lineWidth}
+              />
+            );
+          })}
           {markers?.map((m, i) => (
             <circle
               key={i}

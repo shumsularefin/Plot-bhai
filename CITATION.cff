@@ -5,15 +5,22 @@ type: software
 authors:
   - family-names: Arefin
     given-names: Shumsul
-    # TODO: add affiliation and ORCID
+    affiliation: 'Department of Applied Chemistry and Chemical Engineering, Gopalganj Science and Technology University'
+    orcid: 'https://orcid.org/0009-0004-9706-6328'
 repository-code: 'https://github.com/shumsularefin/Plot-bhai'
 url: 'https://plot-bhai.web.app'
 license: MIT
-version: '0.2.0'
-date-released: '2026-11-12'
-# TODO (owner): add the Zenodo DOI here once the first release is archived, as
-#   doi: 10.5281/zenodo.XXXXXXX
-# See docs/RELEASING.md.
+version: '1.0.0'
+date-released: '2026-11-14'
+# Concept DOI: always resolves to the latest version. v1.0.0 alone is 10.5281/zenodo.24222106.
+doi: 10.5281/zenodo.24222105
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.24222105
+    description: 'Concept DOI, all versions'
+  - type: doi
+    value: 10.5281/zenodo.24222106
+    description: 'Version 1.0.0'
 keywords:
   - X-ray diffraction
   - crystallite size

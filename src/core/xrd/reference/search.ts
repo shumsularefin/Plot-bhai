@@ -67,7 +67,7 @@ export function hillFormula(counts: Record<string, number>): string {
  * Elements that usually form the anion or the molecular part of an inorganic formula, in the
  * order they are written last (carbon ... fluorine). The order follows the element sequence of
  * the IUPAC Red Book (Nomenclature of Inorganic Chemistry, 2005, Table VI) for these elements.
- * Flagged for the owner's check.
+ * Checked by the owner (November 2026).
  */
 const WRITTEN_LAST = ['C', 'P', 'N', 'H', 'Te', 'Se', 'S', 'O', 'I', 'Br', 'Cl', 'F'];
 

@@ -1,6 +1,6 @@
 /*
- * Minimal CIF reader for crystal structures, as needed to compute a powder pattern.
- * It reads the first data block only. Values in a loop are kept as text and converted by the
+ * Minimal CIF reader for crystal structures, as needed to compute a powder pattern, and for powder
+ * data (parsers/pdcif.ts). parseCif reads the first data block, parseCifBlocks all of them. Values in a loop are kept as text and converted by the
  * helpers below. The format is described in Hall, Allen & Brown, Acta Cryst. A47 (1991)
  * 655–685 (CIF syntax) and the CIF core dictionary (https://www.iucr.org/resources/cif).
  */
@@ -66,20 +66,24 @@ function tokenize(text: string): { value: string; quoted: boolean }[] {
 
 /** Parses the first data block of a CIF. */
 export function parseCif(text: string): CifBlock {
+  return parseCifBlocks(text)[0] ?? { name: '', items: new Map(), loops: [] };
+}
+
+/** Parses every data block of a CIF, in file order (items before the first block are dropped). */
+export function parseCifBlocks(text: string): CifBlock[] {
   const tokens = tokenize(text);
-  const block: CifBlock = { name: '', items: new Map(), loops: [] };
+  const blocks: CifBlock[] = [];
+  let block: CifBlock = { name: '', items: new Map(), loops: [] };
   const asCell = (t: { value: string; quoted: boolean }): Cell =>
     !t.quoted && (t.value === '?' || t.value === '.') ? null : t.value;
   const isKeyword = (t: { value: string; quoted: boolean }) =>
     !t.quoted && /^(data_|loop_$|save_|global_$|stop_$)/i.test(t.value);
-  let seenBlock = false;
   let i = 0;
   while (i < tokens.length) {
     const t = tokens[i] as { value: string; quoted: boolean };
     if (!t.quoted && /^data_/i.test(t.value)) {
-      if (seenBlock) break;
-      seenBlock = true;
-      block.name = t.value.slice(5);
+      block = { name: t.value.slice(5), items: new Map(), loops: [] };
+      blocks.push(block);
       i++;
     } else if (!t.quoted && /^loop_$/i.test(t.value)) {
       i++;
@@ -102,13 +106,14 @@ export function parseCif(text: string): CifBlock {
       block.loops.push(rows);
     } else if (!t.quoted && t.value.startsWith('_')) {
       const v = tokens[i + 1];
-      if (v) block.items.set(t.value.toLowerCase(), asCell(v));
-      i += 2;
+      if (v && !isKeyword(v) && (v.quoted || !v.value.startsWith('_')))
+        block.items.set(t.value.toLowerCase(), asCell(v));
+      i += v && !isKeyword(v) && (v.quoted || !v.value.startsWith('_')) ? 2 : 1;
     } else {
       i++;
     }
   }
-  return block;
+  return blocks;
 }
 
 /** Number from CIF text, ignoring a trailing standard uncertainty: "5.4309(3)" → 5.4309. */

@@ -1,5 +1,7 @@
 # Plot Bhai
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24222105.svg)](https://doi.org/10.5281/zenodo.24222105)
+
 A free, fast web app that guides early-career researchers through analysing materials
 characterisation data, one step at a time. Four tools are planned: XRD, UV-Vis, FTIR and particle
 size from SEM/TEM images. XRD comes first.
@@ -118,6 +120,13 @@ sideways scrolling, touch targets under 44 px and controls without a name.
 The code is released under the [MIT licence](LICENSE). Data files keep their own terms, listed in
 [DATA-SOURCES.md](DATA-SOURCES.md) together with the privacy statement; bundled libraries are in
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). If you use the site in published work, please
-cite it using [CITATION.cff](CITATION.cff) and cite the original paper or COD entry of every
+cite it using [CITATION.cff](CITATION.cff):
+
+> Arefin, S. (2026). Plot Bhai: a client-side wizard for XRD, UV-Vis, FTIR, particle size and
+> thermal analysis (Version 1.0.0) [Computer software]. Zenodo.
+> https://doi.org/10.5281/zenodo.24222106
+
+The concept DOI [10.5281/zenodo.24222105](https://doi.org/10.5281/zenodo.24222105) always points
+to the latest version. Also cite the original paper or COD entry of every
 reference pattern you used. Contributions: [CONTRIBUTING.md](CONTRIBUTING.md); security reports:
 [SECURITY.md](SECURITY.md).

@@ -7,7 +7,11 @@ import { phaseFromCif } from '../src/core/xrd/reference/fromCif';
 import type { FormFactors } from '../src/core/xrd/reference/powder';
 import type { ReferencePhase } from '../src/core/xrd/reference/types';
 import { dispersionFor, type DispersionFile } from '../src/core/xrd/rietveld/dispersion';
-import { DEFAULT_CHOICES, refineRietveld } from '../src/core/xrd/rietveld/refine';
+import {
+  DEFAULT_CHOICES,
+  refineRietveld,
+  type RietveldInput,
+} from '../src/core/xrd/rietveld/refine';
 import { rietveldMethods } from '../src/core/xrd/rietveld/report';
 import {
   capillaryDegrees,
@@ -204,7 +208,7 @@ describe('Capillary refinement against GSAS-II', () => {
     ).elements.map((e) => [e.symbol, e.weight]),
   );
   const G = 8 * Math.LN2 * 1e-4;
-  const result = refineRietveld({
+  const input: RietveldInput = {
     x: Float64Array.from(rows, (r) => r[0] as number),
     y: Float64Array.from(rows, (r) => r[1] as number),
     wavelengths: { ...ip, polarisation: 0.5, correctionsAtKAlpha1: true, capillary: true },
@@ -236,7 +240,8 @@ describe('Capillary refinement against GSAS-II', () => {
     factors,
     radii: {},
     instrument: { u: 2 * G, v: -2 * G, w: 5 * G, x: 0.02, y: 0.03, shl: 0.002 },
-  });
+  };
+  const result = refineRietveld(input);
   if (!result.ok) throw new Error(result.error);
   const g = cap.gsas2;
 
@@ -254,8 +259,20 @@ describe('Capillary refinement against GSAS-II', () => {
     expect(result.phases[0]?.cell.a.value).toBeCloseTo(g.cell.length_a, 4);
   });
 
+  it('holds μR at 10, where the absorption formula ends, and says so', () => {
+    expect(result.warnings.some((w) => w.includes('valid only up to μR'))).toBe(false);
+    const high = refineRietveld({
+      ...input,
+      muR: 25,
+      choices: { ...input.choices, absorption: false },
+    });
+    if (!high.ok) throw new Error(high.error);
+    expect(high.absorption?.value).toBe(10);
+    expect(high.warnings.some((w) => w.includes('valid only up to μR = 10'))).toBe(true);
+  });
+
   it('fits to the noise (R_wp within 2 % of R_exp, not above GSAS-II’s) and reports μR, f′, f″', () => {
-    // GSAS-II's own refit ends at R_wp 3.06 % against R_exp 2.88 %; the cause is open (validation.md).
+    // GSAS-II's own refit ends at R_wp 2.85 % against R_exp 2.89 % (validation.md, section 20).
     expect(result.converged).toBe(true);
     expect(Math.abs(result.stats.rwp / result.stats.rexp - 1)).toBeLessThan(0.02);
     expect(100 * result.stats.rwp).toBeLessThan(g.Rwp + 0.05);

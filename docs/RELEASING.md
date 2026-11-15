@@ -10,7 +10,7 @@ A paper should cite one fixed version of the software. This is how a version is 
    footer, in every methods text and in every analysis record.
 3. Run `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run size` and
    `npm run e2e`.
-4. Merge to `main`, then on GitHub: Releases → Draft a new release → tag `v0.2.0` → Publish.
+4. Merge to `main`, then on GitHub: Releases → Draft a new release → tag `v1.0.0` → Publish.
 
 ## 2. Archive it on Zenodo (once, by the owner)
 
@@ -24,7 +24,9 @@ it cannot be done from a coding session.
 4. Put the concept DOI in `CITATION.cff` (the `doi:` line that is marked TODO there) and in the
    README, and commit.
 
-Until that is done the site has a version number but no DOI, and CITATION.cff says so.
+Done for v1.0.0 (November 2026): concept DOI 10.5281/zenodo.24222105, version DOI
+10.5281/zenodo.24222106. Later releases are archived automatically; add each version DOI to the
+`identifiers` in CITATION.cff and the citation in the README.
 
 ## 3. What a user cites
 

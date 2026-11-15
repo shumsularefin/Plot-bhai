@@ -421,6 +421,105 @@ Branch `claude/charming-wozniak-qix1hp`. No new packages. Checks in docs/validat
   real UV-Vis spectrum with a known gap.
 - **Next:** 19b, validation of the three tools.
 
+## v1.0.0 archived on Zenodo (done, November 2026)
+
+- The owner published release v1.0.0 and Zenodo archived it: version DOI
+  10.5281/zenodo.24222106, concept DOI 10.5281/zenodo.24222105 (checked through the Zenodo API).
+- The concept DOI is in CITATION.cff, the README (badge and citation), the About page ("How to
+  cite") and the software line of every methods text. The owner's ORCID (0009-0004-9706-6328) is in
+  CITATION.cff, .zenodo.json and the About credits.
+
+## Launch fixes: one width everywhere, owner check, export clipping, v1.0.0 (done, owner request November 2026)
+
+- Layout: the reading pages (home, About, Validation) no longer stop running text at 35rem while
+  the boxes and tables beside it run to the full width. Every page now has one left and one right
+  edge; the unused `--measure` token was removed.
+- Owner verification: the owner checked the thermal and DSC event ranges, the combined TGA-DSC
+  rules, the plot colours, journal styles, element data and wavelengths (November 2026). The
+  "TODO, verify" flags and the "Ranges not verified yet" warnings were replaced by "checked by the
+  owner, November 2026"; event assignments are still labelled ranked suggestions.
+- Export: the y-axis title of exported figures (Tauc "(αhν)²", TGA "Mass (%)", DTG) reached past
+  the left edge of the SVG. The left margin is now 5.3 font sizes, and a short panel (the DTG
+  strip) thins its tick labels to at least 1.8 font sizes apart. Checked by exporting every tool's
+  figure and testing that no text lies outside the viewBox.
+- Release: version 1.0.0. Added `.zenodo.json` (title, creator, supervisors, licence, keywords)
+  so Zenodo archives the GitHub release with the right metadata; CITATION.cff has the affiliation.
+  Still for the owner: switch the repository on in Zenodo, publish the v1.0.0 release, then add
+  the DOI and an ORCID to CITATION.cff (docs/RELEASING.md).
+
+## Owner fixes: one column width, crystal viewer (done, owner request November 2026)
+
+- Layout: running text in the tool steps no longer stops at 35rem while cards and tables run to
+  the full width. Notes, search results, phase cards and the Methods text now share the step's
+  left and right edges. The 35rem measure stays on the reading pages (home, About, Validation).
+  "Saved on this device" in the sidebar no longer wraps.
+- Crystal structure viewer (step 3):
+  - Rotation: a drag now turns the crystal wherever it starts. It used to do nothing when it
+    started on an atom, which felt stuck. A press that does not move picks the atom.
+  - The drawing can no longer be selected as text.
+  - Look: larger, lit spheres with element symbols, solid cell edges, toolbar buttons that look
+    like buttons.
+  - Optional coordination polyhedra around a chosen element. Neighbours from the adjacent cells
+    are added so each polyhedron is complete. The convex hull is in
+    src/core/xrd/structure/polyhedra.ts with tests (tetrahedron, octahedron, cube with
+    coplanar points, flat set, point-order invariance, outside neighbours completing an
+    octahedron).
+- DATA-SOURCES.md now lists the bond valence, covalent radii and anomalous dispersion tables.
+
+## Stage 21: the owner's files and decisions (done, owner request November 2026)
+
+Branch `claude/trusting-faraday-1pfp92`. No new packages. Checks in docs/validation.md, section 21.
+
+- **Bond valence:** data/reference/source/bvparm2020.cif is now the IUCr copy the owner downloaded
+  (it corrects the authors of reference bt). The owner approved the suggested oxidation states and
+  the 10 % note.
+- **Capillary:** the Lobanov & Alte da Veiga fit checked coefficient by coefficient against the GSAS
+  Technical Manual (pp. 134–135) and against the cylinder integral up to μR 10 (1.4 %). It fails above
+  μR 10, so μR is limited to 10 in the refinement and the input box, with a warning.
+- **Powder CIF reader:** `src/core/xrd/parsers/pdcif.ts` reads 2θ, intensity and σ (from the s.u. in
+  parentheses or `_pd_proc_ls_weight`) from pdCIF files such as NIST's; step 1 accepts them.
+- **Weights from the file:** when a pattern carries σ (.xye or pdCIF) and is refined uncleaned,
+  points are weighted by 1/σ², the counting-statistics warnings are skipped and the methods text
+  says so.
+- **NIST checks:** tests/fixtures-real/ holds one SRM 660c (LaB₆) and one SRM 640f (Si) pattern.
+  The site refines Si to +1.0 ppm of NIST's lattice parameter and LaB₆ to −74 ppm (the asymmetry
+  of wide Soller slits limits it).
+- **GSAS-II drafts:** docs/gsas2-issue-drafts.md, for the owner to send.
+- **Decisions:** unchanged (Kα2 exact angle, Bérar–Lelann off by default, cylindrical texture, the
+  0.5 and 2 noise limits).
+- **Known issues:** no openly licensed Bruker .raw v1–3 or multi-scan file could be found or
+  fetched; the LaB₆ lattice parameter depends on the asymmetry model by about 1e-4.
+- **Next:** nothing scheduled; the owner decides.
+
+## Stage 20: open items of 17a to 17i (done, owner request November 2026)
+
+Branch `claude/trusting-faraday-1pfp92`. No new packages (periodictable, mendeleev and xraylib are
+used only by scripts/validation/tables/make_tables.py to write a fixture). Checks in
+docs/validation.md, section 20.
+
+- **Bérar–Lelann switch:** Step 5, Advanced, "Apply the Bérar–Lelann factor to the ±" multiplies
+  every s.u. (and the covariance behind the bond s.u.) by the factor; off by default. The stats line
+  and the methods text say whether it was applied.
+- **Rescaled intensities:** `countingNoiseRatio` (statistics.ts) estimates variance / intensity
+  from fourth differences; a refinement warns when it is above 2 or below 0.5 (counts per second,
+  averaged or smoothed data), because R_exp, χ², the s.u. and the factor then mislead.
+- **Series:** the atoms refined on one pattern are copied to the next together with the cell; the
+  series plot draws ± 1 s.u. error bars (`PlotMarker.error`).
+- **Labels:** the three Step 5 selects whose help button wrapped onto its own line keep label and
+  button together; two inputs without an accessible name got one.
+- **Checks:** covalent radii and wavelengths against periodictable, mendeleev and xraylib;
+  bvparm2020.cif identical to the copies in VESTA and pparBVM; the capillary absorption formula
+  against the cylinder integral (1.1 % for μR up to 8); GSAS-II's capillary fit now reaches the
+  noise (its 10 µm size limit had added width in the script).
+- **Tracker:** rows "17" and "18" renumbered 18 and 19; validation.md sections follow.
+- **Decisions:** Kα2 stays at the exact Bragg angle; the factor is not applied by default; texture
+  stays cylindrical only.
+- **Known issues / needs the owner:** the IUCr copy of bvparm2020 (download refused); approval of
+  the oxidation-state suggestion and the 10 % note; measured patterns with known answers for 17d
+  to 17h; Bruker .raw versions 1 to 3 and multi-scan files. The differences found in GSAS-II and
+  pymatgen are theirs and stay documented.
+- **Next:** nothing scheduled; the owner decides.
+
 ## Stage 17i: Bérar–Lelann correction of the standard uncertainties (done, roadmap item 11)
 
 Branch `claude/sleepy-turing-hb1ofu`. No new packages. Checks in docs/validation.md, 17i.
@@ -739,7 +838,7 @@ Built:
   (scripts/validation/gsas2/index_cells.py and indexing.py, tests/xrd-indexing.test.ts).
 - `refinedStructure` moved from the Export step's component to src/core/xrd/export/gsas.ts, so
   the test writes the same CIF as the site.
-- docs/validation.md section 18 lists the checks and what is still open.
+- docs/validation.md section 19 lists the checks and what is still open.
 
 Decisions:
 

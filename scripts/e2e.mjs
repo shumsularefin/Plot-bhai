@@ -957,7 +957,7 @@ try {
     .waitFor();
   await page.getByText(/Heat flow: exo up/).waitFor();
   await page
-    .getByText(/Partly verified/)
+    .getByText(/so the ranking is a suggestion to compare with your own/)
     .first()
     .waitFor();
   await page.getByText(/Check by XRD of samples calcined below and above 520/).waitFor();

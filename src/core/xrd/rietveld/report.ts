@@ -41,6 +41,8 @@ export interface RietveldMethodsInput {
   instrumentSource?: string;
   /** True for a capillary (Debye–Scherrer) sample. */
   capillary?: boolean;
+  /** True when the points were weighted by the uncertainties of the data file (1/σ²). */
+  fileWeights?: boolean;
 }
 
 const percent = (v: number) => `${(100 * v).toFixed(2)} %`;
@@ -133,7 +135,7 @@ export function rietveldMethods(input: RietveldMethodsInput): string {
     items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
   const sentences = [
     `A ${structured ? 'Rietveld' : 'basic Rietveld'} refinement was carried out over 2θ = ${from.toFixed(2)}–${to.toFixed(2)}° with ${input.radiation}, using the structure models of ${list(input.phases.map((p) => `${p.name} (${p.reference})`))} ${structured ? ', starting from the atom positions, occupancies and displacement parameters of these files' : ' with atom positions, occupancies and displacement parameters fixed'}.`,
-    `Refined were ${list(refined)}; the profile was ${choices.tch ? 'the Thompson–Cox–Hastings pseudo-Voigt (J. Appl. Cryst. 20 (1987) 79) with Gaussian FWHM² = U tan²θ + V tanθ + W and Lorentzian FWHM = X/cosθ + Y tanθ' : 'a pseudo-Voigt function with FWHM² = U tan²θ + V tanθ + W'}, and points were weighted by 1/y_obs.`,
+    `Refined were ${list(refined)}; the profile was ${choices.tch ? 'the Thompson–Cox–Hastings pseudo-Voigt (J. Appl. Cryst. 20 (1987) 79) with Gaussian FWHM² = U tan²θ + V tanθ + W and Lorentzian FWHM = X/cosθ + Y tanθ' : 'a pseudo-Voigt function with FWHM² = U tan²θ + V tanθ + W'}, and points were weighted by ${input.fileWeights ? '1/σ², with σ the standard uncertainty given in the data file' : '1/y_obs'}.`,
     `Final agreement: R_wp = ${percent(result.stats.rwp)}, R_p = ${percent(result.stats.rp)}, R_exp = ${percent(result.stats.rexp)}, χ² = ${result.stats.chi2.toFixed(2)}.`,
   ];
   const tch = result.phases.some((p) => p.tch);
@@ -262,7 +264,9 @@ export function rietveldMethods(input: RietveldMethodsInput): string {
     );
   if (Number.isFinite(result.stats.berarLelann))
     sentences.push(
-      `The standard uncertainties given are those of the least-squares fit; to allow for serial correlation of the residuals they should be multiplied by the Bérar–Lelann factor ${result.stats.berarLelann.toFixed(2)} (Bérar and Lelann, J. Appl. Cryst. 24 (1991) 1–5).`,
+      result.stats.berarLelannApplied
+        ? `The standard uncertainties given are those of the least-squares fit multiplied by the Bérar–Lelann factor ${result.stats.berarLelann.toFixed(2)}, which allows for serial correlation of the residuals (Bérar and Lelann, J. Appl. Cryst. 24 (1991) 1–5).`
+        : `The standard uncertainties given are those of the least-squares fit; to allow for serial correlation of the residuals they should be multiplied by the Bérar–Lelann factor ${result.stats.berarLelann.toFixed(2)} (Bérar and Lelann, J. Appl. Cryst. 24 (1991) 1–5).`,
     );
   return sentences.join(' ');
 }

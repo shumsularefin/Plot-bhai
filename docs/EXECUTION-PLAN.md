@@ -55,15 +55,20 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 17g       | Rietveld: sequential refinement of a series                      | done                                                         |
 | 17h       | Rietveld: bond lengths and angles with s.u., bond valence        | done                                                         |
 | 17i       | Rietveld: Bérar–Lelann correction of the s.u.                    | done                                                         |
-| 17        | Review fixes: example data, readability, validation page, report | done                                                         |
-| 18        | Open validation items checked with Fityk and GSAS-II             | done                                                         |
+| 18        | Review fixes: example data, readability, validation page, report | done                                                         |
+| 19        | Open validation items checked with Fityk and GSAS-II             | done                                                         |
+| 20        | Open items of 17a–17i: checks, s.u. switch, series, labels       | done                                                         |
+| 21        | Owner's files: IUCr bvparm, NIST SRM patterns, capillary μR ≤ 10 | done                                                         |
 | 19a       | UV-Vis, FTIR: four audit bugs (docs/STAGE-19-PROMPTS.md)         | done                                                         |
 | 19b       | Validation of UV-Vis, FTIR and particles, three ways             | done                                                         |
 | 19c       | FTIR peaks: editing, table, comparison across samples            | done                                                         |
-| 19d       | FTIR processing, reflectance data, wider group table             | done (item 4 done 2026-11-15 from three CC BY tables)        |
+| 19d       | FTIR processing, reflectance data, wider group table             | done (item 4 and its extension done 2026-11-15)              |
 | 19e       | UV-Vis: peak table, path length, figures, gap methods            | done (optical conductivity not built, see validation.md 19e) |
 | 19f       | Particles: session file, report, statistics                      | done (no real micrograph, see validation.md 19f)             |
 | 19g       | Binary FTIR and UV-Vis instrument files (needs real files)       | done                                                         |
+
+Rows 19a to 19g are the UV-Vis, FTIR and particle sub-stages of docs/STAGE-19-PROMPTS.md; they
+are separate from row 19 (open validation items), which was numbered on main.
 
 ## The one prompt you paste in every new session
 

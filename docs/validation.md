@@ -55,7 +55,7 @@ tests/rietveld.test.ts.
 Open:
 
 - The peak fit is compared with lmfit and with Fityk on the same data, and with Fityk on a line
-  of a measured pattern (section 18). FullProf is a closed-source program that could not be
+  of a measured pattern (section 19). FullProf is a closed-source program that could not be
   installed here; no comparison with it.
 - The full reference of the Pearson VII paper ("The approximation of symmetric X-ray peaks by
   Pearson type VII distributions", Hall et al., J. Appl. Cryst. 1977) could not be opened to
@@ -67,7 +67,7 @@ Open:
 
 Formulas: src/core/xrd/structure/geometry.ts (metric tensor, orthogonalisation, drawn cell,
 bonds). Tests: tests/structure-geometry.test.ts. Covalent radii: data/reference/covalent-radii.json
-(Cordero et al., Dalton Trans. 2008, 2832–2838, as tabulated in ASE; flagged for verification).
+(Cordero et al., Dalton Trans. 2008, 2832–2838, as tabulated in ASE; checked by the owner, November 2026).
 
 | Method              | Check                                                                                                                                               | Source                                                       | Tolerance               | Result |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ----------------------- | ------ |
@@ -113,7 +113,7 @@ Decisions that affect the figures:
 
 Open:
 
-- GSAS-II's indexing is compared on the same lines in section 18. DICVOL, TREOR and McMaille are
+- GSAS-II's indexing is compared on the same lines in section 19. DICVOL, TREOR and McMaille are
   not packaged and could not be installed here, and no measured pattern of an unknown has been
   indexed by two programs; both are still open.
 - A pattern with fewer than 10 lines is refused: with 6 lines body-centred cubic and primitive
@@ -147,7 +147,7 @@ not the same.
 Open:
 
 - GSAS-II refining the same pattern is compared in section 16g, and the files written by the
-  Export step (.xye, .instprm, CIF) are loaded into GSAS-II in section 18. This was done through
+  Export step (.xye, .instprm, CIF) are loaded into GSAS-II in section 19. This was done through
   GSAS-II's scripting interface, which uses the same readers as its windows; loading them once
   by hand in the GSAS-II program is still worth doing.
 - The synthetic patterns are made with this site's own model, so the recovery checks test the
@@ -195,7 +195,7 @@ Open:
 - COD 9015929 (anatase) lists its U_ij values in the order U11, U12, U13, U22, U23, U33 under the
   headers U11, U22, U33, U12, U13, U23 (U22 = U33 = 0 for Ti). The library uses the file as it is;
   the owner should decide whether to correct it. Both GSAS-II and this site read it literally.
-- Monoclinic cells are compared with GSAS-II in section 18. No comparison with DICVOL, TREOR or
+- Monoclinic cells are compared with GSAS-II in section 19. No comparison with DICVOL, TREOR or
   McMaille, and none for triclinic cells.
 - Triclinic indexing needs the first lines of the pattern; it can give spurious cells.
 
@@ -386,10 +386,6 @@ Found by these checks:
 
 Open:
 
-- GSAS-II's refinement of its own capillary simulation ends at R_wp 3.06 % against R_exp 2.88 %,
-  while the site reaches 2.86 % with parameters within GSAS-II's s.u. The cause was not found.
-- The Lobanov & Alte da Veiga fit used by Absorb('Cylinder') is cited only as GSAS-II's source
-  comment gives it; the original paper could not be checked.
 - The Henke comparison covers six elements; the rest of the table rests on GSAS-II alone.
 
 ## 17e: analytic derivatives of the Rietveld model
@@ -515,13 +511,13 @@ scatter and the s.u. of c with GSAS-II.
 
 Open:
 
-- Only the cells are copied forward; the other parameters start from the same values on every
-  pattern (GSAS-II copies every parameter). With a good fit both reach the same minimum (the
-  invariance check above), but a series of poor fits may differ.
+- The cells and, where refined, the atomic parameters are copied forward (section 20); the
+  profile, background and scale start from the same values on every pattern (GSAS-II copies every
+  parameter). With a good fit both reach the same minimum (the invariance check above), but a
+  series of poor fits may differ.
 - No measured series (for example a real heating run) has been compared; the GSAS-II simulation
   stands in.
 - The cause of GSAS-II's larger s.u. of the hexagonal a is not confirmed.
-- The plot shows the points without error bars; the s.u. are in the table and the CSV.
 
 ## 17h: bond lengths and angles with uncertainties, bond-valence sums
 
@@ -570,9 +566,6 @@ table lists Zr⁴⁺–O R₀ = 1.937 Å (bvparm2020's ref b entry), the site ta
 
 Open:
 
-- The oxidation-state suggestion is a rule of the site (anion by the table, cation state nearest
-  its own sum), checked only on the cases above; it is labelled as a suggestion.
-- The 10 % note on a sum far from the oxidation state is a display choice, not a published limit.
 - No published bond table of a measured refinement has been compared; the GSAS-II simulation stands
   in.
 
@@ -595,8 +588,13 @@ src/core/xrd/rietveld/statistics.ts `berarLelann`, tests/berar-lelann.test.ts.
 Misprints found: the printed eq 12 has 2 where the Fortran has 2π; Andreev's eq 3 prints 2π, so 2π
 is used. The Fortran uses an undefined CD, which Andreev's Appendix I corrects to XD, and pairs
 z_i with a_{i−1}, which Andreev says gives a small error at each change from uncorrelated to
-correlated points; the site follows the equations, not the listing. Open: the paper's own
-α-PbO figures (Figs 2–4) are plots without a table, so no numeric check against them was possible.
+correlated points; the site follows the equations, not the listing. The 2π also follows from the
+derivation (section 20).
+
+Open:
+
+- The paper's own α-PbO figures (Figs 2–4) are plots without a table, so no numeric check against
+  them was possible.
 
 ## Step 6: fit improved until the regions fit (owner request, November 2026)
 
@@ -618,7 +616,7 @@ than its extra parameters would by chance. Open: the score compares regions whos
 change when a peak is added or removed (a region grows by at most three peak widths), which
 slightly favours removing peaks; no case where this mattered was found.
 
-## 17: review fixes (calculated example, peak labels, sample comparison, sample report)
+## 18: review fixes (calculated example, peak labels, sample comparison, sample report)
 
 Code: src/core/xrd/synthetic.ts (example patterns), src/modules/xrd/data.ts (lines of the example
 phase), src/core/xrd/reference/symmetry.ts (which member of a family of planes is printed),
@@ -642,10 +640,10 @@ Open:
   example can be shown.
 - The sample comparison and the sample report add no numerical method; they collect results that
   are validated above.
-- Several open items of sections 16a to 16e were worked on in section 18; what is left is listed
+- Several open items of sections 16a to 16e were worked on in section 19; what is left is listed
   there.
 
-## 18: open items checked with Fityk and GSAS-II (owner request, November 2026)
+## 19: open items checked with Fityk and GSAS-II (owner request, November 2026)
 
 The owner asked for the open items above to be validated. Fityk 1.3.2 (Debian package) and
 GSAS-II (built from source at commit 2c62562) were installed in the session container and used
@@ -657,7 +655,7 @@ indexing-lines.json, indexing-gsas2-refined.json, indexing-gsas2.json.
 
 | Method                             | Check                                                                                                                                                                                                                                                                               | Source                                           | Tolerance                                 | Result                                                                 |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------- | ---------------------------------------------------------------------- |
-| Peak fit against Fityk             | the two synthetic data sets of section 17 (two overlapping pseudo-Voigt peaks; one Pearson VII peak) fitted by Fityk (MPFIT, unweighted) and by this site                                                                                                                           | independent program (Fityk 1.3.2)                | 2e-5°; 1e-4°; η and m 2e-3; 1e-3 relative | pass                                                                   |
+| Peak fit against Fityk             | the two synthetic data sets of section 18 (two overlapping pseudo-Voigt peaks; one Pearson VII peak) fitted by Fityk (MPFIT, unweighted) and by this site                                                                                                                           | independent program (Fityk 1.3.2)                | 2e-5°; 1e-4°; η and m 2e-3; 1e-3 relative | pass                                                                   |
 | Peak fit on a measured pattern     | 41 to 45° 2θ of the measured pattern tests/fixtures-real/bruker4_v5converter.raw (196 points, one line of about 88,000 counts on a straight background), one pseudo-Voigt: centre 43.0276°, FWHM 0.4936°, η 0.549 in Fityk, the same here                                           | independent program on real data                 | as above                                  | pass                                                                   |
 | .xye read by GSAS-II               | the .xye of the Export step (5,501 points): GSAS-II reads every point and the same σ                                                                                                                                                                                                | GSAS-II's reader                                 | exact count; σ 1e-6                       | pass                                                                   |
 | .instprm read by GSAS-II           | GSAS-II reads Lam1, Lam2, I(L2)/I(L1), Zero, Polariz., U, V, W, X, Y as written                                                                                                                                                                                                     | GSAS-II's reader (ReadInstprm)                   | 1e-7 relative (8 figures written)         | pass                                                                   |
@@ -1435,3 +1433,120 @@ the export and Orange-spectroscopy's published value, so the reader takes the la
   currently any raw files to test or validate with so close those section"). The readers are
   validated on the public real files above; a user's file that differs is refused or asks for the
   kind rather than being guessed.
+
+## 20: open items of 17a to 17i (owner request, November 2026)
+
+The owner asked for the items left open by stages 17a to 17i to be solved. What could be checked
+in the session container was checked; what was built is listed with its checks. Scripts:
+scripts/validation/tables/make_tables.py, scripts/validation/gsas2/dispersion.py. Tests:
+tests/validation-tables.test.ts, tests/rietveld-su-factor.test.ts, tests/rietveld-dispersion.test.ts,
+tests/sequential.test.ts. Fixture: tests/fixtures/validation/tables.json.
+
+| Method                          | Check                                                                                                                                                                                              | Source                                        | Tolerance      | Result |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | -------------- | ------ |
+| Covalent radii table            | all 96 elements equal the Cordero radii in the periodictable package 2.1.0; against mendeleev 1.3.0 only C, Mn, Fe and Co differ, the four elements for which Cordero lists several values         | two independent copies of the published table | exact          | pass   |
+| X-ray wavelengths               | Kα1 and Kα2 of every anode against the line energies of xraylib 4.3.0 (λ = 12.398419843 keV Å / E); largest difference 6.2e-5 Å (Co Kα2)                                                           | independent tabulation (xraylib)              | 1e-4 Å         | pass   |
+| Bond-valence parameter file     | data/reference/source/bvparm2020.cif has the recorded SHA-1; the same text (apart from line endings) is distributed with VESTA and with pparBVM, compared in the session                           | two other distributed copies                  | identical text | pass   |
+| Capillary absorption formula    | the Lobanov & Alte da Veiga expression against the absorption integral over the circular cross-section of a cylinder (direct numerical integration, converged to 1e-3), μR 0.1 to 8, 2θ 10 to 150° | physical definition, independent of GSAS-II   | 1.1 %          | pass   |
+| Capillary refinement in GSAS-II | with the sample broadening held at zero through every step, GSAS-II's refinement of its own capillary simulation ends at R_wp 2.854 % (R_exp 2.887 %; this site 2.86 %)                            | GSAS-II                                       | as in 17d      | pass   |
+| Bérar–Lelann factor applied     | with the switch on, every s.u. is the least-squares one times the factor and the covariance used for bond s.u. is times the factor squared; the refined values are unchanged                       | synthetic, known answer                       | 1e-14          | pass   |
+| Counting-noise ratio            | 1 for Poisson counts: 0.8 to 1.25 on GSAS-II's simulated patterns, 0.94, 1.00 and 0.75 on three measured count patterns of tests/fixtures-real/                                                    | independent program's noise; real data        | 0.7 to 1.25    | pass   |
+| Counting-noise ratio, scaled    | counts multiplied by k give k times the ratio; smoothed counts give less than 0.2; fewer than 100 points give no value; the refinement warns for counts × 5 and not for counts                     | synthetic, known answer                       | 0.05           | pass   |
+| Series: atoms copied forward    | with a stand-in refinement that moves z by 0.001 and B by 0.1 Å² from wherever the atom starts, three patterns start at z = 0.380, 0.381, 0.382 with copy-forward and at 0.380 each without        | synthetic, known answer                       | 1e-12          | pass   |
+
+What was found:
+
+- GSAS-II's capillary fit ended above the noise (R_wp 3.06 % against R_exp 2.88 %) because of the
+  validation script, not the model. GSAS-II limits the crystallite size to 10 µm whenever it stores
+  results (GSASIIstrIO: `min(10., max(0.001, size))`), so the "no size broadening" value of 1e5 µm
+  set by the script became 10 µm after the first step and added about 0.0009° of Lorentzian width.
+  dispersion.py now sets the size again before each step. bonds.py, load_export.py, structure.py
+  and substitution.py set the same value before multi-step refinements and were left unchanged:
+  their comparisons pass at their stated tolerances with this small width included.
+- The Bérar–Lelann eq 12: the factor is z = f₂/(f₁ + f₂) with the χ² densities
+  f₁ = e^(−x/2)/√(2πx) (one degree of freedom) and f₂ = e^(−x/2)/2 (two), which gives
+  z = √(2πx)/(2 + √(2πx)). So 2π follows from the derivation, as in the Fortran, in Andreev's
+  eq 3 and in the independent rietx program; the "2" printed in eq 12 is a misprint.
+- Rescaled intensities: the Bérar–Lelann factor, R_exp, χ² and the s.u. assume counts. The site
+  now estimates the variance-to-intensity ratio from the fourth differences of the pattern
+  (`countingNoiseRatio`, median of d²/(70 ȳ), which a smooth curve does not contribute to) and
+  warns in plain language when it is above 2 or below 0.5.
+- The "recognised, cannot read" note on .brml, .rasx and .raw was out of date: readers exist since
+  16a for .brml, .rasx and .raw version 4, written against the real files in tests/fixtures-real/.
+  What stays unread is listed in section 19.
+- The ZnO example's bond-valence sum: the published structure (COD 1577381) gives 1.904 for Zn, and
+  the end-to-end run shows 1.906(3) after refinement. A sum of 1.69 was not reproduced.
+- The tracker in docs/EXECUTION-PLAN.md had rows "17" and "18" beside 17a to 17i; they are now 18
+  and 19, and this work is row 20.
+
+Decisions kept (the owner can change them):
+
+- Kα2 stays at its exact Bragg angle (GSAS-II uses a first-order step; 17d).
+- The Bérar–Lelann factor is off by default, so tables stay comparable with GSAS-II; the switch
+  "Apply the Bérar–Lelann factor to the ±" is under Advanced, and the methods text says which was used.
+- Texture stays cylindrical sample symmetry only (17f).
+
+Open:
+
+- No measured patterns with known answers are held for a capillary run, a textured sample, a
+  heating series or a refinement with a published bond table (the line standards are in
+  section 21).
+- The differences found in other programs are reported, not resolved: GSAS-II's transposed matrix
+  in its angles, its bond s.u. without the cell covariance, its larger s.u. of the hexagonal a, its
+  Zr–O R₀, and pymatgen's different bond-valence model.
+- The counting-noise ratio cannot tell a pattern multiplied by a factor between 0.5 and 2 from
+  counts, and it is not a test of a variable-counting-time scan.
+
+The IUCr copy of bvparm2020.cif, the owner's approval of the two bond-valence rules and the
+capillary formula above μR 8 are settled in section 21.
+
+## 21: the owner's files and decisions (November 2026)
+
+The owner supplied the IUCr copy of bvparm2020.cif, two NIST data releases (SRM 660c LaB₆ and SRM
+640f Si, powder CIFs), and, for the capillary formula, the GSAS Technical Manual pages and the
+Lobanov abstract. The owner also approved two rules of the site (below). A second PDF supplied
+with them (Willett et al., Am. J. Epidemiol. 1985, a food questionnaire) is unrelated and was not
+used. Tests: tests/validation-tables.test.ts, tests/rietveld-dispersion.test.ts,
+tests/validation-gsas2-dispersion.test.ts, tests/validation-nist-srm.test.ts,
+tests/xrd-pdcif.test.ts.
+
+| Method                       | Check                                                                                                                                                                                                                 | Source                                   | Tolerance      | Result |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | -------------- | ------ |
+| Bond-valence parameter file  | replaced by the IUCr copy (SHA-1 141eb3c7…); it differs from the earlier copy (VESTA, pparBVM, matminer) only in the authors of reference bt ("Suescun & Rabuffetti") and an unchecked Mn²⁺–I row the site leaves out | the IUCr page, via the owner             | recorded SHA-1 | pass   |
+| Capillary formula, manual    | every coefficient of Absorb('Cylinder') against the GSAS Technical Manual (2004) pp. 134–135: identical above μR 3; below μR 3 the manual's k1 (0.024514, 26.0456) differs from GSAS-II's (0.024551, 26.04556)        | published formula                        | 1e-12; 0.8 %   | pass   |
+| Capillary formula, integral  | against the absorption integral of a cylinder (numerical, converged), μR 0.1 to 10, 2θ 10 to 170°: largest error 1.30 %; above μR 10 the fit fails (5 % at μR 12, 16 % at 15)                                         | physical definition                      | 1.4 %          | pass   |
+| μR limit                     | the refinement keeps μR at or below 10, the manual's range of validity, and says so in a warning                                                                                                                      | GSAS Technical Manual p. 135             | exact          | pass   |
+| Powder CIF reader            | 2θ from a column or a range, the s.u. in parentheses, σ = 1/√w from _pd_proc_ls_weight, a calculated block skipped, a structure CIF sent to step 3                                                                    | synthetic, known answer                  | 1e-12          | pass   |
+| Weights from the file        | with σ given, points are weighted by 1/σ², the counting-statistics warnings are not shown, and the methods text says so; on the 640f pattern χ² = 1.30 with NIST's weights                                            | real data (NIST)                         | GOF < 1.2      | pass   |
+| Lattice parameter, Si 640f   | the site's refinement (TCH, Bérar–Baldinozzi asymmetry, displacement, zero fixed because NIST's 2θ is corrected, Kα1 from Ge 111) of NIST's pattern: a = 5.431150(6) Å against NIST's 5.431144 Å, +1.0 ppm            | real data, NIST's refinement (Topas FPA) | 5 ppm          | pass   |
+| Lattice parameter, LaB₆ 660c | the same on NIST's Kα1 + Kα2 pattern (graphite analyser, 6.8° Soller slits): a = 4.156476(5) Å against 4.156783 Å, −74 ppm; −63 ppm with the zero refined and −74 to +101 ppm with the other asymmetry models         | real data, NIST's refinement             | 100 ppm        | pass   |
+
+What was found:
+
+- The capillary fit has no full paper; the GSAS Technical Manual is the published source, and it
+  states the range μR ≤ 10. The site limits μR to 10 in the refinement and in the input box.
+- With wide Soller slits (660c) the lattice parameter depends on the asymmetry model by up to
+  about 1e-4 relative, far more than its s.u. (1 ppm). The site's simple asymmetry models are the
+  limit there; NIST's fundamental-parameters profile is not available on the site. With narrow
+  slits (640f) the site matches NIST within its s.u.
+- Refining both zero and displacement on these patterns correlates them at r = −0.99 to −1.00 and
+  moves a by 129 ppm (Si) and 11 ppm (LaB₆): for corrected 2θ data the zero should be fixed.
+
+Decisions kept (the owner can change them):
+
+- The owner approved (November 2026) the two rules of the bond-valence table: the suggested
+  oxidation state (anion by the table, cation state nearest its own sum, labelled as a suggestion)
+  and the note on a sum more than 10 % from the oxidation state (a display choice of the site).
+- The decisions of section 20 stay as they were: Kα2 at its exact Bragg angle, the Bérar–Lelann
+  factor off by default, cylindrical texture symmetry.
+
+Open:
+
+- Bruker .raw versions 1 to 3 and multi-scan .rasx and .brml files: no openly licensed real file
+  was found. The files listed by xylib (SDPD course, IUCr CPD round robin) could not be fetched
+  (the host is gone, the IUCr site needs a browser) and carry no stated licence. They stay
+  "recognised, cannot read". Closed by the owner on 2026-11-15: no raw files are
+  available to test with.
+- The differences found in GSAS-II are drafted as reports in docs/gsas2-issue-drafts.md, for the
+  owner to send; they are not resolved.
+- The counting-noise limits (0.5 and 2) stay a rule of the site, as the owner left them.

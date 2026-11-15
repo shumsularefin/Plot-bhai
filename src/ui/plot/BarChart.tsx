@@ -40,7 +40,7 @@ export function BarSvg(props: BarSvgProps) {
     top: fontSize * 0.8,
     right: fontSize,
     bottom: fontSize * (rotate ? 6 : 2.2),
-    left: fontSize * 4.6,
+    left: fontSize * 5.3,
   };
   const innerW = Math.max(1, width - m.left - m.right);
   const innerH = Math.max(1, height - m.top - m.bottom);

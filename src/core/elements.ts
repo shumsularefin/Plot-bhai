@@ -4,7 +4,7 @@
  * table. The categories follow the usual metal / metalloid / nonmetal grouping; borderline
  * elements are placed differently in different tables (here: B, Si, Ge, As, Sb and Te are
  * metalloids, Po is a post-transition metal, Zn, Cd and Hg are transition metals, and La to Lu
- * and Ac to Lr are lanthanides and actinides). Flagged for the owner's check.
+ * and Ac to Lr are lanthanides and actinides). Checked by the owner (November 2026).
  */
 
 export type ElementCategory =

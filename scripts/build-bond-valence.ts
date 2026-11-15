@@ -1,9 +1,10 @@
 /*
  * Builds data/reference/bond-valence.json from I. D. Brown's accumulated table of bond-valence
  * parameters, bvparm2020.cif (2020-11-25), kept unchanged with its copyright notice in
- * data/reference/source/. The copy was taken from the matminer 0.10.1 wheel on PyPI
- * (matminer/utils/data_files/bvparm2020.cif, SHA-1 54640352675869efaa9264bb1b9b1cd3c43d03e5)
- * because www.iucr.org refuses automated downloads; it is the file the IUCr page links.
+ * data/reference/source/. The copy was downloaded from the IUCr page by the owner (November 2026,
+ * SHA-1 141eb3c7baefcc9598de3cae3903d5efa7489fae). It replaces a copy from the matminer 0.10.1
+ * wheel, which differed in two places: the authors of reference bt, and the anion valence of an
+ * "unchecked" Mn²⁺–I row that this script leaves out.
  *
  *   npm run build:bv
  *
@@ -79,9 +80,9 @@ writeFileSync(
   JSON.stringify(
     {
       source:
-        'I. D. Brown, Accumulated table of bond valence parameters, bvparm2020.cif (2020-11-25), distributed by the IUCr (www.iucr.org/resources/data/datasets/bond-valence-parameters); copy from the matminer 0.10.1 wheel, SHA-1 ' +
+        'I. D. Brown, Accumulated table of bond valence parameters, bvparm2020.cif (2020-11-25), distributed by the IUCr (www.iucr.org/resources/data/datasets/bond-valence-parameters); copy downloaded from the IUCr page by the owner, November 2026, SHA-1 ' +
         sha1 +
-        '. Flagged for owner verification.',
+        '.',
       notice,
       changes:
         'Converted to JSON by scripts/build-bond-valence.ts. Entries marked "unchecked" are left out, and for each pair of ions only the first remaining (most reliable) entry is kept. No value is changed.',

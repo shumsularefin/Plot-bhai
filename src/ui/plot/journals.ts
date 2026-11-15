@@ -4,7 +4,7 @@ import type { ExportFont } from './export';
  * Figure rules that publishers state for all their journals, so the export can be set up in one
  * click. Only what the publisher's own page says is used; anything a page does not state is left
  * to the user's own setting. A single journal can ask for more, so the screen always says to check
- * the journal's guide. Read on 11 November 2026; flagged for the owner's verification.
+ * the journal's guide. Read on 11 November 2026 and checked by the owner.
  *
  * Not included, because their pages refuse automated reading and could not be checked:
  * ACS (pubs.acs.org/page/4authors/submission/graphics_prep) and RSC

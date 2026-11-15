@@ -499,7 +499,6 @@ html:has(.wizard-footer) {
 
 .step-guide-brief > span {
   flex: 1 1 16rem;
-  max-width: var(--measure);
 }
 
 /*
@@ -638,8 +637,10 @@ html:has(.wizard-footer) {
       grid-column: 1;
     }
 
+    /* Below the toggle button, so it can use the full width and stay on one line. */
     .wizard:not(.is-rail) .wizard-sidebar-head > .wizard-saved {
       display: flex;
+      grid-column: 1 / -1;
     }
 
     .wizard:not(.is-rail) .wizard-sidebar-toggle {

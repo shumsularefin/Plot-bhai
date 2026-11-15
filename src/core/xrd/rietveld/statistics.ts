@@ -25,7 +25,9 @@ export function durbinWatson(residuals: ArrayLike<number>): number {
 /**
  * Bérar–Lelann factor for the standard uncertainties of a refinement with serially correlated
  * residuals (J.-F. Bérar and P. Lelann, J. Appl. Cryst. 24 (1991) 1–5, eqs 10–12; z_i with 2π as
- * in their Fortran and as printed by Yu. G. Andreev, J. Appl. Cryst. 27 (1994) 288–297, eq 3).
+ * in their Fortran and as printed by Yu. G. Andreev, J. Appl. Cryst. 27 (1994) 288–297, eq 3; the
+ * 2π also follows from z = f₂/(f₁ + f₂) with the χ² densities f₁ = e^(−x/2)/√(2πx) and
+ * f₂ = e^(−x/2)/2 of one and two degrees of freedom).
  * With the weighted residuals a_i = √w_i (y_obs,i − y_calc,i) (dimensionless) in pattern order:
  *   z_i = √(2π(a_i² + a_{i−1}²)) / (2 + √(2π(a_i² + a_{i−1}²)))  when a_i a_{i−1} > 0, else 0
  *   S = Σ a_i²,   S″ = Σ (1 − z_i²) a_i² + Σ_l (Σ_{i∈l} z_i a_i)²
@@ -56,6 +58,45 @@ export function berarLelann(residuals: ArrayLike<number>): number {
   }
   s2 += run * run;
   return s > 0 ? Math.sqrt(s2 / s) : NaN;
+}
+
+/** Median of a χ² variable with one degree of freedom (0.4549364…). */
+const CHI2_1_MEDIAN = 0.4549364231195724;
+
+/**
+ * Ratio of the variance of the point-to-point noise to the intensity, estimated from the pattern
+ * alone. Raw counts follow Poisson statistics, variance = mean, so the ratio is about 1. Counts
+ * multiplied by a factor s have variance s² × mean and value s × mean, so the ratio is s; counts
+ * per second from t seconds per step give 1/t; smoothing lowers it.
+ *
+ * The fourth difference d_i = y_{i−2} − 4y_{i−1} + 6y_i − 4y_{i+1} + y_{i+2} removes any locally
+ * cubic signal and has variance (1 + 16 + 36 + 16 + 1) σ² = 70 σ² for independent points. With
+ * m_i the mean of the five points (same units as y), q_i = d_i² / (70 m_i) has expectation σ²/m,
+ * and for Gaussian noise q_i/(σ²/m) is χ² with one degree of freedom, so
+ *   ratio = median(q_i) / 0.4549.
+ * The median keeps the points on sharp peaks, where the signal is not cubic over five points, from
+ * raising the result. Points with m_i < 20 are left out (Poisson is not Gaussian there); NaN when
+ * fewer than 100 points remain.
+ */
+export function countingNoiseRatio(y: ArrayLike<number>): number {
+  const q: number[] = [];
+  for (let i = 2; i < y.length - 2; i++) {
+    const a = y[i - 2] as number;
+    const b = y[i - 1] as number;
+    const c = y[i] as number;
+    const d = y[i + 1] as number;
+    const e = y[i + 2] as number;
+    const mean = (a + b + c + d + e) / 5;
+    if (mean < 20) continue;
+    const diff = a - 4 * b + 6 * c - 4 * d + e;
+    q.push((diff * diff) / (70 * mean));
+  }
+  if (q.length < 100) return NaN;
+  q.sort((u, v) => u - v);
+  const mid = q.length >> 1;
+  const median =
+    q.length % 2 ? (q[mid] as number) : ((q[mid - 1] as number) + (q[mid] as number)) / 2;
+  return median / CHI2_1_MEDIAN;
 }
 
 export interface Correlation {

@@ -1,4 +1,5 @@
 import { CreditsText } from './Credits';
+import { DOI, VERSION } from './software';
 import './about.css';
 
 /** One equation with a plain-language reading. Static text, so no maths renderer is needed. */
@@ -23,6 +24,22 @@ export default function About() {
       <section aria-labelledby="about-credits">
         <h2 id="about-credits">Credits</h2>
         <CreditsText />
+      </section>
+
+      <section aria-labelledby="about-cite">
+        <h2 id="about-cite">How to cite</h2>
+        <p>
+          Arefin, S. (2026). Plot Bhai: a client-side wizard for XRD, UV-Vis, FTIR, particle size
+          and thermal analysis (Version {VERSION}) [Computer software]. Zenodo.{' '}
+          <a href={`https://doi.org/${DOI}`} target="_blank" rel="noopener noreferrer">
+            https://doi.org/{DOI}
+          </a>
+        </p>
+        <p>
+          The DOI always points to the latest version; the methods text of every tool names the
+          version you used. Please also cite the original paper or COD entry of every reference
+          pattern you used.
+        </p>
       </section>
 
       <section aria-labelledby="about-privacy">
@@ -69,8 +86,9 @@ export default function About() {
           <li>
             Thermal event tables: whether each DSC event is endothermic or exothermic is checked
             against Gaisford, Kett and Haines, Principles of Thermal Analysis and Calorimetry (2nd
-            edn, 2016); the typical temperature ranges are still marked for verification. Check them
-            against your own references before publishing.
+            edn, 2016); the typical temperature ranges were checked by the author in November 2026.
+            Real temperatures depend on the sample and the run, so compare them with your own
+            references before publishing.
           </li>
           <li>
             JCPDS/ICDD data is not included. A JCPDS number you type is printed as typed and is
@@ -316,9 +334,8 @@ export default function About() {
           </Eq>
         </ul>
         <p>
-          Event rule tables (typical temperature ranges) are stored with their sources and are
-          flagged for verification. A suggested calcination temperature is a starting point, not an
-          optimum.
+          Event rule tables (typical temperature ranges) are stored with their sources. A suggested
+          calcination temperature is a starting point, not an optimum.
         </p>
         <h3>Activation energy from several heating rates</h3>
         <p>

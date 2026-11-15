@@ -3,6 +3,7 @@ import { listZip, readZipFiles, ZipError } from '../text/unzip';
 import { brmlWanted, looksLikeBrml, parseBrml } from './parsers/brml';
 import { looksLikeBrukerRaw, parseBrukerRaw } from './parsers/brukerRaw';
 import { parseDelimited } from './parsers/delimited';
+import { looksLikePdCif, parsePdCif } from './parsers/pdcif';
 import { looksLikeRas, parseRas } from './parsers/ras';
 import { looksLikeRasx, parseRasx, rasxWanted } from './parsers/rasx';
 import { looksLikeXrdml, parseXrdml } from './parsers/xrdml';
@@ -99,6 +100,7 @@ function formatFromExtension(extension: string): SourceFormat {
     case 'csv':
     case 'xrdml':
     case 'ras':
+    case 'cif':
       return extension;
     default:
       return 'text';
@@ -124,6 +126,9 @@ export function importText(
   } else if (looksLikeRas(text)) {
     source = 'ras';
     parsed = parseRas(text);
+  } else if (format === 'cif' || looksLikePdCif(text)) {
+    source = 'cif';
+    parsed = parsePdCif(text);
   } else if (format === 'xrdml' || format === 'ras') {
     return {
       ok: false,
