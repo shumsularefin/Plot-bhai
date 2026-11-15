@@ -1672,14 +1672,66 @@ a message with a button and never switches on its own. The warning beside the re
 σ(Eg) > 0.05 eV, m sits on a bound or the window is shorter than 0.5 eV.
 
 Performance, measured on 50,001 points: the power fit takes about 0.1 s (m fitted) or 0.014 s (m
-typed), so it stays on the main thread. The whole analysis of such a file takes about 45 to 70 s,
-almost all of it in the region suggestion of earlier stages (`windows`); that is not new in this
-stage and is listed as open.
+typed). The whole analysis of such a file took 45 to 155 s on the main thread, almost all of it in
+the region search of earlier stages (`windows`); this was fixed on 2026-11-15 (below).
+
+#### Speed of the region search, and the band gap worker (2026-11-15)
+
+Code: src/core/math/windowSums.ts (`WindowSums`, `linearFitMargin`), src/core/uvvis/tauc.ts
+(`windows`, `Candidate`, `decide`), src/modules/uvvis/bandGap.ts, src/modules/uvvis/bandGapClient.ts,
+src/workers/bandgap.worker.ts. Tests: tests/uvvis-tauc-speed.test.ts,
+tests/uvvis-bandgap-worker.test.tsx.
+
+The search fits a straight line to every window of 0.1 to 0.6 eV, about 300,000 windows of up to
+7,000 points on a 50,000-point spectrum, and `linearFit` made that O(points × window). Each line now
+comes in constant time from prefix sums of x, y, x², xy and y² kept in double-double (exact
+products by Dekker's TwoProduct, sums by Knuth's TwoSum; Hida, Li and Bailey 2001 for the
+double-double add and multiply). Those numbers are more accurate than `linearFit` but not
+bit-identical to it, and on a noise-free Tauc line many windows tie at R² ≈ 1 to the last digit,
+so `linearFit`'s rounding decides the winner. Every comparison of the search (slope > 0, R²
+thresholds, the gap tests, the half-slope anchor test, the choice of the highest R² and of the
+steepest window) that is closer than `linearFitMargin` of the scale of the values is therefore
+decided again with `linearFit` on the windows involved. The margin is 64·n·ε·(|x̄|/σx + |ȳ|/σy),
+at least 10⁻⁸ (own choice): `linearFit`'s sequential sums are off by about n·ε, magnified by how far
+the means lie from the spread. The suggested regions, and so every band gap, are bit-identical to
+the earlier code.
+
+The analysis then still takes about 5 s on 50,001 points (four transitions are compared), so the
+whole band gap analysis (`analyseBandGap`) runs in a web worker. The Band gap step, the Results
+step, its Tauc figure and the analysis record send their jobs to it; results are kept by the
+content of the inputs (a hash of the curves and the settings), one job runs at a time, and a job
+nobody waits for any more is dropped before it starts. While new settings are analysed, the last
+result of the same spectrum stays on screen with "Updating…". Where workers do not exist (the
+jsdom unit tests) the analysis runs on the main thread as before.
+
+| Check                                                                                                | Kind                      | Tolerance                    | Result                        |
+| ---------------------------------------------------------------------------------------------------- | ------------------------- | ---------------------------- | ----------------------------- |
+| Points on y = 2 + 3x: slope, intercept, R² of a window                                               | synthetic, known answer   | exact                        | 3, 2, 1: pass                 |
+| 50,001-point edge at 3.2 eV, level 0.05, noise σ 0.003: Eg with the level subtracted                 | synthetic, known answer   | 0.01 eV                      | pass                          |
+| Window sums against exact rational arithmetic (BigInt), x ≈ 10⁴ with spreads down to 3·10⁻⁴          | independent (exact)       | 10⁻¹⁴ relative               | pass                          |
+| `linearFit` against the same exact values (R² off by up to 2.8·10⁻⁷ there; Python `Fraction` agrees) | independent (exact)       | inside `linearFitMargin`     | pass                          |
+| Regions against the earlier search (kept in the test): 20 curves × 2 powers × 2 rules                | independent (old code)    | bit-identical                | 80 of 80                      |
+| Same, run in the session on 200 curves × 4 transitions × 2 rules (200 to 3,000 points)               | independent (old code)    | bit-identical                | 1,600 of 1,600                |
+| Noise-free straight Tauc line (ties at R² ≈ 1)                                                       | regression (tie-breaking) | bit-identical                | pass                          |
+| 50,001 points, analysis before and after the change                                                  | regression                | identical Eg, all digits     | 3.1974344175383336 both: pass |
+| Analysis in the worker against the main thread                                                       | invariance                | equal fit, Tauc curve, table | pass                          |
+| Window sums asked for in another order                                                               | invariance                | equal                        | pass                          |
+| A job replaced before it starts is never run; results stay while new ones run                        | guard                     | as stated                    | pass                          |
+
+Timings on the development container (Node 22), synthetic absorbance with a 3.2 eV
+direct edge, level 0.05 and noise σ 0.003, before → after:
+
+| Points | `suggestRegion`, steepest rule | `analyseTaucGap` | Whole analysis (`analyseBandGap`) |
+| ------ | ------------------------------ | ---------------- | --------------------------------- |
+| 1,201  | –                              | –                | 0.16 s → 0.06 s                   |
+| 5,001  | –                              | –                | 1.66 s → 0.34 s                   |
+| 50,001 | 10.3 s → 0.60 s                | 18.1 s → 0.94 s  | 155 s → 4.9 s, now in the worker  |
+
+What remains of the 4.9 s is mostly the smoothed derivative of the region anchor (`slopesOverSpan`,
+part B, about a third) and garbage collection; it runs in the worker, so the page stays responsive.
 
 Open:
 
-- The UV-Vis analysis of a 50,000-point spectrum takes about a minute on the main thread (the
-  region search of earlier stages). It should move to a Web Worker or be made faster.
 - No real spectrum of a scattering sample with a known gap was available to test the power law on.
 
 ### Part D: optical conductivity; polydispersity index

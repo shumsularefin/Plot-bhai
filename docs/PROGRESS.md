@@ -20,8 +20,16 @@ Branch `stage-22-uvvis-open-items`. No new packages. Checks in docs/validation.m
 - **Part D2:** no PDI for image sizes (owner decision); the help beside the CV says why.
 - **Skipped:** part A (Cody, Moss, Ravindra–Srivastava, Hervé–Vandamme originals) and part D1
   (optical conductivity) need the papers and the textbook page from the owner.
-- **Known issues:** a 50,000-point UV-Vis spectrum takes about a minute to analyse on the main
-  thread, almost all in the region search of earlier stages; it should move to a worker.
+- **Speed (2026-11-15):** the Tauc region search takes each window's line from double-double
+  prefix sums in constant time, and decides any comparison too close to call with `linearFit`, so
+  the regions and band gaps are bit-identical to before (1,600 of 1,600 cases). The band gap
+  analysis runs in a web worker (src/workers/bandgap.worker.ts) for the Band gap and Results
+  steps, the Tauc figure and the record. 50,001 points: 155 s on the main thread before, 4.9 s in
+  the worker now. Choices: double-double sums (Dekker 1971, Knuth TAOCP 4.2.2, Hida, Li and Bailey 2001) over plain prefix sums, which lose about 10 digits to cancellation on these windows; the
+  analysis moved to `bandGap.ts` so that the worker does not load the user interface. No new
+  packages. Checks in docs/validation.md, section 22 Part C.
+- **Known issues:** a 50,000-point analysis still takes about 5 s (in the worker), a third of it in
+  the smoothed derivative of part B (`slopesOverSpan`), which could be made faster the same way.
 - **Next:** nothing scheduled; the owner decides.
 
 ## Stage 19d item 4 extension and closing the raw-file items (done)
