@@ -1,6 +1,6 @@
 # Progress
 
-## Stage 22: UV-Vis open items (done; Cody attribution put to the owner)
+## Stage 22: UV-Vis open items (done)
 
 Branch `stage-22-uvvis-open-items`. No new packages. Checks in docs/validation.md, section 22.
 
@@ -26,9 +26,9 @@ Branch `stage-22-uvvis-open-items`. No new packages. Checks in docs/validation.m
   is kept, as written by Hervé and Vandamme. Hervé–Vandamme eq. 10 prints B = 3.4 eV, not the
   3.47 eV of Tripathy 2015, so B changed: every Hervé–Vandamme n rises by 0.5 to 1.3 % (2.2179 →
   2.2361 at 3.4 eV). Doc comments and the methods text cite each original with page and equation.
-  Cody et al. 1981 (PRL 47, 1480) uses the Tauc form (αE)^½ in eq. 2, not the (α/E)^½ plot the code
-  attributes to Cody through Zanatta 2019: this is more than a constant, so it was put to the owner
-  and the code is unchanged.
+  Cody et al. 1981 (PRL 47, 1480) uses the Tauc form (αE)^½ in eq. 2, not the (α/E)^½ plot; the
+  owner then supplied Cody's 1984 chapter (Semiconductors and Semimetals 21B, ch. 2), whose eq. 23
+  and Fig. 16 plot ε₂^½ ∝ (nα/E)^½. The formula was right; the citation now names the chapter.
 - **Part D1, optical conductivity:** σ = ε₀cnα (S/m) from M. Fox, Optical Properties of Solids,
   eqs. 7.15 and 7.18 with κ = ε₂/2n; ε₀ from CODATA 2022. In the main tool only, from a constant n
   typed by the user, shown as an assumption in the table, figure label, CSV and methods text. The

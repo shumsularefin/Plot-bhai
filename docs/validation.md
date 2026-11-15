@@ -1241,7 +1241,8 @@ New methods (src/core/uvvis/peaks.ts, crossChecks.ts, optics.ts):
   minima offered as suggestions. λmax in the results table keeps its old meaning (highest point).
 - Path length: α = ln(10)·A/l with l a film thickness (nm) or a cuvette path (cm).
 - Cody plot: (α/E)^(1/2) against E, a straight line, Eg where it meets zero (A. R. Zanatta,
-  Sci. Rep. 9 (2019) 11225, citing G. D. Cody et al.).
+  Sci. Rep. 9 (2019) 11225; checked in stage 22 against G. D. Cody, Semiconductors and Semimetals
+  21B (1984), ch. 2, eq. 23).
 - Sigmoid (Boltzmann) fit: α(E) = α_max + (α_min − α_max)/(1 + exp((E − E0)/δE)) (Zanatta Eq. 8),
   Eg = E0 − n·δE with n = 0.3 (direct), 4.3 (indirect), 3.6 (amorphous) (Eq. 9), σ(Eg) from the
   full covariance.
@@ -1284,11 +1285,9 @@ covariance and the root finding, not the equations themselves.
 
 ### Open
 
-- Cody plot source: the Cody et al. 1981 paper (Phys. Rev. Lett. 47, 1480) was opened in stage 22.
-  Its eq. 2 is the Tauc form, (αE)^(1/2) against E, not the (α/E)^(1/2) plot that Zanatta (2019)
-  attributes to Cody, so the source of the (α/E)^(1/2) form is still open (section 22, part A).
-- Moss, Ravindra and Hervé–Vandamme were checked against the original papers in stage 22 (section
-  22, part A); Hervé–Vandamme B is now 3.4 eV as the original prints.
+- Cody, Moss, Ravindra and Hervé–Vandamme were checked against the original sources in stage 22
+  (section 22, part A); Hervé–Vandamme B is now 3.4 eV as the original prints, and the Cody plot is
+  cited to Cody's 1984 chapter.
 - The default sigmoid range (±0.25 eV around the midpoint of the rise near the Tauc gap) is my
   reading of Zanatta's "~500 meV energy range centered in between the min-max α values".
 - Zanatta gives no worked table of a fit to compare with, so no published example was run.
@@ -1560,8 +1559,7 @@ Open:
 ## 22: UV-Vis open items (2026-11-15)
 
 Four parts were set by the owner. Parts A (original papers) and D1 (optical conductivity) waited
-for sources, which the owner supplied on 2026-11-15; both were then done, except the Cody
-attribution (part A), which contradicts the code by more than a constant and is put to the owner.
+for sources, which the owner supplied on 2026-11-15; both were then done.
 
 ### Part B: suggested Tauc region anchored on the steepest part of the edge
 
@@ -1738,12 +1736,13 @@ Open: the film tool (Swanepoel) gives n but no α, so σ is not offered there.
 
 All four papers were supplied by the owner and read on 2026-11-15.
 
-| Paper                                                                                    | Compared                                                                                                                                         | Result                                                                                                                     |
-| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
-| T. S. Moss, Proc. Phys. Soc. B 63 (1950) 167, p. 168                                     | n⁴/λ ≈ 77 (λ in µm), "for the more highly refractive compounds", worse as n falls; against the code's n⁴Eg = 95 eV                               | same relation in energy form: 77 × 1.23984 eV·µm = 95.5 eV. K = 95 eV kept, the form of Hervé–Vandamme eq. 1 (0.12 % in n) |
-| N. M. Ravindra, S. Auluck, V. K. Srivastava, Phys. Status Solidi B 93 (1979) K155, eq. 5 | n = 4.084 − 0.62 E_G, "valid for a wide range of semiconductors independent of structure"                                                        | matches the code, constants and units                                                                                      |
-| P. J. L. Hervé, L. K. J. Vandamme, Infrared Phys. Technol. 35 (1994) 609, eq. 10         | n² = 1 + [A/(Eg + B)]², A = 13.6 eV, B = 3.4 eV; not for IV–VI compounds                                                                         | B changed from 3.47 eV (Tripathy 2015) to 3.4 eV in optics.ts, methods.ts, the CSV note, the tests and the SciPy script    |
-| G. D. Cody et al., Phys. Rev. Lett. 47 (1981) 1480, eq. 2                                | (α(E,T)·E)^(1/2) = C[E − E₀(T)], the Tauc form, E₀ ≈ 1.70 eV for a-Si:H; the code's Cody plot is (α/E)^(1/2) attributed to Cody via Zanatta 2019 | contradiction beyond a constant: put to the owner (STOP), code unchanged                                                   |
+| Paper                                                                                       | Compared                                                                                                                                          | Result                                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T. S. Moss, Proc. Phys. Soc. B 63 (1950) 167, p. 168                                        | n⁴/λ ≈ 77 (λ in µm), "for the more highly refractive compounds", worse as n falls; against the code's n⁴Eg = 95 eV                                | same relation in energy form: 77 × 1.23984 eV·µm = 95.5 eV. K = 95 eV kept, the form of Hervé–Vandamme eq. 1 (0.12 % in n)                                                                                |
+| N. M. Ravindra, S. Auluck, V. K. Srivastava, Phys. Status Solidi B 93 (1979) K155, eq. 5    | n = 4.084 − 0.62 E_G, "valid for a wide range of semiconductors independent of structure"                                                         | matches the code, constants and units                                                                                                                                                                     |
+| P. J. L. Hervé, L. K. J. Vandamme, Infrared Phys. Technol. 35 (1994) 609, eq. 10            | n² = 1 + [A/(Eg + B)]², A = 13.6 eV, B = 3.4 eV; not for IV–VI compounds                                                                          | B changed from 3.47 eV (Tripathy 2015) to 3.4 eV in optics.ts, methods.ts, the CSV note, the tests and the SciPy script                                                                                   |
+| G. D. Cody et al., Phys. Rev. Lett. 47 (1981) 1480, eq. 2                                   | (α(E,T)·E)^(1/2) = C[E − E₀(T)], the Tauc form, E₀ ≈ 1.70 eV for a-Si:H                                                                           | not the source of the (α/E)^(1/2) plot; it contradicted the attribution of 19e, so the later chapter below was supplied by the owner                                                                      |
+| G. D. Cody, Semiconductors and Semimetals 21B (1984), ch. 2, p. 26, eq. 23 (p. 29), Fig. 16 | energy-independent dipole (coordinate) matrix element; ε₂(E) = Q²M³(0.2/ν)(E − E_G)²; (ε₂)^(1/2) plotted against E, E_G where the line meets zero | with ε₂ = nαc/ω (Fox, p. 194 and eq. 7.18), (ε₂)^(1/2) ∝ (nα/E)^(1/2): the code's (α/E)^(1/2) for constant n. Formula unchanged; citation corrected in crossChecks.ts, the help text and the methods text |
 
 Stated ranges: none of the originals gives the numeric warning ranges (0.17–3.68 eV for Moss, a
 failure below 1.4 eV for Hervé–Vandamme); those stay from Tripathy 2015 and are labelled so.

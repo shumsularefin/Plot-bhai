@@ -273,7 +273,7 @@ export function uvvisMethodsParagraph(input: UvvisMethodsInput): string {
               `${number((s.cody as [number, number])[0])}–${number((s.cody as [number, number])[1])} eV`,
           ),
         ),
-      )}) and Eg read where it meets zero (no refractive index factor).`,
+      )}) and Eg read where it meets zero (G. D. Cody, Semiconductors and Semimetals 21B (1984), ch. 2, eq. 23; refractive index taken as constant).`,
     );
   const sigmoid = fitted.filter((s) => s.sigmoid);
   if (sigmoid.length > 0) {

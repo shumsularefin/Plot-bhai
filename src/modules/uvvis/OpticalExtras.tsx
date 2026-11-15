@@ -101,10 +101,11 @@ export function CrossChecks(props: ExtraProps) {
           <p>
             The Cody plot draws (α/hν)^(1/2) against hν in place of the Tauc (αhν)^(1/2). It assumes
             that the dipole matrix element of the transition, not the momentum matrix element, is
-            independent of energy (G. D. Cody, as discussed by A. R. Zanatta, Sci. Rep. 9 (2019)
-            11225). It is used mainly for amorphous semiconductors and usually curves less than the
-            Tauc plot. Eg is where its straight part meets zero. An estimate to compare with the
-            Tauc value, not a replacement.
+            independent of energy (G. D. Cody, Semiconductors and Semimetals 21B (1984), chapter 2,
+            eq. 23 and Fig. 16, where ε₂^(1/2) is plotted; ε₂ is proportional to nα/hν, and n is
+            taken as constant here). It is used mainly for amorphous semiconductors and usually
+            curves less than the Tauc plot. Eg is where its straight part meets zero. An estimate to
+            compare with the Tauc value, not a replacement.
           </p>
         </HelpTip>
         <label class="check">
