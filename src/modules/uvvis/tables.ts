@@ -147,7 +147,7 @@ const SIGNAL_TEXT = {
 } as const;
 
 export const RESULTS_NOTE =
-  'UV-Vis results, one row per sample and reported transition. Eg is an estimate from the Tauc method, read as stated in the Eg read from column; its uncertainty is that of the straight-line fits only. Cody (Eg where (S/E)^(1/2) meets zero) and sigmoid (Zanatta, Sci. Rep. 9 (2019) 11225: Eg = E0 - n_type*dE) values are cross-check estimates, not replacements. Refractive indices n from Eg (Moss n^4*Eg = 95 eV; Ravindra n = 4.084 - 0.62*Eg; Herve-Vandamme n^2 = 1 + (13.6/(Eg + 3.47))^2, as given by Tripathy, Opt. Mater. 46 (2015) 240) are rough empirical estimates. lambda_max is the highest data point of the absorbance (F(R) for reflectance). Example data are synthetic.';
+  'UV-Vis results, one row per sample and reported transition. Eg is an estimate from the Tauc method, read as stated in the Eg read from column; its uncertainty is that of the straight-line fits only. Cody (Eg where (S/E)^(1/2) meets zero) and sigmoid (Zanatta, Sci. Rep. 9 (2019) 11225: Eg = E0 - n_type*dE) values are cross-check estimates, not replacements. Refractive indices n from Eg (Moss 1950, n^4*Eg = 95 eV; Ravindra et al. 1979, n = 4.084 - 0.62*Eg; Herve and Vandamme 1994, n^2 = 1 + (13.6/(Eg + 3.4))^2) are rough empirical estimates. lambda_max is the highest data point of the absorbance (F(R) for reflectance). Example data are synthetic.';
 
 /** Band gap with its uncertainty for display, in eV, for example "3.204 ± 0.005" or "3.200 ± < 0.001". */
 export function gapText(fit: { egEv: number; egSigma: number }): string {

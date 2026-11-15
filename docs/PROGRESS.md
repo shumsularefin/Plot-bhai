@@ -1,6 +1,6 @@
 # Progress
 
-## Stage 22: UV-Vis open items (done, A and D1 skipped: sources not supplied)
+## Stage 22: UV-Vis open items (done; Cody attribution put to the owner)
 
 Branch `stage-22-uvvis-open-items`. No new packages. Checks in docs/validation.md, section 22.
 
@@ -21,8 +21,21 @@ Branch `stage-22-uvvis-open-items`. No new packages. Checks in docs/validation.m
   are kept as built, with the basis of each in docs/validation.md, section 22. Fitting the power law
   to the whole range below the edge and the m = 2 to 4 range follow Kubetschek et al. 2024, p. 8.
 - **Part D2:** no PDI for image sizes (owner decision); the help beside the CV says why.
-- **Skipped:** part A (Cody, Moss, Ravindra–Srivastava, Hervé–Vandamme originals) and part D1
-  (optical conductivity) need the papers and the textbook page from the owner.
+- **Part A, original papers** (supplied by the owner, 2026-11-15, not committed): Ravindra eq. 5
+  matches. Moss 1950 prints n⁴/λ ≈ 77 (λ in µm), the same relation as n⁴Eg ≈ 95.5 eV; K = 95 eV
+  is kept, as written by Hervé and Vandamme. Hervé–Vandamme eq. 10 prints B = 3.4 eV, not the
+  3.47 eV of Tripathy 2015, so B changed: every Hervé–Vandamme n rises by 0.5 to 1.3 % (2.2179 →
+  2.2361 at 3.4 eV). Doc comments and the methods text cite each original with page and equation.
+  Cody et al. 1981 (PRL 47, 1480) uses the Tauc form (αE)^½ in eq. 2, not the (α/E)^½ plot the code
+  attributes to Cody through Zanatta 2019: this is more than a constant, so it was put to the owner
+  and the code is unchanged.
+- **Part D1, optical conductivity:** σ = ε₀cnα (S/m) from M. Fox, Optical Properties of Solids,
+  eqs. 7.15 and 7.18 with κ = ε₂/2n; ε₀ from CODATA 2022. In the main tool only, from a constant n
+  typed by the user, shown as an assumption in the table, figure label, CSV and methods text. The
+  film tool has n but no α, so it is not offered there (open). New optional setting
+  `assumedIndex`; absent in older sessions, so no migration.
+- **About page:** a new "What each tool does" section lists the features of stages 16 to 22, and
+  the UV-Vis equations add the Cody, sigmoid, k, σ and Hervé–Vandamme relations.
 - **Known issues:** a 50,000-point UV-Vis spectrum takes about a minute to analyse on the main
   thread, almost all in the region search of earlier stages; it should move to a worker.
 - **Next:** nothing scheduled; the owner decides.

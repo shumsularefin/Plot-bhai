@@ -148,7 +148,7 @@ describe('Optical constants', () => {
 
   it('gives n from Eg by the three relations', () => {
     expect(indexFromGap('ravindra', 1)).toBeCloseTo(3.464, 12);
-    expect(indexFromGap('herve-vandamme', 3.33)).toBeCloseTo(Math.sqrt(5), 12);
+    expect(indexFromGap('herve-vandamme', 3.4)).toBeCloseTo(Math.sqrt(5), 12); // 13.6 / (3.4 + 3.4) = 2
     expect(indexFromGap('moss', 95 / 16)).toBeCloseTo(2, 12);
     expect(indexFromGap('ravindra', 7)).toBeNaN();
     expect(inIndexRange('herve-vandamme', 1)).toBe(false);

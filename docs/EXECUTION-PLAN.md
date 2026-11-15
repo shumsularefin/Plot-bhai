@@ -66,7 +66,7 @@ sets its row to `done` (or `blocked: reason`) in the same PR.
 | 19e       | UV-Vis: peak table, path length, figures, gap methods            | done (optical conductivity not built, see validation.md 19e) |
 | 19f       | Particles: session file, report, statistics                      | done (no real micrograph, see validation.md 19f)             |
 | 19g       | Binary FTIR and UV-Vis instrument files (needs real files)       | done                                                         |
-| 22        | UV-Vis open items: sources, Tauc region, curved background, PDI  | done (A and D1 skipped: sources not supplied)                |
+| 22        | UV-Vis open items: sources, Tauc region, curved background, PDI  | done (Cody attribution put to the owner)                     |
 
 Rows 19a to 19g are the UV-Vis, FTIR and particle sub-stages of docs/STAGE-19-PROMPTS.md; they
 are separate from row 19 (open validation items), which was numbered on main.

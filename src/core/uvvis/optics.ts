@@ -3,6 +3,8 @@
  * transmittance T and reflectance R as fractions (0 to 1).
  */
 
+import { LIGHT_M_PER_S, VACUUM_PERMITTIVITY_F_PER_M } from './conversions';
+
 /**
  * Absorption coefficient of a film from its transmittance T and reflectance R, with incoherent
  * multiple reflections inside the film (A. R. Zanatta, Sci. Rep. 9 (2019) 11225, Eq. 6, "if
@@ -39,6 +41,25 @@ export function extinctionCoefficient(alphaPerCm: number, wavelengthNm: number):
   return (alphaPerCm * wavelengthNm * 1e-7) / (4 * Math.PI);
 }
 
+/**
+ * Optical conductivity (real part) from the absorption coefficient and the refractive index:
+ *
+ *   σ = ε₀ · c · n · α
+ *
+ * σ in S/m (Ω⁻¹ m⁻¹), ε₀ the vacuum permittivity (F/m), c the speed of light (m/s), n the real
+ * refractive index (unitless) and α the absorption coefficient, given here in cm⁻¹ and converted
+ * to m⁻¹ (× 100). Derived from M. Fox, Optical Properties of Solids (Oxford University Press),
+ * chapter 7: eq. 7.15 (p. 183), ε_r(ω) = 1 + iσ(ω)/(ε₀ω), so Re σ = ε₀ ω ε₂; p. 194, κ = ε₂/(2n);
+ * eq. 7.18 (p. 184, via eq. 1.19), α = 2ωκ/c. Eliminating ε₂ and κ gives σ = ε₀ c n α, and the
+ * same chain gives κ = αλ/(4π) (extinctionCoefficient above), which the tests use as a check.
+ * An estimate: n is assumed, not measured, unless it comes from a thin-film fit. Returns NaN for
+ * n ≤ 0 or a non-finite α.
+ */
+export function opticalConductivity(alphaPerCm: number, n: number): number {
+  if (!(n > 0) || !Number.isFinite(alphaPerCm)) return NaN;
+  return VACUUM_PERMITTIVITY_F_PER_M * LIGHT_M_PER_S * n * alphaPerCm * 100;
+}
+
 /** Empirical relations between the refractive index n and the band gap Eg. */
 export type IndexRelation = 'moss' | 'ravindra' | 'herve-vandamme';
 
@@ -53,34 +74,50 @@ export interface IndexRelationInfo {
 }
 
 /**
- * Relations as written in S. K. Tripathy, "Refractive indices of semiconductors from energy gaps",
- * Opt. Mater. 46 (2015) 240–246 (arXiv:1508.03511, HTML version read 2026-11-14), Eqs. 1–3, with
- * the ranges that paper states. The original papers (Moss 1950; Ravindra, Auluck and Srivastava
- * 1979; Hervé and Vandamme 1994) were not opened. Rough empirical estimates for semiconductors at
- * long wavelength, flagged for your verification; B = 3.47 eV is the value printed by Tripathy.
+ * Relations checked against the original papers (supplied by the owner, read 2026-11-15):
+ *
+ * - Moss: T. S. Moss, Proc. Phys. Soc. B 63 (1950) 167–176, abstract and §4 (p. 168): n⁴/λ ≈ 77,
+ *   λ the long-wavelength photoconductive threshold in µm, "for the more highly refractive
+ *   compounds"; the relation "becomes progressively worse as n decreases" (below about 2.25) and
+ *   does not apply to elements. With E = hc/λ (hc = 1.23984 eV·µm) this is n⁴·E ≈ 95.5 eV; the
+ *   rounded K = 95 eV is the form of Hervé and Vandamme 1994, eq. 1, kept here (0.12 % in n).
+ * - Ravindra: N. M. Ravindra, S. Auluck and V. K. Srivastava, Phys. Status Solidi B 93 (1979)
+ *   K155–K160, eq. 5 (p. K157): n = 4.084 − 0.62·E_G, stated as valid for a wide range of
+ *   semiconductors independent of structure. Moss (as cited by Hervé and Vandamme 1994, p. 609)
+ *   restricts it to gaps below about 4 eV, with unrealistic results at low and high Eg.
+ * - Hervé–Vandamme: P. J. L. Hervé and L. K. J. Vandamme, Infrared Phys. Technol. 35 (1994)
+ *   609–615, eq. 10 (p. 611): n² = 1 + [A/(Eg + B)]², A = 13.6 eV, B = 3.4 eV; n for visible light;
+ *   it "cannot properly describe the behaviour of the IV-VI group" (PbS, PbSe, PbTe). Tripathy
+ *   (Opt. Mater. 46 (2015) 240) prints B = 3.47 eV, which was used before 2026-11-15.
+ *
+ * The numeric warning ranges (0.17–3.68 eV for Moss, Eg < 1.4 eV for Hervé–Vandamme) are those of
+ * Tripathy 2015; the originals state no numbers. Rough empirical estimates, not measurements.
  */
 export const INDEX_RELATIONS: Record<IndexRelation, IndexRelationInfo> = {
   moss: {
     label: 'Moss',
     equation: 'n⁴ · Eg = 95 eV',
-    source: 'T. S. Moss (1950), as given by Tripathy, Opt. Mater. 46 (2015) 240, Eq. 1',
-    validity: 'stated as reliable for 0.17 eV < Eg < 3.68 eV',
+    source:
+      'T. S. Moss, Proc. Phys. Soc. B 63 (1950) 167, p. 168 (n⁴/λ ≈ 77, λ in µm); K = 95 eV as in Hervé and Vandamme, Infrared Phys. Technol. 35 (1994) 609, eq. 1',
+    validity:
+      'for highly refractive compounds (worse as n falls below about 2.25); Tripathy (2015) gives 0.17 eV < Eg < 3.68 eV',
     range: [0.17, 3.68],
   },
   ravindra: {
     label: 'Ravindra',
     equation: 'n = 4.084 − 0.62 · Eg',
     source:
-      'N. M. Ravindra, S. Auluck and V. K. Srivastava (1979), as given by Tripathy, Opt. Mater. 46 (2015) 240, Eq. 2',
-    validity: 'fails at very low and very high Eg, and gives n < 0 above 6.587 eV',
+      'N. M. Ravindra, S. Auluck and V. K. Srivastava, Phys. Status Solidi B 93 (1979) K155, eq. 5',
+    validity:
+      'restricted to Eg below about 4 eV, unrealistic at low and high Eg (Moss, as cited by Hervé and Vandamme 1994); n < 0 above 6.587 eV',
     range: [0, 6.587],
   },
   'herve-vandamme': {
     label: 'Hervé–Vandamme',
-    equation: 'n² = 1 + (A / (Eg + B))², A = 13.6 eV, B = 3.47 eV',
-    source:
-      'P. J. L. Hervé and L. K. J. Vandamme (1994), as given by Tripathy, Opt. Mater. 46 (2015) 240, Eq. 3',
-    validity: 'fails for Eg < 1.4 eV',
+    equation: 'n² = 1 + (A / (Eg + B))², A = 13.6 eV, B = 3.4 eV',
+    source: 'P. J. L. Hervé and L. K. J. Vandamme, Infrared Phys. Technol. 35 (1994) 609, eq. 10',
+    validity:
+      'not for IV-VI compounds (PbS, PbSe, PbTe); Tripathy (2015) gives a failure below Eg = 1.4 eV',
     range: [1.4, Infinity],
   },
 };
@@ -96,7 +133,7 @@ export function indexFromGap(relation: IndexRelation, egEv: number): number {
       return n > 0 ? n : NaN;
     }
     case 'herve-vandamme':
-      return Math.sqrt(1 + (13.6 / (egEv + 3.47)) ** 2);
+      return Math.sqrt(1 + (13.6 / (egEv + 3.4)) ** 2);
   }
 }
 
