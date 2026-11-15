@@ -503,12 +503,16 @@ try {
   await next('Data type and cleaning');
   await page.getByRole('switch', { name: 'Blank subtraction' }).check();
   await page.getByLabel('Blank spectrum').selectOption({ label: 'Example blank (synthetic)' });
+  await next('Absorption bands');
+  await page.getByRole('heading', { name: /^Band table \(\d+\)$/ }).waitFor();
   await next('Band gap');
   const gapText = await page.getByLabel('Band gap result').textContent();
   const gap = Number(/(\d\.\d+)\s*±/.exec(gapText)?.[1]);
   assert.ok(Math.abs(gap - 3.2) < 0.02, `band gap ${gap} should be near the 3.2 eV of the example`);
   step('UV-Vis: Tauc band gap of the example is near 3.2 eV');
+  await page.getByRole('checkbox', { name: /Cody plot/ }).check();
   await next('Results and export');
+  await page.getByRole('heading', { name: 'Tauc plots together' }).waitFor();
   const uvText = await page.getByLabel('Methods paragraph').inputValue();
   assert.match(uvText, /generated example data/);
   assert.match(uvText, /Tauc/);
@@ -516,8 +520,11 @@ try {
     page.waitForEvent('download'),
     page.getByRole('button', { name: 'Download results (CSV)' }).click(),
   ]);
-  assert.match(readFileSync(await uvCsv.path(), 'utf8'), /Eg \(eV\)/);
-  step('UV-Vis: results CSV and methods text');
+  const uvRows = readFileSync(await uvCsv.path(), 'utf8');
+  assert.match(uvRows, /Eg \(eV\)/);
+  assert.match(uvRows, /Cody Eg \(eV\)/);
+  assert.match(uvText, /Cody/);
+  step('UV-Vis: bands step, Cody cross-check, combined Tauc figure, results CSV and methods text');
 
   // UV-Vis concentration and kinetics: made-up dye with k = 0.02 1/min and 0.18 L/(mg cm).
   await page.getByText('Concentration and kinetics').first().click();

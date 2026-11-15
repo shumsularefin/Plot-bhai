@@ -1162,3 +1162,67 @@ program's own conversion; it catches indexing, interpolation and integration err
 - CO₂ region: the real width of the CO₂ doublet in a lab spectrum was not measured; 2280–2400 cm⁻¹ is a default to adjust.
 - Broad ranking: only four rows of data/ftir/groups.json say "broad", so the rule is tested on those.
 - Wider group table (19d item 4): no rows added; it waits for the owner's approval of a source.
+
+## 19e: UV-Vis peak table, path length, cross-checks and optical constants
+
+New methods (src/core/uvvis/peaks.ts, crossChecks.ts, optics.ts):
+
+- Band table: local maxima of the cleaned absorbance (F(R) for diffuse reflectance) with the
+  prominence picker of the FTIR tool on the wavelength axis, each position refined by the parabola
+  through the highest point and its two neighbours, E = hc/λ. Shoulders are second-derivative
+  minima offered as suggestions. λmax in the results table keeps its old meaning (highest point).
+- Path length: α = ln(10)·A/l with l a film thickness (nm) or a cuvette path (cm).
+- Cody plot: (α/E)^(1/2) against E, a straight line, Eg where it meets zero (A. R. Zanatta,
+  Sci. Rep. 9 (2019) 11225, citing G. D. Cody et al.).
+- Sigmoid (Boltzmann) fit: α(E) = α_max + (α_min − α_max)/(1 + exp((E − E0)/δE)) (Zanatta Eq. 8),
+  Eg = E0 − n·δE with n = 0.3 (direct), 4.3 (indirect), 3.6 (amorphous) (Eq. 9), σ(Eg) from the
+  full covariance.
+- Reflection-corrected α of a film: α = (1/d)·ln[(1 − R)²/(2T) + √((1 − R)⁴/(4T²) + R²)] (Zanatta
+  Eq. 6; also Kasikov and Aarik, Bulg. J. Phys. 51 (2024) 311, Eq. 27), no substrate.
+- k = αλ/(4π). n from Eg by Moss (n⁴Eg = 95 eV), Ravindra (n = 4.084 − 0.62 Eg) and Hervé–Vandamme
+  (n² = 1 + (13.6/(Eg + 3.47))²), as written by S. K. Tripathy, Opt. Mater. 46 (2015) 240, Eqs. 1–3,
+  shown as rough estimates with the stated ranges.
+
+### Checks
+
+Data: tests/fixtures/validation/uvvis-completion-reference.json, written by
+scripts/validation/spectra/uvvis_completion.py (numpy 2.5.4, scipy 1.18.1), a step in the
+Validation workflow. Tests: tests/uvvis-completion.test.tsx and
+tests/validation-uvvis-completion.test.ts.
+
+| Check                                                                          | Reference                                | Tolerance         |
+| ------------------------------------------------------------------------------ | ---------------------------------------- | ----------------- |
+| Cody Eg of S = B·E·(E − Eg)², Eg = 1.7 eV                                      | synthetic, known answer                  | 10⁻¹⁰ eV          |
+| Cody Eg with S × 123                                                           | invariance                               | 10⁻¹⁰ eV          |
+| Cody Eg, slope and σ(Eg) on a noisy edge                                       | scipy curve_fit, delta method            | 10⁻⁹ eV; 10⁻⁶ rel |
+| Sigmoid E0, δE and Eg = E0 − n·δE (three types) on a noise-free curve          | synthetic, known answer                  | 10⁻⁶ eV           |
+| Sigmoid with the range limits swapped and S × 0.01                             | invariance                               | 10⁻⁶ eV           |
+| Sigmoid S_min, S_max, E0, δE, Eg and their s.u. on a noisy curve (three types) | scipy curve_fit (unweighted, covariance) | 10⁻⁶ eV; 10⁻³ rel |
+| Default sigmoid range centred near E0                                          | synthetic                                | 0.03 eV           |
+| Reflection-corrected α: round trip through the slab transmittance              | round trip                               | 10⁻¹⁰ rel         |
+| R = 0 gives Beer–Lambert; large αd gives Zanatta Eq. 5                         | limits of the equation                   | 10⁻⁶; 10⁻⁸ rel    |
+| α from T and R in five cases                                                   | scipy brentq on the slab model           | 10⁻⁹ rel          |
+| k = 0.1 at 500 nm from α = 25132.74 cm⁻¹; three more cases                     | hand value; numpy                        | 10⁻¹²             |
+| Ravindra(1 eV) = 3.464, HV(3.33 eV) = √5, Moss(95/16 eV) = 2; six Eg values    | hand values; numpy                       | 10⁻¹²             |
+| Band positions, heights and prominences of two Gaussian bands with noise       | scipy.signal.find_peaks, numpy.polyfit   | 10⁻⁹ nm; 10⁻¹²    |
+| Band removed and added by hand, shoulder accepted                              | synthetic                                | exact             |
+| 1 cm cuvette: α = ln(10)·A and the same Eg as without a path                   | invariance                               | 10⁻¹⁰; 10⁻⁶ eV    |
+| Reflection correction through the analysis, with its message                   | the core function                        | 10⁻⁶              |
+| Version 4 session: step moved past Bands, Eg unchanged                         | round trip                               | identical         |
+
+The SciPy script is a second implementation of the same equations; it checks the fitting, the
+covariance and the root finding, not the equations themselves.
+
+### Open
+
+- The original papers of Cody (1981), Moss (1950), Ravindra et al. (1979) and Hervé–Vandamme (1994)
+  were not opened; the equations are taken from Zanatta (2019) and Tripathy (2015).
+- Hervé–Vandamme B: Tripathy prints B = 3.47 eV; other secondary sources give 3.4 eV. 3.47 is used
+  and flagged for verification.
+- The default sigmoid range (±0.25 eV around the midpoint of the rise near the Tauc gap) is my
+  reading of Zanatta's "~500 meV energy range centered in between the min-max α values".
+- Zanatta gives no worked table of a fit to compare with, so no published example was run.
+- Optical conductivity (σ = αnc/4π) was not built: it needs n at each wavelength together with α,
+  and no SI form of the equation from a source opened in the session was found.
+- The reflection correction models a free-standing slab; the substrate is not included, which
+  Kasikov and Aarik find matters for films thinner than about 1 µm.

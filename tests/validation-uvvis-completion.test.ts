@@ -3,11 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { HC_EV_NM } from '../src/core/uvvis/conversions';
 import { codyGap, sigmoidGap, type SigmoidType } from '../src/core/uvvis/crossChecks';
-import {
-  alphaWithReflection,
-  extinctionCoefficient,
-  indexFromGap,
-} from '../src/core/uvvis/optics';
+import { alphaWithReflection, extinctionCoefficient, indexFromGap } from '../src/core/uvvis/optics';
 import { uvvisPeaks, DEFAULT_UVVIS_PEAKS } from '../src/core/uvvis/peaks';
 
 /*

@@ -1,5 +1,47 @@
 # Progress
 
+## Stage 19e: UV-Vis peak table, path length, figures and gap cross-checks (done)
+
+Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md, 19e.
+
+- **Absorption bands step (new step 3).** Band table of each spectrum in nm and eV, with A or F(R),
+  prominence and relative value; a prominence slider and search range; add and remove by hand
+  (click or typed); second-derivative shoulders offered as suggestions to accept. Labels on the plot
+  and in the combined figure; CSV. A band fit on the energy axis (Gaussian, Lorentzian or
+  pseudo-Voigt, in the peaks worker) starts from the band table. λmax keeps its old definition.
+- **Path length.** Film (thickness in nm) or solution (path in cm), with the equation for each; α in
+  cm⁻¹. For a solution a message says that α is that of the whole liquid and that Eg is unaffected.
+- **Reflection correction.** A film can name its measured reflectance spectrum; α then uses
+  Zanatta's Eq. 6. A warning is shown when it is missing, not a reflectance or does not overlap.
+- **Several transitions per sample.** "Report in Results" ticks in the comparison table; each
+  transition is a row in Results, the CSV, the record and the methods text.
+- **Cross-checks (estimates).** Cody plot and the sigmoid fit of Zanatta (2019), each with its own
+  plot and draggable range, shown next to the Tauc value.
+- **Optical constants.** k = αλ/4π (table, plot, CSV) when α is absolute; n from Eg by Moss,
+  Ravindra and Hervé–Vandamme, with the source and the stated range, labelled as rough estimates.
+- **Results figures.** All spectra together (offset, stack, legend, band labels) and the Tauc plots
+  together (fit lines and Eg dots, chosen transition and spectra), both with the shared export panel.
+- **State.** UV-Vis state version 5; version 1 to 4 sessions get values that change no number, and
+  the saved step moves past the new step (test in tests/uvvis-completion.test.tsx).
+
+Decisions: the FTIR peak picker reused on the wavelength axis, so both tools define prominence the
+same way; snapping of hand bands within 5 nm (UV-Vis bands are tens of nm wide); Cody and sigmoid
+are cross-checks, not replacements for the Tauc value (Zanatta 2019 proposes the sigmoid as an
+alternative, and the Tauc plot stays the usual reported value); cross-checks only on the primary
+transition row; the Hervé–Vandamme B of Tripathy (3.47 eV); figures of spectra stay in nm (owner's
+choice), Tauc figures in eV.
+
+Known issues: the example data have no absorption bands, so the Bands step shows "no bands" with
+the example; optical conductivity not built; other open items in docs/validation.md, 19e.
+
+Verification: lint, type check and Prettier clean; the UV-Vis tests pass (18 files, 209 tests,
+including 17 new unit tests and 20 new SciPy comparisons); production build and bundle size within
+budget; e2e passed, including "UV-Vis: bands step, Cody cross-check, combined Tauc figure, results
+CSV and methods text".
+
+Next: sub-stage 19f (Particles: session file, report, statistics). 19d item 4 waits for the PDFs of
+the group-table sources.
+
 ## Stage 19d: FTIR processing, reflectance data and a wider group table (done, item 4 blocked)
 
 Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md, 19d.
