@@ -1354,11 +1354,12 @@ the critical value.
   synthetic image of 19b is still the only ImageJ comparison. Closed by the owner on 2026-11-15: no raw files are available to test with.
 - ISO 9276-2 (moment means and weighting) was not opened; the moment-mean equations come from the
   Malvern Panalytical article named above.
-- No polydispersity index is given: the PDI in common use is the cumulants quantity of dynamic light
-  scattering, and no source opened in the session defines a PDI for sizes measured on
-  images. CV and the span are reported instead.
 - Surface- and volume-weighted values assume spheres of the equal-area diameter; for elongated or
   porous particles they are rough estimates.
+
+Closed by the owner (November 2026, stage 22 part D2): no polydispersity index is built. The PDI of
+dynamic light scattering is a different quantity and is not reported for sizes measured on images;
+the help beside the CV says so, and the CV and the span describe the width.
 
 ## 19g: binary FTIR and UV-Vis instrument files (2026-11-15)
 
@@ -1678,3 +1679,16 @@ Open:
 - The UV-Vis analysis of a 50,000-point spectrum takes about a minute on the main thread (the
   region search of earlier stages). It should move to a Web Worker or be made faster.
 - No real spectrum of a scattering sample with a known gap was available to test the power law on.
+
+### Part D: optical conductivity; polydispersity index
+
+| Item                    | Check                                                                | Source                    | Result                            |
+| ----------------------- | -------------------------------------------------------------------- | ------------------------- | --------------------------------- |
+| D1 optical conductivity | not built: the textbook page with the SI definition was not supplied | none                      | skipped; the 19e Open entry stays |
+| D2 polydispersity index | not built; one help sentence beside the CV                           | owner decision, Nov. 2026 | 19f Open entry closed             |
+
+### Part A: original papers
+
+Not done: the papers of Cody et al. 1981, Moss 1950, Ravindra and Srivastava 1979 and Hervé and
+Vandamme 1994 were not supplied. The code, the on-screen text and the methods text are unchanged
+(Hervé–Vandamme B stays 3.47 eV, as printed by Tripathy 2015), and the 19e Open entries stay.
