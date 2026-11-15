@@ -6,6 +6,7 @@ import {
   INDEX_RELATIONS,
   indexFromGap,
   inIndexRange,
+  opticalConductivity,
   type IndexRelation,
 } from '../../core/uvvis/optics';
 import { HelpTip } from '../../ui/HelpTip';
@@ -100,10 +101,11 @@ export function CrossChecks(props: ExtraProps) {
           <p>
             The Cody plot draws (α/hν)^(1/2) against hν in place of the Tauc (αhν)^(1/2). It assumes
             that the dipole matrix element of the transition, not the momentum matrix element, is
-            independent of energy (G. D. Cody, as discussed by A. R. Zanatta, Sci. Rep. 9 (2019)
-            11225). It is used mainly for amorphous semiconductors and usually curves less than the
-            Tauc plot. Eg is where its straight part meets zero. An estimate to compare with the
-            Tauc value, not a replacement.
+            independent of energy (G. D. Cody, Semiconductors and Semimetals 21B (1984), chapter 2,
+            eq. 23 and Fig. 16, where ε₂^(1/2) is plotted; ε₂ is proportional to nα/hν, and n is
+            taken as constant here). It is used mainly for amorphous semiconductors and usually
+            curves less than the Tauc plot. Eg is where its straight part meets zero. An estimate to
+            compare with the Tauc value, not a replacement.
           </p>
         </HelpTip>
         <label class="check">
@@ -361,12 +363,7 @@ export function extinctionRows(
 }
 
 /** k(λ) and n estimated from Eg, with their equations, assumptions and ranges. */
-export function OpticalConstants({
-  analysis,
-  data,
-  update,
-  name,
-}: Omit<ExtraProps, 'choice' | 'change'>) {
+export function OpticalConstants({ analysis, choice, data, update, change, name }: ExtraProps) {
   const rows = useMemo(() => extinctionRows(analysis), [analysis]);
   const sources = useMemo(
     () => [
@@ -468,8 +465,139 @@ export function OpticalConstants({
           </p>
         </HelpTip>
       </h4>
+      {rows.length > 0 && (
+        <Conductivity
+          rows={rows}
+          n={choice.assumedIndex ?? null}
+          onChange={(v) => change({ assumedIndex: v !== null && v > 0 ? v : null })}
+          data={data}
+          update={update}
+          name={name}
+        />
+      )}
       {eg !== undefined ? <IndexTable eg={eg} /> : <p class="field-hint">Needs a Tauc band gap.</p>}
     </section>
+  );
+}
+
+/** Optical conductivity σ(λ) = ε₀cnα from α and a constant n typed by the user. */
+function conductivityRows(
+  rows: readonly { nm: number; alpha: number }[],
+  n: number,
+): { nm: number; alpha: number; sigma: number }[] {
+  return rows.map((r) => ({ nm: r.nm, alpha: r.alpha, sigma: opticalConductivity(r.alpha, n) }));
+}
+
+function Conductivity({
+  rows,
+  n,
+  onChange,
+  data,
+  update,
+  name,
+}: {
+  rows: readonly { nm: number; alpha: number }[];
+  n: number | null;
+  onChange: (value: number | null) => void;
+  data: UvvisData;
+  update: StepContext<UvvisData>['update'];
+  name: string;
+}) {
+  const sigma = useMemo(() => (n === null ? [] : conductivityRows(rows, n)), [rows, n]);
+  const sources = useMemo(
+    () => [
+      {
+        id: 'sigma',
+        name: 'Optical conductivity σ',
+        x: Float64Array.from(sigma, (r) => r.nm),
+        y: Float64Array.from(sigma, (r) => r.sigma),
+        unit: ' S/m',
+      },
+    ],
+    [sigma],
+  );
+  return (
+    <>
+      <h4 class="export-title">
+        Optical conductivity σ (estimate){' '}
+        <HelpTip term="optical conductivity">
+          <p>
+            The real part of the optical conductivity, σ = ε₀cnα in S/m, with ε₀ the vacuum
+            permittivity, c the speed of light, n the refractive index and α in m⁻¹ (M. Fox, Optical
+            Properties of Solids, eqs. 7.15 and 7.18). It needs n at each wavelength. Here n is one
+            number you type, assumed constant over the spectrum, so σ is only as good as that
+            assumption. The rough n(E<sub>g</sub>) estimates below are not used for it.
+          </p>
+        </HelpTip>
+      </h4>
+      <NumberInput
+        label="Refractive index n (assumed constant, typed by you)"
+        value={n}
+        onChange={onChange}
+      />
+      {n === null ? (
+        <p class="field-hint">
+          Type a refractive index you know for this film (measured, for example by ellipsometry) to
+          calculate σ.
+        </p>
+      ) : (
+        <>
+          <p class="field-hint">
+            σ = ε₀cnα, an estimate that assumes n = {n} at every wavelength and inherits everything
+            that went into α.
+          </p>
+          <TableBox
+            label="Optical conductivity"
+            compact
+            onExport={() =>
+              downloadCsv(
+                `${name}-optical-conductivity`,
+                `Optical conductivity sigma = eps0*c*n*alpha of ${name} (estimate); n = ${n} assumed constant, typed by the user; eps0 = 8.8541878188e-12 F/m (CODATA 2022); alpha converted from cm-1 to m-1.`,
+                sigma,
+                [
+                  { header: 'Wavelength (nm)', value: (r) => r.nm },
+                  { header: 'alpha (cm-1)', value: (r) => r.alpha },
+                  { header: 'n (assumed)', value: () => n },
+                  { header: 'sigma (S/m)', value: (r) => r.sigma },
+                ],
+              )
+            }
+          >
+            <thead>
+              <tr>
+                <th scope="col">Range (nm)</th>
+                <th scope="col">n (assumed)</th>
+                <th scope="col">Largest σ (S/m)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  {(sigma[0] as { nm: number }).nm.toFixed(1)} to{' '}
+                  {(sigma[sigma.length - 1] as { nm: number }).nm.toFixed(1)}
+                </td>
+                <td>{n}</td>
+                <td>{Math.max(...sigma.map((r) => r.sigma)).toPrecision(3)}</td>
+              </tr>
+            </tbody>
+          </TableBox>
+          <PlotPanel
+            sources={sources}
+            settings={data.plot}
+            onSettingsChange={(plot) => update({ plot: { ...data.plot, ...plot } })}
+            labels={() => ({
+              x: 'Wavelength (nm)',
+              y: `Optical conductivity σ (S m⁻¹), n = ${n} assumed`,
+              yValues: true,
+            })}
+            xName="λ"
+            xUnit=" nm"
+            exportName={`${name}-sigma`}
+            showOverlayOptions={false}
+          />
+        </>
+      )}
+    </>
   );
 }
 

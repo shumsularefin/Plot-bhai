@@ -12,6 +12,8 @@ import {
   absorptionSignal,
   derivativeMaximum,
   fitBandGap,
+  fitPowerBaseline,
+  powerSubtractedGap,
   taucValues,
   urbachFit,
 } from '../src/core/uvvis/tauc';
@@ -226,5 +228,63 @@ describe('UV-Vis round trips and invariances', () => {
       tauc.thicknessNm,
     );
     fromT.signal.forEach((v, i) => expect(rel(v, signal.signal[i] as number)).toBeLessThan(1e-10));
+  });
+});
+
+describe('power-law (scattering) baseline against scipy.optimize.curve_fit (stage 22)', () => {
+  interface PowerReference {
+    a: number;
+    c: number;
+    m: number;
+    covariance: number[][];
+    egEv: number;
+    egSigma: number;
+  }
+  const ref = (
+    JSON.parse(
+      readFileSync(
+        new URL('../tests/fixtures/validation/uvvis-reference.json', import.meta.url),
+        'utf8',
+      ),
+    ) as {
+      scattering: {
+        wavelengthNm: number[];
+        absorbance: number[];
+        subGapToEv: number;
+        edgeWindow: [number, number];
+        free: PowerReference;
+        fixedFour: PowerReference;
+      };
+    }
+  ).scattering;
+  const signal = absorptionSignal(
+    Float64Array.from(ref.wavelengthNm),
+    Float64Array.from(ref.absorbance),
+    { kind: 'absorbance', scale: 'percent' },
+    null,
+  );
+  const rel = (a: number, b: number) => Math.abs(a - b) / Math.abs(b);
+
+  it.each([
+    ['m fitted', null, 'free'],
+    ['m fixed at 4', 4, 'fixedFour'],
+  ] as const)('%s: a, c, m, covariance and Eg', (_, fixed, key) => {
+    const expected = ref[key];
+    const fit = fitPowerBaseline(signal.energyEv, signal.signal, 0, ref.subGapToEv, fixed);
+    if (!fit) throw new Error('no fit');
+    expect(rel(fit.a, expected.a)).toBeLessThan(1e-6);
+    expect(rel(fit.c, expected.c)).toBeLessThan(1e-6);
+    expect(rel(fit.m, expected.m)).toBeLessThan(1e-6);
+    for (let i = 0; i < 3; i++)
+      for (let j = 0; j < 3; j++) {
+        const e = expected.covariance[i]?.[j] as number;
+        const g = fit.covariance[i]?.[j] as number;
+        if (e === 0) expect(g).toBe(0);
+        else expect(rel(g, e)).toBeLessThan(1e-5);
+      }
+    const gap = powerSubtractedGap(signal.energyEv, signal.signal, 2, fit, ref.edgeWindow);
+    if (!gap) throw new Error('no gap');
+    expect(rel(gap.egEv, expected.egEv)).toBeLessThan(1e-6);
+    expect(rel(gap.egSigma, expected.egSigma)).toBeLessThan(1e-3);
   });
 });

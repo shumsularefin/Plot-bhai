@@ -8,6 +8,7 @@ import { analyseSpectrum, cleanAll, type BandGapAnalysis } from './analysis';
 import { bandLabels, bandRows } from './bands';
 import { bandGapFor, type UvvisData } from './data';
 import { taucLabels } from './labels';
+import { powerBaselineText } from './tables';
 import { UvvisPlot } from './UvvisPlot';
 import { quantityFor, shownCurves } from './view';
 
@@ -144,7 +145,7 @@ function TaucFigure({ data, update }: Pick<StepContext<UvvisData>, 'data' | 'upd
       const atGap = a.method === 'baseline-crossing' ? line(fit.egEv) : 0;
       list.push({
         id: `${it.id}-fit`,
-        name: `${it.name} fit, Eg = ${fit.egEv.toFixed(3)} eV`,
+        name: `${it.name} fit, Eg = ${fit.egEv.toFixed(3)} eV${a.powerBaseline ? ` (${powerBaselineText(a)})` : ''}`,
         x: Float64Array.from([fit.egEv, end]),
         y: Float64Array.from([atGap, atGap + line(end) - line(fit.egEv)]),
         unit: '',

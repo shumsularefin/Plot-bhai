@@ -728,7 +728,8 @@ the gap, (1.2·√(E − 3.2) + cE)² for the direct case, so no straight line t
 crossing method gives 3.18, 3.15 and 3.14 eV for c = 0.05, 0.2 and 0.5 with an edge region of
 3.21–3.40 eV; it always lies between the axis intercept and the true gap. Subtraction is exact when
 the background adds to the absorption quantity and is linear in E across the edge; a background of
-another shape (for example scattering rising as λ⁻⁴ over a wide range) is only approximated.
+another shape (for example scattering rising as λ⁻⁴ over a wide range) is only approximated by
+the straight line; stage 22 part C adds a power-law baseline for it.
 
 Source confirmed on 2026-11-14 (paper supplied by the owner and read in full): Makuła, Pacia and
 Macyk, J. Phys. Chem. Lett. 9 (2018) 6814–6817, doi:10.1021/acs.jpclett.8b02892.
@@ -753,19 +754,19 @@ Synthetic model of their system:
 - A dye band, 0.4·exp(−½((E − 2.9)/0.4)²), that absorbs across the edge.
 - The dye "measured alone" is 1/0.6 as strong, so c = 0.6.
 
-| Check                                                                   | Kind                      | Expected                              | Tolerance      |
-| ----------------------------------------------------------------------- | ------------------------- | ------------------------------------- | -------------- |
-| Direct and indirect, absorbance: c fitted, Eg                           | synthetic, known answer   | c = 0.6, 3.200 eV                     | 10⁻⁹; 0.002 eV |
-| Direct and indirect, Kubelka–Munk (dye and a 0.002 floor added to F(R)) | synthetic, known answer   | c = 0.6, 3.200 eV                     | 10⁻⁶; 0.002 eV |
-| The other three methods on the same spectrum                            | measured, recorded        | 2.368, 2.424, 2.396 eV (the dye edge) | error > 0.5 eV |
-| c typed as 0.6; c typed as 0.3 over the same edge region                | synthetic                 | 3.200 eV; below 3.19 eV               | 0.002; 0.01 eV |
-| c of S = 2M; c and σ(c) of S = (1, 3, 2, 5), M = (1, 1, 1, 2) by hand   | independent hand result   | 2, σ 0; 16/7, σ² = (119/49)/3/7       | 10⁻¹²          |
-| σ(Eg) from σ(c): 400 data sets, noise σ 0.003 only where c is fitted    | Monte Carlo (independent) | mean reported σ / scatter of Eg = 1   | ±15 %          |
-| Component 37 times stronger                                             | invariance                | c/37, same Eg                         | 10⁻⁹           |
-| Component on another grid (2 nm steps from 251 nm), interpolated        | invariance                | 3.200 eV                              | 0.002 eV       |
-| Interpolation of a straight line; points outside the data               | synthetic, known answer   | exact; NaN                            | exact          |
-| Component measured another way (reflectance against absorbance)         | guard                     | refused with a message                | exact          |
-| Version 3 session                                                       | round trip                | same settings, component null         | exact          |
+| Check                                                                   | Kind                      | Expected                                                            | Tolerance      |
+| ----------------------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------- | -------------- |
+| Direct and indirect, absorbance: c fitted, Eg                           | synthetic, known answer   | c = 0.6, 3.200 eV                                                   | 10⁻⁹; 0.002 eV |
+| Direct and indirect, Kubelka–Munk (dye and a 0.002 floor added to F(R)) | synthetic, known answer   | c = 0.6, 3.200 eV                                                   | 10⁻⁶; 0.002 eV |
+| The other three methods on the same spectrum                            | measured, recorded        | 2.368, 2.423, 2.397 eV (the dye edge; 2.424, 2.396 before stage 22) | error > 0.5 eV |
+| c typed as 0.6; c typed as 0.3 over the same edge region                | synthetic                 | 3.200 eV; below 3.19 eV                                             | 0.002; 0.01 eV |
+| c of S = 2M; c and σ(c) of S = (1, 3, 2, 5), M = (1, 1, 1, 2) by hand   | independent hand result   | 2, σ 0; 16/7, σ² = (119/49)/3/7                                     | 10⁻¹²          |
+| σ(Eg) from σ(c): 400 data sets, noise σ 0.003 only where c is fitted    | Monte Carlo (independent) | mean reported σ / scatter of Eg = 1                                 | ±15 %          |
+| Component 37 times stronger                                             | invariance                | c/37, same Eg                                                       | 10⁻⁹           |
+| Component on another grid (2 nm steps from 251 nm), interpolated        | invariance                | 3.200 eV                                                            | 0.002 eV       |
+| Interpolation of a straight line; points outside the data               | synthetic, known answer   | exact; NaN                                                          | exact          |
+| Component measured another way (reflectance against absorbance)         | guard                     | refused with a message                                              | exact          |
+| Version 3 session                                                       | round trip                | same settings, component null                                       | exact          |
 
 Robustness check added with it. With this curved background, the automatic baseline window of
 the straight-line subtraction used to move up into the edge, giving 4.049 eV. A move is now
@@ -1063,8 +1064,6 @@ itself, not from other values:
   1363–1367). pybaselines' description and the earlier "checked against the paper" note do not
   agree.
 - Real UV-Vis file with a published or software band gap: still wanted. The TiO₂ files above have none. Wanted: a film or powder spectrum (.csv or .txt export) and the Eg that the instrument or Origin gives for a stated Tauc region.
-- Suggested Tauc region, indirect plot of the 300 °C TiO₂ file: after the sub-gap baseline is subtracted the suggestion lies on the foot of the edge (2.78 to 2.88 eV, Eg 2.69 eV, against 2.87 eV over 3.10 to 3.30 eV). The user can move it; the test is marked todo.
-- Suggested Tauc region, general case: a long straight stretch above the edge whose line meets the axis below the edge still wins (a piecewise-linear test curve gave 0.40 eV for a 3.20 eV edge). The guard above covers the saturated diffuse reflectance seen in real files, not this. A general rule would change the 19a synthetic results, so it needs a published automatic method to follow; none has been checked yet.
 - Real FTIR file wanted: a JCAMP-DX (.jdx) export and the peak table the instrument software (OMNIC, OPUS or Spectrum) prints for it, with its threshold.
 - Real particle image wanted: an SEM or TEM image with a scale bar and the ImageJ Analyze Particles table (Area, Feret, MinFeret, Perim.) for a stated threshold.
 
@@ -1242,14 +1241,16 @@ New methods (src/core/uvvis/peaks.ts, crossChecks.ts, optics.ts):
   minima offered as suggestions. λmax in the results table keeps its old meaning (highest point).
 - Path length: α = ln(10)·A/l with l a film thickness (nm) or a cuvette path (cm).
 - Cody plot: (α/E)^(1/2) against E, a straight line, Eg where it meets zero (A. R. Zanatta,
-  Sci. Rep. 9 (2019) 11225, citing G. D. Cody et al.).
+  Sci. Rep. 9 (2019) 11225; checked in stage 22 against G. D. Cody, Semiconductors and Semimetals
+  21B (1984), ch. 2, eq. 23).
 - Sigmoid (Boltzmann) fit: α(E) = α_max + (α_min − α_max)/(1 + exp((E − E0)/δE)) (Zanatta Eq. 8),
   Eg = E0 − n·δE with n = 0.3 (direct), 4.3 (indirect), 3.6 (amorphous) (Eq. 9), σ(Eg) from the
   full covariance.
 - Reflection-corrected α of a film: α = (1/d)·ln[(1 − R)²/(2T) + √((1 − R)⁴/(4T²) + R²)] (Zanatta
   Eq. 6; also Kasikov and Aarik, Bulg. J. Phys. 51 (2024) 311, Eq. 27), no substrate.
 - k = αλ/(4π). n from Eg by Moss (n⁴Eg = 95 eV), Ravindra (n = 4.084 − 0.62 Eg) and Hervé–Vandamme
-  (n² = 1 + (13.6/(Eg + 3.47))²), as written by S. K. Tripathy, Opt. Mater. 46 (2015) 240, Eqs. 1–3,
+  (n² = 1 + (13.6/(Eg + 3.4))²), first taken from S. K. Tripathy, Opt. Mater. 46 (2015) 240, Eqs.
+  1–3 (with B = 3.47 eV), checked against the original papers in stage 22 (B = 3.4 eV since then),
   shown as rough estimates with the stated ranges.
 
 ### Checks
@@ -1272,7 +1273,7 @@ tests/validation-uvvis-completion.test.ts.
 | R = 0 gives Beer–Lambert; large αd gives Zanatta Eq. 5                         | limits of the equation                   | 10⁻⁶; 10⁻⁸ rel    |
 | α from T and R in five cases                                                   | scipy brentq on the slab model           | 10⁻⁹ rel          |
 | k = 0.1 at 500 nm from α = 25132.74 cm⁻¹; three more cases                     | hand value; numpy                        | 10⁻¹²             |
-| Ravindra(1 eV) = 3.464, HV(3.33 eV) = √5, Moss(95/16 eV) = 2; six Eg values    | hand values; numpy                       | 10⁻¹²             |
+| Ravindra(1 eV) = 3.464, HV(3.4 eV) = √5, Moss(95/16 eV) = 2; six Eg values     | hand values; numpy                       | 10⁻¹²             |
 | Band positions, heights and prominences of two Gaussian bands with noise       | scipy.signal.find_peaks, numpy.polyfit   | 10⁻⁹ nm; 10⁻¹²    |
 | Band removed and added by hand, shoulder accepted                              | synthetic                                | exact             |
 | 1 cm cuvette: α = ln(10)·A and the same Eg as without a path                   | invariance                               | 10⁻¹⁰; 10⁻⁶ eV    |
@@ -1284,15 +1285,15 @@ covariance and the root finding, not the equations themselves.
 
 ### Open
 
-- The original papers of Cody (1981), Moss (1950), Ravindra et al. (1979) and Hervé–Vandamme (1994)
-  were not opened; the equations are taken from Zanatta (2019) and Tripathy (2015).
-- Hervé–Vandamme B: Tripathy prints B = 3.47 eV; other secondary sources give 3.4 eV. 3.47 is used
-  and flagged for verification.
+- Cody, Moss, Ravindra and Hervé–Vandamme were checked against the original sources in stage 22
+  (section 22, part A); Hervé–Vandamme B is now 3.4 eV as the original prints, and the Cody plot is
+  cited to Cody's 1984 chapter.
 - The default sigmoid range (±0.25 eV around the midpoint of the rise near the Tauc gap) is my
   reading of Zanatta's "~500 meV energy range centered in between the min-max α values".
 - Zanatta gives no worked table of a fit to compare with, so no published example was run.
-- Optical conductivity (σ = αnc/4π) was not built: it needs n at each wavelength together with α,
-  and no SI form of the equation from a source opened in the session was found.
+- Optical conductivity is built in the main tool from a constant n typed by the user (section 22,
+  part D1). In the film tool it is still open: the Swanepoel result gives n but no α at each
+  wavelength, and Swanepoel's α equations were not opened in the session.
 - The reflection correction models a free-standing slab; the substrate is not included, which
   Kasikov and Aarik find matters for films thinner than about 1 µm.
 
@@ -1355,11 +1356,12 @@ the critical value.
   synthetic image of 19b is still the only ImageJ comparison. Closed by the owner on 2026-11-15: no raw files are available to test with.
 - ISO 9276-2 (moment means and weighting) was not opened; the moment-mean equations come from the
   Malvern Panalytical article named above.
-- No polydispersity index is given: the PDI in common use is the cumulants quantity of dynamic light
-  scattering, and no source opened in the session defines a PDI for sizes measured on
-  images. CV and the span are reported instead.
 - Surface- and volume-weighted values assume spheres of the equal-area diameter; for elongated or
   porous particles they are rough estimates.
+
+Closed by the owner (November 2026, stage 22 part D2): no polydispersity index is built. The PDI of
+dynamic light scattering is a different quantity and is not reported for sizes measured on images;
+the help beside the CV says so, and the CV and the span describe the width.
 
 ## 19g: binary FTIR and UV-Vis instrument files (2026-11-15)
 
@@ -1553,3 +1555,198 @@ Open:
 - The differences found in GSAS-II are drafted as reports in docs/gsas2-issue-drafts.md, for the
   owner to send; they are not resolved.
 - The counting-noise limits (0.5 and 2) stay a rule of the site, as the owner left them.
+
+## 22: UV-Vis open items (2026-11-15)
+
+Four parts were set by the owner. Parts A (original papers) and D1 (optical conductivity) waited
+for sources, which the owner supplied on 2026-11-15; both were then done.
+
+### Part B: suggested Tauc region anchored on the steepest part of the edge
+
+Code: src/core/uvvis/tauc.ts (`suggestRegion`, `steepestRise`, `slopesOverSpan`). Tests:
+tests/uvvis-tauc-region.test.ts, tests/validation-uvvis-real.test.ts.
+
+The rule, all own choice (no paper stating it was opened in the session):
+
+- The slope of the Tauc curve at each point is the straight-line slope over ±0.05 eV (at least
+  four points each side). Its lower bound is slope − 3σ.
+- The main rise starts at the first point whose bound reaches half the highest bound, and ends
+  where the bound falls below half the best bound so far. The steepest point is the highest bound
+  on it, the lower energy on a tie.
+- Only fit windows that contain the steepest point and have at least half its slope compete. Among
+  them the earlier choice is kept: widest with R² ≥ 0.995, then straightest.
+- A window is rejected when its line meets y = 0 at or below zero energy, inside or above the
+  window, or above the steepest point.
+- When the slope is still rising within 0.1 eV of the end of the data, the curve has no steepest
+  part to anchor on, and the earlier rule is used. Without this, a background that curves up
+  (scattering, part C) under a straight-line correction pulled the anchor to the top of the data:
+  3.69 eV for a 3.20 eV edge with 0.2·(E/3.2)² added, against 3.21 eV with the earlier rule. The
+  real files and the noisy copies below never reach this fallback.
+- The 2026-11-14 guard for saturated diffuse reflectance is kept only for the earlier rule. Saved
+  sessions keep their region and their rule (session version 6 marks them "widest"). The new rule
+  needs no guard.
+
+| Check                                                             | Kind                    | Tolerance         | Result                                      |
+| ----------------------------------------------------------------- | ----------------------- | ----------------- | ------------------------------------------- |
+| Local slope of a straight line; of x² on a 0.007 eV grid          | synthetic, known answer | 10⁻⁹              | pass                                        |
+| Piecewise curve (slope 10 from 3.2 to 3.4 eV, then 2/3), old rule | regression              | recorded          | 0.40 eV                                     |
+| The same, new rule                                                | synthetic, known answer | 3.20 ± 0.02 eV    | 3.200 eV, pass                              |
+| 300 °C TiO₂ file, indirect, baseline subtracted (case 1)          | real data, hand region  | 2.87 ± 0.05 eV    | 2.901 eV (was 2.691), region > 2.9 eV, pass |
+| 200 noisy copies of the 19a edge (direct), level 0: scatter of Eg | Monte Carlo             | not above before  | 0.00162 eV (before 0.00173), pass           |
+| The same, level 0.2                                               | Monte Carlo             | not above before  | 0.00169 eV (before 0.00179), pass           |
+| Mean Eg of those copies                                           | synthetic, known answer | 3.200 ± 0.002 eV  | pass                                        |
+| Signal × 123, synthetic and both real files                       | invariance              | same region, 10⁻⁹ | pass                                        |
+| Earlier rule on the real files reproduces the earlier gaps        | regression              | 10⁻¹²             | pass                                        |
+| Flat curve                                                        | guard                   | no suggestion     | pass                                        |
+
+Not a pass criterion, recorded for the owner: on an indirect plot of the same edge (not the 19a
+check) the scatter rose, 0.0053 to 0.0072 eV at level 0 and 0.0067 to 0.0083 eV at level 0.2.
+
+Values that changed (old rule → new rule). Every one stays inside its recorded tolerance:
+
+| Result                                                           | Old                | New               | Tolerance                                                    |
+| ---------------------------------------------------------------- | ------------------ | ----------------- | ------------------------------------------------------------ |
+| 200 °C TiO₂, direct, automatic                                   | 3.2211 (axis)      | 3.2423 (subtract) | 3.231 ± 0.04 eV                                              |
+| 300 °C TiO₂, direct, automatic                                   | 3.2485 (subtract)  | 3.2253 (axis)     | 3.217 ± 0.04 eV                                              |
+| 200 °C TiO₂, indirect, automatic                                 | 2.8853             | 2.8941            | 2.884 ± 0.02 eV                                              |
+| 300 °C TiO₂, indirect, subtract                                  | 2.6907             | 2.9008            | 2.87 ± 0.05 eV                                               |
+| 19a dye case, subtract-baseline (Tauc of the dye edge)           | 2.42266            | 2.42325           | error > 0.5 eV (recorded)                                    |
+| 19a dye case, crossing                                           | 2.39583            | 2.39661           | error > 0.5 eV (recorded)                                    |
+| Noisy zero level, indirect, automatic                            | 3.19656            | 3.20551           | not recorded (the identity check runs with the earlier rule) |
+| Kubelka–Munk + 0.01, direct, automatic (axis)                    | 3.19727            | 3.19805           | method by the 0.01 eV rule                                   |
+| Kubelka–Munk + 0.05, direct, axis intercept                      | 3.18649            | 3.19030           | method by the 0.01 eV rule                                   |
+| Kubelka–Munk + 0.05, direct, automatic                           | 3.20000 (subtract) | 3.19030 (axis)    | method by the 0.01 eV rule                                   |
+| 19a dye case, indirect, subtract-baseline (Tauc of the dye edge) | 1.63601            | 1.83597           | error > 0.5 eV (recorded)                                    |
+| 19a dye case, indirect, crossing; axis                           | 1.70651; 1.59896   | 1.92899; 1.80155  | error > 0.5 eV (recorded)                                    |
+
+The subtraction rows of 19a (3.200 ± 0.002 eV) are unchanged. On the Kubelka–Munk spectrum with
+0.05 added, subtraction still gives 3.200 eV, but the axis intercept now lies 0.0097 eV from it, under
+the 0.01 eV at which the automatic choice switches to subtraction, so the automatic result is the
+axis intercept, 0.010 eV low. The zero-level identity check of 19a is run with the earlier rule.
+
+### Part C: power-law (scattering) baseline
+
+Code: src/core/uvvis/tauc.ts (`fitPowerBaseline`, `powerSubtractedGap`, `suggestPower`, options
+`baselineShape` and `baselineExponent`). Tests: tests/uvvis-tauc-baseline.test.ts,
+tests/validation-uvvis.test.ts. Independent: scripts/validation/spectra/uvvis.py, block
+`scattering` (SciPy `curve_fit`, bounded, tolerances 10⁻¹⁵).
+
+Source opened in the session: Kubetschek, Backes and Goldie, "Algorithm for reproducible analysis
+of semiconducting 2D nanomaterials based on UV/VIS spectroscopy", Adv. Mater. Interfaces (2024)
+2400311 (arXiv:2402.08517), eq 8, p. 8: the scattering part of the extinction goes as λ⁻ᵐ, with
+m = 4 for Rayleigh scattering and m = 2 in the van de Hulst approximation of Mie scattering. They
+state it holds only in the non-resonant region away from the transitions, and that the
+extrapolation can fail. Own choice: the constant a, the bounds 0 ≤ m ≤ 4, fitting to all the data
+below the edge (the owner's instruction), the 0.05 eV σ limit of the warning and the factor 0.5 of
+the suggestion.
+
+The model: S_b = a + c·Eᵐ (λ⁻ᵐ ∝ Eᵐ), least squares over the sub-gap window, which for this shape is
+everything measured below the edge (ending 0.1 eV below the gap). m is fitted (grid of 0.1, golden
+section, then Gauss–Newton) or typed. σ(Eg) adds J·C·Jᵀ to the σ of the edge fit, with C the
+covariance s²(JᵀJ)⁻¹ of (a, c, m) and J by central differences, as for the straight line.
+
+Today's errors with the straight line (edge at 3.200 eV, c = 0.2/3.2ᵐ, noise σ 0.003 seeded):
+
+| Background | Straight line, no noise | Straight line, noise | Power law, no noise | Power law, noise         | Tolerance               |
+| ---------- | ----------------------- | -------------------- | ------------------- | ------------------------ | ----------------------- |
+| c·E¹       | 3.2000 ± 0              | 3.1973 ± 0.0025      | 3.2000, m 1.000     | 3.1980 ± 0.0025, m 0.912 | 0.02 eV; within σ; pass |
+| c·E²       | 3.2095 ± 0.0013         | 3.2078 ± 0.0025      | 3.2000, m 2.000     | 3.1985 ± 0.0025, m 1.929 | 0.02 eV; within σ; pass |
+| c·E⁴       | 3.2651 ± 0.0036         | 3.2360 ± 0.0053      | 3.2000, m 4.000     | 3.2003 ± 0.0028, m 3.937 | 0.02 eV; within σ; pass |
+
+| Check                                                                    | Kind                      | Tolerance                      | Result                        |
+| ------------------------------------------------------------------------ | ------------------------- | ------------------------------ | ----------------------------- |
+| The six cases above                                                      | synthetic, known answer   | 0.02 eV without noise; σ with  | pass                          |
+| a, c, m without noise                                                    | synthetic, known answer   | m 10⁻⁴; a, c 10⁻⁶              | pass                          |
+| m typed as 4 on the c·E⁴ case                                            | synthetic, known answer   | 0.02 eV                        | pass                          |
+| σ(Eg): 400 data sets, noise only below 3.15 eV, c·E² background          | Monte Carlo (independent) | mean σ / scatter = 1 ± 15 %    | 6.70·10⁻⁴ / 6.35·10⁻⁴ = 1.055 |
+| a, c, m, covariance and Eg against SciPy curve_fit (free m; m = 4 fixed) | independent (SciPy)       | 10⁻⁶ relative; covariance 10⁻⁵ | pass (run 42, 2026-11-15)     |
+| Signal × 123; points in reverse order                                    | invariance                | same Eg and m, 10⁻⁹            | pass                          |
+| "Straight line" chosen explicitly against the default                    | regression                | identical, every 19a number    | pass                          |
+| Suggestion: offered (not applied) for c·E² and c·E⁴; none for a level    | guard                     | as stated                      | pass                          |
+| Warning: m on a bound; user window shorter than 0.5 eV                   | guard                     | shown                          | pass                          |
+
+The suggestion is offered when the power law's RMS residual below the edge is at most half that of
+the straight line over the same points and its corrected curve passes `flatBelowGap`; it is shown as
+a message with a button and never switches on its own. The warning beside the result appears when
+σ(Eg) > 0.05 eV, m sits on a bound or the window is shorter than 0.5 eV.
+
+Performance, measured on 50,001 points: the power fit takes about 0.1 s (m fitted) or 0.014 s (m
+typed), so it stays on the main thread. The whole analysis of such a file takes about 45 to 70 s,
+almost all of it in the region suggestion of earlier stages (`windows`); that is not new in this
+stage and is listed as open.
+
+Open:
+
+- The UV-Vis analysis of a 50,000-point spectrum takes about a minute on the main thread (the
+  region search of earlier stages). It should move to a Web Worker or be made faster.
+- No real spectrum of a scattering sample with a known gap was available to test the power law on.
+
+### Own choices, decided by the owner's rule (2026-11-15)
+
+The owner asked for the choices labelled "own choice" in parts B and C to be decided from standard
+practice and the literature, without waiting for the owner. They are kept as built:
+
+| Choice                                                             | Kept as | Basis                                                                                                                                                                                     |
+| ------------------------------------------------------------------ | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fit the power law to all the data below the edge                   | kept    | Kubetschek et al. 2024, p. 8: the exponents were "fitted in the linear region below 850 nm", that is over the whole non-resonant range below the transitions                              |
+| Bounds 0 ≤ m ≤ 4                                                   | kept    | the same page gives m = 4 (Rayleigh) and m = 2 (van de Hulst, Mie) as the two limits; 0 is included so that a flat level is also covered. No higher value is physical for this scattering |
+| Constant a in a + c·Eᵐ                                             | kept    | own choice: the straight-line baseline of 19a has an offset as well, and a sample or cuvette offset does not follow λ⁻ᵐ                                                                   |
+| Steepest-point anchor (±0.05 eV slope, 3σ bound, half-height rise) | kept    | own choice: the Tauc line is fitted on the linear part of the rising edge; no paper stating the steepest-point rule was opened, so the 19b and 22 checks are its only support             |
+| Fallback to the earlier rule when the slope still rises at the end | kept    | own choice, needed by the curved-background case above                                                                                                                                    |
+| Warning at σ(Eg) > 0.05 eV                                         | kept    | own choice: larger than the ±0.03 eV margin Makuła et al. 2018 state for their gaps, so the warning appears only when the background, not the edge fit, dominates the uncertainty         |
+| Suggestion when the power-law residual is at most half the line's  | kept    | own choice: it fires on the c·E² and c·E⁴ cases and not on a straight level or a c·E background (above)                                                                                   |
+
+### Part D: optical conductivity; polydispersity index
+
+| Item                    | Check                                      | Source                    | Result                |
+| ----------------------- | ------------------------------------------ | ------------------------- | --------------------- |
+| D1 optical conductivity | built in the main tool; see below          | M. Fox, chapter 7         | pass                  |
+| D2 polydispersity index | not built; one help sentence beside the CV | owner decision, Nov. 2026 | 19f Open entry closed |
+
+### Part D1: optical conductivity
+
+Source opened in the session (supplied by the owner): M. Fox, Optical Properties of Solids (Oxford
+University Press), chapter 7, "Free electrons": eq. 7.15 (p. 183), ε_r(ω) = 1 + iσ(ω)/(ε₀ω), so the
+real part of σ is ε₀ωε₂; p. 194, κ = ε₂/(2n); eq. 7.18 (p. 184, via eq. 1.19), α = 2ωκ/c. Together,
+σ = ε₀cnα in S/m with α in m⁻¹. ε₀ = 8.8541878188 × 10⁻¹² F/m, 2022 CODATA
+(https://physics.nist.gov/cgi-bin/cuu/Value?ep0, read 2026-11-15).
+
+Code: src/core/uvvis/optics.ts (`opticalConductivity`), src/core/uvvis/conversions.ts (ε₀),
+src/modules/uvvis/OpticalExtras.tsx (table, CSV, figure), src/core/uvvis/methods.ts. Tests:
+tests/uvvis-optical-conductivity.test.ts, tests/validation-uvvis-completion.test.ts. Independent:
+scripts/validation/spectra/uvvis_completion.py, block `conductivity` (numpy arrays, ε₀ and c from
+scipy.constants).
+
+Offered only where α is absolute (a film with its thickness) and only from a constant n typed by the
+user, shown as an assumption on the table, the figure label, the CSV and the methods text. Never
+from the n(Eg) estimates. Labelled an estimate. Saved sessions without n are unchanged (the setting
+is absent), so no migration was needed.
+
+| Check                                                                   | Kind                | Tolerance      | Result                           |
+| ----------------------------------------------------------------------- | ------------------- | -------------- | -------------------------------- |
+| α = 10⁴ cm⁻¹, n = 2: σ = 5308.8374595834212 S/m (by hand, 20 digits)    | hand-worked value   | 10⁻¹² relative | pass                             |
+| σ against numpy on 6 α × 4 n, and ε₀ equal to SciPy's CODATA value      | independent (numpy) | 10⁻¹² relative | pass (numpy 2.5.4, scipy 1.18.1) |
+| σ = ε₀ω·2nk with k = αλ/(4π) (Fox eq. 7.15 with κ = ε₂/2n), three cases | consistency with k  | 10⁻¹² relative | pass                             |
+| σ ∝ n and σ ∝ α; NaN for n ≤ 0 or non-finite α                          | invariance, guard   | 10⁻¹⁵ relative | pass                             |
+| Methods sentence only when n was typed and α is absolute                | regression          | as stated      | pass                             |
+
+Open: the film tool (Swanepoel) gives n but no α, so σ is not offered there.
+
+### Part A: original papers
+
+All four papers were supplied by the owner and read on 2026-11-15.
+
+| Paper                                                                                       | Compared                                                                                                                                          | Result                                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T. S. Moss, Proc. Phys. Soc. B 63 (1950) 167, p. 168                                        | n⁴/λ ≈ 77 (λ in µm), "for the more highly refractive compounds", worse as n falls; against the code's n⁴Eg = 95 eV                                | same relation in energy form: 77 × 1.23984 eV·µm = 95.5 eV. K = 95 eV kept, the form of Hervé–Vandamme eq. 1 (0.12 % in n)                                                                                |
+| N. M. Ravindra, S. Auluck, V. K. Srivastava, Phys. Status Solidi B 93 (1979) K155, eq. 5    | n = 4.084 − 0.62 E_G, "valid for a wide range of semiconductors independent of structure"                                                         | matches the code, constants and units                                                                                                                                                                     |
+| P. J. L. Hervé, L. K. J. Vandamme, Infrared Phys. Technol. 35 (1994) 609, eq. 10            | n² = 1 + [A/(Eg + B)]², A = 13.6 eV, B = 3.4 eV; not for IV–VI compounds                                                                          | B changed from 3.47 eV (Tripathy 2015) to 3.4 eV in optics.ts, methods.ts, the CSV note, the tests and the SciPy script                                                                                   |
+| G. D. Cody et al., Phys. Rev. Lett. 47 (1981) 1480, eq. 2                                   | (α(E,T)·E)^(1/2) = C[E − E₀(T)], the Tauc form, E₀ ≈ 1.70 eV for a-Si:H                                                                           | not the source of the (α/E)^(1/2) plot; it contradicted the attribution of 19e, so the later chapter below was supplied by the owner                                                                      |
+| G. D. Cody, Semiconductors and Semimetals 21B (1984), ch. 2, p. 26, eq. 23 (p. 29), Fig. 16 | energy-independent dipole (coordinate) matrix element; ε₂(E) = Q²M³(0.2/ν)(E − E_G)²; (ε₂)^(1/2) plotted against E, E_G where the line meets zero | with ε₂ = nαc/ω (Fox, p. 194 and eq. 7.18), (ε₂)^(1/2) ∝ (nα/E)^(1/2): the code's (α/E)^(1/2) for constant n. Formula unchanged; citation corrected in crossChecks.ts, the help text and the methods text |
+
+Stated ranges: none of the originals gives the numeric warning ranges (0.17–3.68 eV for Moss, a
+failure below 1.4 eV for Hervé–Vandamme); those stay from Tripathy 2015 and are labelled so.
+
+Values that changed: every Hervé–Vandamme refractive index, by +0.5 % to +1.3 % for Eg from 6 to
+1.4 eV: Eg = 1.4 eV, n = 2.9663 → 3.0046; 3.2 eV, 2.2710 → 2.2904; 3.4 eV, 2.2179 → 2.2361; 6 eV,
+1.7500 → 1.7588. No band gap and no other result changed.

@@ -14,7 +14,10 @@ synthetic data stored in the fixture so the test uses the same input:
               (Zanatta Eq. 6 is its closed form), found by scipy.optimize.brentq
   k           k = alpha lambda / (4 pi), lambda in cm
   index       n from Eg: Moss n^4 Eg = 95 eV, Ravindra n = 4.084 - 0.62 Eg, Herve-Vandamme
-              n^2 = 1 + (13.6 / (Eg + 3.47))^2, as written by S. K. Tripathy, Opt. Mater. 46 (2015) 240
+              n^2 = 1 + (13.6 / (Eg + 3.4))^2 (Herve and Vandamme 1994, eq. 10)
+  sigma       optical conductivity sigma = eps0 c n alpha (M. Fox, Optical Properties of Solids,
+              eqs. 7.15 and 7.18 with kappa = eps2 / 2n), numpy arrays, alpha in cm^-1 times 100,
+              eps0 and c from scipy.constants (CODATA)
   peaks       scipy.signal.find_peaks with a prominence threshold on two Gaussian bands, each
               position refined by the vertex of the parabola through the highest point and its two
               neighbours (numpy.polyfit, degree 2)
@@ -115,9 +118,19 @@ for eg in [1.0, 1.5, 2.0, 3.2, 3.37, 5.0]:
             "egEv": eg,
             "moss": (95 / eg) ** 0.25,
             "ravindra": 4.084 - 0.62 * eg,
-            "herveVandamme": math.sqrt(1 + (13.6 / (eg + 3.47)) ** 2),
+            "herveVandamme": math.sqrt(1 + (13.6 / (eg + 3.4)) ** 2),
         }
     )
+
+# Optical conductivity on numpy arrays: a range of alpha (cm^-1) and of n.
+alpha_sigma = np.array([1.0, 37.5, 1.0e3, 2.2e4, 1.5e5, 7.3e5])
+n_sigma = np.array([1.38, 2.0, 2.45, 3.1])
+conductivity = {
+    "epsilon0": constants.epsilon_0,
+    "alpha": alpha_sigma.tolist(),
+    "n": n_sigma.tolist(),
+    "sigma": (constants.epsilon_0 * constants.c * np.outer(n_sigma, alpha_sigma * 100)).tolist(),
+}
 
 # Peaks: two Gaussian bands on a sloping background with a little noise, 1 nm grid.
 wl = np.arange(300.0, 800.0 + 1e-9, 1.0)
@@ -154,6 +167,7 @@ fixture = {
     "slab": slab,
     "extinction": k_cases,
     "index": index,
+    "conductivity": conductivity,
     "peaks": peaks,
 }
 (out / "uvvis-completion-reference.json").write_text(json.dumps(fixture, indent=1) + "\n")

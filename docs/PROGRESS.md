@@ -1,5 +1,45 @@
 # Progress
 
+## Stage 22: UV-Vis open items (done)
+
+Branch `stage-22-uvvis-open-items`. No new packages. Checks in docs/validation.md, section 22.
+
+- **Part B, suggested Tauc region:** anchored on the steepest part of the edge (maximum of the
+  local slope on the main rise); only windows that contain it compete, and lines meeting y = 0 at
+  or below zero energy, inside or above the window, or above the steepest point are rejected. The
+  300 °C TiO₂ indirect case went from 2.691 to 2.901 eV (hand region 2.87 eV); the piecewise
+  curve from 0.40 to 3.200 eV. When the slope still rises at the end of the data (a curved
+  background under a straight-line correction) the earlier rule is used. Own choice, no paper
+  opened states it. Saved sessions keep their region and rule (session version 6).
+- **Part C, power-law baseline:** S_b = a + c·Eᵐ under "Baseline shape" in the subtraction method
+  (Kubetschek et al. 2024, eq 8: λ⁻ᵐ, m = 4 Rayleigh, about 2 Mie). m is fitted in [0, 4] or
+  typed; σ(Eg) carries the full (a, c, m) covariance; a warning appears when the background is
+  poorly determined; it is suggested (never switched on) when its residual is at most half the
+  straight line's. Shown in the results table, figure legend, CSV, record and methods text. A
+  c·E⁴ background now gives 3.200 eV instead of 3.265 eV; SciPy curve_fit is the independent check.
+- **Own choices:** the owner asked (2026-11-15) for them to be decided from standard practice; all
+  are kept as built, with the basis of each in docs/validation.md, section 22. Fitting the power law
+  to the whole range below the edge and the m = 2 to 4 range follow Kubetschek et al. 2024, p. 8.
+- **Part D2:** no PDI for image sizes (owner decision); the help beside the CV says why.
+- **Part A, original papers** (supplied by the owner, 2026-11-15, not committed): Ravindra eq. 5
+  matches. Moss 1950 prints n⁴/λ ≈ 77 (λ in µm), the same relation as n⁴Eg ≈ 95.5 eV; K = 95 eV
+  is kept, as written by Hervé and Vandamme. Hervé–Vandamme eq. 10 prints B = 3.4 eV, not the
+  3.47 eV of Tripathy 2015, so B changed: every Hervé–Vandamme n rises by 0.5 to 1.3 % (2.2179 →
+  2.2361 at 3.4 eV). Doc comments and the methods text cite each original with page and equation.
+  Cody et al. 1981 (PRL 47, 1480) uses the Tauc form (αE)^½ in eq. 2, not the (α/E)^½ plot; the
+  owner then supplied Cody's 1984 chapter (Semiconductors and Semimetals 21B, ch. 2), whose eq. 23
+  and Fig. 16 plot ε₂^½ ∝ (nα/E)^½. The formula was right; the citation now names the chapter.
+- **Part D1, optical conductivity:** σ = ε₀cnα (S/m) from M. Fox, Optical Properties of Solids,
+  eqs. 7.15 and 7.18 with κ = ε₂/2n; ε₀ from CODATA 2022. In the main tool only, from a constant n
+  typed by the user, shown as an assumption in the table, figure label, CSV and methods text. The
+  film tool has n but no α, so it is not offered there (open). New optional setting
+  `assumedIndex`; absent in older sessions, so no migration.
+- **About page:** a new "What each tool does" section lists the features of stages 16 to 22, and
+  the UV-Vis equations add the Cody, sigmoid, k, σ and Hervé–Vandamme relations.
+- **Known issues:** a 50,000-point UV-Vis spectrum takes about a minute to analyse on the main
+  thread, almost all in the region search of earlier stages; it should move to a worker.
+- **Next:** nothing scheduled; the owner decides.
+
 ## Stage 19d item 4 extension and closing the raw-file items (done)
 
 Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md,

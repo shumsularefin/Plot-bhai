@@ -1,5 +1,5 @@
 import { levenbergMarquardt } from '../math/levenbergMarquardt';
-import { fitBandGap, suggestRegion, type BandGapFit } from './tauc';
+import { fitBandGap, suggestRegion, type BandGapFit, type RegionRule } from './tauc';
 
 /*
  * Two cross-checks of the Tauc band gap, both from A. R. Zanatta, "Revisiting the optical bandgap
@@ -10,9 +10,15 @@ import { fitBandGap, suggestRegion, type BandGapFit } from './tauc';
  */
 
 /**
- * Cody plot: "the extrapolation of the linear least squares fit of (α/E)^1/2 to zero", which
- * assumes a constant dipole transition matrix element (Zanatta 2019, citing G. D. Cody et al.,
- * ref. 62 there), against the Tauc form (α·E)^1/2. Both are used for amorphous semiconductors:
+ * Cody plot: G. D. Cody, "The Optical Absorption Edge of a-Si:H", Semiconductors and Semimetals,
+ * Vol. 21, Part B (Academic Press, 1984), chapter 2, doi:10.1016/S0080-8784(08)62910-5 (supplied
+ * by the owner, read 2026-11-15): with an energy-independent dipole (coordinate) matrix element,
+ * p. 26, eq. 23 (p. 29) gives ε₂(E) = Q²M³(0.2/ν)(E − E_G)², and Fig. 16 plots (ε₂)^1/2 against E,
+ * E_G where the least-squares line meets zero. With ε₂ = nαc/ω (M. Fox, Optical Properties of
+ * Solids, κ = ε₂/2n and α = 2ωκ/c), (ε₂)^1/2 ∝ (nα/E)^1/2, which is (α/E)^1/2 for constant n: Zanatta
+ * 2019's "extrapolation of the linear least squares fit of (α/E)^1/2 to zero". The earlier paper
+ * of Cody et al., Phys. Rev. Lett. 47 (1981) 1480, eq. 2, still uses the Tauc form (α·E)^1/2, so it
+ * is not the source of this plot. Both are used for amorphous semiconductors:
  * M. E. Sánchez-Vergara et al., Molecules 17 (2012) 10000, doi:10.3390/molecules170910000 (CC BY,
  * read 2026-11-14) state that Cody "suggests, instead, that the dipole matrix element is actually
  * independent of the photon energy" and that Cody plots curve less than Tauc plots. Kasikov and
@@ -38,7 +44,7 @@ export interface CodyGap {
 
 /**
  * Cody gap: (S/E)^(1/2) = B·(E − Eg) is fitted by least squares over the region (the user's, or
- * the widest straight stretch, `suggestRegion`) and Eg read where the line meets zero, with the
+ * the suggestion of `suggestRegion` with the given rule) and Eg read where the line meets zero, with the
  * uncertainty of `fitBandGap`. No sub-gap correction is applied: like the Tauc axis intercept, it
  * assumes the curve falls to zero below the edge.
  */
@@ -46,9 +52,10 @@ export function codyGap(
   energyEv: Float64Array,
   signal: Float64Array,
   region: [number, number] | null,
+  rule: RegionRule = 'steepest',
 ): CodyGap {
   const cody = codyValues(energyEv, signal);
-  const used = region ?? suggestRegion(energyEv, cody);
+  const used = region ?? suggestRegion(energyEv, cody, rule);
   return {
     fit: used ? fitBandGap(energyEv, cody, used[0], used[1]) : null,
     region: used,

@@ -79,6 +79,24 @@ export interface BandGapChoice {
    */
   legacySuggestion?: true;
   /**
+   * Set on sessions saved before stage 22 (version 5 and earlier): edge regions are suggested by
+   * the earlier rule (widest straight stretch), so the saved band gap does not change. Cleared, like
+   * `legacySuggestion`, when the user picks a method or moves a region.
+   */
+  regionRule?: 'widest';
+  /**
+   * Set when the sub-gap baseline of 'subtract-baseline' is the power law a + c·E^m (scattering)
+   * instead of a straight line: exponent m typed by the user, or null to fit it in [0, 4]. Absent
+   * means a straight line, so sessions saved before stage 22 are unchanged.
+   */
+  powerBaseline?: { exponent: number | null };
+  /**
+   * Refractive index n typed by the user, assumed constant over the spectrum, for the optical
+   * conductivity σ = ε₀cnα (stage 22). Absent or null means σ is not calculated, so sessions saved
+   * before stage 22 are unchanged. Never filled from the empirical n(Eg) relations.
+   */
+  assumedIndex?: number | null;
+  /**
    * For the method 'subtract-component': the spectrum of the second component (a dye, modifier
    * or support measured alone) and its scale factor c, or null to fit c below the edge.
    */
@@ -173,7 +191,7 @@ export const initialUvvisData: UvvisData = {
 };
 
 /** Version of the saved shape. Bump it, and extend migrateUvvisData, when the shape changes. */
-export const UVVIS_STATE_VERSION = 5;
+export const UVVIS_STATE_VERSION = 6;
 
 /** Index of the Bands step, which versions 1 to 4 did not have. */
 const BANDS_STEP = 2;
@@ -197,15 +215,32 @@ type V4Choice = Omit<BandGapChoice, keyof typeof V5_GAP_FIELDS>;
  * reflection correction or combined figures. A version 2 spectrum keeps that method and the old
  * way of suggesting the edge region, so its band gap stays the same until the user changes it.
  * The new fields get values that change no saved number, and the step index moves past the new
- * Bands step.
+ * Bands step. Version 5 suggested the edge region by the widest straight stretch (stage 22 anchors
+ * it on the steepest point of the edge): every saved spectrum keeps the earlier rule.
  */
 export function migrateUvvisData(
   saved: unknown,
   version: number,
 ): WizardState<UvvisData> | undefined {
-  if (!Number.isInteger(version) || version < 1 || version > 4) return undefined;
+  if (!Number.isInteger(version) || version < 1 || version > 5) return undefined;
   const state = saved as WizardState<Partial<UvvisData> & Pick<UvvisData, 'spectra' | 'plot'>>;
   if (!state || typeof state !== 'object' || !state.data) return undefined;
+  const v5 = version === 5 ? (state as WizardState<UvvisData>) : migrateToV5(state, version);
+  const saved5 = { bandGap: v5.data.bandGap ?? {} };
+  const bandGap: Record<string, BandGapChoice> = {};
+  for (const spectrum of v5.data.spectra ?? []) {
+    bandGap[spectrum.id] = { ...bandGapFor(saved5, spectrum.id), ...V6_GAP_FIELDS };
+  }
+  return { ...v5, data: { ...initialUvvisData, ...v5.data, bandGap } };
+}
+
+/** The band gap fields added in version 6, with values that leave a saved result unchanged. */
+const V6_GAP_FIELDS = { regionRule: 'widest' } as const satisfies Partial<BandGapChoice>;
+
+function migrateToV5(
+  state: WizardState<Partial<UvvisData> & Pick<UvvisData, 'spectra' | 'plot'>>,
+  version: number,
+): WizardState<UvvisData> {
   const v4 = version === 4 ? state : migrateToV4(state, version);
   const bandGap: Record<string, BandGapChoice> = {};
   for (const [id, choice] of Object.entries(v4.data.bandGap ?? {})) {

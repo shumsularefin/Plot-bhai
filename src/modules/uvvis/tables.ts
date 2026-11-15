@@ -1,7 +1,7 @@
 import { SIGMOID_N } from '../../core/uvvis/crossChecks';
 import { indexFromGap } from '../../core/uvvis/optics';
 import { DISPLAY_LABELS } from '../../core/uvvis/process';
-import { GAP_METHODS, TRANSITIONS } from '../../core/uvvis/tauc';
+import { GAP_METHODS, TRANSITIONS, type TaucGap } from '../../core/uvvis/tauc';
 import type { CsvColumn } from '../../core/xrd/peaks/table';
 import { baselineUsed, type ResultRow } from './analysis';
 
@@ -36,6 +36,23 @@ export const RESULT_COLUMNS: readonly CsvColumn<ResultRow>[] = [
   {
     header: 'Baseline to (eV)',
     value: (r) => num(baselineUsed(r.analysis)?.[1]),
+  },
+  {
+    header: 'Baseline shape',
+    value: (r) =>
+      r.analysis.powerBaseline
+        ? 'power law a + c*E^m'
+        : r.analysis.method === 'subtract-baseline' && r.analysis.signalBaseline
+          ? 'straight line'
+          : '',
+  },
+  { header: 'Baseline exponent m', value: (r) => num(r.analysis.powerBaseline?.m) },
+  {
+    header: 'Baseline exponent m uncertainty',
+    value: (r) => {
+      const p = r.analysis.powerBaseline;
+      return !p ? '' : p.mFixed ? 'typed' : num(Math.sqrt(p.covariance[2]?.[2] ?? NaN));
+    },
   },
   { header: 'Second component', value: (r) => r.analysis.component?.name ?? '' },
   {
@@ -130,7 +147,7 @@ const SIGNAL_TEXT = {
 } as const;
 
 export const RESULTS_NOTE =
-  'UV-Vis results, one row per sample and reported transition. Eg is an estimate from the Tauc method, read as stated in the Eg read from column; its uncertainty is that of the straight-line fits only. Cody (Eg where (S/E)^(1/2) meets zero) and sigmoid (Zanatta, Sci. Rep. 9 (2019) 11225: Eg = E0 - n_type*dE) values are cross-check estimates, not replacements. Refractive indices n from Eg (Moss n^4*Eg = 95 eV; Ravindra n = 4.084 - 0.62*Eg; Herve-Vandamme n^2 = 1 + (13.6/(Eg + 3.47))^2, as given by Tripathy, Opt. Mater. 46 (2015) 240) are rough empirical estimates. lambda_max is the highest data point of the absorbance (F(R) for reflectance). Example data are synthetic.';
+  'UV-Vis results, one row per sample and reported transition. Eg is an estimate from the Tauc method, read as stated in the Eg read from column; its uncertainty is that of the straight-line fits only. Cody (Eg where (S/E)^(1/2) meets zero) and sigmoid (Zanatta, Sci. Rep. 9 (2019) 11225: Eg = E0 - n_type*dE) values are cross-check estimates, not replacements. Refractive indices n from Eg (Moss 1950, n^4*Eg = 95 eV; Ravindra et al. 1979, n = 4.084 - 0.62*Eg; Herve and Vandamme 1994, n^2 = 1 + (13.6/(Eg + 3.4))^2) are rough empirical estimates. lambda_max is the highest data point of the absorbance (F(R) for reflectance). Example data are synthetic.';
 
 /** Band gap with its uncertainty for display, in eV, for example "3.204 ± 0.005" or "3.200 ± < 0.001". */
 export function gapText(fit: { egEv: number; egSigma: number }): string {
@@ -140,4 +157,17 @@ export function gapText(fit: { egEv: number; egSigma: number }): string {
       ? '< 0.001'
       : fit.egSigma.toFixed(3);
   return `${fit.egEv.toFixed(3)} ± ${sigma}`;
+}
+
+/**
+ * The power-law baseline in words for the screen and the figure legend, for example
+ * "power-law baseline, m = 1.93 ± 0.05", or an empty string when a straight line or none is used.
+ */
+export function powerBaselineText(analysis: Pick<TaucGap, 'powerBaseline'>): string {
+  const p = analysis.powerBaseline;
+  if (!p) return '';
+  const sigma = Math.sqrt(p.covariance[2]?.[2] ?? NaN);
+  return p.mFixed
+    ? `power-law baseline, m = ${p.m} (set by you)`
+    : `power-law baseline, m = ${p.m.toFixed(2)}${Number.isFinite(sigma) ? ` ± ${sigma.toFixed(2)}` : ''}`;
 }

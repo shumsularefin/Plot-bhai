@@ -11,9 +11,15 @@
 /** Planck constant h, J s. */
 const PLANCK_J_S = 6.62607015e-34;
 /** Speed of light in vacuum c, m/s. */
-const LIGHT_M_PER_S = 299792458;
+export const LIGHT_M_PER_S = 299792458;
 /** Elementary charge e, C (also the joules per electronvolt). */
 const ELEMENTARY_CHARGE_C = 1.602176634e-19;
+/**
+ * Vacuum electric permittivity ε₀, F/m, 2022 CODATA recommended value (measured, relative
+ * standard uncertainty 1.6 × 10⁻¹⁰), https://physics.nist.gov/cgi-bin/cuu/Value?ep0 (read on
+ * 2026-11-15).
+ */
+export const VACUUM_PERMITTIVITY_F_PER_M = 8.8541878188e-12;
 
 /**
  * h·c in eV·nm: hc / e × 10⁹ nm/m. About 1239.84 eV·nm; the rounded value 1240 is common in

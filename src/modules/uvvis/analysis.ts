@@ -168,6 +168,11 @@ export function analyseBandGap(
     method: choice.method,
     baselineRegion: choice.baselineRegion,
     ...(choice.legacySuggestion && { legacySuggestion: true }),
+    ...(choice.regionRule && { regionRule: choice.regionRule }),
+    ...(choice.powerBaseline && {
+      baselineShape: 'power' as const,
+      baselineExponent: choice.powerBaseline.exponent,
+    }),
     component: componentSignal
       ? { signal: componentSignal, factor: choice.component?.factor ?? null }
       : null,
@@ -205,7 +210,12 @@ export function analyseBandGap(
           region ? region[1] + 0.3 : Infinity,
         );
   const cody = choice.cody.enabled
-    ? codyGap(signal.energyEv, signal.signal, choice.cody.region)
+    ? codyGap(
+        signal.energyEv,
+        signal.signal,
+        choice.cody.region,
+        choice.legacySuggestion || choice.regionRule ? 'widest' : 'steepest',
+      )
     : null;
   let sigmoid: SigmoidCheck | null = null;
   if (choice.sigmoid.enabled) {
@@ -396,6 +406,19 @@ export function fitMessages(analysis: BandGapAnalysis): FitMessage[] {
     messages.push({
       level: 'warning',
       text: `The Tauc curve does not fall to zero below the edge (there is background absorption, for example from scattering, a second phase, defects or an imperfect blank), so the line meets the axis below the true gap: ${analysis.axisEgEv === null ? 'no straight edge is found without correction' : eg(analysis.axisEgEv)}${analysis.subtractedEgEv === null ? '' : `, against ${eg(analysis.subtractedEgEv)} with the sub-gap baseline subtracted`}. Choose "${GAP_METHODS['subtract-baseline'].label}" (or the crossing with a baseline) under "How Eg is read".`,
+    });
+  }
+  if (analysis.baselineUncertain) {
+    messages.push({
+      level: 'warning',
+      text: 'The background shape is not well determined by the data below the edge, so this band gap is uncertain. A measured spectrum of the scattering material (subtract a measured component) is more reliable.',
+    });
+  }
+  if (analysis.powerSuggestion) {
+    const p = analysis.powerSuggestion;
+    messages.push({
+      level: 'info',
+      text: `The background below the edge curves: a power law a + c·E^m (m = ${p.m.toFixed(2)}, as for scattering) fits the whole range below the edge with ${((100 * p.rmsPower) / p.rmsLine).toFixed(0)} % of the residual of the straight line, and gives Eg = ${eg(p.egEv)}. You can choose it under "Baseline shape".`,
     });
   }
   if (

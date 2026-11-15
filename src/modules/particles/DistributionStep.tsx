@@ -565,11 +565,9 @@ export function DistributionStep({ data, update }: StepContext<ParticleData>) {
                       sample, not how wide the distribution is; the SD and the CV say that.
                     </p>
                     <p>
-                      No polydispersity index (PDI) is given. The PDI of particle sizing instruments
-                      comes from dynamic light scattering, where it is a quantity of the cumulants
-                      analysis, not a statistic of measured diameters; no source we could check
-                      defines a PDI for image sizes. Report the CV (SD/mean) instead and say that it
-                      is from images.
+                      The polydispersity index (PDI) of dynamic light scattering is a different
+                      quantity, so it is not reported for sizes measured on images; the CV (SD/mean)
+                      and the span describe the width of this distribution.
                     </p>
                   </HelpTip>
                 </h4>
