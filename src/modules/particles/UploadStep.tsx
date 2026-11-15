@@ -1,5 +1,6 @@
 import { useRef, useState } from 'preact/hooks';
 import { HelpTip } from '../../ui/HelpTip';
+import { SessionSection } from '../../ui/SessionSection';
 import type { StepContext } from '../../ui/wizard/types';
 import { initialParticleData, newId, type ImageInfo, type ParticleData } from './data';
 import { decodeImage } from './decode';
@@ -7,7 +8,21 @@ import { EXAMPLE_DESCRIPTION, makeExampleImage } from './example';
 import { ImageGate } from './ImageGate';
 import { ImageViewer } from './ImageViewer';
 import { removeImage, saveImage } from './imageStore';
-import { cacheImage, clearImageCache } from './useImage';
+import { PARTICLE_SESSION_HINT, particleSession } from './session';
+import { cacheImage, clearImageCache, useImage } from './useImage';
+
+/** SHA-256 of the file as hex, or null where the browser offers no Web Crypto (plain http). */
+async function sha256Hex(bytes: Uint8Array<ArrayBuffer>): Promise<string | null> {
+  try {
+    const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+    return Array.from(digest, (b) => b.toString(16).padStart(2, '0')).join('');
+  } catch {
+    return null;
+  }
+}
+
+const sizeText = (bytes: number) =>
+  bytes >= 1e6 ? `${(bytes / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1e3))} kB`;
 
 const FORMAT_NAMES = { png: 'PNG', jpeg: 'JPEG', tiff: 'TIFF' } as const;
 
@@ -16,19 +31,33 @@ export function UploadStep({ data, update }: StepContext<ParticleData>) {
   const [busy, setBusy] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const hasWork = data.measurements.length > 0 || data.scale !== null || data.crop !== null;
+  const imageState = useImage(data.image);
+  const hasWork =
+    data.measurements.length > 0 ||
+    data.scale !== null ||
+    data.crop !== null ||
+    data.detect.particles.length > 0;
+  // A session opened from a file, or an image the browser dropped: the numbers are here, the
+  // pixels are not.
+  const missing = data.image !== null && imageState.status === 'error';
 
   const load = async (name: string, blob: Blob, synthetic: boolean) => {
-    if (
-      hasWork &&
-      !window.confirm('Replace the image? This clears the scale, the crop and your measurements.')
-    ) {
-      return;
+    setProblem(null);
+    setNote(null);
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const sha256 = await sha256Hex(bytes);
+    const old = data.image;
+    const same = missing && old?.sha256 != null && old.sha256 === sha256;
+    if (!same && hasWork) {
+      const question =
+        missing && old
+          ? `This is not the image the session was made with (${old.name}): ${old.sha256 && sha256 ? 'the file contents differ' : 'it cannot be checked, the session has no fingerprint of the file'}. The scale, crop and particles of the session would not fit it. Load it anyway and clear them? Saved images in the pool are kept.`
+          : 'Replace the image? This clears the scale, the crop and your measurements.';
+      if (!window.confirm(question)) return;
     }
     setBusy('Opening the image…');
-    setProblem(null);
-    const bytes = new Uint8Array(await blob.arrayBuffer());
     const result = await decodeImage(name, bytes, blob);
     if (!result.ok) {
       setProblem(result.error);
@@ -45,6 +74,14 @@ export function UploadStep({ data, update }: StepContext<ParticleData>) {
       );
     }
     cacheImage(id, image);
+    if (same && old) {
+      update({ image: { ...old, id, notes: image.notes } });
+      setNote(
+        `This is the image the session was made with (same file fingerprint), so its scale, crop and particles are shown on it again.`,
+      );
+      setBusy(null);
+      return;
+    }
     const info: ImageInfo = {
       id,
       name,
@@ -53,6 +90,8 @@ export function UploadStep({ data, update }: StepContext<ParticleData>) {
       format: image.format,
       synthetic,
       notes: image.notes,
+      bytes: bytes.length,
+      sha256,
     };
     update({ ...initialParticleData, pool: data.pool, image: info });
     setBusy(null);
@@ -105,6 +144,16 @@ export function UploadStep({ data, update }: StepContext<ParticleData>) {
               Remove<span class="visually-hidden"> the image</span>
             </button>
           </header>
+          {missing && (
+            <p class="message is-warning">
+              <strong>Image needed:</strong> this session holds the numbers measured on {info.name}
+              {info.bytes !== null &&
+                ` (${sizeText(info.bytes)}, ${info.width} × ${info.height} pixels)`}
+              , but not the image itself. The distribution, the tables and the pooled images work
+              without it. To see or change the scale, the crop or the particles, load the same file
+              below; a different file is recognised and you are asked first.
+            </p>
+          )}
           <ImageGate data={data}>
             {(image) => (
               <>
@@ -210,7 +259,7 @@ export function UploadStep({ data, update }: StepContext<ParticleData>) {
       )}
 
       <p class="upload-status" role="status">
-        {busy}
+        {busy ?? note}
       </p>
       {problem && (
         <div class="import-problems" role="alert">
@@ -219,6 +268,16 @@ export function UploadStep({ data, update }: StepContext<ParticleData>) {
             Dismiss
           </button>
         </div>
+      )}
+      {!info && (
+        <SessionSection
+          codec={particleSession}
+          data={data}
+          update={update}
+          step={0}
+          stem="particles"
+          hint={PARTICLE_SESSION_HINT}
+        />
       )}
     </div>
   );

@@ -437,3 +437,21 @@ describe('placeLabels', () => {
     placed.forEach((p) => expect(p.baseline).toBeGreaterThanOrEqual(0));
   });
 });
+
+describe('peak labels at the edges of the plot', () => {
+  it('moves a label that would stick out sideways inside the frame, with a leader', () => {
+    const [left, middle, right] = placeLabels(
+      [
+        { x: 5, y: 100, width: 40 },
+        { x: 150, y: 100, width: 40 },
+        { x: 298, y: 100, width: 40 },
+      ],
+      12,
+      0,
+      300,
+    );
+    expect(left).toMatchObject({ x: 20, leader: true });
+    expect(middle).toMatchObject({ x: 150, leader: false });
+    expect(right).toMatchObject({ x: 280, leader: true });
+  });
+});

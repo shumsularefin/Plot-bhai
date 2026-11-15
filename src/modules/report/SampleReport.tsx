@@ -10,7 +10,11 @@ import {
 } from '../../ui/report/sampleReport';
 import { ftirStore } from '../ftir/ftirStore';
 import { ftirRecord } from '../ftir/record';
+import { particleStore } from '../particles/particleStore';
 import { calcinationOf, useThermalView } from '../thermal/analysis';
+import { useDscCurve, useDscView } from '../thermal/dsc/analysis';
+import { useCombined } from '../thermal/dsc/combinedAnalysis';
+import { dscStore } from '../thermal/dsc/dscStore';
 import { tgaStore } from '../thermal/tgaStore';
 import { uvvisRecord } from '../uvvis/record';
 import { uvvisStore } from '../uvvis/uvvisStore';
@@ -20,6 +24,8 @@ import { useCandidatePhases } from '../xrd/useReferencePhases';
 import { xrdStore } from '../xrd/xrdStore';
 import '../xrd/xrd.css';
 import '../../ui/about.css';
+import { dscPart } from './dscPart';
+import { particlesPart } from './particlesPart';
 import { thermalPart } from './thermalPart';
 
 const SAMPLE_KEY = 'sample-report-name';
@@ -43,11 +49,13 @@ const TOOLS = [
   { tool: 'FTIR', href: '#/ftir' },
   { tool: 'UV-Vis', href: '#/uvvis' },
   { tool: 'Thermal analysis (TGA)', href: '#/thermal' },
+  { tool: 'Thermal analysis (DSC)', href: '#/thermal' },
+  { tool: 'Particle size (SEM/TEM)', href: '#/particles' },
 ] as const;
 
 /**
- * The sample report page: collects what is open in the XRD, FTIR, UV-Vis and thermal tools in
- * this browser into one summary with one methods section, for a sample measured by several
+ * The sample report page: collects what is open in the XRD, FTIR, UV-Vis, thermal (TGA and DSC)
+ * and particle size tools in this browser into one summary with one methods section, for a sample measured by several
  * techniques.
  */
 export default function SampleReport() {
@@ -55,7 +63,9 @@ export default function SampleReport() {
   const ftir = useStore(ftirStore);
   const uvvis = useStore(uvvisStore);
   const thermal = useStore(tgaStore);
-  const loading = [xrd, ftir, uvvis, thermal].some((s) => s.status === 'loading');
+  const dsc = useStore(dscStore);
+  const particles = useStore(particleStore);
+  const loading = [xrd, ftir, uvvis, thermal, dsc, particles].some((s) => s.status === 'loading');
 
   const xrdData = xrd.state.data;
   const ftirData = ftir.state.data;
@@ -116,7 +126,21 @@ export default function SampleReport() {
     const steps = view.analysis.steps;
     return thermalPart(thermalData, view, steps, calcinationOf(thermalData, curve, steps));
   }, [thermalData, curve, view]);
-  const parts = useMemo(() => (tga ? [...records, tga] : records), [records, tga]);
+  const dscData = dsc.state.data;
+  const { cleaned: dscCleaned } = useDscCurve(dscData);
+  const dscView = useDscView(dscData, dscCleaned);
+  const dscCurve = dscCleaned?.ok ? dscCleaned.curve : null;
+  const dscCombined = useCombined(dscData, dscCurve, dscView?.events ?? []);
+  const dscReport = useMemo(
+    () => (dscCurve && dscView ? dscPart(dscData, dscCurve, dscView, dscCombined) : null),
+    [dscData, dscCurve, dscView, dscCombined],
+  );
+  const particleData = particles.state.data;
+  const particleReport = useMemo(() => particlesPart(particleData), [particleData]);
+  const parts = useMemo(
+    () => [...records, tga, dscReport, particleReport].filter((p): p is ReportPart => p !== null),
+    [records, tga, dscReport, particleReport],
+  );
 
   const [sample, setSample] = useState(() => {
     try {
@@ -156,8 +180,9 @@ export default function SampleReport() {
       <h1>Sample report</h1>
       <p>
         One sample is usually measured by several techniques. This page collects what is open in the
-        XRD, FTIR, UV-Vis and thermal tools in this browser into one summary with a single methods
-        section. It reads your saved analyses on this device; nothing is uploaded.
+        XRD, FTIR, UV-Vis, thermal (TGA and DSC) and particle size tools in this browser into one
+        summary with a single methods section. It reads your saved analyses on this device; nothing
+        is uploaded.
       </p>
       <p class="message">
         <strong>Check that every analysis belongs to the same sample.</strong> The page cannot know

@@ -25,9 +25,9 @@ docs/reference-crosscheck.md.
 Open:
 
 - Bruker .raw versions 1 to 3 are refused, not read: no real file of those versions is held
-  (geddes has only authored RAW3 examples). Real files are needed to add them.
+  (geddes has only authored RAW3 examples). Real files are needed to add them. Closed by the owner on 2026-11-15: no raw files are available to test with.
 - No real .rasx file with an attenuator factor other than 1, nor a multi-scan .rasx or .brml, is
-  held; those cases warn and load the first scan, untested on real data.
+  held; those cases warn and load the first scan, untested on real data. Closed by the owner on 2026-11-15: no raw files are available to test with.
 - The .raw counting time is not read: GSAS-II labels the field as milliseconds, but no second
   source confirms the unit.
 
@@ -689,13 +689,753 @@ Open:
 - VESTA is a desktop program with no scripting interface, so structures cannot be opened in it
   here. Distances and powder lines are checked against pymatgen instead (section 16g).
 - Bruker .raw versions 1 to 3, multi-scan .rasx and .brml files, and a .rasx with an attenuator
-  factor: no real, openly licensed file is held, and a reader is written only against real files.
+  factor: no real, openly licensed file is held, and a reader is written only against real files. Closed by the owner on 2026-11-15: no raw files are available to test with.
 - The GSAS-II files were loaded through GSAS-II's scripting interface, not by hand in its
   windows.
 - No measured pattern of an unknown phase has been indexed by two programs.
 - The Fityk, lmfit and indexing fixtures are made by hand with the scripts above (the GSAS-II
   search is a random search with a time limit, so a rerun can list different cells); only
   load_export.py runs in .github/workflows/validation.yml.
+
+## 19a: Tauc band gap with background absorption (audit of 2026-11-14)
+
+src/core/uvvis/tauc.ts `analyseTaucGap`, `subtractedGap`, `lineCrossing`, `fitLine`;
+tests/uvvis-tauc-baseline.test.ts and tests/uvvis-gap-method.test.tsx. Synthetic spectrum of the
+audit: 250 to 850 nm in 1 nm steps, A = 1.2·√(E − 3.2)/E above 3.2 eV, plus a level. Two methods
+were added beside the axis intercept, both chosen with the owner (November 2026): the sub-gap
+baseline subtracted from α, A or F(R) before the Tauc plot (the default when it moves Eg by more
+than 0.01 eV), and the crossing of the edge line with a baseline line on the Tauc plot.
+
+| Check                                                                                           | Kind                      | Expected                                                       | Tolerance |
+| ----------------------------------------------------------------------------------------------- | ------------------------- | -------------------------------------------------------------- | --------- |
+| Audit table reproduced: axis intercept for level 0, 0.05, 0.2, 0.5                              | synthetic, known answer   | 3.200, 3.116, 2.926, 2.690 eV                                  | 0.0005 eV |
+| Subtraction, direct allowed, constant level 0, 0.05, 0.2, 0.5                                   | synthetic, known answer   | 3.200 eV, edge region starting below 3.3 eV                    | 0.002 eV  |
+| Subtraction, indirect allowed, the same levels                                                  | synthetic, known answer   | 3.200 eV                                                       | 0.002 eV  |
+| Subtraction, sloping levels (0.05 + 0.05/eV, 0.2 − 0.05/eV, 0.1 + 0.1/eV), direct and indirect  | synthetic, known answer   | 3.200 eV                                                       | 0.002 eV  |
+| Subtraction, Kubelka–Munk spectra with 0.01, 0.05, 0.2 added to F(R), direct and indirect       | synthetic, known answer   | 3.200 eV                                                       | 0.002 eV  |
+| Zero level with noise (σ 0.003): automatic choice keeps the old method, region and number       | regression                | identical to the version 2 result                              | exact     |
+| Crossing of two exact lines y = 2(E − 3) and y = 0.1 + 0.05E, by hand                           | synthetic, known answer   | 6.1/1.95 = 3.128205 eV, σ 0                                    | 10⁻¹⁰     |
+| Crossing with a baseline of exactly zero                                                        | independent formula       | same Eg and σ as the axis-intercept formula of `fitBandGap`    | 10⁻¹²     |
+| Crossing σ: 400 data sets, equal noise on two lines                                             | Monte Carlo (independent) | mean reported σ / scatter of Eg = 1                            | ±15 %     |
+| Subtraction σ (baseline part, by central differences): 400 data sets, noise only below the edge | Monte Carlo (independent) | mean reported σ / scatter of Eg = 1                            | ±15 %     |
+| Signal multiplied by 37 (thickness or concentration)                                            | invariance                | Eg unchanged, all three methods                                | 10⁻⁹ eV   |
+| Any straight background added (0.3; 0.1 + 0.2/eV; 0.4 − 0.08/eV)                                | invariance                | subtraction gives the zero-level Eg                            | 0.0005 eV |
+| Wavelength step 2 nm instead of 1 nm                                                            | invariance                | 3.200 eV                                                       | 0.002 eV  |
+| Version 2 session with a level of 0.2                                                           | round trip                | same Eg after migration (2.926 eV) until the method is changed | exact     |
+
+Findings, measured, not published values: with a level in A or F(R) the Tauc curve is bent above
+the gap, (1.2·√(E − 3.2) + cE)² for the direct case, so no straight line through it is exact. The
+crossing method gives 3.18, 3.15 and 3.14 eV for c = 0.05, 0.2 and 0.5 with an edge region of
+3.21–3.40 eV; it always lies between the axis intercept and the true gap. Subtraction is exact when
+the background adds to the absorption quantity and is linear in E across the edge; a background of
+another shape (for example scattering rising as λ⁻⁴ over a wide range) is only approximated.
+
+Source confirmed on 2026-11-14 (paper supplied by the owner and read in full): Makuła, Pacia and
+Macyk, J. Phys. Chem. Lett. 9 (2018) 6814–6817, doi:10.1021/acs.jpclett.8b02892.
+
+- The crossing as built is their "simplified procedure": a linear fit of the edge and a linear
+  fit of the slope below the fundamental absorption, with Eg at the intersection (Table 1,
+  column 3, Figure 4).
+- Their preferred method is to subtract the measured spectrum of the second component,
+  α_s = α − c·α_m (eq 4, Table 1, column 2). It is added below.
+- In their data the two methods differ by up to 0.08 eV (for example 3.18 against 3.26 eV),
+  with a stated margin of ±0.03 eV.
+- The plain axis intercept gave 2.13 to 3.08 eV, against 3.22 eV for bare TiO2.
+
+### Second component subtracted (Makuła et al. 2018, eq 4)
+
+Code: src/core/uvvis/tauc.ts (`componentFactor`, `componentGap`, `interpolateOnto`).
+Tests: tests/uvvis-component.test.ts.
+
+Synthetic model of their system:
+
+- The edge above, at 3.2 eV.
+- A dye band, 0.4·exp(−½((E − 2.9)/0.4)²), that absorbs across the edge.
+- The dye "measured alone" is 1/0.6 as strong, so c = 0.6.
+
+| Check                                                                   | Kind                      | Expected                              | Tolerance      |
+| ----------------------------------------------------------------------- | ------------------------- | ------------------------------------- | -------------- |
+| Direct and indirect, absorbance: c fitted, Eg                           | synthetic, known answer   | c = 0.6, 3.200 eV                     | 10⁻⁹; 0.002 eV |
+| Direct and indirect, Kubelka–Munk (dye and a 0.002 floor added to F(R)) | synthetic, known answer   | c = 0.6, 3.200 eV                     | 10⁻⁶; 0.002 eV |
+| The other three methods on the same spectrum                            | measured, recorded        | 2.368, 2.424, 2.396 eV (the dye edge) | error > 0.5 eV |
+| c typed as 0.6; c typed as 0.3 over the same edge region                | synthetic                 | 3.200 eV; below 3.19 eV               | 0.002; 0.01 eV |
+| c of S = 2M; c and σ(c) of S = (1, 3, 2, 5), M = (1, 1, 1, 2) by hand   | independent hand result   | 2, σ 0; 16/7, σ² = (119/49)/3/7       | 10⁻¹²          |
+| σ(Eg) from σ(c): 400 data sets, noise σ 0.003 only where c is fitted    | Monte Carlo (independent) | mean reported σ / scatter of Eg = 1   | ±15 %          |
+| Component 37 times stronger                                             | invariance                | c/37, same Eg                         | 10⁻⁹           |
+| Component on another grid (2 nm steps from 251 nm), interpolated        | invariance                | 3.200 eV                              | 0.002 eV       |
+| Interpolation of a straight line; points outside the data               | synthetic, known answer   | exact; NaN                            | exact          |
+| Component measured another way (reflectance against absorbance)         | guard                     | refused with a message                | exact          |
+| Version 3 session                                                       | round trip                | same settings, component null         | exact          |
+
+Robustness check added with it. With this curved background, the automatic baseline window of
+the straight-line subtraction used to move up into the edge, giving 4.049 eV. A move is now
+undone unless the corrected Tauc curve stays below 10 % of the edge between the window and the
+gap (`flatBelowGap`, my own threshold). Every earlier 19a check gives the same result.
+
+Open:
+
+- The σ of the plain axis intercept (unchanged since stage 8b) is about 1.27 times the scatter of
+  repeated noisy spectra when the noise is in A. The noise of (A·E)² grows along the edge and the
+  fit is unweighted, and the new methods inherit this. It is kept on purpose: unweighted least
+  squares is the usual Tauc practice, and it errs on the safe side.
+- No real spectrum with a known gap was available; tests/fixtures-real/ has none for UV-Vis. The
+  paper's spectra are not published as data, so its Table 1 cannot be reproduced here. Closed by the owner on 2026-11-15: no raw files are available to test with.
+
+## 19a: other fixes (audit of 2026-11-14)
+
+| Fix                                                                                                   | Test                                |
+| ----------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| UV-Vis heading "Reflectance" or "Transmittance" names the type only; "%R", "R (%)", "T%" name percent | tests/uvvis-kind-scale.test.ts      |
+| FTIR assignments re-attach to the nearest peak (20 cm⁻¹) after reprocessing; none dropped silently    | tests/ftir-assignments.test.ts      |
+| FTIR files stating reflectance (heading or ##YUNITS) are read as transmittance with a warning         | tests/ftir-reflectance-kind.test.ts |
+
+## 19b: validation of the UV-Vis, FTIR and Particles tools
+
+Every numerical method of the three tools, with its tests and which of the three kinds of check
+it has:
+
+- S: synthetic data with a known answer.
+- I: an independent implementation or a published worked example.
+- R: a round-trip or invariance check.
+
+The independent references are new in 19b:
+
+- Scripts: scripts/validation/spectra/uvvis.py, scripts/validation/spectra/ftir.py,
+  scripts/validation/particles/make_particles.py and
+  scripts/validation/particles/ImageJCheck.java.
+- They run in the "spectra-particles" job of .github/workflows/validation.yml and write the
+  fixtures uvvis-reference.json, ftir-reference.json, particles.pgm, particles-skimage.json and
+  particles-imagej.json to tests/fixtures/validation/.
+- The tests tests/validation-uvvis.test.ts, tests/validation-ftir.test.ts and
+  tests/validation-particles.test.ts compare the site with those fixtures.
+- Versions used for the committed fixtures: NumPy 2.5.4, SciPy 1.18.1, scikit-image 0.26.0,
+  lmfit 1.3.4, pybaselines 1.2.1, ImageJ 1.54f.
+
+### Inventory
+
+| Tool      | Method (code)                                                           | Tests                                                    | S   | I                                      | R   |
+| --------- | ----------------------------------------------------------------------- | -------------------------------------------------------- | --- | -------------------------------------- | --- |
+| UV-Vis    | E = hc/λ, %T ↔ A, Kubelka–Munk (conversions.ts)                         | uvvis-conversions, validation-uvvis                      | ✓   | scipy.constants hc/e                   | ✓   |
+| UV-Vis    | Blank, offset, smoothing, λmax (process.ts)                             | uvvis-process, validation-uvvis                          | ✓   | savgol_filter (smoothing)              | ✓   |
+| UV-Vis    | α from A and thickness, Tauc quantity (tauc.ts `absorptionSignal`)      | uvvis-tauc, validation-uvvis                             | ✓   | NumPy                                  | ✓   |
+| UV-Vis    | Tauc line, Eg and σ(Eg) (`fitBandGap`)                                  | uvvis-tauc, validation-uvvis                             | ✓   | curve_fit, delta method                | ✓   |
+| UV-Vis    | Baseline crossing, subtraction, second component (19a)                  | uvvis-tauc-baseline, uvvis-component                     | ✓   | hand results, Monte Carlo              | ✓   |
+| UV-Vis    | Urbach energy (`urbachFit`)                                             | uvvis-tauc, validation-uvvis                             | ✓   | curve_fit                              | ✓   |
+| UV-Vis    | Derivative maximum (`derivativeMaximum`)                                | uvvis-tauc, validation-uvvis                             | ✓   | numpy.polyfit lines                    | –   |
+| UV-Vis    | Beer–Lambert calibration (concentration.ts)                             | uvvis-concentration, validation-uvvis                    | ✓   | linregress, curve_fit                  | ✓   |
+| UV-Vis    | Pseudo-first-order kinetics                                             | uvvis-concentration, validation-uvvis                    | ✓   | curve_fit                              | –   |
+| UV-Vis    | Plasmon band fit on the energy axis (plasmon.ts)                        | uvvis-film, validation-uvvis                             | ✓   | lmfit Lorentzian                       | –   |
+| UV-Vis    | Swanepoel envelope method (swanepoel.ts)                                | uvvis-film                                               | ✓   | Swanepoel (1983) Table 1               | ✓   |
+| FTIR      | %T ↔ A (process.ts)                                                     | ftir-core, validation-ftir                               | ✓   | –                                      | ✓   |
+| FTIR      | ATR depth and correction (atr.ts)                                       | ftir-atr, validation-ftir                                | ✓   | open (no published table read)         | ✓   |
+| FTIR      | Rubber band (baseline.ts)                                               | ftir-core, validation-ftir                               | ✓   | Qhull (scipy ConvexHull)               | ✓   |
+| FTIR      | Modified polyfit (xrd/process/background.ts)                            | ftir-core, validation-ftir                               | ✓   | pybaselines modpoly                    | ✓   |
+| FTIR      | AsLS, arPLS (math/whittaker.ts)                                         | ftir-core, baseline-validation, validation-ftir          | ✓   | pybaselines asls, arpls                | –   |
+| FTIR      | Peak picking, prominence, parabola vertex (peaks.ts)                    | ftir-core, validation-ftir                               | ✓   | find_peaks, peak_prominences           | ✓   |
+| FTIR      | Second derivative (bands.ts, Savitzky–Golay)                            | ftir-bands, validation-ftir                              | ✓   | savgol_filter deriv=2                  | –   |
+| FTIR      | Band area above a straight line                                         | ftir-bands, validation-ftir                              | ✓   | scipy trapezoid                        | ✓   |
+| FTIR      | Spectrum subtraction and its factor                                     | ftir-bands, validation-ftir                              | ✓   | numpy lstsq                            | ✓   |
+| FTIR      | Band fitting (`fitBandRegion`, the XRD peak fit)                        | ftir-bands, validation-ftir, validation-lmfit (stage 18) | ✓   | lmfit Gaussian × 2                     | –   |
+| FTIR      | JCAMP-DX reading (jcamp.ts)                                             | ftir-core                                                | ✓   | open (no instrument file)              | –   |
+| FTIR      | Group suggestions (assign.ts, data/ftir/groups.json)                    | ftir-groups, ftir-assignments                            | ✓   | one review article (see below)         | –   |
+| Particles | Auto thresholds (autoThreshold.ts, threshold.ts)                        | particles-imagej, particles-detect, validation-particles | ✓   | scikit-image; ImageJ (workflow)        | –   |
+| Particles | Grey, blur, median, background, range, equalise (image.ts, adjust.ts)   | particles-detect, particles-imagej                       | ✓   | –                                      | –   |
+| Particles | Labelling, morphology, distance, watershed (label.ts, morphology.ts, …) | particles-detect                                         | ✓   | skimage.measure.label (count)          | –   |
+| Particles | Area, centroid, equal-area diameter, Feret, perimeter (regions.ts)      | particles-detect, validation-particles                   | ✓   | regionprops; ImageJ (workflow)         | ✓   |
+| Particles | Fitted ellipse (measure.ts)                                             | particles-imagej, validation-particles                   | ✓   | regionprops moments; ImageJ (workflow) | ✓   |
+| Particles | Scale bar, calibration, working copy (scaleBar.ts, geometry.ts)         | particles-stereology, particles-geometry                 | ✓   | –                                      | ✓   |
+| Particles | Percentiles, summary, bins, histogram (distribution.ts)                 | particles-distribution, validation-particles             | ✓   | numpy percentile, histogram_bin_edges  | ✓   |
+| Particles | Normal and lognormal fits                                               | particles-distribution, validation-particles             | ✓   | scipy norm.fit, lognorm.fit(floc=0)    | –   |
+| Particles | Pooling images (modules/particles/sizes.ts `collectSizes`)              | particlesDistribution, validation-particles              | ✓   | –                                      | ✓   |
+| Particles | Area fraction, intercepts, ASTM grain size (stereology.ts)              | particles-stereology                                     | ✓   | ASTM E112-13 Table 4                   | ✓   |
+
+A dash under I means that no second program computes the same thing in a way worth comparing:
+image filters whose exact kernels differ between programs, or a parser. A dash under R means
+that no natural invariance exists beyond the ones already tested.
+
+### UV-Vis
+
+Data: tests/fixtures/validation/uvvis-reference.json, written by uvvis.py. Seeded synthetic
+spectra, stored with the expected numbers so both programs use the same input:
+
+- A direct gap at 3.2 eV in a 250 nm film, 300–600 nm in 0.5 nm steps, noise 0.002 in A.
+- An Urbach tail with Eu = 0.08 eV.
+- Six Beer–Lambert standards and a kinetic series with a dark period.
+- A Lorentzian plasmon band at 2.38 eV.
+
+| Check                                                                     | Reference                              | Tolerance                   |
+| ------------------------------------------------------------------------- | -------------------------------------- | --------------------------- |
+| hc/e in eV nm                                                             | scipy.constants (CODATA 2022)          | 10⁻¹⁵ relative              |
+| α = ln 10 · A / t and (αE)² from absorbance and thickness                 | NumPy                                  | 10⁻¹² relative              |
+| Tauc line slope and intercept, Eg = −a/b                                  | scipy curve_fit                        | 10⁻⁷ relative; 10⁻⁸ eV      |
+| σ(Eg) from the full covariance of (a, b)                                  | delta method on curve_fit's covariance | 10⁻⁶ relative               |
+| Urbach Eu and σ(Eu)                                                       | curve_fit of ln S                      | 10⁻⁹; 10⁻⁶ relative         |
+| Derivative maximum of A and of ln A                                       | numpy.polyfit lines through 9 points   | same point; slope 10⁻⁹      |
+| Savitzky–Golay smoothing (11 points, order 3), ends included              | savgol_filter(mode='interp')           | 10⁻¹²                       |
+| Beer–Lambert slope, intercept, their σ and R²; line through the origin    | scipy.stats.linregress; curve_fit      | 10⁻⁹ to 10⁻¹² relative      |
+| Rate constant k and σ(k)                                                  | curve_fit of ln(C₀/C) = k t            | 10⁻⁹; 10⁻⁶ relative         |
+| Plasmon centre, FWHM, height, σ of centre and FWHM                        | lmfit LorentzianModel + LinearModel    | 10⁻⁶ eV, 10⁻⁵, 10⁻³ (σ)     |
+| %T → A → %T and λ → E → λ                                                 | round trip                             | 10⁻¹²; 10⁻¹⁰ nm             |
+| Points given in reverse order                                             | invariance                             | same Eg and σ to 10⁻¹²      |
+| Signal × 10⁻⁴, 0.37 and 52 (unknown thickness, other units); Urbach × 10³ | invariance                             | Eg to 10⁻¹⁰ eV; Eu to 10⁻¹⁰ |
+| The same spectrum given as %T                                             | invariance                             | same α to 10⁻¹⁰ relative    |
+
+Definitions:
+
+- σ(Eg) uses s² = RSS/(n − 2), as curve_fit's default (absolute_sigma=False).
+- The line through the origin uses s² = RSS/(n − 1), as curve_fit with one parameter.
+- lmfit's Lorentzian has FWHM = 2σ and height = amplitude/(πσ); the fixture is converted to
+  this site's centre, FWHM and height.
+
+### FTIR
+
+Data: tests/fixtures/validation/ftir-reference.json, written by ftir.py. A seeded spectrum from
+400 to 4000 cm⁻¹ in 2 cm⁻¹ steps: nine Gaussian and Lorentzian bands on a curved background,
+noise 0.002.
+
+| Check                                                                   | Reference                                          | Tolerance                  |
+| ----------------------------------------------------------------------- | -------------------------------------------------- | -------------------------- |
+| Peaks above prominence 0.02: count, height, prominence                  | scipy.signal.find_peaks, peak_prominences          | same peaks; 10⁻¹²          |
+| Peak position (vertex of the parabola through three points)             | numpy.polyfit order 2                              | 10⁻⁷ cm⁻¹                  |
+| Second derivative (15 points, order 3), ends included                   | savgol_filter(deriv=2, delta=2, mode='interp')     | 10⁻¹²                      |
+| Band area 1551.3–1799.1 cm⁻¹ above the line between the ends            | scipy.integrate.trapezoid with numpy.interp ends   | 10⁻¹² relative             |
+| Subtraction factor, reference on a grid shifted by 1 cm⁻¹               | numpy.linalg.lstsq                                 | 10⁻¹² relative             |
+| AsLS baseline (λ 10⁵, p 0.01, 10 solves)                                | pybaselines whittaker.asls                         | 10⁻⁸                       |
+| arPLS baseline (λ 10⁵, ratio 10⁻⁶)                                      | pybaselines whittaker.arpls                        | 10⁻⁹ (after the fix below) |
+| Modified polyfit, order 3, 200 fits                                     | pybaselines polynomial.modpoly(use_original=False) | 10⁻⁹                       |
+| Rubber band                                                             | lower hull from Qhull (scipy.spatial.ConvexHull)   | 10⁻¹²                      |
+| Two overlapping Gaussian bands: centre, FWHM, height, σ                 | lmfit GaussianModel × 2 + LinearModel              | 10⁻⁴ cm⁻¹, 10⁻⁵, 10⁻³ (σ)  |
+| %T → A → %T                                                             | round trip                                         | 10⁻¹²                      |
+| Constant offset added: peaks, prominences, band area                    | invariance                                         | unchanged to 10⁻⁹          |
+| Spectrum × 2.5: band area and subtraction factor                        | invariance                                         | × 2.5 to 10⁻¹²             |
+| Known amount (0.6) of reference: factor, and nothing left after removal | synthetic, known answer                            | 10⁻¹²                      |
+| ATR depth at 500, 1000 and 2000 cm⁻¹; correction at the reference       | invariance (dp ∝ 1/ν̃)                              | 10⁻¹²                      |
+| Straight background added: rubber band and polyfit follow it            | invariance                                         | 10⁻¹⁰; 10⁻⁸                |
+
+Fault found and fixed: the arPLS weights used the standard deviation of the negative residuals
+with divisor n; pybaselines uses n − 1 (ddof = 1, "since sampling a subset"). The baselines
+differed by up to 1.7 × 10⁻⁵ in absorbance, 0.015 % of the baseline. src/core/math/whittaker.ts
+now uses n − 1, and the comparison holds to 10⁻⁹. Every earlier test, including the earlier check
+against pybaselines (tests/baseline-validation.test.ts) and the XRD backgrounds, still passes.
+
+Definitions that differ between programs:
+
+- Modified polyfit. Each pass clips the data that the earlier passes already clipped. pybaselines
+  calls this the form of Gan et al. (2006) and makes it its default (use_original=False). It
+  attributes clipping the original data each pass to Lieber and Mahadevan-Jansen (2003), whom the
+  code comment cites. The two programs also stop differently: this site stops when the clipped
+  data change by less than 10⁻³, pybaselines when the fit does. They are compared after the same
+  number of fits.
+- Peak positions. scipy's find_peaks takes the middle of a flat top; this site takes the first
+  point. Measured spectra have no exactly flat tops, so both find the same peaks.
+
+### Particles
+
+Data: tests/fixtures/validation/particles.pgm, a 192 × 160 8-bit test image written by
+make_particles.py. It holds 14 bright ellipses of known axes (7 to 34 px) and angles on a dark
+background with noise σ 11, with edges supersampled 4 × 4. scikit-image, NumPy and SciPy results
+are in particles-skimage.json. ImageJ's results go to particles-imagej.json, written by
+ImageJCheck.java in the workflow.
+
+| Check                                                                          | Reference                                        | Tolerance                                     |
+| ------------------------------------------------------------------------------ | ------------------------------------------------ | --------------------------------------------- |
+| Otsu, Default (IsoData), Minimum, Triangle                                     | skimage.filters threshold_*                      | same grey level (118, 118, 115, 82)           |
+| Li; Mean                                                                       | threshold_li (103.49); threshold_mean (66.86)    | within 1 level; ⌊mean⌋                        |
+| Particles above 127: number, pixel count, centroid, equal-area diameter        | skimage.measure.label (8-connected), regionprops | exact; 10⁻⁹                                   |
+| Ellipse axes from the second moments                                           | regionprops inertia_tensor_eigvals               | 10⁻⁹                                          |
+| Ellipse axes and angle against the drawn ellipses                              | synthetic, known answer                          | 1.2 px; 3°                                    |
+| 90° turn, left-right mirror, top-bottom flip                                   | invariance                                       | sizes unchanged to 10⁻⁹; angle +90°, 180° − θ |
+| Image enlarged × 2 (nearest neighbour)                                         | invariance                                       | area × 4, Feret × 2 exactly; ellipse 1 %      |
+| Percentiles (10, 25, 50, 75, 90), mean, sample SD of 300 lognormal sizes       | numpy.percentile (linear), mean, std(ddof=1)     | 10⁻¹⁰                                         |
+| Sturges and Freedman–Diaconis bins, bin width and counts                       | numpy.histogram_bin_edges, numpy.histogram       | exact; 10⁻¹⁰                                  |
+| Normal and lognormal fits and their log-likelihoods                            | scipy.stats norm.fit, lognorm.fit(floc=0)        | 10⁻⁹; 10⁻⁷                                    |
+| Two pooled images, in either order                                             | invariance                                       | same summary as all sizes together            |
+| Every automatic threshold; area, centroid, ellipse, Feret, MinFeret, perimeter | ImageJ 1.54f (AutoThresholder, ParticleAnalyzer) | same level; 10⁻³ (from the workflow)          |
+
+Definitions that differ between programs:
+
+- scikit-image puts pixel centres at whole numbers; this site and ImageJ put pixel corners there.
+  The fixture adds 0.5.
+- scikit-image's ellipse axes are 4√λ of the pixel-centre covariance. ImageJ's, which this site
+  copies, add 1/12 for each pixel's own extent and then scale both axes so that the ellipse area is
+  the pixel count. The test applies that step to scikit-image's eigenvalues.
+- scikit-image's feret_diameter_max and perimeter use the marching-squares contour through pixel
+  centres. This site and ImageJ use the pixel-edge outline. These are different quantities and are
+  compared only with ImageJ.
+- scikit-image's Li iterates on continuous values and its Mean is not rounded; ImageJ rounds to a
+  whole grey level.
+- Perimeter: this site now uses ImageJ's traced perimeter (PolygonRoi.getTracedPerimeter):
+  summed sides minus 2 − √2 at each counted corner, where on a staircase of unit steps only every
+  other vertex counts, starting where ImageJ's Wand starts. Before the ImageJ comparison the site
+  cut 1 − √2/2 at every corner, which read up to 2.9 % longer (62.77 against 61.01 px); fixed, see
+  "Faults found by ImageJ" below. Because the count depends on the start, a turned or mirrored
+  image can change a perimeter by a whole number of (2 − √2), within 5 % (tested).
+- The perimeter of a × 2 enlarged image is not always twice the perimeter. Enlarged, every corner
+  counts; a unit staircase doubles exactly and a 2 × 2 square reads 1.207 times twice. The test
+  checks that the ratio lies between 1 and 1.207 (1.02 to 1.04 on the test image). The site
+  measures on a working copy made by averaging, never by enlarging.
+- Triangle threshold: this site follows ImageJ, which moves the split one more level towards the
+  tail. scikit-image's threshold_triangle stops one level short for a bright tail (82 against 83
+  on the test image); the test expects that one level.
+
+Faults found by ImageJ (the workflow's ImageJ 1.54f run, 2026-11-14), both fixed with tests:
+
+- Perimeter and circularity used a different corner rule from ImageJ's (above). Now equal to
+  ImageJ's Perim. to 10⁻³ px for all 14 particles; a square's circularity reads 0.886, as in
+  ImageJ.
+- Triangle gave 82 where ImageJ gives 83: the extra level towards the tail was applied only for a
+  dark tail. Rewritten step by step from ij/process/AutoThresholder.Triangle.
+
+All other ImageJ checks passed on the first run: Default, Intermodes, IsoData, Li, MaxEntropy,
+Mean, Minimum, Moments and Otsu levels; area exactly; centroid to 10⁻⁶ px; Major, Minor, Feret and
+MinFeret to 10⁻³; ellipse angle to 0.01°.
+
+### Real files
+
+tests/fixtures-real/ holds XRD files (Bruker .raw and .brml, Rigaku .rasx) and, since 19b, two
+real UV-Vis files in tests/fixtures-real/uvvis/: diffuse reflectance of TiO₂ annealed at 200 and
+300 °C, 208 to 848 nm in 2 nm steps, from Zenodo record 10.5281/zenodo.14608640 (Kuzhir,
+Maltanava and Belko, 2025, CC BY 4.0). No published band gap goes with them: the record gives
+none, and the one Zenodo dataset found with a paper (Fe₂O₃–TiO₂, doi:10.1016/j.cattod.2022.02.005)
+links to a closed-access article. So the files check the reader and the arithmetic on real data,
+against scripts/validation/spectra/uvvis_real.py (tests/validation-uvvis-real.test.ts):
+
+| Check                                           | Reference                     | Tolerance      |
+| ----------------------------------------------- | ----------------------------- | -------------- |
+| Reading: 325 points, semicolons, decimal commas | plain Python reader           | exact          |
+| F(R) = (1 − R)² / 2R                            | NumPy                         | 1e-12 relative |
+| Direct Tauc line, 3.25–3.60 eV: Eg and σ(Eg)    | scipy curve_fit, delta method | 1e-8 eV; 1e-6  |
+| Indirect Tauc line, 3.10–3.30 eV: Eg and σ(Eg)  | scipy curve_fit, delta method | 1e-8 eV; 1e-6  |
+| Row order reversed; % and fraction              | invariance                    | 1e-12 eV       |
+| Suggested direct region on the edge             | the fixed-window gap          | 0.04 eV        |
+
+With those windows: direct 3.231 ± 0.006 eV (200 °C) and 3.217 ± 0.005 eV (300 °C); indirect
+2.884 ± 0.003 eV and 2.872 ± 0.002 eV. The windows were chosen by eye on the steep part of the
+edge; they are not a published analysis.
+
+Fault found with these files and fixed. The suggested Tauc region picked the slow, straight rise
+above the edge, where F(R) saturates at low reflectance (4.6 to 5.4 eV, giving 3.72 eV for the
+direct plot and no gap at all for the indirect one). suggestRegion now checks the chosen line:
+when it meets y = 0 above the steepest part of the edge, or at or below zero, the region is chosen
+again among the windows that overlap that steepest part. A region chosen on the edge is not
+changed, so every synthetic result above and in 19a is unchanged. Suggested now: direct 3.221 and
+3.249 eV, indirect 2.885 eV (200 °C).
+
+The files have no header, so the site guesses transmittance and the user chooses reflectance, as
+for any file without one. There is a small step in R at 690 nm (a lamp or detector change in the
+instrument), well below the edge.
+
+FTIR and particle files: none yet. Each is listed under Open with the file needed and, for the same
+file, the numbers the instrument software gives.
+
+### FTIR group table
+
+data/ftir/groups.json comes from one review article: Pasieczna-Patkowska, Cichy and Flieger,
+Molecules 30 (2025) 684, Tables 3 and 2. Its transcription was checked against the article on
+2026-10-28. It is still one review's typical ranges, not a textbook table, and is flagged for the
+owner's verification; the site shows every suggestion as a ranked estimate with this source.
+
+Rows the owner should compare with a textbook (for example Socrates, Infrared and Raman
+Characteristic Group Frequencies, or Silverstein's tables). The reasons below come from the table
+itself, not from other values:
+
+- Single wavenumber given as a range: fg-25 aromatic ring C=C str. (phenol) 1660–1660
+- Single wavenumber given as a range: fg-47 aromatic C–H def. vib. in phenolic compounds 1110–1110
+- Unusually wide range: fg-35 in-plane O–H def. vib. (alcohol) 1260–1440
+- Unusually wide range: fg-54 N–H out-of-plane b. vib. 650–895
+- Unusually wide range: fg-23 COO⁻ asym. str. 1540–1695
+- Unusually wide range: fg-19 C=O (carboxylic acids) 1650–1740
+- The same range under two labels: fg-7 (2° amides, N–H str.) and fg-8 (O–H, N–H) are both
+  3270–3370.
+- A label that names amines under "amide III": fg-44 C–N str. (amide III) (2° amines),
+  1200–1305, 1170–1190 and 1130–1145.
+- The metal-oxide rows (13), single band positions, for example ZnO 440 to 878 cm⁻¹ and TiO₂
+  anatase 431 to 800 cm⁻¹. A position depends strongly on particle size and shape, so compare
+  these with measured references of the same material.
+
+### Open
+
+- ATR penetration depth: no published table could be read. The PIKE application note at the old
+  address returned 404. The formula is Harrick's and is checked by invariance only. Needed: one
+  printed row with crystal, n₁, n₂, angle, wavenumber and dp.
+- Modified polyfit: which clipping rule Lieber and Mahadevan-Jansen (2003) use, the clipped data
+  or the original data each pass, should be checked in the paper (Appl. Spectrosc. 57,
+  1363–1367). pybaselines' description and the earlier "checked against the paper" note do not
+  agree.
+- Real UV-Vis file with a published or software band gap: still wanted. The TiO₂ files above have none. Wanted: a film or powder spectrum (.csv or .txt export) and the Eg that the instrument or Origin gives for a stated Tauc region.
+- Suggested Tauc region, indirect plot of the 300 °C TiO₂ file: after the sub-gap baseline is subtracted the suggestion lies on the foot of the edge (2.78 to 2.88 eV, Eg 2.69 eV, against 2.87 eV over 3.10 to 3.30 eV). The user can move it; the test is marked todo.
+- Suggested Tauc region, general case: a long straight stretch above the edge whose line meets the axis below the edge still wins (a piecewise-linear test curve gave 0.40 eV for a 3.20 eV edge). The guard above covers the saturated diffuse reflectance seen in real files, not this. A general rule would change the 19a synthetic results, so it needs a published automatic method to follow; none has been checked yet.
+- Real FTIR file wanted: a JCAMP-DX (.jdx) export and the peak table the instrument software (OMNIC, OPUS or Spectrum) prints for it, with its threshold.
+- Real particle image wanted: an SEM or TEM image with a scale bar and the ImageJ Analyze Particles table (Area, Feret, MinFeret, Perim.) for a stated threshold.
+
+## 19c: FTIR peak table, hand edits and comparison across samples
+
+New methods: width at half height and area above a local baseline, an intensity class, hand-added
+and removed peaks, and the grouping of peaks of several samples into bands
+(src/core/ftir/peakShape.ts, src/core/ftir/compare.ts, src/modules/ftir/analysis.ts).
+
+Local baseline: the straight line through the lowest data point on each side of a band, searched
+up to the neighbouring band or the end of the search range (the valley-to-valley baseline of band
+integration). Width: where the absorbance above that line falls to half the band's height, with
+linear interpolation between points. Area: trapezoid rule above the line, in absorbance · cm⁻¹.
+
+### Checks
+
+Data: tests/fixtures/validation/ftir-peaks-reference.json, written by
+scripts/validation/spectra/ftir_peaks.py (numpy 2.5.4, scipy 1.18.1).
+
+| Check                                                                          | Reference                                                       | Tolerance            |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------- | -------------------- |
+| Isolated Gaussian, FWHM 30 cm⁻¹, height 0.5: width and area                    | synthetic: FWHM, h · FWHM · √(π / (4 ln 2))                     | 0.05 cm⁻¹; 5 × 10⁻⁴  |
+| Isolated Lorentzian, FWHM 20 cm⁻¹, ±500 cm⁻¹: width and area                   | synthetic: exact values for the band cut at ±500 cm⁻¹           | 0.05 cm⁻¹; 5 × 10⁻⁴  |
+| The same two bands                                                             | scipy.signal.peak_widths (rel_height 0.5), trapezoid            | 10⁻⁶                 |
+| Two bands on a sloping, curved, noisy background: limits, height, FWHM, area   | baseline written with numpy; peak_widths and trapezoid above it | same points; 10⁻⁶    |
+| Constant offset added; spectrum × 3                                            | invariance                                                      | unchanged; × 3, 10⁻⁹ |
+| Mirror image of the spectrum (wavenumber reversed)                             | invariance                                                      | 10⁻⁹                 |
+| Bands 25 cm⁻¹ apart (FWHM 30) flagged as overlapping; 100 cm⁻¹ apart not       | synthetic, known answer                                         | exact                |
+| Grouping of three samples with known shifts (+3 and −4 cm⁻¹, one band missing) | synthetic, known answer                                         | exact                |
+| Grouping after 20 random reorderings of samples and peaks                      | invariance                                                      | identical            |
+| Removed and added peaks with baseline and smoothing switched on and off        | invariance (edits kept by position)                             | same peaks           |
+| Spectral regions of the figure                                                 | envelope of the named rows of data/ftir/groups.json             | exact                |
+
+The Lorentzian area above the local baseline is smaller than the full analytic area π · h · FWHM /
+2, because the line between the two ends removes the wings; the test uses the exact value for the
+cut band. This is why the table marks areas as measured above a local baseline.
+
+Choices of this site, stated on screen: the intensity classes (strong from 60 %, medium from 25 %
+of the highest band above its local baseline, broad from 100 cm⁻¹ FWHM; IR tables use s, m, w and
+br without numeric limits), the overlap flag (the valley to a neighbour lies above half the
+band's height), the 10 cm⁻¹ snap distance for a peak added by hand and the 10 cm⁻¹ default
+grouping tolerance (2.5 times the common 4 cm⁻¹ resolution).
+
+### Open
+
+- Peak table against instrument software: the FWHM and area that OMNIC, OPUS or Spectrum report for one band of a real file, with their baseline points. No such file is in tests/fixtures-real/. Closed by the owner on 2026-11-15: no raw files are available to test with.
+- Grouping across samples: no other program with the same rule (one peak per sample, span at most the tolerance) was found, so the rule is checked by the known-answer and order tests only.
+
+## 19d: FTIR reflectance, CO₂ line and normalisation to a band
+
+New methods (src/core/ftir/process.ts, src/core/ftir/assign.ts):
+
+- Kubelka–Munk function F(R) = (1 − R)² / (2R), R the diffuse reflectance as a fraction (default
+  for reflectance data), and the apparent absorbance log₁₀(1/R) as the alternative.
+- CO₂ line: the absorbance between two wavenumbers (default 2280–2400 cm⁻¹, around the 2349 cm⁻¹
+  band of data/ftir/atmosphere.json; the width is this site's choice, adjustable) is replaced by
+  the straight line between the values interpolated at the two limits. It runs first, before ATR,
+  baseline, smoothing and normalisation, and peaks are not picked inside it.
+- Normalisation to a band: the spectrum is divided by the height or the trapezoid area of a
+  chosen range, both measured above the straight line between the range ends (bandArea, the
+  local baseline of the Bands step). A band is counted as absent, and the spectrum is left unchanged with a
+  warning, when the maximum lies at an end of the range, when the height is not above
+  max(3 × the local noise, 10⁻⁹ × the largest |A|), or when the value is zero or negative.
+- Suggestions: when a table label says "broad", a broad peak (from the peak's FWHM and the 19c
+  broad class) is ranked before a narrow one at the same distance, and the reason says so.
+
+### Checks
+
+Data: tests/fixtures/validation/ftir-processing-reference.json, written by
+scripts/validation/spectra/ftir_processing.py (numpy 2.5.4, scipy 1.18.1), a step in the
+Validation workflow.
+
+| Check                                                                       | Reference                                    | Tolerance    |
+| --------------------------------------------------------------------------- | -------------------------------------------- | ------------ |
+| F(R) at R = 0.5, 0.2, 1 (0.25, 1.6, 0); percent and fraction give the same  | synthetic, exact values                      | 10⁻¹²        |
+| R recovered from F(R): R = 1 + F − √(F² + 2F)                               | round trip                                   | 10⁻¹²        |
+| Zero reflectance points removed with a message                              | synthetic                                    | exact        |
+| CO₂ line on a band over a linear baseline recovers the line at its ends     | synthetic, known answer                      | 10⁻⁶         |
+| CO₂ line with the limits swapped; applied twice                             | invariance, idempotence                      | identical    |
+| Peaks inside the CO₂ range (picked and added by hand) are not reported      | synthetic                                    | exact        |
+| Band height and area of a Gaussian (1400–1800 cm⁻¹): h and h·FWHM·√(π/4ln2) | synthetic, known answer                      | 10⁻¹⁰; 10⁻⁶  |
+| Normalisation of the spectrum × 7.5; limits swapped                         | invariance                                   | 10⁻¹²        |
+| Absent, end-of-range, outside, untyped and negative bands give a warning    | synthetic                                    | exact        |
+| F(R), log₁₀(1/R), CO₂ line, band height and area on a noisy spectrum        | numpy (np.interp), scipy.integrate.trapezoid | 10⁻¹²; 10⁻¹⁰ |
+| Broad table row ranked first for a broad peak, last for a narrow one        | synthetic                                    | exact        |
+
+The numpy and scipy check is a second implementation of the same equations, not another
+program's own conversion; it catches indexing, interpolation and integration errors only.
+
+### Open
+
+- Kubelka–Munk: no published worked example (a measured R with its tabulated F(R)) was found to compare with, and no real DRIFTS file is in tests/fixtures-real/ (closed by the owner on 2026-11-15: no raw files are available). The assumptions shown on screen (optically thick, diluted, strongly scattering layer) are the general conditions of the theory, stated without a specific citation.
+- CO₂ region: the real width of the CO₂ doublet in a lab spectrum was not measured; 2280–2400 cm⁻¹ is a default to adjust.
+- Broad ranking: only four rows of data/ftir/groups.json say "broad", so the rule is tested on those.
+- Wider group table (19d item 4): done on 2026-11-15, see "19d item 4" below.
+
+## 19d item 4: wider FTIR group table (2026-11-15)
+
+The owner supplied the PDFs of the candidate sources. Only tables under a licence that allows
+redistribution without conditions beyond attribution (CC BY) were added; each row keeps its
+source, and each suggestion names it.
+
+| Source                                                                                    | Licence   | Rows added                                   |
+| ----------------------------------------------------------------------------------------- | --------- | -------------------------------------------- |
+| Al-Amin et al., Nanoscale Adv. 7 (2025) 6677, Table 1, doi:10.1039/d5na00522a             | CC BY 4.0 | 27 (inorganic: M–O, carbonate, sulfate, ...) |
+| Elgayyar et al., Phys. Chem. Chem. Phys. 27 (2025) 22871, Table 1, doi:10.1039/d5cp02197a | CC BY 4.0 | 4 (the four fundamental modes of carbonate)  |
+| Gautam et al., ISRN Ceramics 2012 (2012) 428497, Table 6, doi:10.5402/2012/428497         | CC BY     | 22 of 23 (borate glasses; "<600" left out)   |
+
+Added on 2026-11-15 with the owner's approval (non-commercial licences and one closed book). These
+rows are typed in scripts/ftir-groups-added.ts, each with its table and page, because the book's
+text may not be stored in a public repository, Bishop's tables are images and the other two are
+short:
+
+| Source                                                                                                 | Licence                                  | Rows added                                                            |
+| ------------------------------------------------------------------------------------------------------ | ---------------------------------------- | --------------------------------------------------------------------- |
+| Socrates, Infrared and Raman Characteristic Group Frequencies, 3rd edn, Wiley 2001, ISBN 0-471-85298-8 | all rights reserved; band positions only | 17 (alkyne, aldehyde C–H, nitro, C–F, C–Cl, C–Br, S=O, P=O, P–O–C)    |
+| Kaaouass et al., Heliyon 10 (2024) e31219, Table 2 (IR rows), doi:10.1016/j.heliyon.2024.e31219        | CC BY-NC 4.0                             | 5 (Mn borovanadate glasses; each range spans the five compositions)   |
+| Bishop et al., Earth Space Sci. 8 (2021) e2021EA001844, Tables 9 and 10, doi:10.1029/2021EA001844      | CC BY-NC 4.0                             | 6 minerals (magnesite, calcite, aragonite, LiNO₃, NaNO₃, KNO₃), ν1–ν4 |
+| Luo et al., RSC Adv. 12 (2022) 24055, Tables 1 and 3, doi:10.1039/d2ra03539a                           | CC BY-NC 4.0                             | CeO₂ (436) and LaAlO₃ (646, 402), calculated by DFT and labelled so   |
+
+Method: the text of each table page is taken from the PDF with `pdftotext -layout` and cached
+unedited in data/ftir/source/*.txt; scripts/ftir-groups-parse.ts reads it and
+scripts/build-ftir-groups.ts writes data/ftir/groups.json. Glyphs the PDF fonts print wrongly
+("]" for "=", "^" for "≡", "n" for ν) and the lost sub- and superscripts of formulas are written
+back by explicit pairs in the parser. Every row was compared with the rendered page.
+
+### Checks
+
+Tests: tests/ftir-groups.test.ts.
+
+| Check                                                                              | Reference                        | Tolerance |
+| ---------------------------------------------------------------------------------- | -------------------------------- | --------- |
+| groups.json equals what the parser reads from each cached table                    | round trip, the cached text      | identical |
+| Row counts 27, 4, 22 (Gautam's open-ended "<600" row left out)                     | the printed tables               | exact     |
+| S–H 2550–2600, M=O 850–1000, M≡N 1000–1100, nitrate bend 800–850 (Al-Amin)         | the rendered page                | exact     |
+| Carbonate ν2 850–880 (Elgayyar); "∼875" approximate and "806" not (Gautam)         | the rendered page                | exact     |
+| Formula pairs change only the formulas                                             | synthetic text                   | exact     |
+| Every row's source exists, with a CC BY licence, a DOI and a verification note     | the data file                    | —         |
+| The book has no DOI, its ISBN and "all rights reserved"; the three others CC BY-NC | the data file                    | —         |
+| Typed rows unchanged in groups.json; counts 17 (Socrates) and 5 (Kaaouass)         | scripts/ftir-groups-added.ts     | exact     |
+| C≡C 2100–2150, Fermi 2650–2745, P=O 1175–1350 (Socrates); BO₄ 830–888 (Kaaouass)   | the rendered pages               | exact     |
+| Calcite 1420, 1067, 888, 716; KNO₃ ν3 1424 (Bishop); CeO₂ 436, calculated (Luo)    | the rendered pages               | exact     |
+| A matched mineral band is named ("Calcite (CaCO₃), CO₃²⁻ ν3, asymmetric stretch")  | the data file                    | exact     |
+| 890 cm⁻¹: Al-Amin's 880–900 (inside) and Elgayyar's 850–880 (10 cm⁻¹) both offered | sources that disagree, both kept | exact     |
+
+The second of the three ways (an independent implementation) does not apply to a transcription;
+the check is the row-by-row comparison with the rendered page, recorded in each source's
+`verification` field.
+
+### Open
+
+- Not added, licence: Hadjiivanov et al., Chem. Rev. 2021 (MOFs, CC BY-NC-ND: no derivatives);
+  Taylor, Proc. Indian Acad. Sci. 1990 (no open licence stated); Naumenko et al. 2008 (Raman of
+  zirconia, not IR; no licence stated).
+- Not added, no general table: Kaaouass et al., Biointerface Res. Appl. Chem. 2022 (CC BY; bands
+  observed in one glass system), Alnehia et al., Discover Nano 2026 (CC BY; one sample, no band
+  table), and Rao et al., Ceram. Int. 2019 (zirconia-toughened alumina, supplied by the owner;
+  bands observed in its own samples only).
+- Not added, not practical to transcribe reliably: Hunt, Wisherd and Bonham, Anal. Chem. 22 (1950)
+  1478 (supplied by the owner). Its Table I is a rotated scan of band positions in micrometres for
+  each mineral; the text cannot be extracted reliably, and typing hundreds of cells by eye and
+  converting them (10⁴/λ) would add more risk of error than it is worth next to Bishop's measured
+  carbonate and nitrate bands.
+- Still missing from the table: Al–O and band lists for individual oxides (Al₂O₃, MgO, ZrO₂, MnO₂,
+  WO₃, V₂O₅, ferrites); Al-Amin et al. give only class-wide ranges (M–O, M=O, Fe–O/Co–O/Zn–O). CeO₂
+  and LaAlO₃ are calculated positions only.
+
+## 19e: UV-Vis peak table, path length, cross-checks and optical constants
+
+New methods (src/core/uvvis/peaks.ts, crossChecks.ts, optics.ts):
+
+- Band table: local maxima of the cleaned absorbance (F(R) for diffuse reflectance) with the
+  prominence picker of the FTIR tool on the wavelength axis, each position refined by the parabola
+  through the highest point and its two neighbours, E = hc/λ. Shoulders are second-derivative
+  minima offered as suggestions. λmax in the results table keeps its old meaning (highest point).
+- Path length: α = ln(10)·A/l with l a film thickness (nm) or a cuvette path (cm).
+- Cody plot: (α/E)^(1/2) against E, a straight line, Eg where it meets zero (A. R. Zanatta,
+  Sci. Rep. 9 (2019) 11225, citing G. D. Cody et al.).
+- Sigmoid (Boltzmann) fit: α(E) = α_max + (α_min − α_max)/(1 + exp((E − E0)/δE)) (Zanatta Eq. 8),
+  Eg = E0 − n·δE with n = 0.3 (direct), 4.3 (indirect), 3.6 (amorphous) (Eq. 9), σ(Eg) from the
+  full covariance.
+- Reflection-corrected α of a film: α = (1/d)·ln[(1 − R)²/(2T) + √((1 − R)⁴/(4T²) + R²)] (Zanatta
+  Eq. 6; also Kasikov and Aarik, Bulg. J. Phys. 51 (2024) 311, Eq. 27), no substrate.
+- k = αλ/(4π). n from Eg by Moss (n⁴Eg = 95 eV), Ravindra (n = 4.084 − 0.62 Eg) and Hervé–Vandamme
+  (n² = 1 + (13.6/(Eg + 3.47))²), as written by S. K. Tripathy, Opt. Mater. 46 (2015) 240, Eqs. 1–3,
+  shown as rough estimates with the stated ranges.
+
+### Checks
+
+Data: tests/fixtures/validation/uvvis-completion-reference.json, written by
+scripts/validation/spectra/uvvis_completion.py (numpy 2.5.4, scipy 1.18.1), a step in the
+Validation workflow. Tests: tests/uvvis-completion.test.tsx and
+tests/validation-uvvis-completion.test.ts.
+
+| Check                                                                          | Reference                                | Tolerance         |
+| ------------------------------------------------------------------------------ | ---------------------------------------- | ----------------- |
+| Cody Eg of S = B·E·(E − Eg)², Eg = 1.7 eV                                      | synthetic, known answer                  | 10⁻¹⁰ eV          |
+| Cody Eg with S × 123                                                           | invariance                               | 10⁻¹⁰ eV          |
+| Cody Eg, slope and σ(Eg) on a noisy edge                                       | scipy curve_fit, delta method            | 10⁻⁹ eV; 10⁻⁶ rel |
+| Sigmoid E0, δE and Eg = E0 − n·δE (three types) on a noise-free curve          | synthetic, known answer                  | 10⁻⁶ eV           |
+| Sigmoid with the range limits swapped and S × 0.01                             | invariance                               | 10⁻⁶ eV           |
+| Sigmoid S_min, S_max, E0, δE, Eg and their s.u. on a noisy curve (three types) | scipy curve_fit (unweighted, covariance) | 10⁻⁶ eV; 10⁻³ rel |
+| Default sigmoid range centred near E0                                          | synthetic                                | 0.03 eV           |
+| Reflection-corrected α: round trip through the slab transmittance              | round trip                               | 10⁻¹⁰ rel         |
+| R = 0 gives Beer–Lambert; large αd gives Zanatta Eq. 5                         | limits of the equation                   | 10⁻⁶; 10⁻⁸ rel    |
+| α from T and R in five cases                                                   | scipy brentq on the slab model           | 10⁻⁹ rel          |
+| k = 0.1 at 500 nm from α = 25132.74 cm⁻¹; three more cases                     | hand value; numpy                        | 10⁻¹²             |
+| Ravindra(1 eV) = 3.464, HV(3.33 eV) = √5, Moss(95/16 eV) = 2; six Eg values    | hand values; numpy                       | 10⁻¹²             |
+| Band positions, heights and prominences of two Gaussian bands with noise       | scipy.signal.find_peaks, numpy.polyfit   | 10⁻⁹ nm; 10⁻¹²    |
+| Band removed and added by hand, shoulder accepted                              | synthetic                                | exact             |
+| 1 cm cuvette: α = ln(10)·A and the same Eg as without a path                   | invariance                               | 10⁻¹⁰; 10⁻⁶ eV    |
+| Reflection correction through the analysis, with its message                   | the core function                        | 10⁻⁶              |
+| Version 4 session: step moved past Bands, Eg unchanged                         | round trip                               | identical         |
+
+The SciPy script is a second implementation of the same equations; it checks the fitting, the
+covariance and the root finding, not the equations themselves.
+
+### Open
+
+- The original papers of Cody (1981), Moss (1950), Ravindra et al. (1979) and Hervé–Vandamme (1994)
+  were not opened; the equations are taken from Zanatta (2019) and Tripathy (2015).
+- Hervé–Vandamme B: Tripathy prints B = 3.47 eV; other secondary sources give 3.4 eV. 3.47 is used
+  and flagged for verification.
+- The default sigmoid range (±0.25 eV around the midpoint of the rise near the Tauc gap) is my
+  reading of Zanatta's "~500 meV energy range centered in between the min-max α values".
+- Zanatta gives no worked table of a fit to compare with, so no published example was run.
+- Optical conductivity (σ = αnc/4π) was not built: it needs n at each wavelength together with α,
+  and no SI form of the equation from a source opened in the session was found.
+- The reflection correction models a free-standing slab; the substrate is not included, which
+  Kasikov and Aarik find matters for films thinner than about 1 µm.
+
+## 19f: particle size statistics, shapes and the session file
+
+New methods (src/core/particles/statistics.ts):
+
+- Standard error and confidence interval of the mean: SEM = s/√N, Ȳ ± t(1 − α/2, N − 1)·s/√N
+  (NIST/SEMATECH e-Handbook of Statistical Methods, §1.3.5.2), s with divisor N − 1. The Student t
+  quantile is computed from the density of §1.3.6.6.4 by Simpson's rule and Newton's method.
+- Coefficient of variation CV = s/x̄ (NIST SP 960-1).
+- Moment means D[1,0] = Σd/n, D[3,2] = Σd³/Σd² and D[4,3] = Σd⁴/Σd³, from the volume forms
+  D[3,2] = ΣV/Σ(V/d) and D[4,3] = ΣVd/ΣV of A. Virden, "D[3,2] vs. D[4,3]" (Malvern Panalytical,
+  2026), with V ∝ d³ (each particle treated as a sphere).
+- Volume-weighted Dv10, Dv50, Dv90 and span: the inverted-CDF percentile with weights d³.
+- Goodness of fit: Anderson–Darling A² with the mean and SD estimated (NIST §1.3.5.14), on d for
+  the normal fit and on ln d for the lognormal fit, against the 5 % critical value
+  0.752/(1 + 0.75/N + 2.25/N²) (M. A. Stephens, J. Am. Stat. Assoc. 69 (1974) 730, as in
+  scipy.stats.anderson). Shown as a guide; Kolmogorov–Smirnov was not used because its critical
+  values are not valid once the parameters come from the data (NIST §1.3.5.16).
+- Shape distributions: aspect ratio (longest/shortest caliper), circularity (4π·area/perimeter²,
+  ImageJ's traced perimeter) and solidity (area/convex hull area, new), of detected particles.
+
+Number-based values stay the default; every table, CSV row and the methods text names the
+weighting (number, surface or volume, the last two "assumes spheres").
+
+### Checks
+
+Data: tests/fixtures/validation/particle-stats-reference.json, written by
+scripts/validation/particles/distribution_stats.py (numpy 2.5.4, scipy 1.18.1), a step in the
+Validation workflow, on four seeded samples (lognormal n = 400, normal n = 150, n = 12, bimodal
+n = 260). Tests: tests/particles-statistics.test.ts, tests/validation-particle-stats.test.ts and
+tests/particles-completion.test.tsx.
+
+| Check                                                                        | Reference                                    | Tolerance             |
+| ---------------------------------------------------------------------------- | -------------------------------------------- | --------------------- |
+| t(0.975, ν) for ν = 1, 2, 5, 10, 30, 100; ν → ∞ gives 1.960                  | NIST §1.3.6.7.2 table                        | 5·10⁻⁴                |
+| t, lower and upper limit of the NIST worked example (N = 195)                | NIST §1.3.5.2: 1.9723, 9.258242, 9.264679    | 5·10⁻⁵; 5·10⁻⁶        |
+| t(0.975, n − 1), SEM, CI on four samples                                     | scipy.stats.t.ppf, scipy.stats.sem           | 10⁻⁷; 10⁻¹⁰; 10⁻⁹ rel |
+| Interval covers the true mean in about 95 % of 2000 samples (n = 12)         | synthetic, known answer                      | 93.5–96.5 %           |
+| ln Φ(z) and ln(1 − Φ(z)) at nine z from −12 to 20                            | scipy.stats.norm.logcdf, logsf               | 10⁻⁹ rel              |
+| CV, D[1,0], D[3,2], D[4,3] on four samples                                   | numpy                                        | 10⁻¹⁰; 10⁻¹² rel      |
+| Dv10, Dv50, Dv90 on four samples                                             | numpy.percentile(weights = d³, inverted_cdf) | identical             |
+| Equal sizes give that size for every mean and percentile                     | synthetic, known answer                      | 10⁻¹²                 |
+| One 1 µm and one 10 µm sphere: D[4,3] = 10001/1001 µm, Dv10 = 10 µm          | hand value                                   | 10⁻¹²                 |
+| D[1,0] ≤ D[3,2] ≤ D[4,3]; sizes × k scale every value; order does not matter | invariance                                   | 10⁻¹²                 |
+| A² and the 5 % critical value for d and ln d on four samples                 | scipy.stats.anderson                         | 10⁻⁷ rel; 5·10⁻⁴      |
+| A² unchanged when the sizes are shifted or scaled                            | invariance                                   | 10⁻⁹                  |
+| About 5 % of normal samples rejected at the 5 % level; bimodal rejected      | synthetic, known answer                      | 3–7 % of 1000         |
+| Discs: aspect ratio < 1.1, solidity > 0.95, circularity 0.8 to 1             | synthetic, known answer                      | as stated             |
+| Session file round trip (Int32Array outlines, scale, hash); version 6 opens  | round trip                                   | identical             |
+
+scipy.stats.anderson rounds its critical values to three decimals, hence the 5·10⁻⁴ tolerance on
+the critical value.
+
+### Open
+
+- A real SEM or TEM micrograph measured in ImageJ by a person was not supplied, so the whole chain
+  (scale, threshold, split, sizes) has not been compared with ImageJ numbers on a real image. The
+  synthetic image of 19b is still the only ImageJ comparison. Closed by the owner on 2026-11-15: no raw files are available to test with.
+- ISO 9276-2 (moment means and weighting) was not opened; the moment-mean equations come from the
+  Malvern Panalytical article named above.
+- No polydispersity index is given: the PDI in common use is the cumulants quantity of dynamic light
+  scattering, and no source opened in the session defines a PDI for sizes measured on
+  images. CV and the span are reported instead.
+- Surface- and volume-weighted values assume spheres of the equal-area diameter; for elongated or
+  porous particles they are rough estimates.
+
+## 19g: binary FTIR and UV-Vis instrument files (2026-11-15)
+
+Readers in src/core/spectrumFiles for Thermo OMNIC .spa, Bruker OPUS (.0, .1, …), PerkinElmer .sp
+(Spectrum, UV WinLab) and Galactic .spc (new layout, little-endian, one or many subfiles, with or
+without stored x values). The owner has no instrument files yet, so, as for the XRD packed formats,
+the readers were written against openly licensed real files from public test corpora
+(tests/fixtures-real/README.md): Orange-spectroscopy (GPL-3.0), rohanisaac/spc (GPL-3.0) and
+specio (BSD-3-Clause). A unit code becomes an axis or a y kind only when one of these files
+confirms it; any other code is passed on as "not stated", and the tool asks the user.
+
+### Checks
+
+Tests: tests/spectrum-files.test.ts, tests/spectrum-files-independent.test.ts.
+
+| Check                                                                                                                                                                     | Reference                                                   | Tolerance                          |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ---------------------------------- |
+| Galactic .spc, 3 files (one with 20 subfiles), every x and y                                                                                                              | the text rohanisaac/spc wrote for the same files            | x 1e-6, y relative 1e-10           |
+| OPUS, every x and y of 1,816 points                                                                                                                                       | the .dpt text OPUS itself exported for the same measurement | 5e-6 (half the last printed digit) |
+| OPUS point 4 (3994.330014648437 cm⁻¹, 0.90655535)                                                                                                                         | Orange-spectroscopy's test for the same file                | 1e-9, 1e-8                         |
+| OMNIC .spa: 1,738 points from 3999.703125 to 649.903564453125 cm⁻¹, absorbance                                                                                            | Orange-spectroscopy's test for the same file                | 1e-6                               |
+| PerkinElmer .sp: y[4] = 100.65028381347656 %T, x from 750 to 4000 cm⁻¹                                                                                                    | Orange-spectroscopy's test for the same file                | exact                              |
+| PerkinElmer .sp: lowest and highest y equal the ordinate range stored in each file                                                                                        | invariant stored in the file                                | exact                              |
+| OPUS: the first final-spectrum block decodes to the MXY and MNY stored with it                                                                                            | invariant stored in the file                                | exact                              |
+| Galactic 32-bit and 16-bit integer y (integer · 2^(e − 32), 2^(e − 16)) on an even axis                                                                                   | synthetic files with known values                           | exact                              |
+| Old or big-endian .spc, XYXY .spc, truncated .spc, OLE ".spc", OPUS without a final spectrum, PerkinElmer range that disagrees with its interval                          | refused with a plain message, not guessed                   | —                                  |
+| FTIR loads all six infrared files, increasing in wavenumber, with the kind from the file; UV-Vis loads the 20 near-infrared spectra; each tool sends the other's files on | the importers                                               | —                                  |
+| Every point of each file read by SpectroChemPy, brukeropusreader, spc-io and specio                                                                                       | independent readers, run by the Validation workflow         | relative 1e-6                      |
+
+A finding of the OPUS check: peach_juice.0 holds two final-spectrum (type 15) blocks. The first
+reader took the first, which differs from OPUS's own export by up to 0.017. The last block matches
+the export and Orange-spectroscopy's published value, so the reader takes the last block.
+
+### Independent readers (Validation workflow, run of 2026-11-15)
+
+| File                            | SpectroChemPy 1.3.1                       | brukeropusreader 1.3.4 | spc-io 0.2.1       | specio 0.1.0         |
+| ------------------------------- | ----------------------------------------- | ---------------------- | ------------------ | -------------------- |
+| omnic_sample1.spa               | every point agrees                        | —                      | —                  | —                    |
+| opus_peach_juice.0              | not read (see below)                      | every point agrees     | —                  | —                    |
+| perkinelmer\_\*.sp (2 files)    | —                                         | —                      | —                  | every point agrees   |
+| galactic_Ft-ir.spc, s_evenx.spc | every point agrees (x to 1e-3, see below) | —                      | every point agrees | not read (see below) |
+| galactic_nir.spc (20 subfiles)  | subfile 1 agrees; 2–20 misread (below)    | —                      | every point agrees | not read (see below) |
+
+Ten readings by four other programs agree with this site point by point
+(tests/spectrum-files-independent.test.ts, y to 1e-6 relative).
+
+- SpectroChemPy prints x to 3 decimals from a float32 axis, so its x is compared to 1e-3 cm⁻¹;
+  its y agrees to 1e-6.
+- SpectroChemPy scales every subfile of galactic_nir.spc by the main header's exponent (4), also
+  subfiles 2 to 20, whose own exponent is −128 (float32 values). The test checks that its values
+  are exactly the same bytes read as int32 · 2^(4 − 32), so the difference is explained to the
+  bit. spc-io and rohanisaac/spc read those subfiles as float32, as this site does, and agree.
+- SpectroChemPy returns no dataset for the OPUS file, even when asked for the AB block by name
+  (it logs a warning and returns nothing). brukeropusreader reads it and agrees.
+- specio reads Galactic files through a module named `spc` that it does not install, so it reads
+  only the PerkinElmer files here. spc-io covers the Galactic files instead.
+- specio 0.1.0 needs Python 3.9 (collections.Iterable), which the runner image no longer offers
+  through setup-python; the workflow makes its venv with uv.
+
+### Open
+
+- Unit codes not held in any real file are not mapped: PerkinElmer x labels other than "cm-1"
+  (a UV WinLab file in nm), OPUS result types other than AB and RFL (for example TR), Galactic y
+  codes other than absorbance and transmittance (galactic_nir.spc's code 3, which SpectroChemPy
+  calls Kubelka–Munk, is left for the user to choose), OMNIC codes other than wavenumber and
+  absorbance. The tool asks the user for the kind instead.
+- Not read: old-layout and big-endian Galactic files, XYXY Galactic files, OPUS files in another
+  number format, PerkinElmer images and maps, Shimadzu .spc (a compound document). Each is refused
+  with an export hint.
+
+### Closed by the owner
+
+- Files from the owner's own instruments: closed by the owner on 2026-11-15 ("I don't have
+  currently any raw files to test or validate with so close those section"). The readers are
+  validated on the public real files above; a user's file that differs is refused or asks for the
+  kind rather than being guessed.
 
 ## 20: open items of 17a to 17i (owner request, November 2026)
 
@@ -808,7 +1548,8 @@ Open:
 - Bruker .raw versions 1 to 3 and multi-scan .rasx and .brml files: no openly licensed real file
   was found. The files listed by xylib (SDPD course, IUCr CPD round robin) could not be fetched
   (the host is gone, the IUCr site needs a browser) and carry no stated licence. They stay
-  "recognised, cannot read".
+  "recognised, cannot read". Closed by the owner on 2026-11-15: no raw files are
+  available to test with.
 - The differences found in GSAS-II are drafted as reports in docs/gsas2-issue-drafts.md, for the
   owner to send; they are not resolved.
 - The counting-noise limits (0.5 and 2) stay a rule of the site, as the owner left them.

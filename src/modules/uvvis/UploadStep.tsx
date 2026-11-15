@@ -127,7 +127,7 @@ export function UploadStep({ data, update }: StepContext<UvvisData>) {
         <>
           <DataSources imageHref="#/uvvis/image">
             <FileDrop
-              formats=".csv, .txt or .dat with wavelength (nm) in the first column and one or more spectra in the other columns. Files stay on your device."
+              formats=".csv, .txt or .dat with wavelength (nm) in the first column and one or more spectra in the other columns, or a Galactic .spc instrument file. Files stay on your device."
               onFiles={importFiles}
               disabled={full}
             />
@@ -205,7 +205,7 @@ export function UploadStep({ data, update }: StepContext<UvvisData>) {
       {spectra.length > 0 && (
         <section class="add-more" aria-label="Add more data">
           <FileDrop
-            formats=".csv, .txt or .dat with wavelength (nm) in the first column and one or more spectra in the other columns. Files stay on your device."
+            formats=".csv, .txt or .dat with wavelength (nm) in the first column and one or more spectra in the other columns, or a Galactic .spc instrument file. Files stay on your device."
             onFiles={importFiles}
             disabled={full}
             compact

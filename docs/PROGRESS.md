@@ -1,5 +1,427 @@
 # Progress
 
+## Stage 19d item 4 extension and closing the raw-file items (done)
+
+Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md,
+"19d item 4".
+
+- **More FTIR reference rows**, approved by the owner on 2026-11-15: 17 group ranges from Socrates'
+  book (alkyne, aldehyde C–H and its Fermi band, aliphatic and aromatic nitro, C–F, C–Cl, C–Br,
+  sulphoxide S=O, P=O, P–O–C), 5 bands of Mn borovanadate glasses (Kaaouass et al. 2024), the
+  measured ν1–ν4 bands of magnesite, calcite, aragonite and Li, Na and K nitrate (Bishop et al.
+  2021), and the DFT-calculated lattice modes of CeO₂ and LaAlO₃ (Luo et al. 2022), labelled as
+  calculated. The rows are typed in scripts/ftir-groups-added.ts with table and page; no text of
+  the book is stored.
+- A matched mineral band now names what it is ("Calcite (CaCO₃), CO₃²⁻ ν3, asymmetric stretch")
+  instead of "metal–oxygen and lattice bands", and the reference table shows each band's note.
+  The metal–oxygen region of the combined figure still uses only the first source's oxides.
+- **Raw-file items closed by the owner** ("I don't have currently any raw files to test or
+  validate with so close those section"): Bruker .raw v1–3, multi-scan and attenuated .rasx and
+  .brml, a UV-Vis spectrum with a known gap, the FTIR peak table against instrument software, a
+  DRIFTS file, and a micrograph measured in ImageJ are marked closed in docs/validation.md.
+
+Decisions: the CC BY-NC-ND review (Chem. Rev. 2021) stays out (no derivatives). Rao et al. 2019
+(ZTA) reports bands of its own samples only, so it is not a reference table; Hunt et al. 1950's
+Table I is a rotated scan in micrometres that cannot be extracted reliably, so it was not typed.
+Licence and book source are shown with every source in the app.
+
+Known issues: band lists of individual oxides (Al₂O₃, MgO, ZrO₂, ferrites) are still missing; CeO₂
+and LaAlO₃ are calculated positions.
+
+Verification: see the pull request; lint, type check, FTIR tests, build, size and e2e were run
+before merging.
+
+## Stage 19g: binary FTIR and UV-Vis instrument files (done)
+
+Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md, 19g.
+
+- **Readers** in src/core/spectrumFiles, pure TypeScript, run in the browser: Thermo OMNIC .spa,
+  Bruker OPUS (.0, .1, …), PerkinElmer .sp (Spectrum and UV WinLab "2D constant interval" files)
+  and Galactic .spc (new layout, one or many subfiles, even axis or stored x values, float32 or
+  scaled integer y). The format is told by the file's contents, not its extension. Each reader's
+  comment states the byte layout as confirmed on the real files.
+- **Wiring.** The FTIR tool loads wavenumber files and the UV-Vis tool wavelength (nm) files;
+  each sends the other's files on with a plain message ("open it in the FTIR tool"). The y kind
+  is taken from the file when its code is confirmed (the spectrum card then says it came from the
+  file), and an "Instrument file" badge and a "Read from a … file" note are shown. A Shimadzu-style
+  compound-document ".spc" and the layouts not read are refused with an export hint. The UV-Vis
+  importer's wavelength checks were moved into one function shared by text and instrument files.
+- **Real files.** The owner has none yet, so, as for the XRD packed formats, eight openly licensed
+  files from public test corpora are kept in tests/fixtures-real/spectra (Orange-spectroscopy
+  GPL-3.0, rohanisaac/spc GPL-3.0, specio BSD-3-Clause), with an OPUS text export and the text
+  rohanisaac/spc wrote for the Galactic files. GPL test data in a test folder do not change the
+  licence of the site's code, which shares none of their code.
+- **Independent readers in CI.** SpectroChemPy, brukeropusreader, spc-io and specio could not be
+  installed in the session container, so the Validation workflow installs them in a venv of their
+  own and writes tests/fixtures/validation/instrument-files-reference.json;
+  tests/spectrum-files-independent.test.ts compares every point once it exists.
+
+Decisions: a unit code becomes an axis or a y kind only where a real file confirms it (no
+guessing from format documents for codes no file holds); anything else is "not stated" and the
+user chooses. A finding while validating: the OPUS test file holds two final-spectrum blocks, and
+only the last one matches OPUS's own .dpt export and Orange-spectroscopy's published value, so the
+reader takes the last block.
+
+Known issues: no file from the owner's instruments read yet; PerkinElmer nm files, OPUS TR and
+other result types, and several Galactic codes are unconfirmed and not mapped; the CI readers have
+since run: ten readings by SpectroChemPy, brukeropusreader, spc-io and specio agree point by
+point (SpectroChemPy cannot read the OPUS file, specio not the Galactic ones). All open in docs/validation.md, 19g.
+
+Verification: lint, type check and Prettier clean; the changed and dependent tests pass (FTIR,
+UV-Vis and the new instrument-file tests: 29 files, 302 tests, the independent-reader test skipped
+until the workflow has run); production build and bundle size within budget (shell 15.3 KB of
+150 KB); e2e passed, including the new "FTIR: Bruker OPUS and Thermo OMNIC files read in the
+browser".
+
+Next: the extension of 19d item 4 the owner approved (done, above).
+
+## Stage 19d item 4: wider FTIR group table (done)
+
+Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md,
+"19d item 4".
+
+- **53 new rows** from three CC BY tables in the PDFs the owner supplied: Al-Amin et al. 2025
+  (27 inorganic rows: metal–oxygen, M=O, carbonate, sulfate, phosphate, Si–O–Si and Si–O, nitrate,
+  borate, S–H, metal–halide, metal–sulphur, metal–nitrogen), Elgayyar et al. 2025 (the four
+  carbonate modes) and Gautam et al. 2012 (22 bands of borate glasses).
+- **A source on every row.** groups.json has a `sources` map (citation, DOI, licence, table,
+  verification) and each row a `source` key. Each suggestion shows its source in a new column;
+  the reference table lists all sources; the methods text cites all four. Rows that disagree
+  (carbonate near 880 cm⁻¹: "symmetric stretching" 880–900 in one, "out-of-plane bend" 850–880 in
+  the other) are both kept and both offered.
+- **Transcription.** The table text is cached unedited from pdftotext; the parser fixes the PDF
+  font glyphs and formula sub/superscripts by explicit pairs; every row was compared with the
+  rendered page and the check is recorded in each source's `verification`.
+- The spectral regions of the combined figure still come from the first source only, so they do
+  not change.
+
+Decisions: only CC BY tables were added; the CC BY-NC and CC BY-NC-ND articles (Bishop 2021,
+Heliyon 2024, RSC Adv. 2022, Chem. Rev. 2021) wait for the owner, and Socrates (all rights
+reserved) is not used. Papers that report bands of one sample, not a table of typical ranges, were
+not transcribed. Gautam's "<600" row has no lower limit and was left out rather than given one.
+
+Known issues: still missing nitro, alkyne, aldehyde C–H, organic S=O, P=O, C–halogen, Al–O and
+band lists of individual oxides (see docs/validation.md).
+
+Verification: lint, type check and Prettier clean; FTIR and dependent tests pass (20 files, 172
+tests, including the new source and transcription tests); production build and bundle size within
+budget; e2e passed, including "FTIR: peaks, accepted assignments, methods text and session file".
+
+## Stage 19f: particle size session file, report, statistics and shapes (done)
+
+Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md, 19f.
+
+- **Session file.** Download and open a particles session (JSON, kind `particles-session`) from
+  the Upload and Distribution steps, through the shared session section. It holds the scale, all
+  settings, detected and hand-edited particles (outlines as runs, stored as Int32Array), hand
+  measurements, the pool and the distribution settings, and the image's name, size, byte count and
+  SHA-256. Without the image the distribution, tables, pool and report work; the image steps ask
+  for the same file. Loading it again re-attaches the work when the SHA-256 matches; a different
+  file gets a plain "This is not the image the session was made with … the file contents differ"
+  confirmation before the work is replaced.
+- **Sample report.** The particle size distribution (number-based values, then surface- and
+  volume-weighted values labelled as estimates assuming spheres) and the DSC results (events with
+  the sign convention, glass transition, crystallinity, methods text) are now in the report.
+- **Statistics.** SEM and the 95 % confidence interval of the mean (Student t, n − 1 degrees of
+  freedom), CV, D[1,0], D[3,2], D[4,3], Dv10/50/90 and span, in a "Further statistics" table with a
+  Weighting column, in the summary CSV and in the methods text. Anderson–Darling A² for the normal
+  and lognormal fits with the 5 % critical value, worded as a guide.
+- **Shape distributions.** Summary table and histogram of aspect ratio, circularity and solidity
+  (new: area over convex hull area) of the detected particles, in the same chart component, with
+  the circularity ~0.9 note and a CSV. Pool entries saved before this version are named as lacking
+  shapes.
+- **Histogram figure.** A free height (30 to 250 mm) for the exported histograms.
+- **State.** Particle state version 7; version 6 sessions get null fingerprints, pool entries
+  without shapes and the default shape choice (test in tests/particles-completion.test.tsx).
+
+Decisions: Anderson–Darling, not Kolmogorov–Smirnov, because KS critical values are not valid with
+estimated parameters (NIST §1.3.5.14 and §1.3.5.16); the lognormal fit is tested on ln d. No PDI:
+the common PDI is a dynamic light scattering quantity and no source defines one for image sizes, so
+CV and span are given instead. Volume percentiles by the inverted CDF without interpolation, the
+weighted method of numpy.percentile. Hand measurements have no outline and are left out of the
+shapes. The image is matched by SHA-256 of the file bytes, computed in the browser with
+crypto.subtle; nothing leaves the device.
+
+Known issues: not tried on a real SEM or TEM image with ImageJ numbers (none supplied); ISO 9276-2
+not opened; volume and surface weighting assume spheres. All listed as open in docs/validation.md,
+19f.
+
+Verification: lint, type check and Prettier clean; the changed tests pass (particles, particle
+validation, sample report and session tests: 16 files, 247 tests, including 51 new statistics tests
+and 13 new completion tests); production build and bundle size within budget (shell 20.0 KB of
+150 KB); e2e passed, including "Particles: further statistics, shape distributions, session file".
+
+Next: sub-stage 19g (binary FTIR and UV-Vis instrument files), which needs real instrument
+files from the owner. 19d item 4 waits for the PDFs of the group-table sources.
+
+## Stage 19e: UV-Vis peak table, path length, figures and gap cross-checks (done)
+
+Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md, 19e.
+
+- **Absorption bands step (new step 3).** Band table of each spectrum in nm and eV, with A or F(R),
+  prominence and relative value; a prominence slider and search range; add and remove by hand
+  (click or typed); second-derivative shoulders offered as suggestions to accept. Labels on the plot
+  and in the combined figure; CSV. A band fit on the energy axis (Gaussian, Lorentzian or
+  pseudo-Voigt, in the peaks worker) starts from the band table. λmax keeps its old definition.
+- **Path length.** Film (thickness in nm) or solution (path in cm), with the equation for each; α in
+  cm⁻¹. For a solution a message says that α is that of the whole liquid and that Eg is unaffected.
+- **Reflection correction.** A film can name its measured reflectance spectrum; α then uses
+  Zanatta's Eq. 6. A warning is shown when it is missing, not a reflectance or does not overlap.
+- **Several transitions per sample.** "Report in Results" ticks in the comparison table; each
+  transition is a row in Results, the CSV, the record and the methods text.
+- **Cross-checks (estimates).** Cody plot and the sigmoid fit of Zanatta (2019), each with its own
+  plot and draggable range, shown next to the Tauc value.
+- **Optical constants.** k = αλ/4π (table, plot, CSV) when α is absolute; n from Eg by Moss,
+  Ravindra and Hervé–Vandamme, with the source and the stated range, labelled as rough estimates.
+- **Results figures.** All spectra together (offset, stack, legend, band labels) and the Tauc plots
+  together (fit lines and Eg dots, chosen transition and spectra), both with the shared export panel.
+- **State.** UV-Vis state version 5; version 1 to 4 sessions get values that change no number, and
+  the saved step moves past the new step (test in tests/uvvis-completion.test.tsx).
+
+Decisions: the FTIR peak picker reused on the wavelength axis, so both tools define prominence the
+same way; snapping of hand bands within 5 nm (UV-Vis bands are tens of nm wide); Cody and sigmoid
+are cross-checks, not replacements for the Tauc value (Zanatta 2019 proposes the sigmoid as an
+alternative, and the Tauc plot stays the usual reported value); cross-checks only on the primary
+transition row; the Hervé–Vandamme B of Tripathy (3.47 eV); figures of spectra stay in nm (owner's
+choice), Tauc figures in eV.
+
+Known issues: the example data have no absorption bands, so the Bands step shows "no bands" with
+the example; optical conductivity not built; other open items in docs/validation.md, 19e.
+
+Verification: lint, type check and Prettier clean; the UV-Vis tests pass (18 files, 209 tests,
+including 17 new unit tests and 20 new SciPy comparisons); production build and bundle size within
+budget; e2e passed, including "UV-Vis: bands step, Cody cross-check, combined Tauc figure, results
+CSV and methods text".
+
+Next: sub-stage 19f (Particles: session file, report, statistics). 19d item 4 waits for the PDFs of
+the group-table sources.
+
+## Stage 19d: FTIR processing, reflectance data and a wider group table (done, item 4 blocked)
+
+Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md, 19d.
+
+- **Reflectance (DRIFTS).** A third data type, "Diffuse reflectance (%R, DRIFTS)", read from a
+  "Reflectance" or "%R" heading or JCAMP YUNITS=REFLECTANCE (replaces the 19a warning). Step 2
+  converts it to the Kubelka–Munk function F(R) by default (the usual quantity for diffuse
+  reflectance) or to log₁₀(1/R). The assumptions are stated on the card and in step 2; specular
+  reflectance is not handled (no Kramers–Kronig). Axes, tables, CSV headers and the methods text
+  name the quantity (for example "Kubelka-Munk F(R) (processed)").
+- **CO₂ band, off by default.** 2280–2400 cm⁻¹ (adjustable) is replaced by a straight line, first in
+  the processing order so that the baseline and normalisation do not see the band. Shown on the
+  plot as "CO₂ line", excluded from peak picking and hand peaks, stated in the methods text.
+- **Normalise to a band.** Height or area of a chosen range; a warning, and no change, when the
+  band is absent (maximum at an end of the range or not above 3 × the local noise), negative, or
+  outside the data.
+- **Broad flag.** Table rows whose label says "broad" rank a broad peak higher (and a narrow one
+  lower) at equal distance; the reason says so. Suggestions stay estimates.
+- **State.** FTIR state version 6; version 5 and older sessions get the defaults, which change
+  nothing (test in tests/ftir-processing-19d.test.ts).
+- **Wider group table: blocked.** No rows added. The candidate sources are reported to the owner
+  (see the stage report); none could yet be confirmed for licence and coverage, because the
+  publisher pages refused the automated fetch.
+
+Decisions: Kubelka–Munk as the default for diffuse reflectance (common DRIFTS practice; log(1/R)
+offered because it is preferred for quantitative work on undiluted samples); CO₂ line before all
+other steps, because a straight line over the band is a cosmetic edit that later steps should
+treat as data; the 3σ noise floor for "band absent", so rounding noise is not normalised to 1;
+the broad rule only breaks ties after distance, so a nearer row still wins.
+
+Known issues: no real DRIFTS file to test with; the CO₂ default range is not measured on a real
+spectrum; open items in docs/validation.md, 19d.
+
+Verification: lint and type check clean; the changed and dependent tests pass (FTIR, validation-ftir, digitize and record: 19 files, 164 tests, plus 20 new 19d tests); production build and bundle size within budget; e2e passed, including "FTIR: CO₂ region replaced by a straight line".
+
+Next: sub-stage 19e (UV-Vis: peak table, path length, figures, gap methods), and item 4 of 19d
+once the owner approves a source.
+
+## Stage 19c: FTIR peaks, editing, table and comparison across samples (done)
+
+Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md, 19c.
+
+- **Peaks by hand (Pick peaks step).** Modes "Add peaks" and "Remove peaks" on the plot (a tap
+  within 10 cm⁻¹ of a local maximum adds the maximum, further away adds exactly there), a typed
+  "Add a peak at (cm⁻¹)" box for the keyboard, a Remove button on every table row, and "Reset
+  hand edits". Edits are stored per spectrum by position (`peakEdits`), re-attached after
+  reprocessing with the assignment pairing rule, and undone with the wizard's Undo.
+- **Shoulders.** Second-derivative minima (settings of the Bands step) with no peak within 10 cm⁻¹
+  are offered as "Accept shoulder at …"; accepted ones are marked "shoulder" and flagged.
+- **New columns.** Height above a local baseline, FWHM, area (absorbance · cm⁻¹), intensity class,
+  origin (picked, added by hand, shoulder) and an overlap flag that points to band fitting.
+  Definitions in src/core/ftir/peakShape.ts. The class thresholds are my own (no numeric
+  convention exists; IR tables use s, m, w, br without limits) and are stated on screen and in the CSV.
+- **Comparison across samples (Results).** One row per band, one column per sample, a dash when
+  absent, shifts from a chosen reference sample, assignments, optional relative intensity, CSV.
+  Grouping (src/core/ftir/compare.ts) sorts all peaks by wavenumber, so the sample order does not
+  matter (tested); default tolerance 10 cm⁻¹, my own choice (2.5 × the common 4 cm⁻¹ resolution).
+- **Combined figure.** Labels: wavenumber, assignment, both, or none (long assignments are cut at
+  28 characters; labels can be edited on the plot). Optional spectral regions, each the envelope
+  of named rows of data/ftir/groups.json (src/modules/ftir/regions.ts), drawn in the SVG and PNG.
+  Shared plot fixes: band names are stacked in rows when they would overlap and move to the
+  bottom edge when peak labels use the top; peak labels near the frame are moved inside it with a
+  leader line.
+- **Wide CSV.** "Download processed spectra, one column per sample" when all grids match.
+- **Methods text and record.** Hand edits are counted ("The peak list was edited by hand: …"), the
+  width and area definition is given, and the comparison tolerance when there are several samples.
+- **State.** FTIR state version 5 (`peakEdits`, `compare`); version 4 sessions are migrated
+  (tests/ftir-peak-edits.test.ts).
+- **Validation.** Synthetic Gaussian and Lorentzian bands with exact widths and areas; scipy
+  peak_widths and trapezoid (scripts/validation/spectra/ftir_peaks.py, a step in the Validation
+  workflow) agree to 10⁻⁶; offset, scale and mirror invariance; grouping with known shifts and
+  under 20 reorderings. Open: a real instrument peak table to compare widths and areas with.
+
+Verification: lint and type check clean; 1613 tests pass, 1 todo (140 files); production build
+and bundle size within budget (initial JavaScript 20.0 KB gzipped); e2e passed, including the new
+FTIR steps (adding a peak, removing one, assigning, the comparison table and its CSV).
+
+Next: sub-stage 19d (FTIR processing, reflectance data and a wider group table).
+
+## Stage 19b: validation of the UV-Vis, FTIR and Particles tools (done)
+
+Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md, 19b.
+
+- **Inventory.** Every numerical method of the three tools is listed with its tests and its three
+  kinds of check (synthetic, independent, invariance). Methods with no independent check are
+  marked and explained.
+- **Independent references, new scripts.** All run in the new `spectra-particles` job of
+  .github/workflows/validation.yml and write fixtures to tests/fixtures/validation/:
+  - scripts/validation/spectra/uvvis.py (SciPy, lmfit): Tauc fit with σ(Eg) by the delta method,
+    Urbach, derivative maximum, savgol_filter, Beer–Lambert, kinetics, plasmon band.
+  - scripts/validation/spectra/ftir.py (SciPy, pybaselines, lmfit): find_peaks and
+    peak_prominences, second derivative, trapezoid band area, lstsq subtraction factor, AsLS,
+    arPLS, modpoly, Qhull rubber band, a two-band fit.
+  - scripts/validation/particles/make_particles.py (scikit-image, SciPy, NumPy): a test image of
+    14 known ellipses, thresholds, label and regionprops, percentiles, bins, normal and lognormal
+    fits.
+  - scripts/validation/particles/ImageJCheck.java (ImageJ 1.54f from Maven Central, SHA-256
+    pinned): Auto Threshold and Analyze Particles on the same image.
+- **Python packages** (CI only, not in the app): numpy, scipy, lmfit, pybaselines, scikit-image,
+  pinned in the workflow.
+- **New tests.** tests/validation-uvvis.test.ts, tests/validation-ftir.test.ts and
+  tests/validation-particles.test.ts. Round trips and invariances: %T↔A, λ↔E, reversed point
+  order, a scaled signal (Tauc and Urbach), the same spectrum given as %T, a constant offset and a
+  scaled FTIR spectrum, a known amount of reference, ATR dp ∝ 1/ν̃, a particle image turned 90°,
+  mirrored, flipped and enlarged ×2, and pooled images in either order.
+- **Fault found and fixed.** arPLS (src/core/math/whittaker.ts) took the standard deviation of the
+  negative residuals with divisor n; pybaselines uses n − 1. Baselines moved by up to 0.015 %;
+  now equal to pybaselines to 10⁻⁹. It is used by the FTIR and XRD baselines; every earlier test
+  still passes.
+- **Recorded, not changed:**
+  - The modified polyfit clips the already clipped data each pass. pybaselines calls this the Gan
+    et al. form and attributes clipping the original data to Lieber. The code comment now says
+    so, and the paper is listed as open.
+  - Pixel perimeters do not double when an image is enlarged: a two-pixel staircase is cut at
+    the same corners, up to 1.207 × for 45° edges. The site never enlarges; its working copy is
+    made by averaging.
+- **FTIR group table.** Still one review article, flagged for the owner. The record lists the rows
+  to compare with a textbook: two zero-width ranges, four very wide ones, a duplicated range, an
+  odd "amide III (2° amines)" label, and the metal-oxide band positions.
+- **Open:**
+  - No published ATR depth table could be read.
+  - The clipping rule in the Lieber paper.
+  - No real UV-Vis, FTIR or particle file in tests/fixtures-real/. The files and numbers needed
+    are listed in the record.
+- **Verification:** lint clean, type check clean (app and tests), 1575 tests pass and 3 are
+  skipped (the ImageJ ones, waiting for the workflow), 136 files. Production build OK, bundle size
+  within budget, e2e passed.
+- **Follow-up in the same pull request (2026-11-14).**
+  - Real UV-Vis files: two TiO₂ diffuse reflectance spectra (200 and 300 °C) from Zenodo
+    10.5281/zenodo.14608640, CC BY 4.0, in tests/fixtures-real/uvvis/ with their source. The
+    record gives no band gap and no openly readable paper with one was found, so they check the
+    reader and the Tauc arithmetic against scripts/validation/spectra/uvvis_real.py
+    (tests/validation-uvvis-real.test.ts), not a published value. tests/realFiles.test.ts now
+    reads only the XRD files at the top of the folder.
+  - Fault found with them and fixed: the suggested Tauc region took the straight, slow rise above
+    the edge where F(R) saturates (4.6–5.4 eV: 3.72 eV direct, no indirect gap). A chosen line
+    that meets y = 0 above the steepest part of the edge, or at or below zero, now makes the
+    region be chosen again among windows that overlap that part. No synthetic result changes.
+    Still open: the 300 °C indirect suggestion after baseline subtraction, and the general case
+    (both in docs/validation.md, 19b Open).
+  - ImageJ: the workflow ran ImageJ 1.54f and committed particles-imagej.json. Nine of ten
+    thresholds and area, centroid, ellipse, Feret and MinFeret agreed at once. Two faults found
+    and fixed, each from ImageJ's own source (v1.54f on GitHub): the perimeter now follows
+    PolygonRoi.getTracedPerimeter, with the walk starting where the Wand starts (it read up to
+    2.9 % long before, so circularity was low); Triangle now moves the split one level towards
+    the tail on both sides (82 → 83 on the test image; scikit-image keeps 82). The help text on
+    circularity says a square reads about 0.89, as in ImageJ.
+  - CLAUDE.md section 10 now records the owner's standing instruction to decide by published
+    practice without waiting, with unverifiable data still left as TODO.
+  - Verification: lint clean, type check clean, 1592 tests pass and 1 todo (137 files), none
+    skipped, production build OK, bundle size within budget, e2e passed.
+- **Next:** 19c, FTIR peaks: editing, table, comparison across samples.
+
+## Stage 19a: four bugs found by the audit of UV-Vis and FTIR (done)
+
+Branch `claude/charming-wozniak-qix1hp`. No new packages. Checks in docs/validation.md, 19a.
+
+- **Bug 1, Tauc gap with background absorption (UV-Vis).** src/core/uvvis/tauc.ts
+  `analyseTaucGap` now reads Eg in one of three ways, set per spectrum under "How Eg is read":
+  the axis intercept (as before); the sub-gap baseline subtracted first (a straight line fitted to
+  α, A or F(R) below the edge is subtracted before the Tauc plot); or the crossing of the edge
+  line with a baseline line on the Tauc plot (after Makuła, Pacia and Macyk 2018). Automatic (the
+  default) subtracts the baseline when that moves Eg by more than 0.01 eV, otherwise uses the axis
+  intercept, so zero-level spectra give exactly the old numbers. The baseline region (0.5 eV
+  ending 0.1 eV below the gap, placed again after one subtraction, my own choice) can be typed or
+  dragged (the lower pair of markers). When a level is found, the edge region is suggested on the
+  corrected curve, so it stays on the edge. The uncertainty of the subtraction adds the baseline
+  line's part (central differences and its covariance); the crossing's comes from both lines.
+  A warning appears when the axis intercept is used with a level present, with both numbers. The
+  results table, CSV ("Eg read from", baseline limits), methods text and record name the method.
+  The step's tip card and help text are updated.
+- **Decision (owner, 2026-11-14):** the crossing cannot reach the 0.01 eV target (the Tauc curve
+  of an edge plus a level is bent above the gap: 3.18, 3.15, 3.14 eV for levels 0.05, 0.2, 0.5),
+  so both methods were built and subtraction is the default; the background of the Kubelka–Munk
+  test case is added to F(R). docs/STAGE-19-PROMPTS.md carries a correction note.
+- **Saved sessions:** UV-Vis state version 3. A version 2 spectrum is migrated to the axis
+  intercept with the old region suggestion (`legacySuggestion`), so its band gap is unchanged
+  until the user changes the method or a region; the step says so.
+- **Bug 2, fraction read as percent (UV-Vis).** `kindFromText` names the kind from a word and the
+  scale only from a percent sign ("%R", "R (%)", "Reflectance [%]"); otherwise the range decides.
+  Film and concentration uploads go through the same import; digitized curves had no heading.
+- **Bug 3, FTIR assignments lost on reprocessing.** Assignments now carry an id and the position
+  where they were made (FTIR state version 4, migration adds ids). After every reprocessing they
+  re-attach, one per peak, to the nearest peak within 20 cm⁻¹ (my own choice: the example's broad
+  O–H band moves 15.9 cm⁻¹ with baseline, smoothing and ATR on; narrow bands up to 4.8 cm⁻¹). An
+  assignment more than 2 cm⁻¹ from its peak is shown with where it was made. Assignments with no
+  peak are listed in step 4 as "not attached to a peak" (removable), noted under the results
+  table and in the record, and re-attach when the peak returns. A peak added by hand (19c) can be
+  referred to by an optional id on the assignment without another migration.
+- **Bug 4, FTIR reflectance taken as transmittance.** Reflectance wording in a heading or in
+  JCAMP-DX ##YUNITS is recognised; the spectrum is read as transmittance with a plain warning on
+  its card until the reflectance data type of 19d.
+- **Verification:** lint clean, type check clean (app and tests), 1518 tests pass (132 files),
+  production build OK, bundle size within budget, e2e passed. Screens checked at 360 and 1280 px
+  (no sideways scroll).
+- **Follow-up in the same pull request.** On 2026-11-14 the owner asked for the open items to be
+  settled in whatever way suits researchers best, following the published literature. Done:
+  - The owner supplied the Makuła paper, read in full. The crossing as built is their
+    "simplified procedure" (Table 1, column 3, Figure 4). Citation confirmed, TODO removed.
+  - Their most accurate method (column 2) is added as a fourth way to read Eg: "Spectrum of a
+    second component subtracted first", α_s = α − c·α_m (their eq 4). The user picks another
+    loaded spectrum: the dye, modifier or support measured alone, measured the same way (both
+    F(R), or both absorbance). c is fitted by least squares through the origin over the sub-gap
+    region (my own choice, so the concentration is not needed), or typed. σ(c) is carried into
+    σ(Eg). The component is interpolated onto the sample's energy grid, never extrapolated, and
+    this method is never chosen automatically. On a synthetic dye band across the edge it gives
+    3.200 eV, where the other three methods read the dye edge (2.37 to 2.42 eV), as in the
+    paper's column 1.
+  - Robustness fix found while testing it: with a curved background, the automatic baseline
+    window could creep up into the edge (straight-line subtraction gave 4.05 eV for a 3.20 eV
+    gap). A move of the window is now undone when the corrected Tauc curve is not flat (below
+    10 % of the edge) between the window and the gap it gives (`flatBelowGap`, my own
+    threshold). Earlier 19a results are unchanged.
+  - The "all four transitions" table now reads every transition with the same method settings
+    as the chosen one (new column "Eg read from").
+  - UV-Vis state version 4 adds `component`, which is null for older sessions. The results
+    table and CSV ("Second component", "Factor c" and its uncertainty), the methods text and the
+    record name it.
+  - Decision: the axis σ (unweighted least squares, the usual Tauc practice) stays as it is. It
+    is about 1.27 × the scatter when the noise is in A, which errs on the safe side; a weighted
+    fit would need a noise model the data do not give.
+- **Known issues:** subtracting a straight baseline assumes a background that is linear in E
+  across the edge; for a curved one, use the component subtraction. tests/fixtures-real/ has no
+  real UV-Vis spectrum with a known gap.
+- **Next:** 19b, validation of the three tools.
+
 ## v1.0.0 archived on Zenodo (done, November 2026)
 
 - The owner published release v1.0.0 and Zenodo archived it: version DOI
@@ -490,7 +912,7 @@ Known issues and TODO (owner):
 - **Still open in docs/validation.md:** Fityk or FullProf on a real pattern; DICVOL, TREOR or
   McMaille on an unknown pattern; VESTA; the exported GSAS-II files loaded into GSAS-II by hand;
   real Bruker .raw version 1 to 3 files and multi-scan .rasx/.brml files.
-- DSC results and the particle size distribution are not part of the sample report yet.
+- DSC results and the particle size distribution are not part of the sample report yet (done in 19f).
 - "Use the empty space under the docked plot" was not done: the plot panel keeps its own height.
 
 Next stage: none in the tracker; waiting for the owner.
@@ -2386,9 +2808,9 @@ Branch `claude/hopeful-dirac-72ak86`, stacked on 10b (pull request 18 is still n
 
 ### Known issues
 
-- No JSON session file for particles yet (the image itself lives in IndexedDB and is not in the file).
+- No JSON session file for particles yet (the image itself lives in IndexedDB and is not in the file). Done in 19f.
 - Circularity of a digital disc reads about 0.9 (see 10b).
-- Heights of the exported histogram follow the preset (65 mm single, 100 mm double); no free height.
+- Heights of the exported histogram follow the preset (65 mm single, 100 mm double); no free height. Done in 19f.
 - Not tried with a real SEM or TEM image.
 
 ### Needs from you

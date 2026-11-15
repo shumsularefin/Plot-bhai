@@ -3,6 +3,8 @@ import { COMMENT, detectLayout, numericRow, splitFields } from '../text/delimite
 import { baseName } from '../xrd/import';
 import { formatNumber } from '../xrd/parsers/numbers';
 import type { DataMessage } from '../xrd/types';
+import { readInstrumentFile } from '../spectrumFiles';
+import type { InstrumentFile } from '../spectrumFiles';
 import { kindFromText, suggestKind } from './kind';
 import type { SpectraImportResult, Spectrum, SpectrumSource } from './types';
 
@@ -32,6 +34,10 @@ export function importSpectraFile(name: string, bytes: Uint8Array): SpectraImpor
   }
   const utf16 =
     (bytes[0] === 0xff && bytes[1] === 0xfe) || (bytes[0] === 0xfe && bytes[1] === 0xff);
+  const instrument = utf16 ? undefined : readInstrumentFile(bytes, extensionOf(name));
+  if (instrument) {
+    return instrument.ok ? importInstrumentFile(name, instrument.file) : instrument;
+  }
   if (isZip(bytes) || (!utf16 && hasNulBytes(bytes))) {
     return {
       ok: false,
@@ -41,6 +47,32 @@ export function importSpectraFile(name: string, bytes: Uint8Array): SpectraImpor
   // Instrument software often writes Windows-1252; Latin-1 never fails and keeps the numbers.
   const text = decodeText(bytes, 'latin1');
   return importSpectraText(name, text, extensionOf(name) === 'csv' ? 'csv' : 'text');
+}
+
+/** A spectrum read from a binary instrument file (src/core/spectrumFiles); x must be in nm. */
+function importInstrumentFile(name: string, file: InstrumentFile): SpectraImportResult {
+  if (file.xUnit !== 'nm') {
+    return {
+      ok: false,
+      error:
+        file.xUnit === 'wavenumber'
+          ? `This ${file.format} file holds an infrared spectrum (x axis: wavenumber in cm⁻¹). Open it in the FTIR tool instead.`
+          : `The x axis of this ${file.format} file is ${file.xLabel}, not wavelength in nm, so this tool cannot use it.`,
+    };
+  }
+  const title = file.title || baseName(name);
+  const hintText =
+    file.yKind === 'transmittance' && file.yScale === 'percent' ? '%T' : (file.yKind ?? '');
+  return buildSpectra(
+    title,
+    'instrument',
+    Array.from(file.spectra[0]?.x ?? []),
+    file.spectra.map((s, i) => ({ values: Array.from(s.y), label: `spectrum ${i + 1}`, hintText })),
+    [
+      { level: 'info', text: `Read from a ${file.format} file (y values: ${file.yLabel}).` },
+      ...file.notes,
+    ],
+  );
 }
 
 /**
@@ -103,7 +135,45 @@ export function importSpectraText(
     });
   }
 
-  let wavelength = good.map((row) => row.values[0] as number);
+  if (columns < 2) {
+    return { ok: false, error: 'Only one column of numbers was found; a spectrum needs two.' };
+  }
+  // Column names from the last header line, when it has one field per column.
+  const lastHeader = header[header.length - 1];
+  const headerFields = lastHeader ? splitFields(lastHeader, layout.delimiter) : [];
+  const named = headerFields.length === columns;
+  const headerText = header.join('\n');
+  const title = baseName(name);
+  const sets = [];
+  for (let c = 1; c < columns; c++) {
+    const columnName = named ? (headerFields[c] as string) : '';
+    sets.push({
+      values: good.map((row) => row.values[c] as number),
+      label: columnName || `column ${c + 1}`,
+      hintText: kindFromText(columnName) ? columnName : kindFromText(headerText) ? headerText : '',
+    });
+  }
+  return buildSpectra(
+    title,
+    source,
+    good.map((row) => row.values[0] as number),
+    sets,
+    baseNotes,
+  );
+}
+
+/**
+ * Checks the wavelength axis (enough points, one direction, nm) and makes one spectrum per set
+ * of values; shared by text files and binary instrument files. A descending axis is reversed.
+ */
+function buildSpectra(
+  title: string,
+  source: SpectrumSource,
+  wavelengthIn: number[],
+  sets: { values: number[]; label: string; hintText: string }[],
+  baseNotes: DataMessage[],
+): SpectraImportResult {
+  let wavelength = [...wavelengthIn];
   const n = wavelength.length;
   if (n < MIN_POINTS) {
     return {
@@ -114,7 +184,7 @@ export function importSpectraText(
 
   // Order: ascending wavelength. A fully descending scan is reversed; anything else is an error.
   const descending = (wavelength[n - 1] as number) < (wavelength[0] as number);
-  const reversedRows = descending ? [...good].reverse() : good;
+  const order = Array.from({ length: n }, (_, i) => (descending ? n - 1 - i : i));
   if (descending) wavelength = wavelength.reverse();
   for (let i = 1; i < n; i++) {
     const previous = wavelength[i - 1] as number;
@@ -150,21 +220,10 @@ export function importSpectraText(
       text: `The first column goes up to ${formatNumber(high)}. UV-Vis-NIR spectrometers rarely go beyond 3300 nm, so check this is wavelength in nm and not, for example, a wavenumber.`,
     });
   }
-  if (columns < 2) {
-    return { ok: false, error: 'Only one column of numbers was found; a spectrum needs two.' };
-  }
-
-  // Column names from the last header line, when it has one field per column.
-  const lastHeader = header[header.length - 1];
-  const headerFields = lastHeader ? splitFields(lastHeader, layout.delimiter) : [];
-  const named = headerFields.length === columns;
-  const headerText = header.join('\n');
-  const title = baseName(name);
 
   const spectra: Omit<Spectrum, 'id'>[] = [];
-  for (let c = 1; c < columns; c++) {
-    const values = Float64Array.from(reversedRows.map((row) => row.values[c] as number));
-    const columnName = named ? (headerFields[c] as string) : '';
+  for (const set of sets) {
+    const values = Float64Array.from(order, (i) => set.values[i] as number);
     let min = Infinity;
     let max = -Infinity;
     for (const v of values) {
@@ -174,16 +233,13 @@ export function importSpectraText(
     if (min === max) {
       baseNotes.push({
         level: 'warning',
-        text: `Column ${c + 1} has the same value (${formatNumber(min)}) in every row, so it was not loaded.`,
+        text: `${set.label.charAt(0).toUpperCase()}${set.label.slice(1)} has the same value (${formatNumber(min)}) in every row, so it was not loaded.`,
       });
       continue;
     }
-    const suggestion = suggestKind(
-      values,
-      kindFromText(columnName) ? columnName : kindFromText(headerText) ? headerText : '',
-    );
+    const suggestion = suggestKind(values, set.hintText);
     spectra.push({
-      name: columns === 2 ? title : `${title} – ${columnName || `column ${c + 1}`}`,
+      name: sets.length === 1 ? title : `${title} – ${set.label}`,
       source,
       wavelengthNm: Float64Array.from(wavelength),
       values,

@@ -5,6 +5,8 @@ import {
   type FtirProcessing,
   type FtirStep,
   type NormaliseMethod,
+  type ReflectanceTransform,
+  DEFAULT_CO2_RANGE,
   toAbsorbance,
 } from '../../core/ftir/process';
 import { HelpTip } from '../../ui/HelpTip';
@@ -14,6 +16,7 @@ import { StepSection } from '../xrd/StepSection';
 import { processAll } from './analysis';
 import { processingFor, type FtirData } from './data';
 import { curveOf, FtirPlot, type FtirCurve } from './FtirPlot';
+import { REFLECTANCE_TEXT } from './FtirSpectrumCard';
 import { QuantityChoice } from './QuantityChoice';
 import { shownQuantity } from './quantity';
 
@@ -33,6 +36,11 @@ const BASELINE_LABELS: Record<BaselineMethod, string> = {
 const NORMALISE_LABELS: Record<NormaliseMethod, string> = {
   max: 'Divide by the highest absorbance',
   minmax: 'Lowest to 0, highest to 1',
+  band: 'Divide by the height or area of a chosen band',
+};
+const REFLECTANCE_LABELS: Record<ReflectanceTransform, string> = {
+  'kubelka-munk': 'Kubelka–Munk F(R) = (1 − R)²/(2R) (recommended for diffuse reflectance)',
+  'log-inverse': 'log₁₀(1/R), apparent absorbance',
 };
 const FINGERPRINT: readonly [number, number] = [1500, 400];
 const UNDO_LIMIT = 50;
@@ -66,7 +74,12 @@ export function CleanStep({ data, update }: StepContext<FtirData>) {
     }
     const before = {
       wavenumber: spectrum.wavenumber,
-      absorbance: toAbsorbance(spectrum.values, spectrum.kind, spectrum.scale),
+      absorbance: toAbsorbance(
+        spectrum.values,
+        spectrum.kind,
+        spectrum.scale,
+        settings.reflectance,
+      ),
     };
     const list: FtirCurve[] = [];
     if (view !== 'after') {
@@ -91,7 +104,7 @@ export function CleanStep({ data, update }: StepContext<FtirData>) {
       );
     }
     return list;
-  }, [view, spectrum, result, spectra, processed]);
+  }, [view, spectrum, result, spectra, processed, settings.reflectance]);
 
   if (!spectrum || !result) return <p>No spectra are loaded. Go back to Upload to add one.</p>;
 
@@ -158,8 +171,69 @@ export function CleanStep({ data, update }: StepContext<FtirData>) {
       </div>
       <p class="field-hint">
         Every step is optional and can be switched off again; your original data are never changed.
-        Processing works on absorbance (A = 2 − log₁₀ %T), whatever the plot shows.
+        Processing works on absorbance (A = 2 − log₁₀ %T, or the quantity chosen below for
+        reflectance), whatever the plot shows.
       </p>
+
+      {spectrum.kind === 'reflectance' && (
+        <section class="process-step is-on" aria-labelledby="ftir-reflectance-title">
+          <div class="process-step-header">
+            <span id="ftir-reflectance-title" class="process-step-title">
+              Reflectance to an absorbance-like quantity
+            </span>
+          </div>
+          <p class="process-step-description">{REFLECTANCE_TEXT}</p>
+          <div class="process-step-body">
+            <fieldset class="method-choice">
+              <legend>Quantity</legend>
+              {(Object.keys(REFLECTANCE_LABELS) as ReflectanceTransform[]).map((t) => (
+                <label key={t} class="check">
+                  <input
+                    type="radio"
+                    name="ftir-reflectance"
+                    checked={settings.reflectance === t}
+                    onChange={() => setSettings({ ...settings, reflectance: t })}
+                  />
+                  {REFLECTANCE_LABELS[t]}
+                </label>
+              ))}
+            </fieldset>
+            <p class="field-hint">
+              log₁₀(1/R) is sometimes preferred for strongly absorbing or undiluted samples, where
+              F(R) exaggerates the strongest bands. Whichever you choose is named on the axes, in
+              the tables and in the methods text.
+            </p>
+          </div>
+        </section>
+      )}
+
+      <StepSection
+        id="co2"
+        title="Remove the CO₂ band"
+        description="Carbon dioxide in the air of the spectrometer gives a sharp doublet around 2349 cm⁻¹ when the background and sample were measured with different amounts of CO₂ in the beam. This replaces the range by a straight line between its ends, marks it on the plot and picks no peaks in it. Anything the sample itself absorbs there is lost too, so leave it off if your sample has a band in this range (for example a nitrile, an alkyne or adsorbed CO₂)."
+        enabled={settings.co2.enabled}
+        onToggle={(enabled) => patch('co2', { enabled })}
+        onReset={() => resetStep('co2')}
+        messages={messages('co2')}
+      >
+        <NumberInput
+          label="From (cm⁻¹)"
+          value={settings.co2.fromCm}
+          min={0}
+          onChange={(v) => v !== null && patch('co2', { fromCm: v })}
+        />
+        <NumberInput
+          label="To (cm⁻¹)"
+          value={settings.co2.toCm}
+          min={0}
+          onChange={(v) => v !== null && patch('co2', { toCm: v })}
+        />
+        <p class="field-hint">
+          Default {DEFAULT_CO2_RANGE.fromCm}–{DEFAULT_CO2_RANGE.toCm} cm⁻¹, around the 2349 cm⁻¹
+          asymmetric stretch of CO₂ (NIST CCCBDB). Widen it if the doublet reaches further in your
+          spectrum.
+        </p>
+      </StepSection>
 
       <StepSection
         id="atr"
@@ -367,11 +441,55 @@ export function CleanStep({ data, update }: StepContext<FtirData>) {
             </label>
           ))}
         </fieldset>
+        {settings.normalise.method === 'band' && (
+          <>
+            <p class="field-hint">
+              Choose a band that does not change between your samples (an internal standard, or a
+              band of the support or matrix). Its height or area is measured above the straight line
+              between the two ends of the range, so take the range from valley to valley.
+            </p>
+            <NumberInput
+              label="Band from (cm⁻¹)"
+              value={settings.normalise.band.fromCm}
+              min={0}
+              onChange={(fromCm) =>
+                patch('normalise', { band: { ...settings.normalise.band, fromCm } })
+              }
+            />
+            <NumberInput
+              label="Band to (cm⁻¹)"
+              value={settings.normalise.band.toCm}
+              min={0}
+              onChange={(toCm) =>
+                patch('normalise', { band: { ...settings.normalise.band, toCm } })
+              }
+            />
+            <label class="inline-field">
+              Divide by
+              <select
+                value={settings.normalise.band.measure}
+                onChange={(e) =>
+                  patch('normalise', {
+                    band: {
+                      ...settings.normalise.band,
+                      measure: e.currentTarget.value as 'height' | 'area',
+                    },
+                  })
+                }
+              >
+                <option value="height">Band height</option>
+                <option value="area">Band area</option>
+              </select>
+            </label>
+          </>
+        )}
       </StepSection>
 
       <FtirPlot
         curves={curves}
         quantity={quantity}
+        absorbanceName={shown.name}
+        edited={view === 'all' ? null : result.edited}
         settings={data.plot}
         onSettingsChange={(plot) => update({ plot: { ...data.plot, ...plot } })}
         exportName={view === 'all' ? 'ftir-spectra' : spectrum.name}

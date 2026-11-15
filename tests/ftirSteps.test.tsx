@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { AssignStep } from '../src/modules/ftir/AssignStep';
 import { CleanStep } from '../src/modules/ftir/CleanStep';
 import { exampleSpectra, initialFtirData, type FtirData } from '../src/modules/ftir/data';
+import { ftirLabels } from '../src/modules/ftir/FtirPlot';
 import { PeaksStep } from '../src/modules/ftir/PeaksStep';
 import { ResultsStep } from '../src/modules/ftir/ResultsStep';
 import { UploadStep } from '../src/modules/ftir/UploadStep';
@@ -152,6 +153,21 @@ describe('FTIR peaks and assignment steps', () => {
 });
 
 describe('FTIR results step', () => {
+  it('lists an assignment without a peak, keeps it out of the table, and removes it', () => {
+    const spectra = exampleSpectra();
+    const sample = spectra[0];
+    if (!sample) throw new Error('missing');
+    const assignments = { [sample.id]: [{ id: 'far', wavenumber: 2500, label: 'lost band' }] };
+    const store = setup(AssignStep, { spectra, assignments });
+    expect(screen.getByText('Assignments not attached to a peak')).toBeTruthy();
+    expect(screen.getByText(/lost band/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Remove the assignment made at 2500/ }));
+    expect(store.get().assignments[sample.id]).toEqual([]);
+    expect(screen.queryByText('Assignments not attached to a peak')).toBeNull();
+    setup(ResultsStep, { spectra, assignments });
+    expect(screen.getByText(/1 assignment is not attached to a peak/)).toBeTruthy();
+  });
+
   it('lists peaks with only the assignments the user accepted, and writes honest methods text', () => {
     const spectra = exampleSpectra();
     const sample = spectra[0];
@@ -173,7 +189,7 @@ describe('FTIR results step', () => {
           ...DEFAULT_FTIR_PROCESSING,
           baseline: { enabled: true, method: 'polynomial', degree: 4, logLambda: 5, p: 0.01 },
           smoothing: { enabled: false, window: 11, order: 3 },
-          normalise: { enabled: false, method: 'max' },
+          normalise: { ...DEFAULT_FTIR_PROCESSING.normalise, enabled: false },
         },
       },
     });
@@ -182,7 +198,7 @@ describe('FTIR results step', () => {
     );
     const withAssignment = methodsText({
       ...data,
-      assignments: { [sample.id]: [{ wavenumber: 2920, label: 'x' }] },
+      assignments: { [sample.id]: [{ id: 'a', wavenumber: 2920, label: 'x' }] },
     });
     expect(withAssignment).toContain('not proof of the groups present');
     expect(withAssignment).toContain('10.3390/molecules30030684');
@@ -200,5 +216,24 @@ describe('FTIR results step', () => {
     });
     const damaged = text.replace('"values":{"$f64":[', '"values":{"$f64":[1,');
     expect(ftirSession.parse(damaged)).toMatchObject({ ok: false });
+  });
+});
+
+describe('FTIR reflectance spectra in step 2', () => {
+  it('explain the Kubelka–Munk assumption, offer log10(1/R) and name the quantity', () => {
+    const [first] = exampleSpectra();
+    const spectrum = {
+      ...(first as NonNullable<typeof first>),
+      values: (first as NonNullable<typeof first>).values.map((a) => 100 * 10 ** -a),
+      kind: 'reflectance' as const,
+    };
+    const store = setup(CleanStep, { spectra: [spectrum] });
+    expect(screen.getAllByText(/optically thick powder layer/).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByLabelText(/apparent absorbance/));
+    expect(store.get().processing[spectrum.id]?.reflectance).toBe('log-inverse');
+    // The plot's axis title (jsdom draws no SVG, so the label function is checked).
+    expect(ftirLabels('absorbance', 'Kubelka–Munk F(R)')(false).y).toBe('Kubelka–Munk F(R) (a.u.)');
+    expect(ftirLabels('absorbance', 'log₁₀(1/R)')(true).y).toBe('log₁₀(1/R), normalised (a.u.)');
+    expect(ftirLabels('absorbance')(true).y).toBe('Normalised absorbance (a.u.)');
   });
 });

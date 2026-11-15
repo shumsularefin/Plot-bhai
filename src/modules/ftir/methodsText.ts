@@ -1,11 +1,11 @@
 import { SOFTWARE } from '../../ui/software';
 import groups from '../../../data/ftir/groups.json';
+import { sourcesText, type GroupTable } from '../../core/ftir/assign';
 import { ftirMethodsParagraph, type FtirMethodsInput } from '../../core/ftir/methods';
 import { DEFAULT_FTIR_PROCESSING } from '../../core/ftir/process';
 import { bandArea } from '../../core/ftir/bands';
 import { bandsFor, peaksFor, processingFor, type FtirData } from './data';
-import { processAll } from './analysis';
-import { peakRows } from './analysis';
+import { peakRows, pickedPeaksOf, processAll } from './analysis';
 import { shownQuantity } from './quantity';
 
 /** The settings that went into the analysis, read from the saved session. */
@@ -26,6 +26,8 @@ export function methodsInput(data: FtirData): FtirMethodsInput {
       const own = rows.filter((r) => r.spectrum.id === s.id);
       return {
         kind: s.kind,
+        reflectance: s.kind === 'reflectance' ? p.reflectance : null,
+        co2: curve?.edited ?? null,
         atrReferenceCm: p.atr.enabled ? p.atr.referenceCm : null,
         baseline: p.baseline.enabled
           ? {
@@ -38,9 +40,18 @@ export function methodsInput(data: FtirData): FtirMethodsInput {
         smoothing: p.smoothing.enabled
           ? { window: p.smoothing.window, order: p.smoothing.order }
           : null,
-        normalise: p.normalise.enabled ? p.normalise.method : null,
+        normalise:
+          p.normalise.enabled && !curve?.messages.normalise?.some((m) => m.level === 'warning')
+            ? { method: p.normalise.method, ...p.normalise.band }
+            : null,
         prominencePercent: own.length > 0 ? peaksFor(data, s.id).prominencePercent : null,
         assignments: own.filter((r) => r.assignment !== '').length,
+        handAdded: own.filter((r) => r.peak.origin === 'hand').length,
+        shoulders: own.filter((r) => r.peak.origin === 'shoulder').length,
+        removed: curve
+          ? pickedPeaksOf(curve, peaksFor(data, s.id)).length -
+            own.filter((r) => r.peak.origin === 'picked').length
+          : 0,
         fit: fit
           ? {
               fromCm: fit.start,
@@ -63,9 +74,10 @@ export function methodsInput(data: FtirData): FtirMethodsInput {
           : 0,
       };
     }),
+    groupToleranceCm: data.spectra.length > 1 && rows.length > 0 ? data.compare.toleranceCm : null,
     differences: data.spectra.filter((s) => s.source === 'computed').length,
     toleranceCm: data.toleranceCm,
-    rangeSource: `${groups.source.citation}, doi:${groups.source.doi}`,
+    rangeSource: sourcesText(groups as GroupTable),
     shown: shownQuantity(data, data.spectra).quantity,
   };
 }

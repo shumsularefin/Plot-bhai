@@ -47,6 +47,8 @@ const image: ImageInfo = {
   format: 'png',
   synthetic: true,
   notes: [],
+  bytes: null,
+  sha256: null,
 };
 
 type Step = typeof UploadStep | typeof ScaleStep;

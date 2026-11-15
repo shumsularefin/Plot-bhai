@@ -261,22 +261,62 @@ export interface Shape {
   convexArea: number;
   perimeter: number;
   /**
-   * 4π · area / perimeter², at most 1. A circle drawn in pixels reads about 0.9, not 1, because
-   * the perimeter follows pixel edges (corner cutting leaves it about 5 % long); a square reads
-   * about 0.83 (the exact value is 0.785). Compare particles with each other, or filter with
-   * this in mind.
+   * 4π · area / perimeter², at most 1, with ImageJ's traced perimeter, so it equals ImageJ's
+   * Circ. A square reads 0.886 (the exact value is 0.785) because each corner is cut. Compare
+   * particles with each other, or filter with this in mind.
    */
   circularity: number;
+}
+
+/**
+ * ImageJ's perimeter of a traced outline (ij/gui/PolygonRoi.getTracedPerimeter, ImageJ 1.54f,
+ * pixel width and height 1): P = Σ|dx| + Σ|dy| − N_c · (2 − √2). Walking round the corner
+ * vertices, vertex i counts as a corner when the side arriving at it is longer than one pixel or
+ * when vertex i − 1 was not counted; so on a staircase of unit steps every other vertex counts and
+ * each counted one replaces two unit sides by a diagonal. Which vertices count depends on where
+ * the walk starts, so it starts where ImageJ's Wand does (ij/gui/Wand.autoOutline and traceEdge,
+ * as the particle analyser calls them): at the first corner after the top right corner of the
+ * leftmost run in the particle's top row, walking down, with the particle on the right
+ * (y down), which is the direction of `outlineLoops`. Checked against ImageJ itself
+ * (tests/validation-particles.test.ts).
+ */
+export function tracedPerimeter(outer: Loop, runs: Runs): number {
+  const n = outer.length;
+  if (n < 4) return 0;
+  // The leftmost run of the top row: [y, x0, x1) with x1 the first pixel outside.
+  let top = 0;
+  for (let i = 3; i < runs.length; i += 3) {
+    const y = runs[i] as number;
+    const topY = runs[top] as number;
+    if (y < topY || (y === topY && (runs[i + 1] as number) < (runs[top + 1] as number))) top = i;
+  }
+  const topY = runs[top] as number;
+  const runEnd = runs[top + 2] as number;
+  const k = outer.findIndex((v) => v.x === runEnd && v.y === topY);
+  const start = k < 0 ? 0 : (k + 1) % n;
+  const at = (i: number) => outer[(start + i) % n] as Point;
+  let sum = 0;
+  let counted = 0;
+  let corner = false;
+  for (let i = 0; i < n; i++) {
+    const p = at(i);
+    const before = at(i - 1 + n);
+    const side = Math.abs(p.x - before.x) + Math.abs(p.y - before.y);
+    sum += side;
+    if (side > 1 || !corner) {
+      corner = true;
+      counted++;
+    } else corner = false;
+  }
+  return sum - counted * (2 - Math.SQRT2);
 }
 
 /**
  * Measures a particle. Feret diameters come from the convex hull of the outline's corners (the
  * pixel corners, so one pixel has Feret diameter 1): the maximum is the longest distance between
  * two hull points and the minimum is the smallest width between parallel supporting lines, found
- * by trying the direction of every hull edge. The perimeter joins the midpoints of the unit
- * edges of the outline, which cuts corners: a straight run keeps its length and a 45° staircase
- * gets its true length √2 per step; in terms of the outline it equals
- * (edge length) − (number of corners) · (1 − √2/2). Circularity uses the pixel count as area.
+ * by trying the direction of every hull edge. The perimeter is ImageJ's traced perimeter
+ * (`tracedPerimeter`). Circularity uses the pixel count as area.
  */
 export function shapeOf(runs: Runs): Shape {
   const area = runsArea(runs);
@@ -291,13 +331,7 @@ export function shapeOf(runs: Runs): Shape {
   }
   const loops = outlineLoops(runs);
   const outer = outerLoop(loops) ?? [];
-  let edge = 0;
-  for (let i = 0; i < outer.length; i++) {
-    const p = outer[i] as Point;
-    const q = outer[(i + 1) % outer.length] as Point;
-    edge += Math.abs(q.x - p.x) + Math.abs(q.y - p.y);
-  }
-  const perimeter = edge - outer.length * (1 - Math.SQRT1_2);
+  const perimeter = tracedPerimeter(outer, runs);
   const hull = convexHull(outer);
   let feretMax = 0;
   let feretAngle = 0;

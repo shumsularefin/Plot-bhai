@@ -1,4 +1,5 @@
 import { DEFAULT_TOLERANCE_CM } from '../../core/ftir/assign';
+import { DEFAULT_GROUP_TOLERANCE_CM } from '../../core/ftir/compare';
 import type { RegionFit } from '../../core/xrd/peaks/fit';
 import type { ProfileKind } from '../../core/xrd/peaks/profiles';
 import { DEFAULT_FTIR_PROCESSING, type FtirProcessing } from '../../core/ftir/process';
@@ -28,11 +29,64 @@ export const DEFAULT_PEAK_SETTINGS: PeakSettings = {
   toCm: null,
 };
 
-/** An assignment the user accepted or typed for the peak at this wavenumber. */
+/**
+ * An assignment the user accepted or typed for a peak. A picked peak has no identity of its own
+ * (peaks are picked again whenever the processing changes), so the assignment keeps the position
+ * of its peak at the moment it was made and is re-attached to the nearest peak after every
+ * reprocessing (`attachAssignments` in analysis.ts). `id` identifies the assignment itself, so
+ * that it can be edited or removed while it is not attached to a peak; a peak added by hand
+ * (sub-stage 19c) can be referred to by an optional id added to this shape without a migration.
+ */
 export interface Assignment {
+  id: string;
+  /** Position of the peak when the assignment was made, cm⁻¹. */
   wavenumber: number;
   label: string;
 }
+
+/** A peak added by hand in the Pick peaks step, or a second-derivative shoulder the user accepted. */
+export interface HandPeak {
+  id: string;
+  /** Position, cm⁻¹: the nearest local maximum to the click, or the click itself on a flank. */
+  wavenumber: number;
+  /** True for a shoulder (a second-derivative minimum with no maximum of its own). */
+  shoulder: boolean;
+}
+
+/**
+ * Hand edits of the picked peaks of one spectrum. Like assignments, they are kept by position, so
+ * they survive reprocessing: a removed position hides the picked peak re-attached to it (the
+ * pairing of `attachAssignments`), and a hand peak is measured again on the current spectrum.
+ */
+export interface PeakEdits {
+  added: HandPeak[];
+  /** Positions of picked peaks the user removed, cm⁻¹. */
+  removed: number[];
+}
+
+export const NO_PEAK_EDITS: PeakEdits = { added: [], removed: [] };
+
+/** The comparison table and the labels of the combined figure in Results. */
+export interface CompareSettings {
+  /** Peaks of different samples within this distance form one band, cm⁻¹. */
+  toleranceCm: number;
+  /** Sample the shifts are measured from; null means the first sample. */
+  referenceId: string | null;
+  /** Show the relative intensity of each peak in the comparison table. */
+  relative: boolean;
+  /** What labels the peaks in the combined figure. */
+  labels: 'none' | 'wavenumber' | 'assignment' | 'both';
+  /** Shade the spectral regions in the combined figure. */
+  regions: boolean;
+}
+
+export const DEFAULT_COMPARE_SETTINGS: CompareSettings = {
+  toleranceCm: DEFAULT_GROUP_TOLERANCE_CM,
+  referenceId: null,
+  relative: false,
+  labels: 'wavenumber',
+  regions: false,
+};
 
 /** A wavenumber range for an integrated band area, cm⁻¹. */
 export interface AreaRange {
@@ -101,6 +155,10 @@ export interface FtirData {
   peaks: Record<string, PeakSettings>;
   /** Accepted or edited assignments per spectrum id. */
   assignments: Record<string, Assignment[]>;
+  /** Peaks added or removed by hand, per spectrum id. Missing means none. */
+  peakEdits: Record<string, PeakEdits>;
+  /** Comparison across samples and figure labels in Results. */
+  compare: CompareSettings;
   /** Band analysis per spectrum id. Missing means the defaults. */
   bands: Record<string, BandSettings>;
   /** How far a peak may lie from a typical range or band to be suggested, cm⁻¹. */
@@ -114,31 +172,73 @@ export const initialFtirData: FtirData = {
   processing: {},
   peaks: {},
   assignments: {},
+  peakEdits: {},
+  compare: DEFAULT_COMPARE_SETTINGS,
   bands: {},
   toleranceCm: DEFAULT_TOLERANCE_CM,
 };
 
 /** Version of the saved shape. Bump it, and add a migration, when the shape changes. */
-export const FTIR_STATE_VERSION = 3;
+export const FTIR_STATE_VERSION = 6;
 
 /** Index of the Bands step, which version 1 did not have. */
 const BANDS_STEP = 3;
 
 /**
- * Upgrades version 1 (no band analysis and no Bands step) and version 2 (no ATR correction);
- * newer or unknown versions are discarded.
+ * Upgrades version 1 (no band analysis and no Bands step), version 2 (no ATR correction),
+ * version 3 (assignments without an id), version 4 (no hand-edited peaks and no comparison
+ * settings) and version 5 (no reflectance choice, CO₂ line or band normalisation, all of which
+ * get their defaults, which leave the processing as it was); newer or unknown versions are
+ * discarded.
  */
 export function migrateFtirData(
   saved: unknown,
   version: number,
 ): WizardState<FtirData> | undefined {
-  if (version !== 1 && version !== 2) return undefined;
+  if (version < 1 || version > 5 || !Number.isInteger(version)) return undefined;
   const state = saved as WizardState<Partial<FtirData>>;
   if (!state || typeof state !== 'object' || !state.data) return undefined;
+  const upgraded = version === 5 ? state : migrateToV5(state, version);
+  const processing: Record<string, FtirProcessing> = {};
+  for (const [id, p] of Object.entries(upgraded.data.processing ?? {})) {
+    const old = p as Omit<FtirProcessing, 'reflectance' | 'co2' | 'normalise'> & {
+      normalise: { enabled: boolean; method: 'max' | 'minmax' };
+    };
+    processing[id] = {
+      ...old,
+      reflectance: DEFAULT_FTIR_PROCESSING.reflectance,
+      co2: DEFAULT_FTIR_PROCESSING.co2,
+      normalise: { ...old.normalise, band: DEFAULT_FTIR_PROCESSING.normalise.band },
+    };
+  }
+  return {
+    ...upgraded,
+    data: { ...initialFtirData, ...upgraded.data, processing },
+  } as WizardState<FtirData>;
+}
+
+function migrateToV5(
+  state: WizardState<Partial<FtirData>>,
+  version: number,
+): WizardState<Partial<FtirData>> {
+  if (version === 4) {
+    return {
+      ...state,
+      data: { ...state.data, peakEdits: {}, compare: DEFAULT_COMPARE_SETTINGS },
+    };
+  }
+  const assignments: Record<string, Assignment[]> = {};
+  for (const [id, list] of Object.entries(state.data.assignments ?? {})) {
+    assignments[id] = (list as Omit<Assignment, 'id'>[]).map((a) => ({
+      id: newId(),
+      wavenumber: a.wavenumber,
+      label: a.label,
+    }));
+  }
   const shift = (step: number) => (version === 1 && step >= BANDS_STEP ? step + 1 : step);
   const processing: Record<string, FtirProcessing> = {};
   for (const [id, p] of Object.entries(state.data.processing ?? {})) {
-    processing[id] = { ...p, atr: DEFAULT_FTIR_PROCESSING.atr };
+    processing[id] = version === 3 ? p : { ...p, atr: DEFAULT_FTIR_PROCESSING.atr };
   }
   return {
     step: shift(state.step),
@@ -147,6 +247,7 @@ export function migrateFtirData(
       ...initialFtirData,
       ...state.data,
       processing,
+      assignments,
       bands: version === 1 ? {} : (state.data.bands ?? {}),
     },
   };
@@ -156,6 +257,9 @@ export const processingFor = (data: Pick<FtirData, 'processing'>, id: string): F
   data.processing[id] ?? DEFAULT_FTIR_PROCESSING;
 export const peaksFor = (data: Pick<FtirData, 'peaks'>, id: string): PeakSettings =>
   data.peaks[id] ?? DEFAULT_PEAK_SETTINGS;
+
+export const peakEditsFor = (data: Pick<FtirData, 'peakEdits'>, id: string): PeakEdits =>
+  data.peakEdits[id] ?? NO_PEAK_EDITS;
 
 export const bandsFor = (data: Pick<FtirData, 'bands'>, id: string): BandSettings =>
   data.bands[id] ?? DEFAULT_BAND_SETTINGS;

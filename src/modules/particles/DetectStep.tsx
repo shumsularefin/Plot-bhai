@@ -1091,9 +1091,10 @@ function Detector({ data, update, image }: StepContext<ParticleData> & { image: 
             <p>
               Filters hide particles without deleting them, so you can change your mind. Diameter is
               the diameter of the circle with the same area. Circularity is 4π · area / perimeter²:
-              it is lower for elongated or ragged shapes. Because the perimeter is measured along
-              pixel edges, a perfect circle reads about 0.9 and a square about 0.83. Particles
-              touching the edge of the crop area (or the image) are cut off, so their size is wrong.
+              it is lower for elongated or ragged shapes. The perimeter is measured as ImageJ
+              measures it, along pixel edges with the corners cut, so circularity equals ImageJ’s
+              Circ.; a square reads about 0.89 instead of 0.79. Particles touching the edge of the
+              crop area (or the image) are cut off, so their size is wrong.
             </p>
           </HelpTip>
         </h3>

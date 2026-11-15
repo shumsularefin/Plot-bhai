@@ -10,19 +10,28 @@ export interface KindSuggestion {
   reason: string;
 }
 
-/** Reads a data type from header or column text such as "%T", "Transmittance", "Abs" or "R (%)". */
+const TRANSMITTANCE_PERCENT = /%\s*t\b|\bt\s*[([]?\s*%|transmi(?:ttance|ssion)\s*[([]?\s*%/i;
+const REFLECTANCE_PERCENT = /%\s*r\b|\br\s*[([]?\s*%|reflectance\s*[([]?\s*%/i;
+
+/**
+ * Reads a data type from header or column text such as "%T", "Transmittance", "Abs" or "R (%)".
+ * A word ("Transmittance", "Reflectance") names the kind only. A percent sign in the heading
+ * ("%T", "T (%)", "Reflectance [%]") names the scale too; without one the scale is left to the
+ * range of the values (see `suggestKind`).
+ */
 export function kindFromText(text: string): { kind: SpectrumKind; scale?: ValueScale } | undefined {
-  if (/%\s*t\b|\bt\s*\(?%|transmit|transmission/i.test(text)) {
-    return { kind: 'transmittance', scale: 'percent' };
-  }
-  if (/%\s*r\b|\br\s*\(?%|reflect/i.test(text)) return { kind: 'reflectance', scale: 'percent' };
+  if (TRANSMITTANCE_PERCENT.test(text)) return { kind: 'transmittance', scale: 'percent' };
+  if (/transmit|transmission/i.test(text)) return { kind: 'transmittance' };
+  if (REFLECTANCE_PERCENT.test(text)) return { kind: 'reflectance', scale: 'percent' };
+  if (/reflect/i.test(text)) return { kind: 'reflectance' };
   if (/\babs|absorb/i.test(text)) return { kind: 'absorbance' };
   return undefined;
 }
 
 /**
  * Suggests what the y values are. A word in the header ("%T", "Reflectance", "Absorbance")
- * decides when there is one. Otherwise the range decides: values above 8 cannot be a normal
+ * decides the kind when there is one; the scale is percent when the heading has a percent sign,
+ * otherwise values above 1.5 are taken as percent and smaller ones as a fraction. Otherwise the range decides: values above 8 cannot be a normal
  * absorbance and are taken as percent transmittance; smaller values are taken as absorbance.
  * This is a guess. Percent reflectance looks exactly like percent transmittance, and a
  * transmittance or reflectance written as a fraction looks like a small absorbance, so the

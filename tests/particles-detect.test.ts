@@ -325,10 +325,10 @@ describe('particle runs and shape', () => {
     expect(s.feretMax).toBeCloseTo(10 * Math.SQRT2, 9);
     expect(s.feretMin).toBeCloseTo(10, 9);
     expect(s.aspect).toBeCloseTo(Math.SQRT2, 9);
-    // Perimeter 40 − 4 (1 − √2/2); a true square has circularity π/4 = 0.785, this estimate is a little high.
-    expect(s.perimeter).toBeCloseTo(40 - 4 * (1 - Math.SQRT1_2), 9);
-    expect(s.circularity).toBeGreaterThan(0.78);
-    expect(s.circularity).toBeLessThan(0.87);
+    // ImageJ's traced perimeter cuts each of the 4 corners: 40 − 4 (2 − √2). A true square has
+    // circularity π/4 = 0.785; ImageJ, and this site, read 0.886.
+    expect(s.perimeter).toBeCloseTo(40 - 4 * (2 - Math.SQRT2), 9);
+    expect(s.circularity).toBeCloseTo((400 * Math.PI) / (40 - 4 * (2 - Math.SQRT2)) ** 2, 9);
   });
 
   it('a digital disc has the right area, Feret diameters and a circularity close to 1', () => {

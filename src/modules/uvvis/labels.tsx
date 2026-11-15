@@ -85,3 +85,40 @@ const EXPONENT_TEXT: Record<TransitionId, string> = {
   'direct-forbidden': '2/3',
   'indirect-forbidden': '1/3',
 };
+
+/** Symbol of the absorption quantity S on an axis. */
+const signalSymbol = (unit: SignalUnit) =>
+  unit === 'kubelka-munk' ? 'F(R)' : unit === 'alpha' ? 'α' : 'A';
+
+/** Axis labels of the Cody plot, (S/E)^(1/2) against photon energy. */
+export function codyLabels(unit: SignalUnit): AxisLabels {
+  const units =
+    unit === 'alpha' ? '(cm⁻¹ eV⁻¹)' : unit === 'kubelka-munk' ? '(eV⁻¹)' : '(a.u. eV⁻¹)';
+  return {
+    x: 'Photon energy (eV)',
+    y: (
+      <>
+        (<tspan font-style="italic">{signalSymbol(unit)}</tspan>/h
+        <tspan font-style="italic">ν</tspan>)<Sup>1/2</Sup>
+        {units}
+        <Sup>1/2</Sup>
+      </>
+    ),
+    yValues: true,
+  };
+}
+
+/** Axis labels of the absorption edge itself, S against photon energy (the sigmoid fit). */
+export function edgeLabels(unit: SignalUnit): AxisLabels {
+  const units = unit === 'alpha' ? ' (cm⁻¹)' : unit === 'kubelka-munk' ? '' : ' (a.u.)';
+  return {
+    x: 'Photon energy (eV)',
+    y: (
+      <>
+        <tspan font-style="italic">{signalSymbol(unit)}</tspan>
+        {units}
+      </>
+    ),
+    yValues: true,
+  };
+}

@@ -14,51 +14,61 @@ Checked on 2026-10-23 in a cloud session.
 The next sub-stage is the first row that is not `done`. At the end of every session, the session
 sets its row to `done` (or `blocked: reason`) in the same PR.
 
-| Sub-stage | What                                                             | Status  |
-| --------- | ---------------------------------------------------------------- | ------- |
-| 0–5       | Foundation, import, cleaning, peaks, instrument, size/strain     | done    |
-| 5.9       | Catch-up fixes                                                   | done    |
-| 6a        | Reference library build (COD + cross-check)                      | done    |
-| 6b        | Choose material, compare phases                                  | done    |
-| 6c        | hkl labels, combined table, lattice refinement                   | done    |
-| 7a        | Texture, crystallinity, pattern character                        | done    |
-| 6a-fix    | Library entry screening, WK cross-check, 7a corrections          | done    |
-| 7b        | Figure builder, methods text, export, e2e                        | done    |
-| 8a        | UV-Vis import, conversions, cleaning                             | done    |
-| 8b        | Tauc, Urbach, results                                            | done    |
-| 9         | FTIR                                                             | done    |
-| 10a       | Particles: image, scale, manual                                  | done    |
-| 10b       | Particles: automatic detection                                   | done    |
-| 10c       | Particles: distribution, export                                  | done    |
-| 11a       | TGA: import to step detection (Stage 11 items 1–5)               | done    |
-| 11b       | TGA: events, theory, calcination (items 6–9)                     | done    |
-| 12a       | DSC (Stage 12 items 1–6)                                         | done    |
-| 12b       | Combined TGA-DSC (items 7–8)                                     | done    |
-| 13        | Kinetics (optional; skip unless asked)                           | done    |
-| 14a       | Polish: responsive, Lighthouse, a11y, states (items 1–4)         | done    |
-| 14b       | About page, PWA, deploy, final status (items 5–8)                | done    |
-| 15        | Gemini (optional; only when asked)                               | skipped |
-| audit     | Research-readiness audit against the user's data                 | done    |
-| 16a       | XRD formats (.brml, .rasx, .raw) and .xy/.xye export             | done    |
-| 16b       | Pearson VII, split pseudo-Voigt, Rietveld peak asymmetry         | done    |
-| 16c       | 3D crystal structure viewer with distances and angles            | done    |
-| 16d       | Indexing an unknown pattern (Web Worker)                         | done    |
-| 16e       | Rietveld structure refinement and GSAS-II export                 | done    |
-| 16f       | Materials Project / AMCSD search through a backend               | skipped |
-| 16g       | Owner additions: TCH, U_ij, low-symmetry indexing, CI checks     | done    |
-| 17a       | Rietveld: size/strain, optics, Le Bail, statistics               | done    |
-| 17b       | Rietveld: shared-site substitution, Le Bail of indexed cells     | done    |
-| 17c       | Rietveld: anisotropic broadening, FCJ axial divergence           | done    |
-| 17d       | Rietveld: anomalous dispersion, capillary geometry               | done    |
-| 17e       | Rietveld: analytic derivatives (speed)                           | done    |
-| 17f       | Rietveld: spherical-harmonic texture                             | done    |
-| 17g       | Rietveld: sequential refinement of a series                      | done    |
-| 17h       | Rietveld: bond lengths and angles with s.u., bond valence        | done    |
-| 17i       | Rietveld: Bérar–Lelann correction of the s.u.                    | done    |
-| 18        | Review fixes: example data, readability, validation page, report | done    |
-| 19        | Open validation items checked with Fityk and GSAS-II             | done    |
-| 20        | Open items of 17a–17i: checks, s.u. switch, series, labels       | done    |
-| 21        | Owner's files: IUCr bvparm, NIST SRM patterns, capillary μR ≤ 10 | done    |
+| Sub-stage | What                                                             | Status                                                       |
+| --------- | ---------------------------------------------------------------- | ------------------------------------------------------------ |
+| 0–5       | Foundation, import, cleaning, peaks, instrument, size/strain     | done                                                         |
+| 5.9       | Catch-up fixes                                                   | done                                                         |
+| 6a        | Reference library build (COD + cross-check)                      | done                                                         |
+| 6b        | Choose material, compare phases                                  | done                                                         |
+| 6c        | hkl labels, combined table, lattice refinement                   | done                                                         |
+| 7a        | Texture, crystallinity, pattern character                        | done                                                         |
+| 6a-fix    | Library entry screening, WK cross-check, 7a corrections          | done                                                         |
+| 7b        | Figure builder, methods text, export, e2e                        | done                                                         |
+| 8a        | UV-Vis import, conversions, cleaning                             | done                                                         |
+| 8b        | Tauc, Urbach, results                                            | done                                                         |
+| 9         | FTIR                                                             | done                                                         |
+| 10a       | Particles: image, scale, manual                                  | done                                                         |
+| 10b       | Particles: automatic detection                                   | done                                                         |
+| 10c       | Particles: distribution, export                                  | done                                                         |
+| 11a       | TGA: import to step detection (Stage 11 items 1–5)               | done                                                         |
+| 11b       | TGA: events, theory, calcination (items 6–9)                     | done                                                         |
+| 12a       | DSC (Stage 12 items 1–6)                                         | done                                                         |
+| 12b       | Combined TGA-DSC (items 7–8)                                     | done                                                         |
+| 13        | Kinetics (optional; skip unless asked)                           | done                                                         |
+| 14a       | Polish: responsive, Lighthouse, a11y, states (items 1–4)         | done                                                         |
+| 14b       | About page, PWA, deploy, final status (items 5–8)                | done                                                         |
+| 15        | Gemini (optional; only when asked)                               | skipped                                                      |
+| audit     | Research-readiness audit against the user's data                 | done                                                         |
+| 16a       | XRD formats (.brml, .rasx, .raw) and .xy/.xye export             | done                                                         |
+| 16b       | Pearson VII, split pseudo-Voigt, Rietveld peak asymmetry         | done                                                         |
+| 16c       | 3D crystal structure viewer with distances and angles            | done                                                         |
+| 16d       | Indexing an unknown pattern (Web Worker)                         | done                                                         |
+| 16e       | Rietveld structure refinement and GSAS-II export                 | done                                                         |
+| 16f       | Materials Project / AMCSD search through a backend               | skipped                                                      |
+| 16g       | Owner additions: TCH, U_ij, low-symmetry indexing, CI checks     | done                                                         |
+| 17a       | Rietveld: size/strain, optics, Le Bail, statistics               | done                                                         |
+| 17b       | Rietveld: shared-site substitution, Le Bail of indexed cells     | done                                                         |
+| 17c       | Rietveld: anisotropic broadening, FCJ axial divergence           | done                                                         |
+| 17d       | Rietveld: anomalous dispersion, capillary geometry               | done                                                         |
+| 17e       | Rietveld: analytic derivatives (speed)                           | done                                                         |
+| 17f       | Rietveld: spherical-harmonic texture                             | done                                                         |
+| 17g       | Rietveld: sequential refinement of a series                      | done                                                         |
+| 17h       | Rietveld: bond lengths and angles with s.u., bond valence        | done                                                         |
+| 17i       | Rietveld: Bérar–Lelann correction of the s.u.                    | done                                                         |
+| 18        | Review fixes: example data, readability, validation page, report | done                                                         |
+| 19        | Open validation items checked with Fityk and GSAS-II             | done                                                         |
+| 20        | Open items of 17a–17i: checks, s.u. switch, series, labels       | done                                                         |
+| 21        | Owner's files: IUCr bvparm, NIST SRM patterns, capillary μR ≤ 10 | done                                                         |
+| 19a       | UV-Vis, FTIR: four audit bugs (docs/STAGE-19-PROMPTS.md)         | done                                                         |
+| 19b       | Validation of UV-Vis, FTIR and particles, three ways             | done                                                         |
+| 19c       | FTIR peaks: editing, table, comparison across samples            | done                                                         |
+| 19d       | FTIR processing, reflectance data, wider group table             | done (item 4 and its extension done 2026-11-15)              |
+| 19e       | UV-Vis: peak table, path length, figures, gap methods            | done (optical conductivity not built, see validation.md 19e) |
+| 19f       | Particles: session file, report, statistics                      | done (no real micrograph, see validation.md 19f)             |
+| 19g       | Binary FTIR and UV-Vis instrument files (needs real files)       | done                                                         |
+
+Rows 19a to 19g are the UV-Vis, FTIR and particle sub-stages of docs/STAGE-19-PROMPTS.md; they
+are separate from row 19 (open validation items), which was numbered on main.
 
 ## The one prompt you paste in every new session
 
@@ -612,3 +622,12 @@ list are in docs/rietveld-roadmap.md. Every sub-stage adds a GSAS-II case to
 - **17i (done)** Bérar–Lelann factor for the standard uncertainties of a refinement whose
   residuals are serially correlated, shown beside the Durbin–Watson d and in the methods text;
   checked by hand, against an independent Python implementation and by point duplication.
+
+---
+
+## 16. Stage 19: UV-Vis, FTIR and particle size, audit fixes and completion (November 2026)
+
+An audit of the three tools on 2026-11-14 found four bugs, no validation record for these tools, and
+a list of missing features. The prompts for sub-stages 19a to 19g are in `docs/STAGE-19-PROMPTS.md`.
+Use Opus 5.5 for these sessions. Start each with the guardrail block and the line
+`Sub-stage 19x: do it exactly as written in docs/STAGE-19-PROMPTS.md.`

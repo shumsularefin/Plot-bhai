@@ -503,12 +503,16 @@ try {
   await next('Data type and cleaning');
   await page.getByRole('switch', { name: 'Blank subtraction' }).check();
   await page.getByLabel('Blank spectrum').selectOption({ label: 'Example blank (synthetic)' });
+  await next('Absorption bands');
+  await page.getByRole('heading', { name: /^Band table \(\d+\)$/ }).waitFor();
   await next('Band gap');
   const gapText = await page.getByLabel('Band gap result').textContent();
   const gap = Number(/(\d\.\d+)\s*±/.exec(gapText)?.[1]);
   assert.ok(Math.abs(gap - 3.2) < 0.02, `band gap ${gap} should be near the 3.2 eV of the example`);
   step('UV-Vis: Tauc band gap of the example is near 3.2 eV');
+  await page.getByRole('checkbox', { name: /Cody plot/ }).check();
   await next('Results and export');
+  await page.getByRole('heading', { name: 'Tauc plots together' }).waitFor();
   const uvText = await page.getByLabel('Methods paragraph').inputValue();
   assert.match(uvText, /generated example data/);
   assert.match(uvText, /Tauc/);
@@ -516,8 +520,11 @@ try {
     page.waitForEvent('download'),
     page.getByRole('button', { name: 'Download results (CSV)' }).click(),
   ]);
-  assert.match(readFileSync(await uvCsv.path(), 'utf8'), /Eg \(eV\)/);
-  step('UV-Vis: results CSV and methods text');
+  const uvRows = readFileSync(await uvCsv.path(), 'utf8');
+  assert.match(uvRows, /Eg \(eV\)/);
+  assert.match(uvRows, /Cody Eg \(eV\)/);
+  assert.match(uvText, /Cody/);
+  step('UV-Vis: bands step, Cody cross-check, combined Tauc figure, results CSV and methods text');
 
   // UV-Vis concentration and kinetics: made-up dye with k = 0.02 1/min and 0.18 L/(mg cm).
   await page.getByText('Concentration and kinetics').first().click();
@@ -568,14 +575,54 @@ try {
   // FTIR: example data, baseline, peaks, accepted assignments, results, methods text, session.
   await page.goto(`http://localhost:${PORT}/#/ftir`);
   await heading().waitFor();
+  // Binary instrument files (stage 19g): a Bruker OPUS and a Thermo OMNIC file, then removed.
+  await page
+    .locator('input[type=file]')
+    .first()
+    .setInputFiles([
+      'tests/fixtures-real/spectra/opus_peach_juice.0',
+      'tests/fixtures-real/spectra/omnic_sample1.spa',
+    ]);
+  await page.locator('.badge', { hasText: 'Instrument file' }).nth(1).waitFor();
+  assert.equal(await page.locator('.badge', { hasText: 'Instrument file' }).count(), 2);
+  assert.ok(
+    (await page.getByLabel('Spectrum name').evaluateAll((e) => e.map((i) => i.value))).includes(
+      'Peach juice colorful spot',
+    ),
+  );
+  await page
+    .getByText(/Read from a Bruker OPUS file/)
+    .first()
+    .waitFor();
+  while ((await page.getByRole('button', { name: /^Remove / }).count()) > 0) {
+    await page
+      .getByRole('button', { name: /^Remove / })
+      .first()
+      .click();
+  }
+  step('FTIR: Bruker OPUS and Thermo OMNIC files read in the browser');
   await page.getByRole('button', { name: 'Try with example data' }).click();
   await page.getByText('Example absorbance (synthetic)').first().waitFor();
   await next('Clean data');
   await page.getByRole('switch', { name: 'Baseline correction' }).check();
+  await page.getByRole('switch', { name: 'Remove the CO₂ band' }).check();
+  await page.getByText(/2280–2400 cm⁻¹ was replaced by a straight line/).waitFor();
+  step('FTIR: CO₂ region replaced by a straight line');
   await next('Pick peaks');
   await page.locator('.peak-table tbody tr').first().waitFor();
   assert.equal(await page.locator('.peak-table tbody tr').count(), 6);
   step('FTIR: six peaks found in the example spectrum');
+  await page.getByLabel('Add a peak at (cm⁻¹)').fill('2500');
+  await page.getByRole('button', { name: 'Add peak', exact: true }).click();
+  await page.getByText('added by hand').first().waitFor();
+  assert.equal(await page.locator('.peak-table tbody tr').count(), 7);
+  // The first row is the highest wavenumber, the broad O–H band of the example.
+  await page
+    .getByRole('button', { name: /^Remove peak at 3[\d.]+ cm⁻¹$/ })
+    .first()
+    .click();
+  assert.equal(await page.locator('.peak-table tbody tr').count(), 6);
+  step('FTIR: a peak added and a peak removed by hand');
   await next('Bands');
   // Band fitting runs in the worker: the example's 1720 cm⁻¹ band is Lorentzian, 25 cm⁻¹ wide.
   await page.getByLabel('Fit from (cm⁻¹)').fill('1620');
@@ -593,8 +640,20 @@ try {
   await next('Assign groups');
   await page.getByRole('button', { name: /Accept the best suggestion for every peak/ }).click();
   await next('Results and export');
+  const compareTable = page.getByRole('region', { name: /Comparison table/ });
+  await compareTable.locator('tbody tr').first().waitFor();
+  assert.ok((await compareTable.locator('tbody tr').count()) >= 6);
+  assert.ok((await compareTable.locator('tbody td', { hasText: /^–$/ }).count()) > 0);
+  const [compareCsv] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Download comparison (CSV)' }).click(),
+  ]);
+  assert.match(readFileSync(await compareCsv.path(), 'utf8'), /Shift /);
+  step('FTIR: comparison table across the two samples');
   const ftirText = await page.getByLabel('Methods paragraph').inputValue();
   assert.match(ftirText, /generated example data/);
+  assert.match(ftirText, /edited by hand: 1 added by hand/);
+  assert.match(ftirText, /To remove the atmospheric CO2 band, 2280–2400 cm⁻¹ was replaced/);
   assert.match(ftirText, /not proof of the groups present/);
   const [ftirCsv] = await Promise.all([
     page.waitForEvent('download'),
@@ -702,12 +761,12 @@ try {
   assert.ok(Math.abs(median - 43.75) / 43.75 < 0.03, `median ${median} nm`);
   const [histogramSvg] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Download SVG' }).click(),
+    page.getByRole('button', { name: 'Download SVG' }).first().click(),
   ]);
   assert.match(readFileSync(await histogramSvg.path(), 'utf8'), /Number of particles/);
   const [summaryCsv] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Summary (CSV)' }).click(),
+    page.getByRole('button', { name: 'Summary (CSV)', exact: true }).click(),
   ]);
   assert.match(readFileSync(await summaryCsv.path(), 'utf8'), /D90/);
   const [annotated] = await Promise.all([
@@ -731,6 +790,23 @@ try {
   await page.getByText(/example-particles-synthetic.png: 12 particles \(nm\)/).waitFor();
   assert.match(await page.getByLabel('Methods paragraph').inputValue(), /generated example/);
   step('Particles: distribution numbers, histogram SVG, summary CSV, annotated PNG, pooling');
+
+  // 19f: further statistics, shape distributions and the session file.
+  await page.getByText('95 % confidence interval of the mean').waitFor();
+  await page.getByText('D[3,2], Sauter mean').waitFor();
+  assert.match(await page.getByLabel('Methods paragraph').inputValue(), /Anderson–Darling/);
+  const shapes = page.getByRole('region', { name: 'Shape numbers, scrolls sideways' });
+  assert.match((await shapes.textContent()) ?? '', /Circularity/);
+  await page.getByRole('combobox', { name: 'Histogram of' }).selectOption('solidity');
+  const [particleSession] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Download session (JSON)' }).click(),
+  ]);
+  const savedParticles = JSON.parse(readFileSync(await particleSession.path(), 'utf8'));
+  assert.equal(savedParticles.kind, 'particles-session');
+  assert.equal(savedParticles.state.data.distribution.shape, 'solidity');
+  assert.equal(savedParticles.state.data.detect.particles.length, 12);
+  step('Particles: further statistics, shape distributions, session file');
 
   // Thermal: example run, then a 10,000-point semicolon/decimal-comma file typed up here.
   await page.goto(`http://localhost:${PORT}/#/thermal`);
@@ -881,7 +957,7 @@ try {
     .waitFor();
   await page.getByText(/Heat flow: exo up/).waitFor();
   await page
-    .getByText(/Partly verified/)
+    .getByText(/so the ranking is a suggestion to compare with your own/)
     .first()
     .waitFor();
   await page.getByText(/Check by XRD of samples calcined below and above 520/).waitFor();

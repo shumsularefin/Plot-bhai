@@ -10,10 +10,19 @@ interface SessionSectionProps<D> {
   step: number;
   /** Start of the downloaded file name, for example the first spectrum's name. */
   stem: string;
+  /** Replaces the usual explanation, for a tool whose file leaves something out. */
+  hint?: string;
 }
 
 /** Save the whole analysis as a JSON file, or open one saved earlier. */
-export function SessionSection<D>({ codec, data, update, step, stem }: SessionSectionProps<D>) {
+export function SessionSection<D>({
+  codec,
+  data,
+  update,
+  step,
+  stem,
+  hint,
+}: SessionSectionProps<D>) {
   const [status, setStatus] = useState<{ text: string; error: boolean } | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const save = () => {
@@ -36,8 +45,8 @@ export function SessionSection<D>({ codec, data, update, step, stem }: SessionSe
         Session file
       </h3>
       <p class="field-hint">
-        The session file holds your data and every setting. Open it later (or on another computer)
-        to continue exactly where you stopped. Opening a file replaces the analysis you have now.
+        {hint ??
+          'The session file holds your data and every setting. Open it later (or on another computer) to continue exactly where you stopped. Opening a file replaces the analysis you have now.'}
       </p>
       <div class="export-actions">
         <button type="button" class="btn btn-primary" onClick={save}>

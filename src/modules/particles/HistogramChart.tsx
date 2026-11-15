@@ -24,6 +24,8 @@ export interface HistogramFigure {
   cumulative: { x: ArrayLike<number>; share: ArrayLike<number> } | null;
   /** Axis label with unit, for example "Equal-area diameter (nm)". */
   xLabel: string;
+  /** Left axis label; "Number of particles" when left out. */
+  yLabel?: string;
 }
 
 interface SvgProps extends HistogramFigure {
@@ -39,6 +41,7 @@ interface SvgProps extends HistogramFigure {
 /** Histogram bars with an optional fitted curve and cumulative curve, inward ticks, numbered axes. */
 export function HistogramSvg(props: SvgProps) {
   const { histogram, fit, cumulative, xLabel, width, height, fontSize, lineWidth, print } = props;
+  const yLabel = props.yLabel ?? 'Number of particles';
   const m = {
     top: fontSize * (fit && cumulative ? 3.4 : fit || cumulative ? 2.2 : 0.8),
     right: fontSize * (cumulative ? 3.6 : 1),
@@ -155,7 +158,7 @@ export function HistogramSvg(props: SvgProps) {
             transform={`translate(${-fontSize * 3.2} ${innerH / 2}) rotate(-90)`}
             text-anchor="middle"
           >
-            Number of particles
+            {yLabel}
           </text>
           {cumulative && (
             <text
@@ -214,8 +217,15 @@ function histogramSvgString(figure: HistogramFigure, settings: ExportSettings): 
   return `<?xml version="1.0" encoding="UTF-8"?>\n${markup}\n`;
 }
 
+/** Limits of the free figure height, mm: below 30 the labels collide, above 250 no page fits it. */
+const HEIGHT_MM = { min: 30, max: 250 };
+
 interface ChartProps {
   figure: HistogramFigure;
+  /** Groups the preset radios; needed when a page shows more than one chart. */
+  name?: string;
+  /** Short title of the chart for the enlarged view. */
+  label?: string;
   description: string;
   exportName: string;
   settings: ExportSettings;
@@ -225,6 +235,8 @@ interface ChartProps {
 /** Histogram that fills its container's width, with figure size controls and SVG / PNG export. */
 export function HistogramChart({
   figure,
+  name = 'histogram',
+  label = 'Histogram',
   description,
   exportName,
   settings,
@@ -257,7 +269,7 @@ export function HistogramChart({
   };
   return (
     <figure class="bar-chart">
-      <Dock label="Histogram">
+      <Dock label={label}>
         <div ref={ref} role="img" aria-label={description}>
           {width > 0 && (
             <HistogramSvg
@@ -277,7 +289,7 @@ export function HistogramChart({
             <label key={key} class="check">
               <input
                 type="radio"
-                name="histogram-preset"
+                name={`${name}-preset`}
                 checked={settings.preset === key}
                 onChange={() => onSettings({ preset: key, heightMm: EXPORT_PRESETS[key].heightMm })}
               />
@@ -285,6 +297,21 @@ export function HistogramChart({
             </label>
           ))}
         </fieldset>
+        <label class="export-field">
+          Height (mm)
+          <input
+            type="number"
+            min={HEIGHT_MM.min}
+            max={HEIGHT_MM.max}
+            step={1}
+            value={settings.heightMm}
+            onChange={(e) => {
+              const value = Number(e.currentTarget.value);
+              if (Number.isFinite(value) && value > 0)
+                onSettings({ heightMm: Math.min(HEIGHT_MM.max, Math.max(HEIGHT_MM.min, value)) });
+            }}
+          />
+        </label>
         <label class="export-field">
           Font
           <select
@@ -320,7 +347,8 @@ export function HistogramChart({
           PNG 600 dpi
         </button>
         <p class="field-hint" role="status">
-          {status ?? 'Black axes on white, at the width chosen above.'}
+          {status ??
+            `Black axes on white, ${size.widthMm} × ${size.heightMm} mm. Choosing a width resets the height to its usual value.`}
         </p>
       </div>
     </figure>

@@ -7,7 +7,11 @@ import { localNoise } from '../peaks/noise';
  * Applied Spectroscopy 57 (2003) 1363–1367; checked against the paper).
  *
  *   1. Fit a polynomial of degree `degree` to the data by least squares.
- *   2. Replace every point above the fit by the fit value (peaks are clipped).
+ *   2. Replace every point above the fit by the fit value (peaks are clipped). Each pass clips
+ *      the data already clipped by the passes before, which pybaselines 1.2.1 calls the form of
+ *      Gan et al. (2006) (modpoly, use_original=False) and agrees with exactly
+ *      (tests/validation-ftir.test.ts); it attributes clipping the original data each pass to
+ *      Lieber and Mahadevan-Jansen. Listed as open in docs/validation.md for a check of the paper.
  *   3. Repeat until the clipped data change by less than `tolerance` (relative, root-sum-square)
  *      or `maxIterations` is reached.
  *

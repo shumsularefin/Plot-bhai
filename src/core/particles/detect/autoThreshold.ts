@@ -268,39 +268,45 @@ export function minimumThreshold(hist: ArrayLike<number>): number | null {
 }
 
 /**
- * Triangle (G. W. Zack, W. E. Rogers and S. A. Latt, J. Histochem. Cytochem. 25 (1977) 741–753):
- * a line joins the histogram peak to the far end of its longer tail (the first empty level past
- * the last occupied one); t is the level between them whose histogram point lies farthest below
- * that line. When the longer tail is on the dark side, t is one level below that point, so that
- * in both cases the point itself goes with the peak's side.
+ * Triangle (G. W. Zack, W. E. Rogers and S. A. Latt, J. Histochem. Cytochem. 25 (1977) 741–753),
+ * as ImageJ 1.54f computes it (ij/process/AutoThresholder.Triangle). The line runs from the
+ * histogram peak to the empty level just beyond the end of the longer tail (the dark tail when the
+ * two are equal); the split is the level between them, on the tail side, whose histogram point lies
+ * farthest from the line (the one nearest the tail end on a tie), and t is that level moved one
+ * more level towards the tail. Pixels above t are foreground, as for every method here.
+ * scikit-image's threshold_triangle stops one level short for a bright tail (82 against
+ * ImageJ's 83 on the 19b test image).
  */
 export function triangleThreshold(hist: ArrayLike<number>): number {
-  let first = 0;
-  while (first < levels - 1 && at(hist, first) === 0) first++;
-  let last = levels - 1;
-  while (last > 0 && at(hist, last) === 0) last--;
-  if (first >= last) return first;
-  let peak = first;
-  for (let i = first; i <= last; i++) if (at(hist, i) > at(hist, peak)) peak = i;
-  // The end of the longer tail, one level beyond the last occupied level (an empty level).
-  const brightTail = last - peak >= peak - first;
-  const end = brightTail ? Math.min(levels - 1, last + 1) : Math.max(0, first - 1);
-  const height = at(hist, peak);
-  const dx = end - peak;
-  let best = peak;
-  let bestDistance = -1;
-  const lo = Math.min(peak, end);
-  const hi = Math.max(peak, end);
-  for (let i = lo; i <= hi; i++) {
-    // Distance from (i, h_i) to the line through (peak, height) and (end, h_end), up to a constant factor.
-    const lineY = height + ((i - peak) / dx) * (at(hist, end) - height);
-    const d = lineY - at(hist, i);
-    if (d > bestDistance) {
-      bestDistance = d;
-      best = i;
+  let min = 0;
+  while (min < levels - 1 && at(hist, min) === 0) min++;
+  if (min > 0) min--;
+  let min2 = levels - 1;
+  while (min2 > 0 && at(hist, min2) === 0) min2--;
+  if (min2 < levels - 1) min2++;
+  let max = 0;
+  for (let i = 0; i < levels; i++) if (at(hist, i) > at(hist, max)) max = i;
+  // Work on the dark side; for a longer bright tail, mirror the histogram (level i ↔ 255 − i).
+  const inverted = max - min < min2 - max;
+  const h = (i: number) => at(hist, inverted ? levels - 1 - i : i);
+  const lo = inverted ? levels - 1 - min2 : min;
+  const peak = inverted ? levels - 1 - max : max;
+  if (lo === peak) return lo;
+  // Distance to the line through (lo, 0) and (peak, h(peak)), up to a positive factor.
+  const nx = h(peak);
+  const ny = lo - peak;
+  const d = nx * lo + ny * h(lo);
+  let split = lo;
+  let splitDistance = 0;
+  for (let i = lo + 1; i <= peak; i++) {
+    const distance = nx * i + ny * h(i) - d;
+    if (distance > splitDistance) {
+      split = i;
+      splitDistance = distance;
     }
   }
-  return brightTail ? best : best - 1;
+  split--;
+  return inverted ? levels - 1 - split : split;
 }
 
 /** The threshold of the chosen method; methods that need two histogram peaks fall back to Otsu without them. */

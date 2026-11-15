@@ -12,11 +12,16 @@ const SOURCE_LABELS: Record<FtirSource, string> = {
   synthetic: 'Example',
   digitized: 'From a graph image',
   computed: 'Made here (difference)',
+  instrument: 'Instrument file',
 };
 const KIND_LABELS: Record<FtirKind, string> = {
   absorbance: 'Absorbance',
   transmittance: 'Transmittance (%T)',
+  reflectance: 'Diffuse reflectance (%R, DRIFTS)',
 };
+/** Shown with every reflectance spectrum, here and in step 2. */
+export const REFLECTANCE_TEXT =
+  'Reflectance is analysed as the Kubelka–Munk function F(R) = (1 − R)²/(2R) by default. F(R) is proportional to absorption over scattering only for an optically thick powder layer, diluted (for example in KBr) and scattering strongly; for a neat or thin sample band heights are distorted, so compare positions rather than heights. Specular reflectance from a flat surface is a different measurement and is not transformed here (no Kramers–Kronig analysis).';
 const LEVEL_LABELS = { error: 'Problem', warning: 'Check', info: 'Note' } as const;
 
 interface FtirSpectrumCardProps {
@@ -102,7 +107,7 @@ export function FtirSpectrumCard({ spectrum, onChange, onRemove }: FtirSpectrumC
             </option>
           ))}
         </select>
-        {kind === 'transmittance' && (
+        {kind !== 'absorbance' && (
           <>
             <label for={`${id}-scale`} class="visually-hidden">
               Scale of the values
@@ -124,6 +129,12 @@ export function FtirSpectrumCard({ spectrum, onChange, onRemove }: FtirSpectrumC
             down. They convert into each other: A = 2 − log₁₀(%T) and %T = 100 · 10^(−A). This site
             always analyses absorbance, converting transmittance first.
           </p>
+          <p>
+            Diffuse reflectance (R, from a DRIFTS accessory on a powder) is turned into the
+            Kubelka–Munk function F(R) = (1 − R)² / (2R), or into log₁₀(1/R) if you choose that in
+            step 2. Specular reflectance from a flat, shiny surface is a different measurement that
+            needs a Kramers–Kronig transform, which this site does not do.
+          </p>
         </HelpTip>
       </div>
       <p class="field-hint">
@@ -135,6 +146,12 @@ export function FtirSpectrumCard({ spectrum, onChange, onRemove }: FtirSpectrumC
               ? 'Taken from the file. Please check it.'
               : `A guess from the values: ${suggestion.reason} Please check it.`}
       </p>
+
+      {kind === 'reflectance' && (
+        <p class="message is-info">
+          <strong>Note:</strong> {REFLECTANCE_TEXT}
+        </p>
+      )}
 
       {messages.length > 0 && (
         <ul class="pattern-messages">

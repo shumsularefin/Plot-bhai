@@ -10,16 +10,26 @@ export interface FtirKindSuggestion {
   reason: string;
 }
 
-/** Data type named in header or column text ("%T", "Transmittance", "Absorbance"), if any. */
+/**
+ * Data type named in header or column text ("%T", "Transmittance", "Absorbance", "%R",
+ * "Reflectance"), if any. Kubelka–Munk or log(1/R) values already converted by the instrument
+ * software are not reflectance and are not recognised here.
+ */
 export function ftirKindFromText(text: string): FtirKind | undefined {
   if (/%\s*t\b|\bt\s*\(?%|transmit|transmission/i.test(text)) return 'transmittance';
   if (/\babs|absorb/i.test(text)) return 'absorbance';
+  if (ftirStatesReflectance(text)) return 'reflectance';
   return undefined;
 }
 
+/** True when header, column or JCAMP-DX ##YUNITS text states reflectance ("Reflectance", "%R", "R (%)"). */
+export function ftirStatesReflectance(text: string): boolean {
+  return /%\s*r\b|\br\s*[([]?\s*%|reflect/i.test(text);
+}
+
 /**
- * Suggests whether the values are absorbance or transmittance. A word in the header decides when
- * there is one. Otherwise values above 8 are taken as percent transmittance (a normal absorbance
+ * Suggests whether the values are absorbance, transmittance or reflectance. A word in the header
+ * decides when there is one (reflectance is never guessed from the values alone). Otherwise values above 8 are taken as percent transmittance (a normal absorbance
  * never gets that high) and smaller values as absorbance. This is a guess: a transmittance
  * written as a fraction looks like a small absorbance, so the user must confirm.
  */
@@ -30,7 +40,7 @@ export function suggestFtirKind(values: ArrayLike<number>, headerText = ''): Fti
   if (named) {
     return {
       kind: named,
-      scale: named === 'transmittance' && max <= 1.5 ? 'fraction' : 'percent',
+      scale: named !== 'absorbance' && max <= 1.5 ? 'fraction' : 'percent',
       origin: 'header',
       reason: 'The heading names this data type.',
     };

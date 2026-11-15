@@ -1,0 +1,39 @@
+# Table 6 of C. Gautam, A. K. Yadav, A. K. Singh, ISRN Ceramics 2012 (2012) 428497, doi:10.5402/2012/428497, CC BY.
+# Text of page 12 from the PDF supplied by the owner (2026-11-15): pdftotext -layout -f 12 -l 12 <pdf>. Not edited.
+                                        Table 6: Assignment of infrared bands in the spectra.
+
+Peak Positions
+                   IR Assignments                                                                                     References
+(cm−1 )
+3600–3750          OH group                                                                                            [70, 71]
+3200–3500          Molecular water                                                                                  [70, 71, 77–79]
+2700–3000          Hydrogen bonding                                                                                       [36]
+
+1200–1750          Asymmetric stretching relaxation of B–O bonds of trigonal BO3 units
+                                  Detailed Classification of group 1200–1750
+                                                                                                                    [57–59, 64, 74–
+∼1480              Asymmetric stretching modes of borate triangles BO3 units
+                                                                                                                      76, 80, 81]
+∼1345              Presence of pyroborate, orthoborate groups containing BO3 −
+1200–1300          B–O bond stretching vibrations and B–O bridging between B3 O6 and BO3 triangles
+∼1235              Asymmetric stretching vibrations of B–O bonds from orthoborate groups
+
+700–1200           Composite of two silicate chains and borate phases
+                                  Detailed Classification of groups 700–1200
+∼1015              Pentaborate group
+992                B–O–M, M means metal ion
+∼965               B–O–B linkages
+                                                                                                                    [38, 39, 49, 60,
+950–1050           Stretching vibrations of B–O–Si linkage                                                          63, 67, 68, 82–
+                                                                                                                          88]
+∼875               Stretching vibrations of tetrahedral BO4 − units
+816–833            Diborate linkage, B–O–B networks
+∼815               Si–O–Si network
+806                Boroxol rings
+760                BO3 –O–BO4 bond-bending vibrations
+700                Bending of B–O–B linkage
+
+∼694               Combined vibrations of BO4 and PbO4 groups                                                          [83–85]
+680                B–O–B bond-bending vibrations from pentaborate group or bending vibrations of BO3 triangles            [80]
+∼616               Bending of O–B–O                                                                                       [89]
+<600               Pb2+ , Zn2+ , Mn2+ , Bi3+ , Li+ , and Ba2+ or any metallic cations                               [55, 80, 90–97]

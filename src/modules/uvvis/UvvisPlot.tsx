@@ -1,6 +1,7 @@
 import { useMemo } from 'preact/hooks';
 import { energyFromWavelength } from '../../core/uvvis/conversions';
 import type { DisplayQuantity } from '../../core/uvvis/process';
+import type { PeakLabelSet } from '../../ui/plot/peakLabels';
 import { PlotPanel, type PlotSettings } from '../../ui/plot/PlotPanel';
 import type { SeriesSource } from '../../ui/plot/series';
 import type { ViewSettings } from './data';
@@ -53,6 +54,8 @@ interface UvvisPlotProps {
   settings: PlotSettings;
   onSettingsChange: (patch: Partial<PlotSettings>) => void;
   exportName: string;
+  /** Labels at bands, in the x unit of the view. */
+  peakLabels?: PeakLabelSet;
 }
 
 /** The shared plot panel set up for UV-Vis spectra. */
@@ -63,6 +66,7 @@ export function UvvisPlot({
   settings,
   onSettingsChange,
   exportName,
+  peakLabels,
 }: UvvisPlotProps) {
   const unit = quantityUnit(quantity);
   const sources = useMemo(
@@ -79,6 +83,7 @@ export function UvvisPlot({
       xName={view.xUnit === 'nm' ? 'λ' : 'E'}
       xUnit={view.xUnit === 'nm' ? ' nm' : ' eV'}
       exportName={exportName}
+      {...(peakLabels && { peakLabels })}
     />
   );
 }

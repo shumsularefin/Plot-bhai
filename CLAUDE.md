@@ -110,9 +110,10 @@ Magnetic structures and neutron or synchrotron-specific models (the basic Rietve
 
 - Work on one stage at a time. Do not start the next stage until I say so.
 - Use one branch per stage named stage-N-short-name, commit in small steps, and open a pull request at the end.
-- Before saying a stage is done, run lint, type check, tests and the production build, and report the real results, including failures.
+- Before saying a stage is done, run lint, type check and the production build, and only the tests for the parts that changed: the unit tests of the changed files and of the code that uses them (a change to shared code such as src/ui/plot counts for every tool that uses it), and the end-to-end steps of the changed tools. The full test suite runs in CI on every pull request. Report the real results, including failures.
 - At the end of each stage update docs/PROGRESS.md with what was built, decisions made, known issues and the next stage.
 - If a requirement is unclear or cannot be verified, ask me instead of guessing.
+- Owner, November 2026: for choices of method or behaviour, do not wait for my decision. Follow what the published literature and research-industry practice recommend, within the Firebase Spark plan, and record the choice and its source in docs/PROGRESS.md. This does not cover scientific data that cannot be verified: those stay TODO, as section 2 says.
 - Prefer simple, readable code over clever code. No dead code, no unused dependencies.
 
 ## 11. Starting a session

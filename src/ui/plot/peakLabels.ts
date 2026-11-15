@@ -54,12 +54,15 @@ export interface PlacedLabel {
  * first, as close to the peak as possible; a label that would overlap one already placed moves
  * up one row at a time (and gets a leader line down to its peak) until it is free. Rows are
  * lineHeight apart; a label never goes above minY (px), where the last row is used even if it
- * overlaps. Returns one placement per item, in the order given.
+ * overlaps. A label that would stick out past either side of the plot (0 to maxX px) is moved
+ * sideways to fit, with a leader line to its peak. Returns one placement per item, in the order
+ * given.
  */
 export function placeLabels(
   items: readonly LabelItem[],
   lineHeight: number,
   minY = 0,
+  maxX = Infinity,
 ): PlacedLabel[] {
   const gap = lineHeight * 0.2;
   const placed: { left: number; right: number; top: number; bottom: number }[] = [];
@@ -73,8 +76,10 @@ export function placeLabels(
     });
   for (const i of order) {
     const item = items[i] as LabelItem;
-    const left = item.x - item.width / 2;
-    const right = item.x + item.width / 2;
+    const half = item.width / 2;
+    const x = maxX < 2 * half ? maxX / 2 : Math.min(Math.max(item.x, half), maxX - half);
+    const left = x - half;
+    const right = x + half;
     let row = 0;
     let box = { left, right, top: 0, bottom: 0 };
     for (;;) {
@@ -89,7 +94,11 @@ export function placeLabels(
       row++;
     }
     placed.push(box);
-    result[i] = { x: item.x, baseline: box.bottom - lineHeight * 0.2, leader: row > 0 };
+    result[i] = {
+      x: Number.isFinite(x) ? x : item.x,
+      baseline: box.bottom - lineHeight * 0.2,
+      leader: row > 0 || (Number.isFinite(x) && x !== item.x),
+    };
   }
   return result;
 }

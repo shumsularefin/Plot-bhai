@@ -10,8 +10,14 @@ import { formatNumber } from '../../core/xrd/parsers/numbers';
 import { HelpTip } from '../../ui/HelpTip';
 import type { StepContext } from '../../ui/wizard/types';
 import { NumberInput } from '../xrd/NumberInput';
-import { assignmentFor, peaksOf, processAll } from './analysis';
-import { peaksFor, type Assignment, type FtirData } from './data';
+import {
+  ASSIGNMENT_MATCH_CM,
+  attachAssignments,
+  MOVED_NOTE_CM,
+  peaksOf,
+  processAll,
+} from './analysis';
+import { newId, peakEditsFor, peaksFor, type Assignment, type FtirData } from './data';
 import { curveOf, FtirPlot, peakLabelsFor } from './FtirPlot';
 import { QuantityChoice } from './QuantityChoice';
 import { shownQuantity, valueIn, type FtirQuantity } from './quantity';
@@ -20,6 +26,9 @@ import groups from '../../../data/ftir/groups.json';
 import { useSelectedSpectrum } from './useSelected';
 
 const table = groups as GroupTable;
+
+/** Short name of a row's source, for example "Al-Amin et al. 2025, Table 1". */
+const sourceName = (key: string): string => table.sources[key]?.short ?? key;
 const atmosphere = atmosphereBands as AtmosphereTable;
 
 /** Wizard step 4: suggested assignments for each peak, which the user accepts, edits or removes. */
@@ -31,18 +40,35 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
   );
   const result = spectrum ? processed[data.spectra.indexOf(spectrum)] : undefined;
   const peaks = useMemo(
-    () => (spectrum && result ? peaksOf(result, peaksFor(data, spectrum.id)) : []),
+    () =>
+      spectrum && result
+        ? peaksOf(result, peaksFor(data, spectrum.id), peakEditsFor(data, spectrum.id))
+        : [],
     [spectrum, result, data],
   );
   const stored = spectrum ? data.assignments[spectrum.id] : undefined;
+  const attached = useMemo(() => attachAssignments(stored, peaks), [stored, peaks]);
   const rows = useMemo(
     () =>
-      peaks.map((peak) => ({
-        peak,
-        label: assignmentFor(stored, peak.wavenumber),
-        suggestions: suggestAssignments(peak.wavenumber, table, data.toleranceCm, 6, atmosphere),
-      })),
-    [peaks, stored, data.toleranceCm],
+      peaks.map((peak, i): PeakRow => {
+        const assignment = attached.byPeak[i];
+        return {
+          peak,
+          assignment,
+          label: assignment?.label ?? '',
+          suggestions: suggestAssignments(
+            peak.wavenumber,
+            table,
+            data.toleranceCm,
+            6,
+            atmosphere,
+            peak.intensity && peak.shape?.fwhm != null && !peak.overlap
+              ? { broad: peak.intensity.broad, fwhm: peak.shape.fwhm }
+              : null,
+          ),
+        };
+      }),
+    [peaks, attached, data.toleranceCm],
   );
   // Highest wavenumber first, the way an FTIR spectrum is read.
   const ordered = useMemo(() => [...rows].reverse(), [rows]);
@@ -62,15 +88,29 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
 
   const setAssignments = (next: Assignment[]) =>
     update({ assignments: { ...data.assignments, [spectrum.id]: next } });
-  /** Sets (or with an empty label removes) the assignment of the peak at this wavenumber. */
-  const setLabel = (wavenumber: number, label: string) => {
-    const others = (stored ?? []).filter((a) => Math.abs(a.wavenumber - wavenumber) > 2);
-    setAssignments(label.trim() === '' ? others : [...others, { wavenumber, label }]);
+  const remove = (id: string) => setAssignments((stored ?? []).filter((a) => a.id !== id));
+  /**
+   * Sets (or with an empty label removes) the assignment of a peak. Editing keeps the position
+   * the assignment was made at, so it re-attaches the same way after later reprocessing.
+   */
+  const setLabel = (row: PeakRow, label: string) => {
+    const current = row.assignment;
+    if (label.trim() === '') {
+      if (current) remove(current.id);
+      return;
+    }
+    setAssignments(
+      current
+        ? (stored ?? []).map((a) => (a.id === current.id ? { ...a, label } : a))
+        : [...(stored ?? []), { id: newId(), wavenumber: row.peak.wavenumber, label }],
+    );
   };
   const acceptAll = () => {
     const added = rows.flatMap((r) => {
       const best = r.suggestions[0];
-      return r.label || !best ? [] : [{ wavenumber: r.peak.wavenumber, label: best.label }];
+      return r.assignment || !best
+        ? []
+        : [{ id: newId(), wavenumber: r.peak.wavenumber, label: best.label }];
     });
     setAssignments([...(stored ?? []), ...added]);
   };
@@ -104,9 +144,10 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
           <HelpTip term="assignment suggestions">
             <p>
               Each peak is compared with typical wavenumber ranges of bond vibrations and with band
-              positions listed for metal oxides. A group is suggested when the peak is inside its
-              range or within the distance below of it. Closer matches come first. Use "Accept" to
-              keep a suggestion, edit the text to describe it in your own words, or clear the box.
+              positions listed for metal oxides and minerals. A group is suggested when the peak is
+              inside its range or within the distance below of it. Closer matches come first. Use
+              "Accept" to keep a suggestion, edit the text to describe it in your own words, or
+              clear the box.
             </p>
           </HelpTip>
         </h3>
@@ -133,6 +174,8 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
         quantity={quantity}
         settings={data.plot}
         onSettingsChange={(plot) => update({ plot: { ...data.plot, ...plot } })}
+        absorbanceName={shown.name}
+        edited={result.edited}
         exportName={`${spectrum.name}-assigned`}
         showOverlayOptions={false}
         peakLabels={labels}
@@ -174,6 +217,7 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
               key={row.peak.wavenumber}
               row={row}
               quantity={quantity}
+              name={shown.name}
               toleranceCm={data.toleranceCm}
               setLabel={setLabel}
             />
@@ -199,12 +243,51 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
         </>
       )}
 
+      {attached.detached.length > 0 && (
+        <section class="message is-warning" aria-labelledby="detached-title">
+          <h4 id="detached-title">Assignments not attached to a peak</h4>
+          <p>
+            No peak lies within {ASSIGNMENT_MATCH_CM} cm⁻¹ of where these were made with the current
+            settings, for example because the minimum prominence was raised or a processing step
+            changed the spectrum. They are kept, and attach again when a peak returns near them.
+            They are not in the results table while detached.
+          </p>
+          <ul class="detached-list">
+            {[...attached.detached]
+              .sort((a, b) => b.wavenumber - a.wavenumber)
+              .map((a) => (
+                <li key={a.id}>
+                  {formatNumber(a.wavenumber, 1)} cm⁻¹: {a.label}{' '}
+                  <button
+                    type="button"
+                    class="btn btn-quiet"
+                    aria-label={`Remove the assignment made at ${formatNumber(a.wavenumber, 1)} cm⁻¹`}
+                    onClick={() => remove(a.id)}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+          </ul>
+        </section>
+      )}
+
       <details class="paste-box">
         <summary>The reference table used</summary>
         <p class="field-hint">
-          Source: {table.source.citation}, doi:{table.source.doi} ({table.source.licence}),
-          retrieved {table.source.retrieved}. {table.verification}
+          The rows come from {Object.keys(table.sources).length} published sources (articles under
+          open licences and one book). Each suggestion names its source; where two sources list the
+          same band differently, both rows are kept and shown.
         </p>
+        <ul class="field-hint">
+          {Object.entries(table.sources).map(([key, s]) => (
+            <li key={key}>
+              <strong>{s.short}:</strong> {s.citation}
+              {s.doi ? `, doi:${s.doi}` : ''} ({s.licence}), {s.tables}, retrieved {s.retrieved}.{' '}
+              {s.verification}
+            </li>
+          ))}
+        </ul>
         <div
           class="table-scroll"
           tabIndex={0}
@@ -216,6 +299,7 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
               <tr>
                 <th scope="col">Range or band (cm⁻¹)</th>
                 <th scope="col">Assignment</th>
+                <th scope="col">Source</th>
               </tr>
             </thead>
             <tbody>
@@ -228,12 +312,14 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
                       .join(', ')}
                   </td>
                   <th scope="row">{g.label}</th>
+                  <td>{sourceName(g.source)}</td>
                 </tr>
               ))}
               {table.metalOxides.map((m) => (
                 <tr key={m.id}>
-                  <td>{m.bands.map((b) => b.cm).join(', ')}</td>
+                  <td>{m.bands.map((b) => (b.note ? `${b.cm} (${b.note})` : b.cm)).join(', ')}</td>
                   <th scope="row">{m.label} (bands)</th>
+                  <td>{sourceName(m.source)}</td>
                 </tr>
               ))}
             </tbody>
@@ -247,22 +333,32 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
 /** One row of the step: a found peak, what the user assigned to it and what the table suggests. */
 interface PeakRow {
   peak: FtirPeak;
+  /** The stored assignment attached to this peak, if any. */
+  assignment: Assignment | undefined;
   label: string;
   suggestions: Suggestion[];
 }
 
 /** The assignment box and the suggestion table of one peak. */
 function PeakCard({
-  row: { peak, label, suggestions },
+  row,
   quantity,
+  name,
   toleranceCm,
   setLabel,
 }: {
   row: PeakRow;
   quantity: FtirQuantity;
+  /** The absorbance-like quantity (ShownQuantity.name). */
+  name: string;
   toleranceCm: number;
-  setLabel: (wavenumber: number, label: string) => void;
+  setLabel: (row: PeakRow, label: string) => void;
 }) {
+  const { peak, assignment, label, suggestions } = row;
+  const moved =
+    assignment && Math.abs(assignment.wavenumber - peak.wavenumber) > MOVED_NOTE_CM
+      ? assignment.wavenumber
+      : null;
   const id = `assign-${Math.round(peak.wavenumber * 10)}`;
   return (
     <div class="assign-row">
@@ -270,25 +366,27 @@ function PeakCard({
         {formatNumber(peak.wavenumber, 1)} cm⁻¹{' '}
         <span class="field-hint">
           {quantity === 'absorbance'
-            ? `absorbance ${formatNumber(peak.height, 3)}`
+            ? `${name === 'Absorbance' ? 'absorbance' : name} ${formatNumber(peak.height, 3)}`
             : `transmittance ${formatNumber(valueIn(quantity, peak.height), 1)} %`}
-          , {formatNumber(peak.relative, 0)} % of the highest absorbance
+          , {formatNumber(peak.relative, 0)} % of the highest peak
         </span>
       </h4>
       <div class="inline-field">
         <label for={id}>Your assignment</label>
-        <AssignmentInput
-          id={id}
-          label={label}
-          onCommit={(text) => setLabel(peak.wavenumber, text)}
-        />
+        <AssignmentInput id={id} label={label} onCommit={(text) => setLabel(row, text)} />
         {label !== '' && (
-          <button type="button" class="btn btn-quiet" onClick={() => setLabel(peak.wavenumber, '')}>
+          <button type="button" class="btn btn-quiet" onClick={() => setLabel(row, '')}>
             Remove
             <span class="visually-hidden"> assignment at {formatNumber(peak.wavenumber, 1)}</span>
           </button>
         )}
       </div>
+      {moved !== null && (
+        <p class="field-hint">
+          This assignment was made when the peak was at {formatNumber(moved, 1)} cm⁻¹; the
+          processing has moved the peak since. Check that it is the same band.
+        </p>
+      )}
       {suggestions.length === 0 ? (
         <p class="field-hint">Nothing in the table lies within {toleranceCm} cm⁻¹ of this peak.</p>
       ) : (
@@ -305,6 +403,7 @@ function PeakCard({
                   <th scope="col">Suggestion</th>
                   <th scope="col">Listed at</th>
                   <th scope="col">Distance (cm⁻¹)</th>
+                  <th scope="col">Source</th>
                   <th scope="col">
                     <span class="visually-hidden">Action</span>
                   </th>
@@ -316,11 +415,12 @@ function PeakCard({
                     <th scope="row">{s.label}</th>
                     <td>{s.listed}</td>
                     <td>{s.offset === 0 ? 'inside' : formatNumber(s.offset, 0)}</td>
+                    <td>{s.source ? sourceName(s.source) : 'air in the beam'}</td>
                     <td>
                       <button
                         type="button"
                         class="btn"
-                        onClick={() => setLabel(peak.wavenumber, s.label)}
+                        onClick={() => setLabel(row, s.label)}
                         disabled={label === s.label}
                       >
                         {label === s.label ? 'Accepted' : 'Accept'}

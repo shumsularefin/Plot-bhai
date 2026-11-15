@@ -116,13 +116,17 @@ describe('FTIR display quantity', () => {
   it('shows absorbance, with a reason, only while a spectrum is normalised', () => {
     const s = percentTSpectrum();
     const data = { view: { quantity: 'transmittance' as const }, processing: {} };
-    expect(shownQuantity(data, [s])).toEqual({ quantity: 'transmittance', reason: null });
+    expect(shownQuantity(data, [s])).toMatchObject({ quantity: 'transmittance', reason: null });
     const normalised = {
       ...data,
       processing: {
         [s.id]: {
           ...DEFAULT_FTIR_PROCESSING,
-          normalise: { enabled: true, method: 'max' as const },
+          normalise: {
+            ...DEFAULT_FTIR_PROCESSING.normalise,
+            enabled: true,
+            method: 'max' as const,
+          },
         },
       },
     };

@@ -10,6 +10,7 @@ const SOURCE_LABELS: Record<SpectrumSource, string> = {
   pasted: 'Pasted',
   synthetic: 'Example',
   digitized: 'From a graph image',
+  instrument: 'Instrument file',
 };
 const KIND_LABELS: Record<SpectrumKind, string> = {
   absorbance: 'Absorbance',

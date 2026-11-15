@@ -9,7 +9,7 @@ import { NumberInput } from '../xrd/NumberInput';
 import { PeaksClient } from '../xrd/peaksClient';
 import { peaksOf } from './analysis';
 import type { BandContext } from './BandsStep';
-import { peaksFor, processingFor, type BandSettings } from './data';
+import { peakEditsFor, peaksFor, processingFor, type BandSettings } from './data';
 import { FtirPlot, type FtirCurve } from './FtirPlot';
 
 const PROFILES: [ProfileKind, string][] = [
@@ -57,9 +57,11 @@ export function BandFitSection({ data, update, spectrum, processed, settings, se
   const fit = result && !stale ? result.fit : null;
 
   const usePicked = () => {
-    const picked = peaksOf(processed, peaksFor(data, spectrum.id)).filter(
-      (p) => p.wavenumber >= lo && p.wavenumber <= hi,
-    );
+    const picked = peaksOf(
+      processed,
+      peaksFor(data, spectrum.id),
+      peakEditsFor(data, spectrum.id),
+    ).filter((p) => p.wavenumber >= lo && p.wavenumber <= hi);
     change({ centres: picked.map((p) => Number(p.wavenumber.toFixed(1))) });
   };
 

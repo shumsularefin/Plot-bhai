@@ -6,6 +6,7 @@ import {
   type LognormalFit,
   type NormalFit,
 } from './distribution';
+import type { SizeStatistics } from './statistics';
 
 /**
  * Methods paragraph for a paper, written from the settings the analysis actually used. Every
@@ -54,6 +55,8 @@ export interface ParticleMethodsInput {
   d90: number;
   bins: { method: BinMethod; count: number };
   fits: { normal: NormalFit | null; lognormal: LognormalFit | null };
+  /** Interval, CV, moment means, volume percentiles and goodness of fit, when computed. */
+  statistics?: SizeStatistics | null;
 }
 
 const number = (value: number, digits = 4) => Number(value.toPrecision(digits)).toString();
@@ -154,8 +157,20 @@ export function particleMethodsParagraph(input: ParticleMethodsInput): string {
       ? `${input.bins.count} bins chosen by hand`
       : `${input.bins.count} bins by the ${BIN_METHOD_NAMES[input.bins.method]} rule`;
   sentences.push(
-    `The size distribution is based on the ${input.measureName} of ${input.count} particles (${binText}). The mean is ${number(input.mean)} ${unit} with a standard deviation of ${Number.isFinite(input.sd) ? number(input.sd) : 'not defined'} ${unit} (sample standard deviation); D10, D50 and D90, the sizes below which 10 %, 50 % and 90 % of the particles by number lie, are ${number(input.d10)}, ${number(input.d50)} and ${number(input.d90)} ${unit}.`,
+    `The size distribution is based on the ${input.measureName} of ${input.count} particles (${binText}). The number-based mean is ${number(input.mean)} ${unit} with a standard deviation of ${Number.isFinite(input.sd) ? number(input.sd) : 'not defined'} ${unit} (sample standard deviation); D10, D50 and D90, the sizes below which 10 %, 50 % and 90 % of the particles by number lie, are ${number(input.d10)}, ${number(input.d50)} and ${number(input.d90)} ${unit}.`,
   );
+  const st = input.statistics;
+  if (st) {
+    const ci = st.interval;
+    if (ci) {
+      sentences.push(
+        `The standard error of the mean is ${number(ci.sem)} ${unit}, and its ${number(ci.level * 100)} % confidence interval is ${number(ci.lower)}–${number(ci.upper)} ${unit} (Student t = ${number(ci.t)}, ${input.count - 1} degrees of freedom); the coefficient of variation (SD/mean) is ${number(st.cv * 100, 3)} %.`,
+      );
+    }
+    sentences.push(
+      `Treating each particle as a sphere of its measured diameter, the surface-weighted (Sauter) mean D[3,2] is ${number(st.moments.d32)} ${unit} and the volume-weighted mean D[4,3] is ${number(st.moments.d43)} ${unit}; the volume-based Dv10, Dv50 and Dv90 (the sizes below which 10 %, 50 % and 90 % of the particle volume lie) are ${number(st.volume.dv10)}, ${number(st.volume.dv50)} and ${number(st.volume.dv90)} ${unit}.`,
+    );
+  }
   const { lognormal, normal } = input.fits;
   if (lognormal) {
     sentences.push(
@@ -165,6 +180,18 @@ export function particleMethodsParagraph(input: ParticleMethodsInput): string {
   if (normal) {
     sentences.push(
       `A normal distribution fitted by maximum likelihood has a mean of ${number(normal.mean)} ${unit} and a standard deviation of ${number(normal.sigma)} ${unit}.`,
+    );
+  }
+  const ad = (name: string, a: SizeStatistics['adNormal']) =>
+    a
+      ? `${number(a.a2, 3)} for the ${name} fit (${a.rejected ? 'above' : 'below'} ${number(a.critical5, 3)})`
+      : null;
+  const tests = st
+    ? [ad('lognormal', st.adLognormal), ad('normal', st.adNormal)].filter(Boolean)
+    : [];
+  if (tests.length > 0) {
+    sentences.push(
+      `As a guide to the fits, the Anderson–Darling statistic A² with the mean and standard deviation estimated from the data (on ln of the sizes for the lognormal) is ${tests.join(' and ')}, compared with the 5 % critical value adjusted for the number of particles (Stephens, 1974).`,
     );
   }
   return sentences.join(' ');
