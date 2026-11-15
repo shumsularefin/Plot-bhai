@@ -17,7 +17,7 @@ import { analyseSpectrum, cleanAll, fitMessages, type BandGapAnalysis } from './
 import { bandGapFor, type BandGapChoice, type UvvisData } from './data';
 import { CrossChecks, OpticalConstants } from './OpticalExtras';
 import { taucLabels, urbachLabels } from './labels';
-import { gapText } from './tables';
+import { gapText, powerBaselineText } from './tables';
 
 const eV = (value: number, digits = 3) => Number(value.toFixed(digits));
 /** Smallest allowed width of a fit region, eV. */
@@ -85,6 +85,17 @@ export function BandGapStep({ data, update }: StepContext<UvvisData>) {
     void _legacy;
     void _rule;
     update({ bandGap: { ...data.bandGap, [spectrum.id]: { ...rest, ...patch } } });
+  };
+  /** The baseline shape: a power law (which needs the subtraction method), or null for a line. */
+  const setPower = (power: BandGapChoice['powerBaseline'] | null) => {
+    const { legacySuggestion: _legacy, regionRule: _rule, powerBaseline: _power, ...rest } = choice;
+    void _legacy;
+    void _rule;
+    void _power;
+    const next: BandGapChoice = power
+      ? { ...rest, method: 'subtract-baseline', powerBaseline: power }
+      : rest;
+    update({ bandGap: { ...data.bandGap, [spectrum.id]: next } });
   };
   const setRegion = (region: [number, number] | null) => {
     const regions = Object.fromEntries(
@@ -173,6 +184,7 @@ export function BandGapStep({ data, update }: StepContext<UvvisData>) {
           onMethod={(method) => changeGap({ method })}
           onBaseline={(baselineRegion) => changeGap({ baselineRegion })}
           onComponent={(component) => changeGap({ component })}
+          onPower={setPower}
         />
         <TaucResult
           analysis={analysis}
@@ -420,6 +432,12 @@ function TaucResult({
               {analysis.automatic ? ' (automatic)' : ''}
             </dd>
           </div>
+          {analysis.powerBaseline && (
+            <div>
+              <dt>Baseline</dt>
+              <dd>a + c·E^m, {powerBaselineText(analysis).replace('power-law baseline, ', '')}</dd>
+            </div>
+          )}
           <div>
             <dt>R² of the line</dt>
             <dd>{fit.rSquared.toFixed(4)}</dd>
@@ -608,6 +626,7 @@ function GapMethodChoice({
   onMethod,
   onBaseline,
   onComponent,
+  onPower,
 }: {
   analysis: BandGapAnalysis;
   choice: BandGapChoice;
@@ -615,7 +634,9 @@ function GapMethodChoice({
   onMethod: (method: GapMethod | null) => void;
   onBaseline: (region: [number, number] | null) => void;
   onComponent: (component: BandGapChoice['component']) => void;
+  onPower: (power: BandGapChoice['powerBaseline'] | null) => void;
 }) {
+  const power = analysis.powerBaseline ? choice.powerBaseline : undefined;
   const region = analysis.baselineRegion;
   const usesComponent = analysis.method === 'subtract-component';
   const typedFactor = choice.component?.factor ?? null;
@@ -666,6 +687,15 @@ function GapMethodChoice({
           the crossing can differ from the gap by a few hundredths of an eV.
         </p>
         <p>
+          Baseline shape: with the sub-gap baseline subtracted first, the background is a straight
+          line unless you choose a power law, a + c·E<sup>m</sup>. Scattering by particles away from
+          absorption bands rises as λ<sup>−m</sup>, that is as E<sup>m</sup>: m = 4 for Rayleigh
+          scattering by small particles and about 2 for larger ones (Kubetschek, Backes and Goldie,
+          Adv. Mater. Interfaces (2024) 2400311). It is fitted to the whole range below the edge and
+          extrapolated across it, which is less certain the larger the extrapolation; a measured
+          spectrum of the scattering material, subtracted as a second component, is more reliable.
+        </p>
+        <p>
           Spectrum of a second component subtracted first: when the sample is a semiconductor with a
           dye, modifier or support that you have also measured on its own, its spectrum, scaled by a
           factor c, is subtracted before the Tauc plot, α<sub>s</sub> = α − c·α<sub>m</sub>. Makuła
@@ -709,6 +739,47 @@ function GapMethodChoice({
           )}
         </>
       )}
+      {analysis.method === 'subtract-baseline' && (
+        <>
+          <label class="inline-field">
+            Baseline shape
+            <select
+              value={power ? 'power' : 'line'}
+              onChange={(e) =>
+                onPower(e.currentTarget.value === 'power' ? { exponent: null } : null)
+              }
+            >
+              <option value="line">Straight line</option>
+              <option value="power">Power law a + c·E^m (scattering)</option>
+            </select>
+          </label>
+          {power && (
+            <NumberInput
+              label="Exponent m (empty: fitted from 0 to 4; 4 = Rayleigh)"
+              value={power.exponent}
+              min={0}
+              max={4}
+              step={0.1}
+              onChange={(exponent) => {
+                if (exponent === null || (exponent >= 0 && exponent <= 4)) onPower({ exponent });
+              }}
+            />
+          )}
+          {analysis.powerSuggestion && (
+            <p class="field-hint">
+              The background below the edge curves, and a power law fits it clearly better (Eg ={' '}
+              {eV(analysis.powerSuggestion.egEv, 3)} eV with it).{' '}
+              <button
+                type="button"
+                class="btn btn-quiet"
+                onClick={() => onPower({ exponent: null })}
+              >
+                Use the power law
+              </button>
+            </p>
+          )}
+        </>
+      )}
       {usesBaseline && region && (
         <>
           <NumberInput
@@ -723,7 +794,9 @@ function GapMethodChoice({
           />
           <p class="field-hint">
             {analysis.baselineSuggested
-              ? 'The baseline region is an automatic suggestion: 0.5 eV ending 0.1 eV below the gap. Choose a stretch with no absorption of its own (no tail or second edge).'
+              ? power
+                ? 'The baseline region is an automatic suggestion: everything measured below the edge, ending 0.1 eV below the gap. Choose a stretch with no absorption of its own (no tail or second edge).'
+                : 'The baseline region is an automatic suggestion: 0.5 eV ending 0.1 eV below the gap. Choose a stretch with no absorption of its own (no tail or second edge).'
               : 'The baseline region was set by you. '}
             {!analysis.baselineSuggested && (
               <button type="button" class="btn btn-quiet" onClick={() => onBaseline(null)}>

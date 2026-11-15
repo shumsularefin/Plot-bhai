@@ -1,7 +1,7 @@
 import { SIGMOID_N } from '../../core/uvvis/crossChecks';
 import { indexFromGap } from '../../core/uvvis/optics';
 import { DISPLAY_LABELS } from '../../core/uvvis/process';
-import { GAP_METHODS, TRANSITIONS } from '../../core/uvvis/tauc';
+import { GAP_METHODS, TRANSITIONS, type TaucGap } from '../../core/uvvis/tauc';
 import type { CsvColumn } from '../../core/xrd/peaks/table';
 import { baselineUsed, type ResultRow } from './analysis';
 
@@ -36,6 +36,23 @@ export const RESULT_COLUMNS: readonly CsvColumn<ResultRow>[] = [
   {
     header: 'Baseline to (eV)',
     value: (r) => num(baselineUsed(r.analysis)?.[1]),
+  },
+  {
+    header: 'Baseline shape',
+    value: (r) =>
+      r.analysis.powerBaseline
+        ? 'power law a + c*E^m'
+        : r.analysis.method === 'subtract-baseline' && r.analysis.signalBaseline
+          ? 'straight line'
+          : '',
+  },
+  { header: 'Baseline exponent m', value: (r) => num(r.analysis.powerBaseline?.m) },
+  {
+    header: 'Baseline exponent m uncertainty',
+    value: (r) => {
+      const p = r.analysis.powerBaseline;
+      return !p ? '' : p.mFixed ? 'typed' : num(Math.sqrt(p.covariance[2]?.[2] ?? NaN));
+    },
   },
   { header: 'Second component', value: (r) => r.analysis.component?.name ?? '' },
   {
@@ -140,4 +157,17 @@ export function gapText(fit: { egEv: number; egSigma: number }): string {
       ? '< 0.001'
       : fit.egSigma.toFixed(3);
   return `${fit.egEv.toFixed(3)} ± ${sigma}`;
+}
+
+/**
+ * The power-law baseline in words for the screen and the figure legend, for example
+ * "power-law baseline, m = 1.93 ± 0.05", or an empty string when a straight line or none is used.
+ */
+export function powerBaselineText(analysis: Pick<TaucGap, 'powerBaseline'>): string {
+  const p = analysis.powerBaseline;
+  if (!p) return '';
+  const sigma = Math.sqrt(p.covariance[2]?.[2] ?? NaN);
+  return p.mFixed
+    ? `power-law baseline, m = ${p.m} (set by you)`
+    : `power-law baseline, m = ${p.m.toFixed(2)}${Number.isFinite(sigma) ? ` ± ${sigma.toFixed(2)}` : ''}`;
 }

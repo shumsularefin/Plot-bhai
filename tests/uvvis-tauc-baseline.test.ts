@@ -5,6 +5,7 @@ import {
   analyseTaucGap,
   fitBandGap,
   fitLine,
+  fitPowerBaseline,
   lineCrossing,
   SUB_GAP_SHIFT_EV,
   TRANSITIONS,
@@ -299,4 +300,134 @@ describe('invariance', () => {
     );
     expect(Math.abs(must(gap(signal, 'direct-allowed').fit).egEv - EG)).toBeLessThan(0.002);
   });
+});
+
+// Stage 22 part C: a curved (scattering) background, S_b = a + c·E^m (Kubetschek, Backes and
+// Goldie, Adv. Mater. Interfaces 2024, eq 8: σ(λ) ∝ λ^−m, so ∝ E^m). The background is scaled so
+// that it is 0.2 in absorbance at the gap, c = 0.2/3.2^m.
+describe('power-law (scattering) background', () => {
+  const curved = (m: number, noise: { seed: number; sd: number } | null) => {
+    const s = bandEdgeAbsorbance({ ...grid, bandGapEv: EG, n: 0.5, strength: 1.2, baseline: 0 });
+    const next = noise ? seededNoise(noise.seed, noise.sd) : () => 0;
+    const values = s.values.map((v, i) => {
+      const e = energyFromWavelength(s.wavelengthNm[i] as number);
+      return v + (0.2 / EG ** m) * e ** m + next();
+    });
+    return absorptionSignal(s.wavelengthNm, values, { kind: 'absorbance', scale: 'percent' }, null);
+  };
+  const power = (extra: Partial<TaucGapOptions> = {}): TaucGapOptions => ({
+    ...auto('subtract-baseline'),
+    baselineShape: 'power',
+    ...extra,
+  });
+
+  it.each([1, 2, 4])('m = %i without noise: 3.200 eV within 0.02 eV and the true a, c, m', (m) => {
+    const s = curved(m, null);
+    const r = gap(s, 'direct-allowed', power());
+    const fit = must(r.fit);
+    expect(Math.abs(fit.egEv - EG)).toBeLessThan(0.02);
+    const b = must(r.powerBaseline);
+    expect(b.m).toBeCloseTo(m, 4);
+    expect(b.c).toBeCloseTo(0.2 / EG ** m, 6);
+    expect(b.a).toBeCloseTo(0, 6);
+    // The whole sub-gap range is used, from the lowest energy measured.
+    expect(b.fromEv).toBe(s.energyEv[0]);
+  });
+
+  it.each([1, 2, 4])('m = %i with noise: within the reported σ of 3.200 eV', (m) => {
+    const fit = must(gap(curved(m, { seed: 7, sd: 0.003 }), 'direct-allowed', power()).fit);
+    expect(Math.abs(fit.egEv - EG)).toBeLessThan(fit.egSigma);
+  });
+
+  it('m fixed by the user (4, Rayleigh) is used as given', () => {
+    const r = gap(curved(4, null), 'direct-allowed', power({ baselineExponent: 4 }));
+    expect(must(r.powerBaseline).m).toBe(4);
+    expect(must(r.powerBaseline).mFixed).toBe(true);
+    expect(Math.abs(must(r.fit).egEv - EG)).toBeLessThan(0.002);
+  });
+
+  it('is invariant to scaling the signal and to reversing the point order', () => {
+    const s = curved(2, { seed: 3, sd: 0.003 });
+    const a = gap(s, 'direct-allowed', power());
+    const scaled = gap({ ...s, signal: s.signal.map((v) => v * 123) }, 'direct-allowed', power());
+    expect(must(scaled.fit).egEv).toBeCloseTo(must(a.fit).egEv, 9);
+    expect(must(scaled.powerBaseline).m).toBeCloseTo(must(a.powerBaseline).m, 9);
+    const b = must(a.powerBaseline);
+    const n = s.energyEv.length;
+    const rev = (x: Float64Array) =>
+      Float64Array.from({ length: n }, (_, i) => x[n - 1 - i] as number);
+    const back = fitPowerBaseline(rev(s.energyEv), rev(s.signal), b.fromEv, b.toEv, null);
+    expect(must(back).m).toBeCloseTo(b.m, 9);
+    expect(must(back).c).toBeCloseTo(b.c, 12);
+  });
+
+  it('the straight line, the default, gives the earlier results on the same spectra', () => {
+    for (const m of [1, 2, 4]) {
+      const s = curved(m, null);
+      const line = gap(s, 'direct-allowed', auto('subtract-baseline'));
+      const shaped = gap(s, 'direct-allowed', {
+        ...auto('subtract-baseline'),
+        baselineShape: 'line',
+      });
+      expect(shaped.fit).toEqual(line.fit);
+      expect(line.powerBaseline).toBeNull();
+    }
+  });
+
+  it('suggests the power law, without switching, when it fits the sub-gap range clearly better', () => {
+    const r = gap(curved(4, { seed: 5, sd: 0.003 }), 'direct-allowed');
+    expect(r.method).toBe('subtract-baseline');
+    expect(r.powerBaseline).toBeNull();
+    expect(must(r.powerSuggestion).egEv).toBeGreaterThan(3.19);
+    // A straight background gives no suggestion.
+    expect(
+      gap(absorbanceSignal({ level: 0.2, noise: { seed: 5, sd: 0.003 } }), 'direct-allowed')
+        .powerSuggestion,
+    ).toBeNull();
+  });
+
+  it('flags an uncertain background shape', () => {
+    // Window shorter than 0.5 eV, set by the user.
+    const r = gap(
+      curved(2, { seed: 9, sd: 0.003 }),
+      'direct-allowed',
+      power({ baselineRegion: [2.8, 3.1] }),
+    );
+    expect(r.baselineUncertain).toBe(true);
+    const ok = gap(curved(2, { seed: 9, sd: 0.003 }), 'direct-allowed', power());
+    expect(ok.baselineUncertain).toBe(false);
+  });
+
+  it('σ(Eg) agrees with the scatter of 400 noisy sets (noise only below the edge)', () => {
+    const gaps: number[] = [];
+    const sigmas: number[] = [];
+    const s = bandEdgeAbsorbance({ ...grid, bandGapEv: EG, n: 0.5, strength: 1.2, baseline: 0 });
+    for (let seed = 1; seed <= 400; seed++) {
+      const noise = seededNoise(seed, 0.003);
+      const values = s.values.map((v, i) => {
+        const e = energyFromWavelength(s.wavelengthNm[i] as number);
+        return v + (0.2 / EG ** 2) * e ** 2 + (e < 3.15 ? noise() : 0);
+      });
+      const signal = absorptionSignal(
+        s.wavelengthNm,
+        values,
+        { kind: 'absorbance', scale: 'percent' },
+        null,
+      );
+      const fit = must(
+        gap(
+          signal,
+          'direct-allowed',
+          power({ edgeRegion: [3.25, 3.8], baselineRegion: [1.5, 3.1] }),
+        ).fit,
+      );
+      gaps.push(fit.egEv);
+      sigmas.push(fit.egSigma);
+    }
+    const mean = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+    const sd = Math.sqrt(gaps.reduce((a, b) => a + (b - mean) ** 2, 0) / (gaps.length - 1));
+    const r = sigmas.reduce((a, b) => a + b, 0) / sigmas.length / sd;
+    expect(r).toBeGreaterThan(0.85);
+    expect(r).toBeLessThan(1.15);
+  }, 60_000);
 });

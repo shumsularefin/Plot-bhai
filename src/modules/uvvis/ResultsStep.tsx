@@ -13,7 +13,7 @@ import type { UvvisData } from './data';
 import { downloadCsv } from '../xrd/csv';
 import { methodsText } from './methodsText';
 import { uvvisSession } from './session';
-import { gapText, RESULTS_NOTE, RESULT_COLUMNS } from './tables';
+import { gapText, powerBaselineText, RESULTS_NOTE, RESULT_COLUMNS } from './tables';
 
 /** Index of this step in the wizard, saved in the session file as the step on screen. */
 const RESULTS_STEP = 4;
@@ -106,6 +106,7 @@ export function ResultsStep({ data, update }: StepContext<UvvisData>) {
                     <td>{fit ? fit.rSquared.toFixed(4) : '–'}</td>
                     <td>
                       Tauc, {fit ? GAP_METHODS[r.analysis.method].short : 'no fit'}
+                      {fit && r.analysis.powerBaseline ? `; ${powerBaselineText(r.analysis)}` : ''}
                       {r.analysis.derivative ? '; derivative' : ''}
                     </td>
                     <td>

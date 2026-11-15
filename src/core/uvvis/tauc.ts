@@ -250,13 +250,37 @@ export function slopesOverSpan(
     const to = Math.max(hi, i + DERIVATIVE_HALF_WINDOW);
     if (from < 0 || to > n - 1 || c - half < (x[0] as number) || c + half > (x[n - 1] as number))
       continue;
-    const xs = Array.from(x.subarray(from, to + 1));
-    const ys = Array.from(y.subarray(from, to + 1));
-    if (ys.some((v) => !Number.isFinite(v))) continue;
-    const fit = linearFit(xs, ys);
-    if (!fit) continue;
-    slope[i] = fit.slope;
-    sigma[i] = fit.slopeSigma;
+    // The least squares of `linearFit`, in the same order of operations, without copying.
+    const count = to - from + 1;
+    let sx = 0;
+    let sy = 0;
+    let finite = true;
+    for (let k = from; k <= to; k++) {
+      const v = y[k] as number;
+      if (!Number.isFinite(v)) {
+        finite = false;
+        break;
+      }
+      sx += x[k] as number;
+      sy += v;
+    }
+    if (!finite) continue;
+    const xBar = sx / count;
+    const yBar = sy / count;
+    let sxx = 0;
+    let sxy = 0;
+    for (let k = from; k <= to; k++) {
+      const dx = (x[k] as number) - xBar;
+      sxx += dx * dx;
+      sxy += dx * ((y[k] as number) - yBar);
+    }
+    if (!(sxx > 0)) continue;
+    const b = sxy / sxx;
+    const a = yBar - b * xBar;
+    let ssr = 0;
+    for (let k = from; k <= to; k++) ssr += ((y[k] as number) - a - b * (x[k] as number)) ** 2;
+    slope[i] = b;
+    sigma[i] = Math.sqrt((count > 2 ? ssr / (count - 2) : NaN) / sxx);
   }
   return { slope, sigma };
 }
@@ -273,12 +297,15 @@ export function slopesOverSpan(
  * slower rise above the edge (F(R) saturating at low reflectance, which can be steeper in absolute
  * terms at high energy) is not taken for the edge. Bounds equal to 10⁻⁹ (a straight noise-free
  * Tauc curve, where every point is equally steep) go to the lower energy. Null when the curve does
- * not rise. Energies must increase, with NaN where the curve is undefined.
+ * not rise. `atEnd` is true when the slope is still rising within 0.1 eV of the last point where
+ * it is defined, so the curve has no steepest part inside the data (a background that curves up,
+ * such as scattering, under a straight-line correction). Energies must increase, with NaN where
+ * the curve is undefined.
  */
 export function steepestRise(
   energyEv: Float64Array,
   y: Float64Array,
-): { energyEv: number; slope: number } | null {
+): { energyEv: number; slope: number; atEnd: boolean } | null {
   let top = 0;
   for (const v of y) if (v > top) top = v;
   const { slope, sigma } = slopesOverSpan(energyEv, y);
@@ -287,16 +314,22 @@ export function steepestRise(
   let highest = 0;
   for (let i = 0; i < y.length; i++) if (counts(i)) highest = Math.max(highest, bound[i] as number);
   let best = -1;
+  let last = -1;
+  let ended = false;
   for (let i = 0; i < y.length; i++) {
     if (!counts(i)) continue;
     const d = bound[i] as number;
     if (best < 0 && d < MAIN_RISE_FRACTION * highest) continue;
-    if (best >= 0 && d < MAIN_RISE_FRACTION * (bound[best] as number)) break;
+    if (best >= 0 && d < MAIN_RISE_FRACTION * (bound[best] as number)) {
+      ended = true;
+      break;
+    }
+    last = i;
     if (best < 0 || d > (bound[best] as number) * (1 + 1e-9)) best = i;
   }
-  return best >= 0 && (bound[best] as number) > 0
-    ? { energyEv: energyEv[best] as number, slope: slope[best] as number }
-    : null;
+  if (!(best >= 0 && (bound[best] as number) > 0)) return null;
+  const atEnd = !ended && (energyEv[last] as number) - (energyEv[best] as number) < SLOPE_SPAN_EV;
+  return { energyEv: energyEv[best] as number, slope: slope[best] as number, atEnd };
 }
 
 /**
@@ -317,6 +350,10 @@ export function steepestRise(
  * The anchor also covers the spectra that flatten above the edge (a real TiO₂ diffuse reflectance
  * file, tests/fixtures-real/uvvis/, 2026-11-14), where the slow rise above the edge is straighter
  * and wider than the edge itself, so the separate guard of that date is not needed in this rule.
+ * When the curve is still steepest at the end of the data (`atEnd`), there is no steepest part of
+ * the edge to anchor on, and the earlier rule is used (own choice): without it a background that
+ * curves up (scattering, c·E^m, under a straight-line correction) pulled the anchor to the top of
+ * the data, 3.69 eV for a 3.20 eV edge (tests/uvvis-tauc-baseline.test.ts).
  * `rule` 'widest' gives the suggestion of earlier versions (`suggestRegionBefore22`).
  * Returns [fromEv, toEv], or null when no window has a rising line.
  */
@@ -329,6 +366,7 @@ export function suggestRegion(
   const { xs, ys } = inWindow(energyEv, y, -Infinity, Infinity);
   const top = ys.reduce((m, v) => Math.max(m, v), 0);
   const steep = steepestRise(energyEv, y);
+  if (steep?.atEnd) return suggestRegionBefore22(energyEv, y);
   const describesEdge = (c: Candidate) => {
     const gap = -c.intercept / c.slope;
     return gap > 0 && gap < c.from && (steep === null || gap <= steep.energyEv);
@@ -553,6 +591,264 @@ export function subtractedGap(
   };
 }
 
+/**
+ * Power-law (scattering) baseline of the absorption quantity, S_b(E) = a + c·E^m, E in eV, S_b in
+ * the unit of the signal. Non-resonant scattering follows σ(λ) ∝ λ^−m (Kubetschek, Backes and
+ * Goldie, Adv. Mater. Interfaces 2024, 2400311, eq 8, p. 8 of arXiv:2402.08517, CC BY 4.0), so
+ * ∝ E^m since λ = hc/E; m = 4 is Rayleigh scattering and m = 2 the van de Hulst approximation of
+ * Mie scattering for larger particles. The same paper says the power law holds only away from the
+ * optical transitions, so it is fitted below the edge and extrapolated across it. The constant a
+ * (an offset of the blank or a flat absorber) and the range 0 ≤ m ≤ 4 are my own choice.
+ */
+export interface PowerBaseline {
+  a: number;
+  c: number;
+  m: number;
+  /** True when m was given by the user, not fitted. */
+  mFixed: boolean;
+  /** Covariance of (a, c, m); the m row and column are zero when m is fixed. */
+  covariance: number[][];
+  /** Residual sum of squares and number of points of the fit. */
+  rss: number;
+  n: number;
+  fromEv: number;
+  toEv: number;
+  /** True when a fitted m lies on 0 or 4. */
+  onBound: boolean;
+}
+
+const POWER_M_MAX = 4;
+
+/** Least-squares a, c of y = a + c·E^m for one m, and the residual sum of squares. */
+function linearInPower(logX: Float64Array, y: Float64Array, m: number) {
+  const n = logX.length;
+  const u = logX.map((l) => Math.exp(m * l));
+  let uSum = 0;
+  let ySum = 0;
+  for (let i = 0; i < n; i++) {
+    uSum += u[i] as number;
+    ySum += y[i] as number;
+  }
+  const uMean = uSum / n;
+  const yMean = ySum / n;
+  let suu = 0;
+  let suy = 0;
+  for (let i = 0; i < n; i++) {
+    const du = (u[i] as number) - uMean;
+    suu += du * du;
+    suy += du * ((y[i] as number) - yMean);
+  }
+  const c = suu > 0 ? suy / suu : 0;
+  const a = yMean - c * uMean;
+  let rss = 0;
+  for (let i = 0; i < n; i++) rss += ((y[i] as number) - a - c * (u[i] as number)) ** 2;
+  return { a, c, rss };
+}
+
+/** Inverse of a small symmetric positive-definite matrix (Gauss–Jordan); null when singular. */
+function invert(matrix: number[][]): number[][] | null {
+  const n = matrix.length;
+  const m = matrix.map((row, i) => [...row, ...row.map((_, j) => (i === j ? 1 : 0))]);
+  for (let k = 0; k < n; k++) {
+    let p = k;
+    for (let i = k + 1; i < n; i++)
+      if (Math.abs(m[i]?.[k] as number) > Math.abs(m[p]?.[k] as number)) p = i;
+    [m[k], m[p]] = [m[p] as number[], m[k] as number[]];
+    const pivot = m[k]?.[k] as number;
+    if (!(Math.abs(pivot) > 1e-300)) return null;
+    const rowK = (m[k] as number[]).map((v) => v / pivot);
+    m[k] = rowK;
+    for (let i = 0; i < n; i++) {
+      if (i === k) continue;
+      const f = m[i]?.[k] as number;
+      m[i] = (m[i] as number[]).map((v, j) => v - f * (rowK[j] as number));
+    }
+  }
+  return m.map((row) => row.slice(n));
+}
+
+/**
+ * JᵀJ and Jᵀr of y = a + c·E^m at (a, c, m), J = [1, E^m, c·E^m·ln E] (the first p columns),
+ * and the residual sum of squares.
+ */
+function normalEquations(
+  logX: Float64Array,
+  y: Float64Array,
+  a: number,
+  c: number,
+  m: number,
+  p: number,
+) {
+  const jtj = Array.from({ length: p }, () => new Array<number>(p).fill(0));
+  const jtr = new Array<number>(p).fill(0);
+  const row = [1, 0, 0];
+  let rss = 0;
+  for (let i = 0; i < logX.length; i++) {
+    const l = logX[i] as number;
+    const u = Math.exp(m * l);
+    row[1] = u;
+    row[2] = c * u * l;
+    const r = (y[i] as number) - a - c * u;
+    rss += r * r;
+    for (let j = 0; j < p; j++) {
+      jtr[j] = (jtr[j] as number) + (row[j] as number) * r;
+      const jr = jtj[j] as number[];
+      for (let k = 0; k < p; k++)
+        jr[k] = (jr[k] as number) + (row[j] as number) * (row[k] as number);
+    }
+  }
+  return { jtj, jtr, rss };
+}
+
+/**
+ * Fits S_b = a + c·E^m to the finite points between two energies (at least 6) by least squares.
+ * With m fixed the problem is linear in a and c. Otherwise m is found in [0, 4] by minimising the
+ * residual over a and c (a grid of steps of 0.1, then golden-section search to 10⁻⁶ between the
+ * neighbours of the best grid point), and the three parameters are polished by Gauss–Newton
+ * steps, kept only when they lower the residual and leave m inside [0, 4]. The covariance is
+ * s²·(JᵀJ)⁻¹ with J = [1, E^m, c·E^m·ln E] (without the last column when m is fixed) and
+ * s² = RSS/(n − p), as scipy.optimize.curve_fit reports it (scripts/validation/spectra/uvvis.py).
+ * The result does not depend on the order of the points. Energies must be positive.
+ */
+export function fitPowerBaseline(
+  energyEv: Float64Array,
+  signal: Float64Array,
+  fromEv: number,
+  toEv: number,
+  fixedM: number | null,
+): PowerBaseline | null {
+  const { xs, ys } = inWindow(energyEv, signal, fromEv, toEv);
+  if (xs.length < 6 || !xs.every((v) => v > 0)) return null;
+  const order = xs.map((_, i) => i).sort((i, j) => (xs[i] as number) - (xs[j] as number));
+  const x = Float64Array.from(order, (i) => xs[i] as number);
+  const y = Float64Array.from(order, (i) => ys[i] as number);
+  const n = x.length;
+  const logX = x.map(Math.log);
+  let m: number;
+  if (fixedM !== null) m = fixedM;
+  else {
+    const rssAt = (v: number) => linearInPower(logX, y, v).rss;
+    let best = 0;
+    let bestRss = Infinity;
+    const steps = Math.round(POWER_M_MAX / 0.1);
+    for (let k = 0; k <= steps; k++) {
+      const r = rssAt((k * POWER_M_MAX) / steps);
+      if (r < bestRss) [best, bestRss] = [k, r];
+    }
+    let lo = (Math.max(best - 1, 0) * POWER_M_MAX) / steps;
+    let hi = (Math.min(best + 1, steps) * POWER_M_MAX) / steps;
+    const g = (Math.sqrt(5) - 1) / 2;
+    let p = hi - g * (hi - lo);
+    let q = lo + g * (hi - lo);
+    let rp = rssAt(p);
+    let rq = rssAt(q);
+    for (let k = 0; k < 200 && hi - lo > 1e-6; k++) {
+      if (rp <= rq) {
+        hi = q;
+        q = p;
+        rq = rp;
+        p = hi - g * (hi - lo);
+        rp = rssAt(p);
+      } else {
+        lo = p;
+        p = q;
+        rp = rq;
+        q = lo + g * (hi - lo);
+        rq = rssAt(q);
+      }
+    }
+    m = rp <= rq ? p : q;
+  }
+  let { a, c, rss } = linearInPower(logX, y, m);
+  const p = fixedM === null ? 3 : 2;
+  if (fixedM === null) {
+    for (let k = 0; k < 10; k++) {
+      const { jtj, jtr } = normalEquations(logX, y, a, c, m, 3);
+      const inverse = invert(jtj);
+      if (!inverse) break;
+      const step = inverse.map((row) => row.reduce((t, v, j) => t + v * (jtr[j] as number), 0));
+      const next = {
+        a: a + (step[0] as number),
+        c: c + (step[1] as number),
+        m: m + (step[2] as number),
+      };
+      if (!(next.m >= 0 && next.m <= POWER_M_MAX)) break;
+      const nextRss = normalEquations(logX, y, next.a, next.c, next.m, 1).rss;
+      if (!(nextRss <= rss)) break;
+      const done = rss - nextRss <= 1e-15 * rss;
+      ({ a, c, m } = next);
+      rss = nextRss;
+      if (done) break;
+    }
+  }
+  const inverse = invert(normalEquations(logX, y, a, c, m, p).jtj);
+  const s2 = rss / (n - p);
+  const covariance = [0, 1, 2].map((i) =>
+    [0, 1, 2].map((j) => (inverse && i < p && j < p ? s2 * (inverse[i]?.[j] as number) : 0)),
+  );
+  return {
+    a,
+    c,
+    m,
+    mFixed: fixedM !== null,
+    covariance,
+    rss,
+    n,
+    fromEv: x[0] as number,
+    toEv: x[n - 1] as number,
+    onBound: fixedM === null && (m <= 1e-6 || m >= POWER_M_MAX - 1e-6),
+  };
+}
+
+/** S − (a + c·E^m) at every point. */
+export function subtractPower(
+  energyEv: Float64Array,
+  signal: Float64Array,
+  base: Pick<PowerBaseline, 'a' | 'c' | 'm'>,
+): Float64Array {
+  return signal.map((v, i) => v - (base.a + base.c * (energyEv[i] as number) ** base.m));
+}
+
+/**
+ * Band gap after subtracting a power-law baseline: Tauc fit of (S − S_b)·E over the edge region.
+ * As in `subtractedGap`, the part of the uncertainty due to the baseline is J·C·Jᵀ, with the
+ * derivatives of Eg with respect to a, c and m taken by central differences (steps of a tenth of
+ * each standard uncertainty) and C the full covariance of (a, c, m); it adds to that of the edge
+ * fit, since the two use separate points.
+ */
+export function powerSubtractedGap(
+  energyEv: Float64Array,
+  signal: Float64Array,
+  exponent: number,
+  base: PowerBaseline,
+  edge: [number, number],
+): BandGapFit | null {
+  const gapWith = (b: Pick<PowerBaseline, 'a' | 'c' | 'm'>) =>
+    fitBandGap(
+      energyEv,
+      taucValues(energyEv, subtractPower(energyEv, signal, b), exponent),
+      edge[0],
+      edge[1],
+    );
+  const fit = gapWith(base);
+  if (!fit) return null;
+  const keys = ['a', 'c', 'm'] as const;
+  const jacobian = keys.map((key, i) => {
+    const sigma = Math.sqrt(Math.max(base.covariance[i]?.[i] as number, 0));
+    if (!(sigma > 0)) return 0;
+    const h = sigma / 10;
+    const up = gapWith({ ...base, [key]: base[key] + h });
+    const down = gapWith({ ...base, [key]: base[key] - h });
+    return up && down ? (up.egEv - down.egEv) / (2 * h) : NaN;
+  });
+  let variance = 0;
+  for (let i = 0; i < 3; i++)
+    for (let j = 0; j < 3; j++)
+      variance +=
+        (jacobian[i] as number) * (jacobian[j] as number) * (base.covariance[i]?.[j] as number);
+  return { ...fit, egSigma: Math.sqrt(fit.egSigma ** 2 + Math.max(variance, 0)) };
+}
+
 /** Width of the suggested baseline region and its distance below the edge, eV (my own choice). */
 const BASELINE_WIDTH_EV = 0.5;
 const BASELINE_GAP_EV = 0.1;
@@ -735,6 +1031,8 @@ function baselineWindow(energyEv: Float64Array, egEv: number): [number, number] 
   return count >= 6 ? [from, to] : null;
 }
 
+export type BaselineShape = 'line' | 'power';
+
 export interface TaucGapOptions {
   /** The method, or null for the automatic choice (`automaticGapMethod`). */
   method: GapMethod | null;
@@ -752,6 +1050,14 @@ export interface TaucGapOptions {
    * `legacySuggestion`); default 'steepest'.
    */
   regionRule?: RegionRule;
+  /**
+   * Shape of the sub-gap baseline of 'subtract-baseline': 'line' (default) or 'power',
+   * a + c·E^m (`fitPowerBaseline`), fitted over the whole sub-gap range of the data when the
+   * baseline region is suggested. Used only when `method` is 'subtract-baseline'.
+   */
+  baselineShape?: BaselineShape;
+  /** For 'power': m given by the user (4 for Rayleigh scattering), or null to fit it in [0, 4]. */
+  baselineExponent?: number | null;
   /**
    * For 'subtract-component': the second component's absorption quantity on the same energy grid
    * and in the same unit as the signal (`interpolateOnto`), and the factor c, or null to fit it
@@ -775,6 +1081,20 @@ export interface TaucGap {
   baselineSuggested: boolean;
   /** Baseline line in the signal (S against E), used by 'subtract-baseline'. */
   signalBaseline: StraightLine | null;
+  /** Power-law baseline in the signal, used by 'subtract-baseline' with the 'power' shape. */
+  powerBaseline: PowerBaseline | null;
+  /**
+   * With the 'power' shape: true when the background shape is not well determined by the data
+   * below the edge (σ(Eg) > 0.05 eV, a fitted m on a bound, or a sub-gap range shorter than
+   * 0.5 eV), so the band gap is uncertain (own thresholds).
+   */
+  baselineUncertain: boolean;
+  /**
+   * With the straight line in use for 'subtract-baseline': the power-law result over the whole
+   * sub-gap range, offered as a suggestion when it fits that range clearly better
+   * (`POWER_SUGGESTION_RATIO`) and passes `flatBelowGap`; null otherwise.
+   */
+  powerSuggestion: { egEv: number; m: number; rmsLine: number; rmsPower: number } | null;
   /** Baseline line on the Tauc curve, used by 'baseline-crossing'. */
   taucBaseline: StraightLine | null;
   /** The band gap of the chosen method: for a crossing, slope and intercept are the edge line. */
@@ -791,6 +1111,43 @@ export interface TaucGap {
   /** For 'subtract-component': the factor c used, and the Tauc curve of S − c·S_m. */
   componentFactor: ComponentFactor | null;
   taucComponent: Float64Array | null;
+}
+
+/** σ(Eg) above which a power-law background is reported as not well determined, eV (own choice). */
+const UNCERTAIN_SIGMA_EV = 0.05;
+/**
+ * The power law is suggested when its root-mean-square residual over the whole sub-gap range is
+ * below this fraction of that of the straight line (fitted on its own 0.5 eV window and evaluated
+ * over the same range): own choice. On a straight background with noise the ratio is close to 1.
+ */
+const POWER_SUGGESTION_RATIO = 0.5;
+
+/** The power-law alternative to a straight-line baseline, or null when it is not clearly better. */
+function suggestPower(
+  energyEv: Float64Array,
+  signal: Float64Array,
+  exponent: number,
+  line: StraightLine,
+  range: [number, number],
+  rule: RegionRule,
+): TaucGap['powerSuggestion'] {
+  const p = fitPowerBaseline(energyEv, signal, range[0], range[1], null);
+  if (!p) return null;
+  let lineRss = 0;
+  for (let i = 0; i < energyEv.length; i++) {
+    const e = energyEv[i] as number;
+    const v = signal[i] as number;
+    if (e >= range[0] && e <= range[1] && Number.isFinite(v))
+      lineRss += (v - line.intercept - line.slope * e) ** 2;
+  }
+  const rmsLine = Math.sqrt(lineRss / p.n);
+  const rmsPower = Math.sqrt(p.rss / p.n);
+  if (!(rmsPower < POWER_SUGGESTION_RATIO * rmsLine)) return null;
+  const y = taucValues(energyEv, subtractPower(energyEv, signal, p), exponent);
+  const region = suggestRegion(energyEv, y, rule);
+  const fit = region ? fitBandGap(energyEv, y, region[0], region[1]) : null;
+  if (!fit || !flatBelowGap(energyEv, y, range, region, fit.egEv, rule === 'steepest')) return null;
+  return { egEv: fit.egEv, m: p.m, rmsLine, rmsPower };
 }
 
 /**
@@ -813,14 +1170,32 @@ export function analyseTaucGap(
   const rawFit = rawRegion ? fitBandGap(energyEv, tauc, rawRegion[0], rawRegion[1]) : null;
 
   let baselineRegion = options.baselineRegion;
+  const power = options.baselineShape === 'power' && options.method === 'subtract-baseline';
+  const lowest = energyEv.find((_, i) => Number.isFinite(signal[i])) ?? (energyEv[0] as number);
+  let powerBase: PowerBaseline | null = null;
   let signalBaseline: StraightLine | null = null;
   let taucCorrected: Float64Array | null = null;
   let correctedRegion: [number, number] | null = null;
   const correct = (region: [number, number]): number | null => {
-    signalBaseline = fitLine(energyEv, signal, region[0], region[1]);
-    taucCorrected = signalBaseline
-      ? taucValues(energyEv, subtractLine(energyEv, signal, signalBaseline), exponent)
-      : null;
+    if (power) {
+      // The whole sub-gap range in the data, unless the user set the region.
+      const from = options.baselineRegion ? region[0] : lowest;
+      powerBase = fitPowerBaseline(
+        energyEv,
+        signal,
+        from,
+        region[1],
+        options.baselineExponent ?? null,
+      );
+      taucCorrected = powerBase
+        ? taucValues(energyEv, subtractPower(energyEv, signal, powerBase), exponent)
+        : null;
+    } else {
+      signalBaseline = fitLine(energyEv, signal, region[0], region[1]);
+      taucCorrected = signalBaseline
+        ? taucValues(energyEv, subtractLine(energyEv, signal, signalBaseline), exponent)
+        : null;
+    }
     correctedRegion = taucCorrected ? suggestRegion(energyEv, taucCorrected, rule) : null;
     const fit =
       correctedRegion && taucCorrected
@@ -857,16 +1232,20 @@ export function analyseTaucGap(
       baselineRegion = window;
       estimate = next;
     }
-    if (baselineRegion && !signalBaseline) baselineRegion = null;
+    if (baselineRegion && !signalBaseline && !powerBase) baselineRegion = null;
   }
   const base = signalBaseline as StraightLine | null;
+  const powerUsed = powerBase as PowerBaseline | null;
   const corrected = taucCorrected as Float64Array | null;
   const suggestedOnEdge = correctedRegion as [number, number] | null;
 
-  const subtractedOnEdge =
-    suggestedOnEdge && base
-      ? subtractedGap(energyEv, signal, exponent, base, suggestedOnEdge)
-      : null;
+  const subtractedOnEdge = !suggestedOnEdge
+    ? null
+    : powerUsed
+      ? powerSubtractedGap(energyEv, signal, exponent, powerUsed, suggestedOnEdge)
+      : base
+        ? subtractedGap(energyEv, signal, exponent, base, suggestedOnEdge)
+        : null;
   // Compared with what the uncorrected analysis gives (its own suggestion), or a level so large
   // that the uncorrected curve has no usable straight edge at all.
   const subGapLevel =
@@ -927,7 +1306,11 @@ export function analyseTaucGap(
     if (method === 'axis') {
       fit = fitBandGap(energyEv, tauc, region[0], region[1]);
     } else if (method === 'subtract-baseline') {
-      fit = base ? subtractedGap(energyEv, signal, exponent, base, region) : null;
+      fit = powerUsed
+        ? powerSubtractedGap(energyEv, signal, exponent, powerUsed, region)
+        : base
+          ? subtractedGap(energyEv, signal, exponent, base, region)
+          : null;
     } else if (method === 'subtract-component') {
       fit =
         component && factor
@@ -952,15 +1335,29 @@ export function analyseTaucGap(
       }
     }
   }
+  const powerSuggestion =
+    method === 'subtract-baseline' && !power && base && baselineRegion
+      ? suggestPower(energyEv, signal, exponent, base, [lowest, baselineRegion[1]], rule)
+      : null;
   return {
     method,
     tauc,
     taucCorrected: corrected,
     region,
     suggested: options.edgeRegion === null,
-    baselineRegion,
+    baselineRegion:
+      powerUsed && baselineRegion && !options.baselineRegion
+        ? [powerUsed.fromEv, baselineRegion[1]]
+        : baselineRegion,
     baselineSuggested: options.baselineRegion === null,
     signalBaseline: base,
+    powerBaseline: powerUsed,
+    baselineUncertain:
+      powerUsed !== null &&
+      (powerUsed.onBound ||
+        powerUsed.toEv - powerUsed.fromEv < BASELINE_WIDTH_EV ||
+        (fit !== null && fit.egSigma > UNCERTAIN_SIGMA_EV)),
+    powerSuggestion,
     taucBaseline,
     fit,
     axisEgEv: rawFit?.egEv ?? null,

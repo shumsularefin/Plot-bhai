@@ -85,6 +85,12 @@ export interface BandGapChoice {
    */
   regionRule?: 'widest';
   /**
+   * Set when the sub-gap baseline of 'subtract-baseline' is the power law a + c·E^m (scattering)
+   * instead of a straight line: exponent m typed by the user, or null to fit it in [0, 4]. Absent
+   * means a straight line, so sessions saved before stage 22 are unchanged.
+   */
+  powerBaseline?: { exponent: number | null };
+  /**
    * For the method 'subtract-component': the spectrum of the second component (a dye, modifier
    * or support measured alone) and its scale factor c, or null to fit c below the edge.
    */

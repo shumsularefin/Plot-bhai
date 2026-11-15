@@ -7,6 +7,7 @@ import {
 } from '../../core/uvvis/optics';
 import { GAP_METHODS, TRANSITIONS } from '../../core/uvvis/tauc';
 import { formatWithSigma } from '../../ui/format';
+import { powerBaselineText } from './tables';
 import { fingerprint, type AnalysisRecord, type RecordData } from '../../ui/report/record';
 import { baselineUsed, cleanAll, fitMessages, resultRows, type ResultRow } from './analysis';
 import { bandRows, ORIGIN_TEXT } from './bands';
@@ -106,7 +107,7 @@ function gapResult(row: ResultRow): AnalysisRecord['results'][number] {
         : []),
       `Tauc plot for ${t.label.toLowerCase()} transitions, n = ${t.nText} (the transition type is the user's choice, not deduced from the data)`,
       fit
-        ? `Eg = ${formatWithSigma(fit.egEv, fit.egSigma)} eV from a straight line over ${n(fit.fromEv)}–${n(fit.toEv)} eV (${fit.n} points, R² = ${fit.rSquared.toFixed(4)}, ${analysis.suggested ? 'region suggested automatically' : 'region chosen by the user'}), read as the ${GAP_METHODS[analysis.method].short}${analysis.automatic ? ' (chosen automatically)' : ''}${baseline ? `, baseline region ${n(baseline[0])}–${n(baseline[1])} eV (${analysis.baselineSuggested ? 'suggested' : 'chosen by the user'})` : ''}${analysis.component && analysis.componentFactor ? `, second component ${analysis.component.name} subtracted with c = ${analysis.componentFactor.n > 0 ? `${formatWithSigma(analysis.componentFactor.value, analysis.componentFactor.sigma)} (fitted over the baseline region)` : `${n(analysis.componentFactor.value)} (typed by the user)`}` : ''}`
+        ? `Eg = ${formatWithSigma(fit.egEv, fit.egSigma)} eV from a straight line over ${n(fit.fromEv)}–${n(fit.toEv)} eV (${fit.n} points, R² = ${fit.rSquared.toFixed(4)}, ${analysis.suggested ? 'region suggested automatically' : 'region chosen by the user'}), read as the ${GAP_METHODS[analysis.method].short}${analysis.automatic ? ' (chosen automatically)' : ''}${baseline ? `, baseline region ${n(baseline[0])}–${n(baseline[1])} eV (${analysis.baselineSuggested ? 'suggested' : 'chosen by the user'})` : ''}${analysis.powerBaseline ? `, ${powerBaselineText(analysis)} (a + c·E^m)` : ''}${analysis.component && analysis.componentFactor ? `, second component ${analysis.component.name} subtracted with c = ${analysis.componentFactor.n > 0 ? `${formatWithSigma(analysis.componentFactor.value, analysis.componentFactor.sigma)} (fitted over the baseline region)` : `${n(analysis.componentFactor.value)} (typed by the user)`}` : ''}`
         : 'No Tauc fit.',
       ...fitMessages(analysis).map(
         (m) => `${m.level === 'warning' ? 'Warning' : 'Note'}: ${m.text}`,

@@ -29,6 +29,11 @@ export interface UvvisMethodsInput {
     /** How Eg was read from the Tauc line, and the sub-gap baseline region (eV) when one was used. */
     gapMethod: GapMethod;
     baselineEv: [number, number] | null;
+    /**
+     * For 'subtract-baseline' with a power-law baseline a + c·E^m: m with its standard
+     * uncertainty, or σ null when m was set by the user. Null for a straight line.
+     */
+    powerBaseline: { m: number; mSigma: number | null } | null;
     /** For 'subtract-component': the component spectrum and its factor c (fitted or typed). */
     component: { name: string; factor: number; fitted: boolean } | null;
     /** Film (thickness in nm) or solution (path length in cm); `thicknessNm` is the film's. */
@@ -142,10 +147,41 @@ export function uvvisMethodsParagraph(input: UvvisMethodsInput): string {
     readings.push(
       `the energy at which a straight line fitted to the linear part of the absorption edge meets the energy axis${whom('axis')}`,
     );
-  if (methods.includes('subtract-baseline'))
+  const powered = fitted.filter((s) => s.gapMethod === 'subtract-baseline' && s.powerBaseline);
+  const straight = fitted.filter((s) => s.gapMethod === 'subtract-baseline' && !s.powerBaseline);
+  if (straight.length > 0 && powered.length === 0)
     readings.push(
       `the energy at which that line meets the energy axis after a straight line fitted to the absorption quantity below the edge (${regions('subtract-baseline')}) was subtracted from the whole spectrum before the Tauc plot was made (the subtraction of Makuła, Pacia and Macyk, J. Phys. Chem. Lett. 9 (2018) 6814, with a straight line in place of a measured component spectrum)${whom('subtract-baseline')}`,
     );
+  const names = (group: typeof fitted) =>
+    methods.length === 1 && group.length === fitted.length
+      ? ''
+      : ` (${list(group.map((s) => s.name))})`;
+  const baselineRegions = (group: typeof fitted) =>
+    list(
+      unique(
+        group.flatMap((s) =>
+          s.baselineEv ? [`${number(s.baselineEv[0])}–${number(s.baselineEv[1])} eV`] : [],
+        ),
+      ),
+    );
+  if (straight.length > 0 && powered.length > 0)
+    readings.push(
+      `the energy at which that line meets the energy axis after a straight line fitted to the absorption quantity below the edge (${baselineRegions(straight)}) was subtracted from the whole spectrum before the Tauc plot was made (the subtraction of Makuła, Pacia and Macyk, J. Phys. Chem. Lett. 9 (2018) 6814, with a straight line in place of a measured component spectrum)${names(straight)}`,
+    );
+  if (powered.length > 0) {
+    const exponents = powered.map((s) => {
+      const p = s.powerBaseline as { m: number; mSigma: number | null };
+      const value =
+        p.mSigma === null
+          ? `m = ${number(p.m, 3)}, set by the user`
+          : `m = ${number(p.m, 3)} ± ${number(p.mSigma, 2)}, fitted`;
+      return powered.length === 1 ? value : `${value} for ${s.name}`;
+    });
+    readings.push(
+      `the energy at which that line meets the energy axis after a power law a + c·E^m (the wavelength dependence λ^−m of non-resonant scattering; Kubetschek, Backes and Goldie, Adv. Mater. Interfaces (2024) 2400311, eq 8) was fitted by least squares to the absorption quantity below the edge (${baselineRegions(powered)}; ${exponents.join('; ')}) and subtracted from the whole spectrum before the Tauc plot was made, following the subtraction of Makuła, Pacia and Macyk (J. Phys. Chem. Lett. 9 (2018) 6814)${names(powered)}`,
+    );
+  }
   if (methods.includes('subtract-component')) {
     const parts = fitted.flatMap((s) =>
       s.gapMethod === 'subtract-component' && s.component

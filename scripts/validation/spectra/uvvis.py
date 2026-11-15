@@ -14,6 +14,10 @@ seeded synthetic spectra that are stored in the fixture so the test uses the sam
   calibration Beer-Lambert standards: scipy.stats.linregress (free intercept) and curve_fit of
               A = k c (through the origin)
   kinetics    ln(C0 / C) = k t through the origin by curve_fit
+  scattering  a direct edge at 3.2 eV under a power-law background 0.03 + 0.2 (E / 3.2)^2.5 with
+              noise: S_b = a + c E^m by bounded curve_fit (0 <= m <= 4, and m fixed at 4) over
+              the sub-gap range, S - S_b, the Tauc line over a fixed window, and sigma(Eg) from
+              the edge fit plus J C J^T with J by numpy central differences (stage 22)
   plasmon     a Lorentzian band on a straight background on the energy axis, lmfit
               LorentzianModel + LinearModel (FWHM = 2 sigma, height = amplitude / (pi sigma))
 
@@ -127,6 +131,77 @@ fit = model.fit(p_abs[p_in], params, x=p_energy[p_in])
 pb = fit.params
 height = pb['b_amplitude'].value / (math.pi * pb['b_sigma'].value)
 
+# Power-law (scattering) baseline, stage 22. Its own generator, so the numbers above do not move.
+s_rng = np.random.default_rng(20261115)
+s_wavelength = np.arange(250.0, 850.0 + 1e-9, 1.0)
+s_energy_raw = HC / s_wavelength
+s_abs = np.round(
+    np.where(s_energy_raw > 3.2, 1.2 * np.sqrt(np.clip(s_energy_raw - 3.2, 0, None)) / s_energy_raw, 0)
+    + 0.03
+    + 0.2 * (s_energy_raw / 3.2) ** 2.5
+    + s_rng.normal(0, 0.003, s_wavelength.size),
+    6,
+)
+s_order = np.argsort(s_energy_raw)
+s_energy = s_energy_raw[s_order]
+s_signal = s_abs[s_order]
+s_top = 3.1
+s_edge = (3.25, 3.8)
+s_below = s_energy <= s_top
+s_in = (s_energy >= s_edge[0]) & (s_energy <= s_edge[1])
+
+
+def power_law(e, a, c, m):
+    return a + c * e**m
+
+
+def scattering_gap(params):
+    a_b, c_b, m_b = params
+    y = ((s_signal - power_law(s_energy, a_b, c_b, m_b)) * s_energy) ** 2
+    (a_e, b_e), cov_e = line_fit(s_energy[s_in], y[s_in])
+    grad = np.array([-1 / b_e, a_e / b_e**2])
+    return -a_e / b_e, math.sqrt(grad @ cov_e @ grad)
+
+
+def scattering_result(params, cov):
+    eg_s, sigma_edge = scattering_gap(params)
+    jac = np.zeros(3)
+    for i in range(3):
+        h = math.sqrt(cov[i, i]) / 10
+        if h > 0:
+            up, down = np.array(params, float), np.array(params, float)
+            up[i] += h
+            down[i] -= h
+            jac[i] = (scattering_gap(up)[0] - scattering_gap(down)[0]) / (2 * h)
+    return {
+        'a': float(params[0]),
+        'c': float(params[1]),
+        'm': float(params[2]),
+        'covariance': cov.tolist(),
+        'egEv': eg_s,
+        'egSigma': math.sqrt(sigma_edge**2 + jac @ cov @ jac),
+    }
+
+
+tight = {'ftol': 1e-15, 'xtol': 1e-15, 'gtol': 1e-15, 'max_nfev': 100000}
+p_free, cov_free = optimize.curve_fit(
+    power_law,
+    s_energy[s_below],
+    s_signal[s_below],
+    p0=[0.0, 0.01, 2.0],
+    bounds=([-np.inf, -np.inf, 0.0], [np.inf, np.inf, 4.0]),
+    **tight,
+)
+p_four, cov_four = optimize.curve_fit(
+    lambda e, a, c: power_law(e, a, c, 4.0),
+    s_energy[s_below],
+    s_signal[s_below],
+    p0=[0.0, 0.01],
+    **tight,
+)
+cov_four3 = np.zeros((3, 3))
+cov_four3[:2, :2] = cov_four
+
 result = {
     'source': (
         f'numpy {np.__version__}, scipy {scipy.__version__}, lmfit {lmfit.__version__}; '
@@ -171,6 +246,14 @@ result = {
         'absorbances': kin_a.tolist(),
         'kPerMin': k,
         'kSigma': k_sigma,
+    },
+    'scattering': {
+        'wavelengthNm': s_wavelength.tolist(),
+        'absorbance': s_abs.tolist(),
+        'subGapToEv': s_top,
+        'edgeWindow': list(s_edge),
+        'free': scattering_result(p_free, cov_free),
+        'fixedFour': scattering_result([p_four[0], p_four[1], 4.0], cov_four3),
     },
     'plasmon': {
         'wavelengthNm': p_wavelength.tolist(),

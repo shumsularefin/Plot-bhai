@@ -47,6 +47,14 @@ export function methodsInput(data: UvvisData): UvvisMethodsInput {
         fitted: analysis.fit !== null,
         gapMethod: analysis.method,
         baselineEv: baselineUsed(analysis),
+        powerBaseline: analysis.powerBaseline
+          ? {
+              m: analysis.powerBaseline.m,
+              mSigma: analysis.powerBaseline.mFixed
+                ? null
+                : Math.sqrt(analysis.powerBaseline.covariance[2]?.[2] ?? NaN),
+            }
+          : null,
         component:
           analysis.component && analysis.componentFactor
             ? {

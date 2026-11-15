@@ -728,7 +728,8 @@ the gap, (1.2·√(E − 3.2) + cE)² for the direct case, so no straight line t
 crossing method gives 3.18, 3.15 and 3.14 eV for c = 0.05, 0.2 and 0.5 with an edge region of
 3.21–3.40 eV; it always lies between the axis intercept and the true gap. Subtraction is exact when
 the background adds to the absorption quantity and is linear in E across the edge; a background of
-another shape (for example scattering rising as λ⁻⁴ over a wide range) is only approximated.
+another shape (for example scattering rising as λ⁻⁴ over a wide range) is only approximated by
+the straight line; stage 22 part C adds a power-law baseline for it.
 
 Source confirmed on 2026-11-14 (paper supplied by the owner and read in full): Makuła, Pacia and
 Macyk, J. Phys. Chem. Lett. 9 (2018) 6814–6817, doi:10.1021/acs.jpclett.8b02892.
@@ -1574,6 +1575,11 @@ The rule, all own choice (no paper stating it was opened in the session):
   them the earlier choice is kept: widest with R² ≥ 0.995, then straightest.
 - A window is rejected when its line meets y = 0 at or below zero energy, inside or above the
   window, or above the steepest point.
+- When the slope is still rising within 0.1 eV of the end of the data, the curve has no steepest
+  part to anchor on, and the earlier rule is used. Without this, a background that curves up
+  (scattering, part C) under a straight-line correction pulled the anchor to the top of the data:
+  3.69 eV for a 3.20 eV edge with 0.2·(E/3.2)² added, against 3.21 eV with the earlier rule. The
+  real files and the noisy copies below never reach this fallback.
 - The 2026-11-14 guard for saturated diffuse reflectance is kept only for the earlier rule. Saved
   sessions keep their region and their rule (session version 6 marks them "widest"). The new rule
   needs no guard.
@@ -1596,21 +1602,79 @@ check) the scatter rose, 0.0053 to 0.0072 eV at level 0 and 0.0067 to 0.0083 eV 
 
 Values that changed (old rule → new rule). Every one stays inside its recorded tolerance:
 
-| Result                                                 | Old                | New               | Tolerance                                                    |
-| ------------------------------------------------------ | ------------------ | ----------------- | ------------------------------------------------------------ |
-| 200 °C TiO₂, direct, automatic                         | 3.2211 (axis)      | 3.2423 (subtract) | 3.231 ± 0.04 eV                                              |
-| 300 °C TiO₂, direct, automatic                         | 3.2485 (subtract)  | 3.2253 (axis)     | 3.217 ± 0.04 eV                                              |
-| 200 °C TiO₂, indirect, automatic                       | 2.8853             | 2.8941            | 2.884 ± 0.02 eV                                              |
-| 300 °C TiO₂, indirect, subtract                        | 2.6907             | 2.9008            | 2.87 ± 0.05 eV                                               |
-| 19a dye case, subtract-baseline (Tauc of the dye edge) | 2.42266            | 2.42325           | error > 0.5 eV (recorded)                                    |
-| 19a dye case, crossing                                 | 2.39583            | 2.39661           | error > 0.5 eV (recorded)                                    |
-| Noisy zero level, indirect, automatic                  | 3.19656            | 3.20551           | not recorded (the identity check runs with the earlier rule) |
-| Kubelka–Munk + 0.01, direct, automatic (axis)          | 3.19727            | 3.19805           | method by the 0.01 eV rule                                   |
-| Kubelka–Munk + 0.05, direct, axis intercept            | 3.18649            | 3.19030           | method by the 0.01 eV rule                                   |
-| Kubelka–Munk + 0.05, direct, automatic                 | 3.20000 (subtract) | 3.19030 (axis)    | method by the 0.01 eV rule                                   |
-| Kubelka–Munk + 0.2, direct, axis intercept             | 3.14793            | 3.16359           | not recorded (biased method)                                 |
+| Result                                                           | Old                | New               | Tolerance                                                    |
+| ---------------------------------------------------------------- | ------------------ | ----------------- | ------------------------------------------------------------ |
+| 200 °C TiO₂, direct, automatic                                   | 3.2211 (axis)      | 3.2423 (subtract) | 3.231 ± 0.04 eV                                              |
+| 300 °C TiO₂, direct, automatic                                   | 3.2485 (subtract)  | 3.2253 (axis)     | 3.217 ± 0.04 eV                                              |
+| 200 °C TiO₂, indirect, automatic                                 | 2.8853             | 2.8941            | 2.884 ± 0.02 eV                                              |
+| 300 °C TiO₂, indirect, subtract                                  | 2.6907             | 2.9008            | 2.87 ± 0.05 eV                                               |
+| 19a dye case, subtract-baseline (Tauc of the dye edge)           | 2.42266            | 2.42325           | error > 0.5 eV (recorded)                                    |
+| 19a dye case, crossing                                           | 2.39583            | 2.39661           | error > 0.5 eV (recorded)                                    |
+| Noisy zero level, indirect, automatic                            | 3.19656            | 3.20551           | not recorded (the identity check runs with the earlier rule) |
+| Kubelka–Munk + 0.01, direct, automatic (axis)                    | 3.19727            | 3.19805           | method by the 0.01 eV rule                                   |
+| Kubelka–Munk + 0.05, direct, axis intercept                      | 3.18649            | 3.19030           | method by the 0.01 eV rule                                   |
+| Kubelka–Munk + 0.05, direct, automatic                           | 3.20000 (subtract) | 3.19030 (axis)    | method by the 0.01 eV rule                                   |
+| 19a dye case, indirect, subtract-baseline (Tauc of the dye edge) | 1.63601            | 1.83597           | error > 0.5 eV (recorded)                                    |
+| 19a dye case, indirect, crossing; axis                           | 1.70651; 1.59896   | 1.92899; 1.80155  | error > 0.5 eV (recorded)                                    |
 
 The subtraction rows of 19a (3.200 ± 0.002 eV) are unchanged. On the Kubelka–Munk spectrum with
 0.05 added, subtraction still gives 3.200 eV, but the axis intercept now lies 0.0097 eV from it, under
 the 0.01 eV at which the automatic choice switches to subtraction, so the automatic result is the
 axis intercept, 0.010 eV low. The zero-level identity check of 19a is run with the earlier rule.
+
+### Part C: power-law (scattering) baseline
+
+Code: src/core/uvvis/tauc.ts (`fitPowerBaseline`, `powerSubtractedGap`, `suggestPower`, options
+`baselineShape` and `baselineExponent`). Tests: tests/uvvis-tauc-baseline.test.ts,
+tests/validation-uvvis.test.ts. Independent: scripts/validation/spectra/uvvis.py, block
+`scattering` (SciPy `curve_fit`, bounded, tolerances 10⁻¹⁵).
+
+Source opened in the session: Kubetschek, Backes and Goldie, "Algorithm for reproducible analysis
+of semiconducting 2D nanomaterials based on UV/VIS spectroscopy", Adv. Mater. Interfaces (2024)
+2400311 (arXiv:2402.08517), eq 8, p. 8: the scattering part of the extinction goes as λ⁻ᵐ, with
+m = 4 for Rayleigh scattering and m = 2 in the van de Hulst approximation of Mie scattering. They
+state it holds only in the non-resonant region away from the transitions, and that the
+extrapolation can fail. Own choice: the constant a, the bounds 0 ≤ m ≤ 4, fitting to all the data
+below the edge (the owner's instruction), the 0.05 eV σ limit of the warning and the factor 0.5 of
+the suggestion.
+
+The model: S_b = a + c·Eᵐ (λ⁻ᵐ ∝ Eᵐ), least squares over the sub-gap window, which for this shape is
+everything measured below the edge (ending 0.1 eV below the gap). m is fitted (grid of 0.1, golden
+section, then Gauss–Newton) or typed. σ(Eg) adds J·C·Jᵀ to the σ of the edge fit, with C the
+covariance s²(JᵀJ)⁻¹ of (a, c, m) and J by central differences, as for the straight line.
+
+Today's errors with the straight line (edge at 3.200 eV, c = 0.2/3.2ᵐ, noise σ 0.003 seeded):
+
+| Background | Straight line, no noise | Straight line, noise | Power law, no noise | Power law, noise         | Tolerance               |
+| ---------- | ----------------------- | -------------------- | ------------------- | ------------------------ | ----------------------- |
+| c·E¹       | 3.2000 ± 0              | 3.1973 ± 0.0025      | 3.2000, m 1.000     | 3.1980 ± 0.0025, m 0.912 | 0.02 eV; within σ; pass |
+| c·E²       | 3.2095 ± 0.0013         | 3.2078 ± 0.0025      | 3.2000, m 2.000     | 3.1985 ± 0.0025, m 1.929 | 0.02 eV; within σ; pass |
+| c·E⁴       | 3.2651 ± 0.0036         | 3.2360 ± 0.0053      | 3.2000, m 4.000     | 3.2003 ± 0.0028, m 3.937 | 0.02 eV; within σ; pass |
+
+| Check                                                                    | Kind                      | Tolerance                      | Result                        |
+| ------------------------------------------------------------------------ | ------------------------- | ------------------------------ | ----------------------------- |
+| The six cases above                                                      | synthetic, known answer   | 0.02 eV without noise; σ with  | pass                          |
+| a, c, m without noise                                                    | synthetic, known answer   | m 10⁻⁴; a, c 10⁻⁶              | pass                          |
+| m typed as 4 on the c·E⁴ case                                            | synthetic, known answer   | 0.02 eV                        | pass                          |
+| σ(Eg): 400 data sets, noise only below 3.15 eV, c·E² background          | Monte Carlo (independent) | mean σ / scatter = 1 ± 15 %    | 6.70·10⁻⁴ / 6.35·10⁻⁴ = 1.055 |
+| a, c, m, covariance and Eg against SciPy curve_fit (free m; m = 4 fixed) | independent (SciPy)       | 10⁻⁶ relative; covariance 10⁻⁵ | see the Validation run        |
+| Signal × 123; points in reverse order                                    | invariance                | same Eg and m, 10⁻⁹            | pass                          |
+| "Straight line" chosen explicitly against the default                    | regression                | identical, every 19a number    | pass                          |
+| Suggestion: offered (not applied) for c·E² and c·E⁴; none for a level    | guard                     | as stated                      | pass                          |
+| Warning: m on a bound; user window shorter than 0.5 eV                   | guard                     | shown                          | pass                          |
+
+The suggestion is offered when the power law's RMS residual below the edge is at most half that of
+the straight line over the same points and its corrected curve passes `flatBelowGap`; it is shown as
+a message with a button and never switches on its own. The warning beside the result appears when
+σ(Eg) > 0.05 eV, m sits on a bound or the window is shorter than 0.5 eV.
+
+Performance, measured on 50,001 points: the power fit takes about 0.1 s (m fitted) or 0.014 s (m
+typed), so it stays on the main thread. The whole analysis of such a file takes about 45 to 70 s,
+almost all of it in the region suggestion of earlier stages (`windows`); that is not new in this
+stage and is listed as open.
+
+Open:
+
+- The UV-Vis analysis of a 50,000-point spectrum takes about a minute on the main thread (the
+  region search of earlier stages). It should move to a Web Worker or be made faster.
+- No real spectrum of a scattering sample with a known gap was available to test the power law on.
