@@ -1704,19 +1704,20 @@ nobody waits for any more is dropped before it starts. While new settings are an
 result of the same spectrum stays on screen with "Updating…". Where workers do not exist (the
 jsdom unit tests) the analysis runs on the main thread as before.
 
-| Check                                                                                                | Kind                      | Tolerance                    | Result                        |
-| ---------------------------------------------------------------------------------------------------- | ------------------------- | ---------------------------- | ----------------------------- |
-| Points on y = 2 + 3x: slope, intercept, R² of a window                                               | synthetic, known answer   | exact                        | 3, 2, 1: pass                 |
-| 50,001-point edge at 3.2 eV, level 0.05, noise σ 0.003: Eg with the level subtracted                 | synthetic, known answer   | 0.01 eV                      | pass                          |
-| Window sums against exact rational arithmetic (BigInt), x ≈ 10⁴ with spreads down to 3·10⁻⁴          | independent (exact)       | 10⁻¹⁴ relative               | pass                          |
-| `linearFit` against the same exact values (R² off by up to 2.8·10⁻⁷ there; Python `Fraction` agrees) | independent (exact)       | inside `linearFitMargin`     | pass                          |
-| Regions against the earlier search (kept in the test): 20 curves × 2 powers × 2 rules                | independent (old code)    | bit-identical                | 80 of 80                      |
-| Same, run in the session on 200 curves × 4 transitions × 2 rules (200 to 3,000 points)               | independent (old code)    | bit-identical                | 1,600 of 1,600                |
-| Noise-free straight Tauc line (ties at R² ≈ 1)                                                       | regression (tie-breaking) | bit-identical                | pass                          |
-| 50,001 points, analysis before and after the change                                                  | regression                | identical Eg, all digits     | 3.1974344175383336 both: pass |
-| Analysis in the worker against the main thread                                                       | invariance                | equal fit, Tauc curve, table | pass                          |
-| Window sums asked for in another order                                                               | invariance                | equal                        | pass                          |
-| A job replaced before it starts is never run; results stay while new ones run                        | guard                     | as stated                    | pass                          |
+| Check                                                                                                | Kind                      | Tolerance                    | Result                                     |
+| ---------------------------------------------------------------------------------------------------- | ------------------------- | ---------------------------- | ------------------------------------------ |
+| Points on y = 2 + 3x: slope, intercept, R² of a window                                               | synthetic, known answer   | exact                        | 3, 2, 1: pass                              |
+| 50,001-point edge at 3.2 eV, level 0.05, noise σ 0.003: Eg with the level subtracted                 | synthetic, known answer   | 0.01 eV                      | pass                                       |
+| Window sums against exact rational arithmetic (BigInt), x ≈ 10⁴ with spreads down to 3·10⁻⁴          | independent (exact)       | 10⁻¹⁴ relative               | pass                                       |
+| `linearFit` against the same exact values (R² off by up to 2.8·10⁻⁷ there; Python `Fraction` agrees) | independent (exact)       | inside `linearFitMargin`     | pass                                       |
+| Regions against the earlier search (kept in the test): 20 curves × 2 powers × 2 rules                | independent (old code)    | bit-identical                | 80 of 80                                   |
+| Same, run in the session on 200 curves × 4 transitions × 2 rules (200 to 3,000 points)               | independent (old code)    | bit-identical                | 1,600 of 1,600                             |
+| Noise-free straight Tauc line (ties at R² ≈ 1)                                                       | regression (tie-breaking) | bit-identical                | pass                                       |
+| 50,001 points, analysis before and after the change                                                  | regression                | identical Eg, all digits     | 3.1974344175383336 both: pass              |
+| Analysis in the worker against the main thread                                                       | invariance                | equal fit, Tauc curve, table | pass                                       |
+| Window sums asked for in another order                                                               | invariance                | equal                        | pass                                       |
+| A job replaced before it starts is never run; results stay while new ones run                        | guard                     | as stated                    | pass                                       |
+| Chromium, 50,001-point CSV uploaded, Band gap step: longest main-thread task while it runs           | browser (Playwright)      | no task over 100 ms          | one of 67 ms; 3.197 ± 0.004 eV after 6.7 s |
 
 Timings on the development container (Node 22), synthetic absorbance with a 3.2 eV
 direct edge, level 0.05 and noise σ 0.003, before → after:
