@@ -1660,7 +1660,7 @@ Today's errors with the straight line (edge at 3.200 eV, c = 0.2/3.2ᵐ, noise �
 | a, c, m without noise                                                    | synthetic, known answer   | m 10⁻⁴; a, c 10⁻⁶              | pass                          |
 | m typed as 4 on the c·E⁴ case                                            | synthetic, known answer   | 0.02 eV                        | pass                          |
 | σ(Eg): 400 data sets, noise only below 3.15 eV, c·E² background          | Monte Carlo (independent) | mean σ / scatter = 1 ± 15 %    | 6.70·10⁻⁴ / 6.35·10⁻⁴ = 1.055 |
-| a, c, m, covariance and Eg against SciPy curve_fit (free m; m = 4 fixed) | independent (SciPy)       | 10⁻⁶ relative; covariance 10⁻⁵ | see the Validation run        |
+| a, c, m, covariance and Eg against SciPy curve_fit (free m; m = 4 fixed) | independent (SciPy)       | 10⁻⁶ relative; covariance 10⁻⁵ | pass (run 42, 2026-11-15)     |
 | Signal × 123; points in reverse order                                    | invariance                | same Eg and m, 10⁻⁹            | pass                          |
 | "Straight line" chosen explicitly against the default                    | regression                | identical, every 19a number    | pass                          |
 | Suggestion: offered (not applied) for c·E² and c·E⁴; none for a level    | guard                     | as stated                      | pass                          |
