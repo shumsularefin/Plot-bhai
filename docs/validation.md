@@ -753,19 +753,19 @@ Synthetic model of their system:
 - A dye band, 0.4·exp(−½((E − 2.9)/0.4)²), that absorbs across the edge.
 - The dye "measured alone" is 1/0.6 as strong, so c = 0.6.
 
-| Check                                                                   | Kind                      | Expected                              | Tolerance      |
-| ----------------------------------------------------------------------- | ------------------------- | ------------------------------------- | -------------- |
-| Direct and indirect, absorbance: c fitted, Eg                           | synthetic, known answer   | c = 0.6, 3.200 eV                     | 10⁻⁹; 0.002 eV |
-| Direct and indirect, Kubelka–Munk (dye and a 0.002 floor added to F(R)) | synthetic, known answer   | c = 0.6, 3.200 eV                     | 10⁻⁶; 0.002 eV |
-| The other three methods on the same spectrum                            | measured, recorded        | 2.368, 2.424, 2.396 eV (the dye edge) | error > 0.5 eV |
-| c typed as 0.6; c typed as 0.3 over the same edge region                | synthetic                 | 3.200 eV; below 3.19 eV               | 0.002; 0.01 eV |
-| c of S = 2M; c and σ(c) of S = (1, 3, 2, 5), M = (1, 1, 1, 2) by hand   | independent hand result   | 2, σ 0; 16/7, σ² = (119/49)/3/7       | 10⁻¹²          |
-| σ(Eg) from σ(c): 400 data sets, noise σ 0.003 only where c is fitted    | Monte Carlo (independent) | mean reported σ / scatter of Eg = 1   | ±15 %          |
-| Component 37 times stronger                                             | invariance                | c/37, same Eg                         | 10⁻⁹           |
-| Component on another grid (2 nm steps from 251 nm), interpolated        | invariance                | 3.200 eV                              | 0.002 eV       |
-| Interpolation of a straight line; points outside the data               | synthetic, known answer   | exact; NaN                            | exact          |
-| Component measured another way (reflectance against absorbance)         | guard                     | refused with a message                | exact          |
-| Version 3 session                                                       | round trip                | same settings, component null         | exact          |
+| Check                                                                   | Kind                      | Expected                                                            | Tolerance      |
+| ----------------------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------- | -------------- |
+| Direct and indirect, absorbance: c fitted, Eg                           | synthetic, known answer   | c = 0.6, 3.200 eV                                                   | 10⁻⁹; 0.002 eV |
+| Direct and indirect, Kubelka–Munk (dye and a 0.002 floor added to F(R)) | synthetic, known answer   | c = 0.6, 3.200 eV                                                   | 10⁻⁶; 0.002 eV |
+| The other three methods on the same spectrum                            | measured, recorded        | 2.368, 2.423, 2.397 eV (the dye edge; 2.424, 2.396 before stage 22) | error > 0.5 eV |
+| c typed as 0.6; c typed as 0.3 over the same edge region                | synthetic                 | 3.200 eV; below 3.19 eV                                             | 0.002; 0.01 eV |
+| c of S = 2M; c and σ(c) of S = (1, 3, 2, 5), M = (1, 1, 1, 2) by hand   | independent hand result   | 2, σ 0; 16/7, σ² = (119/49)/3/7                                     | 10⁻¹²          |
+| σ(Eg) from σ(c): 400 data sets, noise σ 0.003 only where c is fitted    | Monte Carlo (independent) | mean reported σ / scatter of Eg = 1                                 | ±15 %          |
+| Component 37 times stronger                                             | invariance                | c/37, same Eg                                                       | 10⁻⁹           |
+| Component on another grid (2 nm steps from 251 nm), interpolated        | invariance                | 3.200 eV                                                            | 0.002 eV       |
+| Interpolation of a straight line; points outside the data               | synthetic, known answer   | exact; NaN                                                          | exact          |
+| Component measured another way (reflectance against absorbance)         | guard                     | refused with a message                                              | exact          |
+| Version 3 session                                                       | round trip                | same settings, component null                                       | exact          |
 
 Robustness check added with it. With this curved background, the automatic baseline window of
 the straight-line subtraction used to move up into the edge, giving 4.049 eV. A move is now
@@ -1063,8 +1063,6 @@ itself, not from other values:
   1363–1367). pybaselines' description and the earlier "checked against the paper" note do not
   agree.
 - Real UV-Vis file with a published or software band gap: still wanted. The TiO₂ files above have none. Wanted: a film or powder spectrum (.csv or .txt export) and the Eg that the instrument or Origin gives for a stated Tauc region.
-- Suggested Tauc region, indirect plot of the 300 °C TiO₂ file: after the sub-gap baseline is subtracted the suggestion lies on the foot of the edge (2.78 to 2.88 eV, Eg 2.69 eV, against 2.87 eV over 3.10 to 3.30 eV). The user can move it; the test is marked todo.
-- Suggested Tauc region, general case: a long straight stretch above the edge whose line meets the axis below the edge still wins (a piecewise-linear test curve gave 0.40 eV for a 3.20 eV edge). The guard above covers the saturated diffuse reflectance seen in real files, not this. A general rule would change the 19a synthetic results, so it needs a published automatic method to follow; none has been checked yet.
 - Real FTIR file wanted: a JCAMP-DX (.jdx) export and the peak table the instrument software (OMNIC, OPUS or Spectrum) prints for it, with its threshold.
 - Real particle image wanted: an SEM or TEM image with a scale bar and the ImageJ Analyze Particles table (Area, Feret, MinFeret, Perim.) for a stated threshold.
 
@@ -1553,3 +1551,66 @@ Open:
 - The differences found in GSAS-II are drafted as reports in docs/gsas2-issue-drafts.md, for the
   owner to send; they are not resolved.
 - The counting-noise limits (0.5 and 2) stay a rule of the site, as the owner left them.
+
+## 22: UV-Vis open items (2026-11-15)
+
+Four parts were set by the owner. Part A (original papers of Cody, Moss, Ravindra and Hervé–Vandamme)
+and part D1 (optical conductivity) need sources that were not supplied, so they were skipped and
+their Open entries in 19e stay.
+
+### Part B: suggested Tauc region anchored on the steepest part of the edge
+
+Code: src/core/uvvis/tauc.ts (`suggestRegion`, `steepestRise`, `slopesOverSpan`). Tests:
+tests/uvvis-tauc-region.test.ts, tests/validation-uvvis-real.test.ts.
+
+The rule, all own choice (no paper stating it was opened in the session):
+
+- The slope of the Tauc curve at each point is the straight-line slope over ±0.05 eV (at least
+  four points each side). Its lower bound is slope − 3σ.
+- The main rise starts at the first point whose bound reaches half the highest bound, and ends
+  where the bound falls below half the best bound so far. The steepest point is the highest bound
+  on it, the lower energy on a tie.
+- Only fit windows that contain the steepest point and have at least half its slope compete. Among
+  them the earlier choice is kept: widest with R² ≥ 0.995, then straightest.
+- A window is rejected when its line meets y = 0 at or below zero energy, inside or above the
+  window, or above the steepest point.
+- The 2026-11-14 guard for saturated diffuse reflectance is kept only for the earlier rule. Saved
+  sessions keep their region and their rule (session version 6 marks them "widest"). The new rule
+  needs no guard.
+
+| Check                                                             | Kind                    | Tolerance         | Result                                      |
+| ----------------------------------------------------------------- | ----------------------- | ----------------- | ------------------------------------------- |
+| Local slope of a straight line; of x² on a 0.007 eV grid          | synthetic, known answer | 10⁻⁹              | pass                                        |
+| Piecewise curve (slope 10 from 3.2 to 3.4 eV, then 2/3), old rule | regression              | recorded          | 0.40 eV                                     |
+| The same, new rule                                                | synthetic, known answer | 3.20 ± 0.02 eV    | 3.200 eV, pass                              |
+| 300 °C TiO₂ file, indirect, baseline subtracted (case 1)          | real data, hand region  | 2.87 ± 0.05 eV    | 2.901 eV (was 2.691), region > 2.9 eV, pass |
+| 200 noisy copies of the 19a edge (direct), level 0: scatter of Eg | Monte Carlo             | not above before  | 0.00162 eV (before 0.00173), pass           |
+| The same, level 0.2                                               | Monte Carlo             | not above before  | 0.00169 eV (before 0.00179), pass           |
+| Mean Eg of those copies                                           | synthetic, known answer | 3.200 ± 0.002 eV  | pass                                        |
+| Signal × 123, synthetic and both real files                       | invariance              | same region, 10⁻⁹ | pass                                        |
+| Earlier rule on the real files reproduces the earlier gaps        | regression              | 10⁻¹²             | pass                                        |
+| Flat curve                                                        | guard                   | no suggestion     | pass                                        |
+
+Not a pass criterion, recorded for the owner: on an indirect plot of the same edge (not the 19a
+check) the scatter rose, 0.0053 to 0.0072 eV at level 0 and 0.0067 to 0.0083 eV at level 0.2.
+
+Values that changed (old rule → new rule). Every one stays inside its recorded tolerance:
+
+| Result                                                 | Old                | New               | Tolerance                                                    |
+| ------------------------------------------------------ | ------------------ | ----------------- | ------------------------------------------------------------ |
+| 200 °C TiO₂, direct, automatic                         | 3.2211 (axis)      | 3.2423 (subtract) | 3.231 ± 0.04 eV                                              |
+| 300 °C TiO₂, direct, automatic                         | 3.2485 (subtract)  | 3.2253 (axis)     | 3.217 ± 0.04 eV                                              |
+| 200 °C TiO₂, indirect, automatic                       | 2.8853             | 2.8941            | 2.884 ± 0.02 eV                                              |
+| 300 °C TiO₂, indirect, subtract                        | 2.6907             | 2.9008            | 2.87 ± 0.05 eV                                               |
+| 19a dye case, subtract-baseline (Tauc of the dye edge) | 2.42266            | 2.42325           | error > 0.5 eV (recorded)                                    |
+| 19a dye case, crossing                                 | 2.39583            | 2.39661           | error > 0.5 eV (recorded)                                    |
+| Noisy zero level, indirect, automatic                  | 3.19656            | 3.20551           | not recorded (the identity check runs with the earlier rule) |
+| Kubelka–Munk + 0.01, direct, automatic (axis)          | 3.19727            | 3.19805           | method by the 0.01 eV rule                                   |
+| Kubelka–Munk + 0.05, direct, axis intercept            | 3.18649            | 3.19030           | method by the 0.01 eV rule                                   |
+| Kubelka–Munk + 0.05, direct, automatic                 | 3.20000 (subtract) | 3.19030 (axis)    | method by the 0.01 eV rule                                   |
+| Kubelka–Munk + 0.2, direct, axis intercept             | 3.14793            | 3.16359           | not recorded (biased method)                                 |
+
+The subtraction rows of 19a (3.200 ± 0.002 eV) are unchanged. On the Kubelka–Munk spectrum with
+0.05 added, subtraction still gives 3.200 eV, but the axis intercept now lies 0.0097 eV from it, under
+the 0.01 eV at which the automatic choice switches to subtraction, so the automatic result is the
+axis intercept, 0.010 eV low. The zero-level identity check of 19a is run with the earlier rule.

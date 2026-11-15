@@ -331,6 +331,7 @@ describe('in the module (results table, methods text, messages, saved sessions)'
       ...DEFAULT_BAND_GAP,
       method: 'subtract-baseline',
       component: null,
+      regionRule: 'widest',
     });
   });
 });

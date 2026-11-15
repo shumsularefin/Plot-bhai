@@ -168,6 +168,7 @@ export function analyseBandGap(
     method: choice.method,
     baselineRegion: choice.baselineRegion,
     ...(choice.legacySuggestion && { legacySuggestion: true }),
+    ...(choice.regionRule && { regionRule: choice.regionRule }),
     component: componentSignal
       ? { signal: componentSignal, factor: choice.component?.factor ?? null }
       : null,
@@ -205,7 +206,12 @@ export function analyseBandGap(
           region ? region[1] + 0.3 : Infinity,
         );
   const cody = choice.cody.enabled
-    ? codyGap(signal.energyEv, signal.signal, choice.cody.region)
+    ? codyGap(
+        signal.energyEv,
+        signal.signal,
+        choice.cody.region,
+        choice.legacySuggestion || choice.regionRule ? 'widest' : 'steepest',
+      )
     : null;
   let sigmoid: SigmoidCheck | null = null;
   if (choice.sigmoid.enabled) {

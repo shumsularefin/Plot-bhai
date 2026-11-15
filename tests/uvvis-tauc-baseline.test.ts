@@ -133,7 +133,9 @@ describe('sub-gap baseline subtracted before the Tauc plot (synthetic, known ans
     ] as const) {
       const signal = absorbanceSignal({ level: 0, n, noise: { seed: 5, sd: 0.003 } });
       const before = gap(signal, id, { ...auto('axis'), legacySuggestion: true });
-      const now = gap(signal, id);
+      // The rule of the region suggestion changed in stage 22; sessions saved before keep the
+      // earlier rule, and with it the earlier region and number (tests/uvvis-tauc-region.test.ts).
+      const now = gap(signal, id, { ...auto(), regionRule: 'widest' });
       expect(now.method).toBe('axis');
       expect(now.region).toEqual(before.region);
       expect(must(now.fit).egEv).toBe(must(before.fit).egEv);

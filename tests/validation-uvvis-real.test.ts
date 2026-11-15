@@ -138,7 +138,56 @@ describe('suggested indirect-gap region on the real files', () => {
     expect(Math.abs((gap.fit?.egEv as number) - ref.egEv)).toBeLessThan(0.02);
   });
 
-  it.todo(
-    'for the 300 °C file, after the sub-gap baseline is subtracted, it lies on the foot of the edge (2.78–2.88 eV, Eg 2.69 eV); open in docs/validation.md',
+  it('for the 300 °C file, after the sub-gap baseline is subtracted, it lies on the steep part of the edge (stage 22)', () => {
+    // Before stage 22 the suggestion sat on the foot of the edge, 2.78–2.88 eV, giving 2.691 eV;
+    // the hand region 3.10–3.30 eV of the fixture gives 2.872 eV.
+    const name = 'DRS_TiO2_annealed_at_300_oC.csv';
+    const s = load(name)[0] as ReturnType<typeof load>[number];
+    const signal = signalOf(s.wavelengthNm, s.values);
+    const gap = analyseTaucGap(signal.energyEv, signal.signal, 0.5, {
+      method: null,
+      edgeRegion: null,
+      baselineRegion: null,
+    });
+    expect(gap.method).toBe('subtract-baseline');
+    expect((gap.region as [number, number])[0]).toBeGreaterThan(2.9);
+    expect(Math.abs((gap.fit?.egEv as number) - 2.87)).toBeLessThan(0.05);
+  });
+});
+
+describe('suggested region on the real files: rules and invariance (stage 22)', () => {
+  // Gaps of the rule before stage 22, which sessions saved then keep (regionRule 'widest').
+  const before: Record<string, [number, number]> = {
+    'DRS_TiO2_annealed_at_200_oC.csv': [3.2210642323522163, 2.885327619474465],
+    'DRS_TiO2_annealed_at_300_oC.csv': [3.2485266280170584, 2.6906784175287686],
+  };
+  const automatic = { method: null, edgeRegion: null, baselineRegion: null } as const;
+
+  it.each(Object.keys(before))('%s: the earlier rule still gives the earlier gaps', (name) => {
+    const s = load(name)[0] as ReturnType<typeof load>[number];
+    const signal = signalOf(s.wavelengthNm, s.values);
+    [2, 0.5].forEach((exponent, k) => {
+      const gap = analyseTaucGap(signal.energyEv, signal.signal, exponent, {
+        ...automatic,
+        regionRule: 'widest',
+      });
+      expect(gap.fit?.egEv).toBeCloseTo(before[name]?.[k] as number, 12);
+    });
+  });
+
+  it.each(Object.keys(before))(
+    '%s: the suggestion and the gap do not change when F(R) is multiplied by 123',
+    (name) => {
+      const s = load(name)[0] as ReturnType<typeof load>[number];
+      const signal = signalOf(s.wavelengthNm, s.values);
+      const scaled = signal.signal.map((v) => v * 123);
+      for (const exponent of [2, 0.5]) {
+        const a = analyseTaucGap(signal.energyEv, signal.signal, exponent, automatic);
+        const b = analyseTaucGap(signal.energyEv, scaled, exponent, automatic);
+        expect(b.region).toEqual(a.region);
+        expect(b.method).toBe(a.method);
+        expect(b.fit?.egEv).toBeCloseTo(a.fit?.egEv as number, 9);
+      }
+    },
   );
 });

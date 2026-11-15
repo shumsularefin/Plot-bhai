@@ -162,8 +162,13 @@ describe('UV-Vis session file', () => {
     const { bandGap: _unused, ...v1 } = exampleData();
     void _unused;
     const state = migrateUvvisData({ step: 1, furthest: 1, data: v1 }, 1);
-    expect(state?.data.bandGap).toEqual({});
+    // Defaults for every spectrum, with the region rule of the time (stage 22).
     expect(state?.data.spectra).toHaveLength(3);
+    for (const spectrum of state?.data.spectra ?? [])
+      expect(state?.data.bandGap[spectrum.id]).toEqual({
+        ...DEFAULT_BAND_GAP,
+        regionRule: 'widest',
+      });
     expect(migrateUvvisData({}, 1)).toBeUndefined();
     expect(migrateUvvisData({ step: 0, furthest: 0, data: v1 }, 7)).toBeUndefined();
   });

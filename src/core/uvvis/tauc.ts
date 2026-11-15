@@ -173,35 +173,25 @@ const STRAIGHT = 0.995;
 const MINIMUM_STRAIGHT = 0.98;
 
 /**
- * Suggests the fitting region: the widest straight stretch of the Tauc curve. Windows of 0.1 to
- * 0.6 eV (at least 6 points) are slid along the curve. Among windows with R² ≥ 0.995, those of
- * the widest size compete and the one with the highest R² wins. Wide windows average out noise;
- * picking the steepest window instead was found to follow noise. Because the straightest window
- * is chosen, the uncertainty of its fit is somewhat too small. If no window is that straight,
- * the threshold falls to 0.98, and then to the best R². Windows lying on the flat baseline (top
- * of the window below 5 % of the highest value) are ignored. A suggestion only: the user can change the limits.
- *
- * Guard for spectra that flatten above the edge (found on a real TiO₂ diffuse reflectance file,
- * tests/fixtures-real/uvvis/, 2026-11-14): there F(R) saturates and the slow rise above the edge
- * is straighter and wider than the edge itself, so the rule above picked 4.6–5.4 eV for a gap
- * near 3.2 eV. The steepest part of the edge is the narrowest window with the largest relative
- * rise, slope / (highest value in the window). When the chosen window lies wholly above it, the
- * choice is made again among the windows that overlap it. Windows chosen on the edge are left as
- * they were, so earlier results do not change.
- * Returns [fromEv, toEv], or null when no window has a rising line.
+ * How the edge region is suggested. 'steepest' (stage 22, the default) anchors the window on the
+ * steepest point of the edge; 'widest' is the rule of earlier versions, kept only so that sessions
+ * saved before stage 22 open with the same suggestion and band gap.
  */
-export function suggestRegion(energyEv: Float64Array, y: Float64Array): [number, number] | null {
-  const { xs, ys } = inWindow(energyEv, y, -Infinity, Infinity);
-  const top = ys.reduce((m, v) => Math.max(m, v), 0);
-  const candidates: {
-    from: number;
-    to: number;
-    target: number;
-    slope: number;
-    intercept: number;
-    steepness: number;
-    r2: number;
-  }[] = [];
+export type RegionRule = 'steepest' | 'widest';
+
+interface Candidate {
+  from: number;
+  to: number;
+  target: number;
+  slope: number;
+  intercept: number;
+  steepness: number;
+  r2: number;
+}
+
+/** Sliding windows of 0.1 to 0.6 eV (at least 6 points) with a rising straight-line fit. */
+function windows(xs: number[], ys: number[], top: number): Candidate[] {
+  const candidates: Candidate[] = [];
   for (const span of SPANS) {
     let end = 0;
     for (let start = 0; start < xs.length; start++) {
@@ -223,6 +213,152 @@ export function suggestRegion(energyEv: Float64Array, y: Float64Array): [number,
       });
     }
   }
+  return candidates;
+}
+
+/** The derivative stops counting as the main rise below this fraction of its maximum so far (own choice). */
+const MAIN_RISE_FRACTION = 0.5;
+/** Standard uncertainties subtracted from each local slope before the maximum is taken (own choice). */
+const SLOPE_SIGMAS = 3;
+/** Energy span of the local line that smooths the derivative, eV: the narrowest window of SPANS. */
+const SLOPE_SPAN_EV = 0.1;
+
+/**
+ * Smoothed first derivative of y(x): at each point the slope of a least-squares line through the
+ * points within ±0.05 eV of it, and at least its 4 neighbours on each side (as in
+ * `derivativeMaximum`), with the standard uncertainty of that slope from the fit. A span in energy
+ * keeps the smoothing about the same on a wavelength grid, where the points are far denser at low
+ * energy; the 4 neighbours keep enough points where the grid is coarse. NaN where the span runs
+ * past either end of the data or holds a value that is not finite. x must increase.
+ */
+export function slopesOverSpan(
+  x: Float64Array,
+  y: Float64Array,
+  span: number = SLOPE_SPAN_EV,
+): { slope: Float64Array; sigma: Float64Array } {
+  const n = x.length;
+  const slope = new Float64Array(n).fill(NaN);
+  const sigma = new Float64Array(n).fill(NaN);
+  const half = span / 2;
+  let lo = 0;
+  let hi = 0;
+  for (let i = 0; i < n; i++) {
+    const c = x[i] as number;
+    while ((x[lo] as number) < c - half) lo++;
+    while (hi < n - 1 && (x[hi + 1] as number) <= c + half) hi++;
+    const from = Math.min(lo, i - DERIVATIVE_HALF_WINDOW);
+    const to = Math.max(hi, i + DERIVATIVE_HALF_WINDOW);
+    if (from < 0 || to > n - 1 || c - half < (x[0] as number) || c + half > (x[n - 1] as number))
+      continue;
+    const xs = Array.from(x.subarray(from, to + 1));
+    const ys = Array.from(y.subarray(from, to + 1));
+    if (ys.some((v) => !Number.isFinite(v))) continue;
+    const fit = linearFit(xs, ys);
+    if (!fit) continue;
+    slope[i] = fit.slope;
+    sigma[i] = fit.slopeSigma;
+  }
+  return { slope, sigma };
+}
+
+/**
+ * The steepest point of the main rise of the Tauc curve, and the slope there. The derivative is
+ * smoothed over 0.1 eV (`slopesOverSpan`), and the steepest point is where its lower bound,
+ * slope − 3σ, is largest, so a slope made steep by noise (at the foot of an indirect edge, or at
+ * the noisy top of a direct one) does not win over one the data determine well; on data with
+ * little noise it is the maximum of the derivative. Only points above 5 % of the highest value
+ * count. Going up in energy, the main rise starts at the first point whose bound reaches half of
+ * the highest bound (so a sloping sub-gap level is passed over) and ends where the bound falls below
+ * half of its largest value since then (own choice of the span and both fractions), so a second,
+ * slower rise above the edge (F(R) saturating at low reflectance, which can be steeper in absolute
+ * terms at high energy) is not taken for the edge. Bounds equal to 10⁻⁹ (a straight noise-free
+ * Tauc curve, where every point is equally steep) go to the lower energy. Null when the curve does
+ * not rise. Energies must increase, with NaN where the curve is undefined.
+ */
+export function steepestRise(
+  energyEv: Float64Array,
+  y: Float64Array,
+): { energyEv: number; slope: number } | null {
+  let top = 0;
+  for (const v of y) if (v > top) top = v;
+  const { slope, sigma } = slopesOverSpan(energyEv, y);
+  const bound = slope.map((d, i) => d - SLOPE_SIGMAS * (sigma[i] as number));
+  const counts = (i: number) => Number.isFinite(bound[i]) && (y[i] as number) >= 0.05 * top;
+  let highest = 0;
+  for (let i = 0; i < y.length; i++) if (counts(i)) highest = Math.max(highest, bound[i] as number);
+  let best = -1;
+  for (let i = 0; i < y.length; i++) {
+    if (!counts(i)) continue;
+    const d = bound[i] as number;
+    if (best < 0 && d < MAIN_RISE_FRACTION * highest) continue;
+    if (best >= 0 && d < MAIN_RISE_FRACTION * (bound[best] as number)) break;
+    if (best < 0 || d > (bound[best] as number) * (1 + 1e-9)) best = i;
+  }
+  return best >= 0 && (bound[best] as number) > 0
+    ? { energyEv: energyEv[best] as number, slope: slope[best] as number }
+    : null;
+}
+
+/**
+ * Suggests the fitting region of the Tauc line (own choice of rule, stage 22; no paper that states
+ * the rule was opened). The line is anchored on the steepest point of the edge (`steepestRise`):
+ * windows of 0.1 to 0.6 eV (at least 6 points) slid along the curve compete only when they
+ * contain or touch that point and their line rises at least half as fast as the curve there (own
+ * choice, so that a window on the foot of the edge that touches the point does not compete). Among them, those of the widest size with R² ≥ 0.995 compete and
+ * the one with the highest R² wins (wide windows average out noise); if none is that straight,
+ * the threshold falls to 0.98, and then to the best R². A window is rejected when its line meets
+ * y = 0 at or below zero energy, inside or above the window itself, or above the steepest point:
+ * such a line does not describe the edge. Windows lying on the flat baseline (top of the window
+ * below 5 % of the highest value) are ignored. When no anchored window remains, the same choice is
+ * made among all windows that pass the rejection (own choice). Because the straightest window is
+ * chosen, the uncertainty of its fit is somewhat too small. A suggestion only: the user can change
+ * the limits.
+ *
+ * The anchor also covers the spectra that flatten above the edge (a real TiO₂ diffuse reflectance
+ * file, tests/fixtures-real/uvvis/, 2026-11-14), where the slow rise above the edge is straighter
+ * and wider than the edge itself, so the separate guard of that date is not needed in this rule.
+ * `rule` 'widest' gives the suggestion of earlier versions (`suggestRegionBefore22`).
+ * Returns [fromEv, toEv], or null when no window has a rising line.
+ */
+export function suggestRegion(
+  energyEv: Float64Array,
+  y: Float64Array,
+  rule: RegionRule = 'steepest',
+): [number, number] | null {
+  if (rule === 'widest') return suggestRegionBefore22(energyEv, y);
+  const { xs, ys } = inWindow(energyEv, y, -Infinity, Infinity);
+  const top = ys.reduce((m, v) => Math.max(m, v), 0);
+  const steep = steepestRise(energyEv, y);
+  const describesEdge = (c: Candidate) => {
+    const gap = -c.intercept / c.slope;
+    return gap > 0 && gap < c.from && (steep === null || gap <= steep.energyEv);
+  };
+  const valid = windows(xs, ys, top).filter(describesEdge);
+  if (valid.length === 0) return null;
+  const anchored = valid.filter(
+    (c) =>
+      steep !== null &&
+      c.from <= steep.energyEv &&
+      c.to >= steep.energyEv &&
+      c.slope >= MAIN_RISE_FRACTION * steep.slope,
+  );
+  const chosen = straightestWidest(anchored.length > 0 ? anchored : valid);
+  return [chosen.from, chosen.to];
+}
+
+/**
+ * The suggestion of versions before stage 22, used only for sessions saved then, so that their
+ * band gap does not change when they are opened. The widest straight stretch: among windows with
+ * R² ≥ 0.995, those of the widest size compete and the one with the highest R² wins (else 0.98,
+ * else the best R²). Guard for spectra that flatten above the edge (2026-11-14): the steepest part
+ * of the edge is the narrowest window with the largest relative rise, slope / (highest value in
+ * the window); when the chosen line meets y = 0 above it, or at or below zero, the choice is made
+ * again among the windows that overlap it.
+ */
+function suggestRegionBefore22(energyEv: Float64Array, y: Float64Array): [number, number] | null {
+  const { xs, ys } = inWindow(energyEv, y, -Infinity, Infinity);
+  const top = ys.reduce((m, v) => Math.max(m, v), 0);
+  const candidates = windows(xs, ys, top);
   if (candidates.length === 0) return null;
   const chosen = straightestWidest(candidates);
   const narrowest = candidates.filter(
@@ -230,8 +366,6 @@ export function suggestRegion(energyEv: Float64Array, y: Float64Array): [number,
   );
   if (narrowest.length === 0) return [chosen.from, chosen.to];
   const steepest = narrowest.reduce((a, b) => (b.steepness > a.steepness ? b : a));
-  // The chosen line meets y = 0 at its gap. A gap above the steepest rise contradicts the data,
-  // and a gap at or below zero is no gap at all.
   const gap = -chosen.intercept / chosen.slope;
   if (gap > 0 && gap <= steepest.to) return [chosen.from, chosen.to];
   const best = straightestWidest(
@@ -565,7 +699,10 @@ const FLAT_FRACTION = 0.1;
  * Checks a gap found after a correction: between the top of the baseline window and the gap the
  * corrected Tauc curve must stay below 10 % of its highest value in the edge region, as it does
  * when the gap is right. When the window has crept into a curved background or the edge, the
- * subtraction pushes the gap up past absorbing points, and this check fails.
+ * subtraction pushes the gap up past absorbing points, and this check fails. With `aboveRegion`
+ * (the 'steepest' rule of stage 22) the highest value is taken from the start of the region up:
+ * that rule places the region lower on the edge than the earlier rule did, and the threshold
+ * should not depend on where on the edge the region lies.
  */
 function flatBelowGap(
   energyEv: Float64Array,
@@ -573,12 +710,14 @@ function flatBelowGap(
   window: [number, number],
   region: [number, number] | null,
   egEv: number | null,
+  aboveRegion: boolean,
 ): boolean {
   if (!y || !region || egEv === null) return false;
   let top = 0;
   for (let i = 0; i < energyEv.length; i++) {
     const e = energyEv[i] as number;
-    if (e >= region[0] && e <= region[1] && (y[i] as number) > top) top = y[i] as number;
+    if (e >= region[0] && (aboveRegion || e <= region[1]) && (y[i] as number) > top)
+      top = y[i] as number;
   }
   for (let i = 0; i < energyEv.length; i++) {
     const e = energyEv[i] as number;
@@ -608,6 +747,11 @@ export interface TaucGapOptions {
    * suggested on the uncorrected curve, as it was, so the saved number does not change.
    */
   legacySuggestion?: boolean;
+  /**
+   * How edge regions are suggested: 'widest' for sessions saved before stage 22 (and always with
+   * `legacySuggestion`); default 'steepest'.
+   */
+  regionRule?: RegionRule;
   /**
    * For 'subtract-component': the second component's absorption quantity on the same energy grid
    * and in the same unit as the signal (`interpolateOnto`), and the factor c, or null to fit it
@@ -663,8 +807,9 @@ export function analyseTaucGap(
   exponent: number,
   options: TaucGapOptions,
 ): TaucGap {
+  const rule = options.regionRule ?? (options.legacySuggestion ? 'widest' : 'steepest');
   const tauc = taucValues(energyEv, signal, exponent);
-  const rawRegion = suggestRegion(energyEv, tauc);
+  const rawRegion = suggestRegion(energyEv, tauc, rule);
   const rawFit = rawRegion ? fitBandGap(energyEv, tauc, rawRegion[0], rawRegion[1]) : null;
 
   let baselineRegion = options.baselineRegion;
@@ -676,7 +821,7 @@ export function analyseTaucGap(
     taucCorrected = signalBaseline
       ? taucValues(energyEv, subtractLine(energyEv, signal, signalBaseline), exponent)
       : null;
-    correctedRegion = taucCorrected ? suggestRegion(energyEv, taucCorrected) : null;
+    correctedRegion = taucCorrected ? suggestRegion(energyEv, taucCorrected, rule) : null;
     const fit =
       correctedRegion && taucCorrected
         ? fitBandGap(energyEv, taucCorrected, correctedRegion[0], correctedRegion[1])
@@ -702,7 +847,10 @@ export function analyseTaucGap(
       if (baselineRegion && Math.abs(window[1] - baselineRegion[1]) < 0.005) break;
       const previous: [number, number] | null = baselineRegion;
       const next = correct(window);
-      if (previous && !flatBelowGap(energyEv, taucCorrected, window, correctedRegion, next)) {
+      if (
+        previous &&
+        !flatBelowGap(energyEv, taucCorrected, window, correctedRegion, next, rule === 'steepest')
+      ) {
         correct(previous);
         break;
       }
@@ -751,9 +899,9 @@ export function analyseTaucGap(
         if (!next || (window && Math.abs(next[1] - window[1]) < 0.005)) break;
         const f = componentFactor(energyEv, signal, component, next);
         const y = corrected(f);
-        const r = y ? suggestRegion(energyEv, y) : null;
+        const r = y ? suggestRegion(energyEv, y, rule) : null;
         const gap = y && r ? (fitBandGap(energyEv, y, r[0], r[1])?.egEv ?? null) : null;
-        if (window && !flatBelowGap(energyEv, y, next, r, gap)) break;
+        if (window && !flatBelowGap(energyEv, y, next, r, gap, rule === 'steepest')) break;
         window = next;
         factor = f;
         estimate = gap;
@@ -766,7 +914,7 @@ export function analyseTaucGap(
   const suggestion =
     method === 'subtract-component'
       ? taucComponent && !options.legacySuggestion
-        ? suggestRegion(energyEv, taucComponent)
+        ? suggestRegion(energyEv, taucComponent, rule)
         : null
       : options.legacySuggestion || !(subGapLevel || method !== 'axis')
         ? rawRegion

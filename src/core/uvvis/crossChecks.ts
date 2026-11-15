@@ -1,5 +1,5 @@
 import { levenbergMarquardt } from '../math/levenbergMarquardt';
-import { fitBandGap, suggestRegion, type BandGapFit } from './tauc';
+import { fitBandGap, suggestRegion, type BandGapFit, type RegionRule } from './tauc';
 
 /*
  * Two cross-checks of the Tauc band gap, both from A. R. Zanatta, "Revisiting the optical bandgap
@@ -38,7 +38,7 @@ export interface CodyGap {
 
 /**
  * Cody gap: (S/E)^(1/2) = B·(E − Eg) is fitted by least squares over the region (the user's, or
- * the widest straight stretch, `suggestRegion`) and Eg read where the line meets zero, with the
+ * the suggestion of `suggestRegion` with the given rule) and Eg read where the line meets zero, with the
  * uncertainty of `fitBandGap`. No sub-gap correction is applied: like the Tauc axis intercept, it
  * assumes the curve falls to zero below the edge.
  */
@@ -46,9 +46,10 @@ export function codyGap(
   energyEv: Float64Array,
   signal: Float64Array,
   region: [number, number] | null,
+  rule: RegionRule = 'steepest',
 ): CodyGap {
   const cody = codyValues(energyEv, signal);
-  const used = region ?? suggestRegion(energyEv, cody);
+  const used = region ?? suggestRegion(energyEv, cody, rule);
   return {
     fit: used ? fitBandGap(energyEv, cody, used[0], used[1]) : null,
     region: used,

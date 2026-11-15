@@ -81,8 +81,9 @@ export function BandGapStep({ data, update }: StepContext<UvvisData>) {
     update({ bandGap: { ...data.bandGap, [spectrum.id]: { ...choice, ...patch } } });
   /** Any change to how Eg is read, or to its regions, ends the saved session's old suggestion. */
   const changeGap = (patch: Partial<BandGapChoice>) => {
-    const { legacySuggestion: _legacy, ...rest } = choice;
+    const { legacySuggestion: _legacy, regionRule: _rule, ...rest } = choice;
     void _legacy;
+    void _rule;
     update({ bandGap: { ...data.bandGap, [spectrum.id]: { ...rest, ...patch } } });
   };
   const setRegion = (region: [number, number] | null) => {
@@ -173,12 +174,23 @@ export function BandGapStep({ data, update }: StepContext<UvvisData>) {
           onBaseline={(baselineRegion) => changeGap({ baselineRegion })}
           onComponent={(component) => changeGap({ component })}
         />
-        <TaucResult analysis={analysis} onReset={() => setRegion(null)} />
+        <TaucResult
+          analysis={analysis}
+          earlierRule={Boolean(choice.legacySuggestion || choice.regionRule)}
+          onReset={() => setRegion(null)}
+        />
         {choice.legacySuggestion && (
           <p class="field-hint">
             This spectrum was saved before the baseline methods existed, so its fit region is still
             suggested the old way and its band gap is unchanged. Choosing how Eg is read, or moving
             a region, updates it.
+          </p>
+        )}
+        {choice.regionRule === 'widest' && !choice.legacySuggestion && (
+          <p class="field-hint">
+            This spectrum was saved before the fit region was anchored on the steepest part of the
+            edge, so its region is still suggested the earlier way (the widest straight stretch) and
+            its band gap is unchanged. Choosing how Eg is read, or moving a region, updates it.
           </p>
         )}
       </section>
@@ -376,7 +388,15 @@ function SampleFields({
   );
 }
 
-function TaucResult({ analysis, onReset }: { analysis: BandGapAnalysis; onReset: () => void }) {
+function TaucResult({
+  analysis,
+  earlierRule,
+  onReset,
+}: {
+  analysis: BandGapAnalysis;
+  earlierRule: boolean;
+  onReset: () => void;
+}) {
   const { fit } = analysis;
   const messages = fitMessages(analysis);
   return (
@@ -414,7 +434,9 @@ function TaucResult({ analysis, onReset }: { analysis: BandGapAnalysis; onReset:
       )}
       <p class="field-hint">
         {analysis.suggested
-          ? 'The fit region is an automatic suggestion (the widest straight stretch of the curve). '
+          ? earlierRule
+            ? 'The fit region is an automatic suggestion (the widest straight stretch of the curve). '
+            : 'The fit region is an automatic suggestion: the widest straight stretch through the steepest part of the edge. '
           : 'The fit region was set by you. '}
         Drag the two round markers on the plot to change it.{' '}
         {!analysis.suggested && (

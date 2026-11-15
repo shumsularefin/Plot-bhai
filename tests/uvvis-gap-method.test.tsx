@@ -100,7 +100,7 @@ describe('band gap method in the UV-Vis tool', () => {
 
 describe('sessions saved before the baseline methods (version 2)', () => {
   it('keep the same band gap until the user changes the method', () => {
-    expect(UVVIS_STATE_VERSION).toBe(5);
+    expect(UVVIS_STATE_VERSION).toBe(6);
     const spectrum = withLevel(0.2);
     const old = { ...DEFAULT_BAND_GAP } as Record<string, unknown>;
     delete old.method;
@@ -117,7 +117,7 @@ describe('sessions saved before the baseline methods (version 2)', () => {
     const signal = row?.analysis.signal;
     if (!signal) throw new Error('no signal');
     const y = row.analysis.tauc;
-    const region = suggestRegion(signal.energyEv, y);
+    const region = suggestRegion(signal.energyEv, y, 'widest');
     if (!region) throw new Error('no region');
     const before = fitBandGap(signal.energyEv, y, region[0], region[1]);
     expect(row.analysis.fit?.egEv).toBe(before?.egEv);
@@ -129,7 +129,7 @@ describe('sessions saved before the baseline methods (version 2)', () => {
     const v2 = { step: 2, furthest: 3, data: { ...data([withLevel(0.05)]), bandGap: {} } };
     const upgraded = migrateUvvisData(v2, 2);
     expect(upgraded?.data.bandGap.s?.method).toBe('axis');
-    expect(migrateUvvisData(v2, 5)).toBeUndefined();
+    expect(migrateUvvisData(v2, 6)).toBeUndefined();
   });
 });
 
