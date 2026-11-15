@@ -137,8 +137,10 @@ describe('spectral regions', () => {
     );
     expect([must(regions[4]).fromCm, must(regions[4]).toCm]).toEqual(span(ids(32, 65)));
     expect(regions.every((r) => r.fromCm < r.toCm)).toBe(true);
-    // The metal–oxygen region spans the oxide bands at or below 900 cm⁻¹.
+    // The metal–oxygen region spans the oxide bands of Pasieczna-Patkowska et al. at or below
+    // 900 cm⁻¹ (the carbonate and nitrate bands of other sources are anion bands, not M–O).
     const oxide = groups.metalOxides
+      .filter((o) => o.source === 'pasieczna-2025')
       .flatMap((o) => o.bands.map((b) => b.cm))
       .filter((c) => c <= 900);
     expect([must(regions[5]).fromCm, must(regions[5]).toCm]).toEqual([

@@ -25,9 +25,9 @@ docs/reference-crosscheck.md.
 Open:
 
 - Bruker .raw versions 1 to 3 are refused, not read: no real file of those versions is held
-  (geddes has only authored RAW3 examples). Real files are needed to add them.
+  (geddes has only authored RAW3 examples). Real files are needed to add them. Closed by the owner on 2026-11-15: no raw files are available to test with.
 - No real .rasx file with an attenuator factor other than 1, nor a multi-scan .rasx or .brml, is
-  held; those cases warn and load the first scan, untested on real data.
+  held; those cases warn and load the first scan, untested on real data. Closed by the owner on 2026-11-15: no raw files are available to test with.
 - The .raw counting time is not read: GSAS-II labels the field as milliseconds, but no second
   source confirms the unit.
 
@@ -691,7 +691,7 @@ Open:
 - VESTA is a desktop program with no scripting interface, so structures cannot be opened in it
   here. Distances and powder lines are checked against pymatgen instead (section 16g).
 - Bruker .raw versions 1 to 3, multi-scan .rasx and .brml files, and a .rasx with an attenuator
-  factor: no real, openly licensed file is held, and a reader is written only against real files.
+  factor: no real, openly licensed file is held, and a reader is written only against real files. Closed by the owner on 2026-11-15: no raw files are available to test with.
 - The GSAS-II files were loaded through GSAS-II's scripting interface, not by hand in its
   windows.
 - No measured pattern of an unknown phase has been indexed by two programs.
@@ -781,7 +781,7 @@ Open:
   fit is unweighted, and the new methods inherit this. It is kept on purpose: unweighted least
   squares is the usual Tauc practice, and it errs on the safe side.
 - No real spectrum with a known gap was available; tests/fixtures-real/ has none for UV-Vis. The
-  paper's spectra are not published as data, so its Table 1 cannot be reproduced here.
+  paper's spectra are not published as data, so its Table 1 cannot be reproduced here. Closed by the owner on 2026-11-15: no raw files are available to test with.
 
 ## 19a: other fixes (audit of 2026-11-14)
 
@@ -1112,7 +1112,7 @@ grouping tolerance (2.5 times the common 4 cm⁻¹ resolution).
 
 ### Open
 
-- Peak table against instrument software: the FWHM and area that OMNIC, OPUS or Spectrum report for one band of a real file, with their baseline points. No such file is in tests/fixtures-real/.
+- Peak table against instrument software: the FWHM and area that OMNIC, OPUS or Spectrum report for one band of a real file, with their baseline points. No such file is in tests/fixtures-real/. Closed by the owner on 2026-11-15: no raw files are available to test with.
 - Grouping across samples: no other program with the same rule (one peak per sample, span at most the tolerance) was found, so the rule is checked by the known-answer and order tests only.
 
 ## 19d: FTIR reflectance, CO₂ line and normalisation to a band
@@ -1158,7 +1158,7 @@ program's own conversion; it catches indexing, interpolation and integration err
 
 ### Open
 
-- Kubelka–Munk: no published worked example (a measured R with its tabulated F(R)) was found to compare with, and no real DRIFTS file is in tests/fixtures-real/. The assumptions shown on screen (optically thick, diluted, strongly scattering layer) are the general conditions of the theory, stated without a specific citation.
+- Kubelka–Munk: no published worked example (a measured R with its tabulated F(R)) was found to compare with, and no real DRIFTS file is in tests/fixtures-real/ (closed by the owner on 2026-11-15: no raw files are available). The assumptions shown on screen (optically thick, diluted, strongly scattering layer) are the general conditions of the theory, stated without a specific citation.
 - CO₂ region: the real width of the CO₂ doublet in a lab spectrum was not measured; 2280–2400 cm⁻¹ is a default to adjust.
 - Broad ranking: only four rows of data/ftir/groups.json say "broad", so the rule is tested on those.
 - Wider group table (19d item 4): done on 2026-11-15, see "19d item 4" below.
@@ -1174,6 +1174,18 @@ source, and each suggestion names it.
 | Al-Amin et al., Nanoscale Adv. 7 (2025) 6677, Table 1, doi:10.1039/d5na00522a             | CC BY 4.0 | 27 (inorganic: M–O, carbonate, sulfate, ...) |
 | Elgayyar et al., Phys. Chem. Chem. Phys. 27 (2025) 22871, Table 1, doi:10.1039/d5cp02197a | CC BY 4.0 | 4 (the four fundamental modes of carbonate)  |
 | Gautam et al., ISRN Ceramics 2012 (2012) 428497, Table 6, doi:10.5402/2012/428497         | CC BY     | 22 of 23 (borate glasses; "<600" left out)   |
+
+Added on 2026-11-15 with the owner's approval (non-commercial licences and one closed book). These
+rows are typed in scripts/ftir-groups-added.ts, each with its table and page, because the book's
+text may not be stored in a public repository, Bishop's tables are images and the other two are
+short:
+
+| Source                                                                                                 | Licence                                  | Rows added                                                            |
+| ------------------------------------------------------------------------------------------------------ | ---------------------------------------- | --------------------------------------------------------------------- |
+| Socrates, Infrared and Raman Characteristic Group Frequencies, 3rd edn, Wiley 2001, ISBN 0-471-85298-8 | all rights reserved; band positions only | 17 (alkyne, aldehyde C–H, nitro, C–F, C–Cl, C–Br, S=O, P=O, P–O–C)    |
+| Kaaouass et al., Heliyon 10 (2024) e31219, Table 2 (IR rows), doi:10.1016/j.heliyon.2024.e31219        | CC BY-NC 4.0                             | 5 (Mn borovanadate glasses; each range spans the five compositions)   |
+| Bishop et al., Earth Space Sci. 8 (2021) e2021EA001844, Tables 9 and 10, doi:10.1029/2021EA001844      | CC BY-NC 4.0                             | 6 minerals (magnesite, calcite, aragonite, LiNO₃, NaNO₃, KNO₃), ν1–ν4 |
+| Luo et al., RSC Adv. 12 (2022) 24055, Tables 1 and 3, doi:10.1039/d2ra03539a                           | CC BY-NC 4.0                             | CeO₂ (436) and LaAlO₃ (646, 402), calculated by DFT and labelled so   |
 
 Method: the text of each table page is taken from the PDF with `pdftotext -layout` and cached
 unedited in data/ftir/source/*.txt; scripts/ftir-groups-parse.ts reads it and
@@ -1193,6 +1205,11 @@ Tests: tests/ftir-groups.test.ts.
 | Carbonate ν2 850–880 (Elgayyar); "∼875" approximate and "806" not (Gautam)         | the rendered page                | exact     |
 | Formula pairs change only the formulas                                             | synthetic text                   | exact     |
 | Every row's source exists, with a CC BY licence, a DOI and a verification note     | the data file                    | —         |
+| The book has no DOI, its ISBN and "all rights reserved"; the three others CC BY-NC | the data file                    | —         |
+| Typed rows unchanged in groups.json; counts 17 (Socrates) and 5 (Kaaouass)         | scripts/ftir-groups-added.ts     | exact     |
+| C≡C 2100–2150, Fermi 2650–2745, P=O 1175–1350 (Socrates); BO₄ 830–888 (Kaaouass)   | the rendered pages               | exact     |
+| Calcite 1420, 1067, 888, 716; KNO₃ ν3 1424 (Bishop); CeO₂ 436, calculated (Luo)    | the rendered pages               | exact     |
+| A matched mineral band is named ("Calcite (CaCO₃), CO₃²⁻ ν3, asymmetric stretch")  | the data file                    | exact     |
 | 890 cm⁻¹: Al-Amin's 880–900 (inside) and Elgayyar's 850–880 (10 cm⁻¹) both offered | sources that disagree, both kept | exact     |
 
 The second of the three ways (an independent implementation) does not apply to a transcription;
@@ -1201,18 +1218,21 @@ the check is the row-by-row comparison with the rendered page, recorded in each 
 
 ### Open
 
-- Not added, licence: Bishop et al., Earth Space Sci. 2021 (carbonate and nitrate band tables,
-  CC BY-NC); Kaaouass et al., Heliyon 2024 (CC BY-NC); Luo et al., RSC Adv. 2022 (CeO₂, CC BY-NC);
-  Hadjiivanov et al., Chem. Rev. 2021 (MOFs, CC BY-NC-ND); Socrates, Infrared and Raman
-  Characteristic Group Frequencies (Wiley, all rights reserved); Taylor, Proc. Indian Acad. Sci.
-  1990 (no open licence stated); Naumenko et al. 2008 (Raman of zirconia, not IR; no licence
-  stated). The non-commercial ones wait for the owner's decision.
+- Not added, licence: Hadjiivanov et al., Chem. Rev. 2021 (MOFs, CC BY-NC-ND: no derivatives);
+  Taylor, Proc. Indian Acad. Sci. 1990 (no open licence stated); Naumenko et al. 2008 (Raman of
+  zirconia, not IR; no licence stated).
 - Not added, no general table: Kaaouass et al., Biointerface Res. Appl. Chem. 2022 (CC BY; bands
-  observed in one glass system) and Alnehia et al., Discover Nano 2026 (CC BY; one sample, no band
-  table).
-- Still missing from the table: nitro, alkyne, aldehyde C–H, organic S=O, P=O, C–F, C–Cl, C–Br and
-  Al–O, and band lists for individual oxides (Al₂O₃, MgO, ZrO₂, CeO₂, MnO₂, WO₃, V₂O₅, ferrites);
-  Al-Amin et al. give only class-wide ranges (M–O, M=O, Fe–O/Co–O/Zn–O).
+  observed in one glass system), Alnehia et al., Discover Nano 2026 (CC BY; one sample, no band
+  table), and Rao et al., Ceram. Int. 2019 (zirconia-toughened alumina, supplied by the owner;
+  bands observed in its own samples only).
+- Not added, not practical to transcribe reliably: Hunt, Wisherd and Bonham, Anal. Chem. 22 (1950)
+  1478 (supplied by the owner). Its Table I is a rotated scan of band positions in micrometres for
+  each mineral; the text cannot be extracted reliably, and typing hundreds of cells by eye and
+  converting them (10⁴/λ) would add more risk of error than it is worth next to Bishop's measured
+  carbonate and nitrate bands.
+- Still missing from the table: Al–O and band lists for individual oxides (Al₂O₃, MgO, ZrO₂, MnO₂,
+  WO₃, V₂O₅, ferrites); Al-Amin et al. give only class-wide ranges (M–O, M=O, Fe–O/Co–O/Zn–O). CeO₂
+  and LaAlO₃ are calculated positions only.
 
 ## 19e: UV-Vis peak table, path length, cross-checks and optical constants
 
@@ -1334,7 +1354,7 @@ the critical value.
 
 - A real SEM or TEM micrograph measured in ImageJ by a person was not supplied, so the whole chain
   (scale, threshold, split, sizes) has not been compared with ImageJ numbers on a real image. The
-  synthetic image of 19b is still the only ImageJ comparison.
+  synthetic image of 19b is still the only ImageJ comparison. Closed by the owner on 2026-11-15: no raw files are available to test with.
 - ISO 9276-2 (moment means and weighting) was not opened; the moment-mean equations come from the
   Malvern Panalytical article named above.
 - No polydispersity index is given: the PDI in common use is the cumulants quantity of dynamic light

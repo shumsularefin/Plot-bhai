@@ -1,5 +1,36 @@
 # Progress
 
+## Stage 19d item 4 extension and closing the raw-file items (done)
+
+Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md,
+"19d item 4".
+
+- **More FTIR reference rows**, approved by the owner on 2026-11-15: 17 group ranges from Socrates'
+  book (alkyne, aldehyde C–H and its Fermi band, aliphatic and aromatic nitro, C–F, C–Cl, C–Br,
+  sulphoxide S=O, P=O, P–O–C), 5 bands of Mn borovanadate glasses (Kaaouass et al. 2024), the
+  measured ν1–ν4 bands of magnesite, calcite, aragonite and Li, Na and K nitrate (Bishop et al.
+  2021), and the DFT-calculated lattice modes of CeO₂ and LaAlO₃ (Luo et al. 2022), labelled as
+  calculated. The rows are typed in scripts/ftir-groups-added.ts with table and page; no text of
+  the book is stored.
+- A matched mineral band now names what it is ("Calcite (CaCO₃), CO₃²⁻ ν3, asymmetric stretch")
+  instead of "metal–oxygen and lattice bands", and the reference table shows each band's note.
+  The metal–oxygen region of the combined figure still uses only the first source's oxides.
+- **Raw-file items closed by the owner** ("I don't have currently any raw files to test or
+  validate with so close those section"): Bruker .raw v1–3, multi-scan and attenuated .rasx and
+  .brml, a UV-Vis spectrum with a known gap, the FTIR peak table against instrument software, a
+  DRIFTS file, and a micrograph measured in ImageJ are marked closed in docs/validation.md.
+
+Decisions: the CC BY-NC-ND review (Chem. Rev. 2021) stays out (no derivatives). Rao et al. 2019
+(ZTA) reports bands of its own samples only, so it is not a reference table; Hunt et al. 1950's
+Table I is a rotated scan in micrometres that cannot be extracted reliably, so it was not typed.
+Licence and book source are shown with every source in the app.
+
+Known issues: band lists of individual oxides (Al₂O₃, MgO, ZrO₂, ferrites) are still missing; CeO₂
+and LaAlO₃ are calculated positions.
+
+Verification: see the pull request; lint, type check, FTIR tests, build, size and e2e were run
+before merging.
+
 ## Stage 19g: binary FTIR and UV-Vis instrument files (done)
 
 Branch `claude/charming-wozniak-qix1hp`. No new runtime packages. Record in docs/validation.md, 19g.
@@ -41,8 +72,7 @@ until the workflow has run); production build and bundle size within budget (she
 150 KB); e2e passed, including the new "FTIR: Bruker OPUS and Thermo OMNIC files read in the
 browser".
 
-Next: the extension of 19d item 4 the owner approved (Socrates, the CC BY-NC tables, and the
-alumina and zirconia papers).
+Next: the extension of 19d item 4 the owner approved (done, above).
 
 ## Stage 19d item 4: wider FTIR group table (done)
 

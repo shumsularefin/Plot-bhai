@@ -1,7 +1,8 @@
 /*
- * Builds data/ftir/groups.json from the two tables of an open-access review (CC BY 4.0), and from
+ * Builds data/ftir/groups.json from the two tables of an open-access review (CC BY 4.0), from
  * three more open tables (CC BY) whose text is cached in data/ftir/source/*.txt (the PDFs were
- * supplied by the owner; the cache records the pdftotext command).
+ * supplied by the owner; the cache records the pdftotext command), and from the rows typed in
+ * scripts/ftir-groups-added.ts (a book and three CC BY-NC articles, approved by the owner).
  *
  *   npm run build:ftir              rebuild from the cached tables in data/ftir/source/
  *   npm run build:ftir -- --refresh download the article from Europe PMC again first
@@ -17,6 +18,7 @@ import {
   parseMetalOxides,
   tableWrap,
 } from './ftir-groups-parse.ts';
+import { addedFunctionalGroups, addedMetalOxides, addedSources } from './ftir-groups-added.ts';
 
 const PMCID = 'PMC11821210';
 const URL_XML = `https://www.ebi.ac.uk/europepmc/webservices/rest/${PMCID}/fullTextXML`;
@@ -95,14 +97,16 @@ const file = {
       tables: 'Table 6 (assignment of infrared bands in the spectra of borate glasses)',
       verification: `Transcription checked on 2026-11-15: 22 of the 23 rows match Table 6 of the PDF, read against the rendered page; the row "<600" (metal cations) has no lower limit and is left out. These are bands of borate glasses: ${SAME_CHECK}`,
     },
+    ...addedSources,
   },
   functionalGroups: [
     ...parseFunctionalGroups(groupTable, 'pasieczna-2025'),
     ...parseAlAmin(text('al-amin-2025-table1.txt'), 'al-amin-2025'),
     ...parseElgayyar(text('elgayyar-2025-table1.txt'), 'elgayyar-2025'),
     ...parseGautam(text('gautam-2012-table6.txt'), 'gautam-2012'),
+    ...addedFunctionalGroups,
   ],
-  metalOxides: parseMetalOxides(metalTable, 'pasieczna-2025'),
+  metalOxides: [...parseMetalOxides(metalTable, 'pasieczna-2025'), ...addedMetalOxides],
 };
 writeFileSync(out, `${JSON.stringify(file, null, 1)}\n`);
 console.log(

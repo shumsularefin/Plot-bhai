@@ -144,9 +144,10 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
           <HelpTip term="assignment suggestions">
             <p>
               Each peak is compared with typical wavenumber ranges of bond vibrations and with band
-              positions listed for metal oxides. A group is suggested when the peak is inside its
-              range or within the distance below of it. Closer matches come first. Use "Accept" to
-              keep a suggestion, edit the text to describe it in your own words, or clear the box.
+              positions listed for metal oxides and minerals. A group is suggested when the peak is
+              inside its range or within the distance below of it. Closer matches come first. Use
+              "Accept" to keep a suggestion, edit the text to describe it in your own words, or
+              clear the box.
             </p>
           </HelpTip>
         </h3>
@@ -274,15 +275,16 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
       <details class="paste-box">
         <summary>The reference table used</summary>
         <p class="field-hint">
-          The rows come from {Object.keys(table.sources).length} open-licence articles. Each
-          suggestion names its source; where two sources list the same band differently, both rows
-          are kept and shown.
+          The rows come from {Object.keys(table.sources).length} published sources (articles under
+          open licences and one book). Each suggestion names its source; where two sources list the
+          same band differently, both rows are kept and shown.
         </p>
         <ul class="field-hint">
           {Object.entries(table.sources).map(([key, s]) => (
             <li key={key}>
-              <strong>{s.short}:</strong> {s.citation}, doi:{s.doi} ({s.licence}), {s.tables},
-              retrieved {s.retrieved}. {s.verification}
+              <strong>{s.short}:</strong> {s.citation}
+              {s.doi ? `, doi:${s.doi}` : ''} ({s.licence}), {s.tables}, retrieved {s.retrieved}.{' '}
+              {s.verification}
             </li>
           ))}
         </ul>
@@ -315,7 +317,7 @@ export function AssignStep({ data, update }: StepContext<FtirData>) {
               ))}
               {table.metalOxides.map((m) => (
                 <tr key={m.id}>
-                  <td>{m.bands.map((b) => b.cm).join(', ')}</td>
+                  <td>{m.bands.map((b) => (b.note ? `${b.cm} (${b.note})` : b.cm)).join(', ')}</td>
                   <th scope="row">{m.label} (bands)</th>
                   <td>{sourceName(m.source)}</td>
                 </tr>

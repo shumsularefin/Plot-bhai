@@ -1,11 +1,12 @@
-/** One source of the group table: an open-licence article and the table taken from it. */
+/** One source of the group table: an article or book and the table taken from it. */
 export interface GroupSource {
   /** Short name shown next to each suggestion, for example "Al-Amin et al. 2025, Table 1". */
   short: string;
   citation: string;
-  doi: string;
+  /** Absent for a book without a DOI (the citation then carries the ISBN). */
+  doi?: string;
   licence: string;
-  url: string;
+  url?: string;
   retrieved: string;
   tables: string;
   /** How the transcription was checked, and what the user should still check. */
@@ -36,7 +37,7 @@ export interface GroupTable {
 /** The sources as one text for a methods paragraph: "citation, doi:…; citation, doi:…". */
 export const sourcesText = (table: Pick<GroupTable, 'sources'>): string =>
   Object.values(table.sources)
-    .map((s) => `${s.citation}, doi:${s.doi}`)
+    .map((s) => (s.doi ? `${s.citation}, doi:${s.doi}` : s.citation))
     .join('; ');
 
 /** Gas-phase bands of air in the beam path (data/ftir/atmosphere.json). */
@@ -148,15 +149,19 @@ export function suggestAssignments(
     });
   }
   for (const oxide of table.metalOxides) {
-    let nearest: { cm: number; distance: number } | null = null;
+    let nearest: { cm: number; distance: number; note?: string } | null = null;
     for (const band of oxide.bands) {
       const distance = Math.abs(wavenumber - band.cm);
-      if (nearest === null || distance < nearest.distance) nearest = { cm: band.cm, distance };
+      if (nearest === null || distance < nearest.distance)
+        nearest = { cm: band.cm, distance, ...(band.note !== undefined && { note: band.note }) };
     }
     if (!nearest || nearest.distance > tolerance) continue;
     out.push({
       id: oxide.id,
-      label: `${oxide.label} (metal–oxygen and lattice bands)`,
+      // A band with a note says what it is (for example "CO₃²⁻ ν3, asymmetric stretch").
+      label: nearest.note
+        ? `${oxide.label}, ${nearest.note}`
+        : `${oxide.label} (metal–oxygen and lattice bands)`,
       kind: 'oxide',
       ...(oxide.source !== undefined && { source: oxide.source }),
       distance: nearest.distance <= POINT_MATCH_CM ? 0 : nearest.distance,

@@ -12,6 +12,11 @@ import {
   parseRanges,
   tableWrap,
 } from '../scripts/ftir-groups-parse';
+import {
+  addedFunctionalGroups,
+  addedMetalOxides,
+  addedSources,
+} from '../scripts/ftir-groups-added';
 
 const table = JSON.parse(
   readFileSync(new URL('../data/ftir/groups.json', import.meta.url), 'utf8'),
@@ -38,7 +43,7 @@ describe('data/ftir/groups.json', () => {
     const groups = parseFunctionalGroups(tableWrap(cached, 1) ?? '', 'pasieczna-2025');
     const oxides = parseMetalOxides(tableWrap(cached, 0) ?? '', 'pasieczna-2025');
     expect(rowsOf('pasieczna-2025')).toEqual(groups);
-    expect(table.metalOxides).toEqual(oxides);
+    expect(table.metalOxides.filter((m) => m.source === 'pasieczna-2025')).toEqual(oxides);
     expect(groups.length).toBe(65);
     expect(rowsOf('al-amin-2025')).toEqual(
       parseAlAmin(source('al-amin-2025-table1.txt'), 'al-amin-2025'),
@@ -53,22 +58,40 @@ describe('data/ftir/groups.json', () => {
     expect(rowsOf('al-amin-2025')).toHaveLength(27);
     expect(rowsOf('elgayyar-2025')).toHaveLength(4);
     expect(rowsOf('gautam-2012')).toHaveLength(22);
+    // The typed rows of scripts/ftir-groups-added.ts, unchanged.
+    expect(table.functionalGroups.slice(-addedFunctionalGroups.length)).toEqual(
+      addedFunctionalGroups,
+    );
+    expect(table.metalOxides.slice(-addedMetalOxides.length)).toEqual(addedMetalOxides);
+    expect(rowsOf('socrates-2001')).toHaveLength(17);
+    expect(rowsOf('kaaouass-2024')).toHaveLength(5);
   });
 
-  it('every row names a source with a citation, an open licence and a verification note', () => {
+  it('every row names a source with a citation, a licence and a verification note', () => {
     expect(Object.keys(table.sources)).toEqual([
       'pasieczna-2025',
       'al-amin-2025',
       'elgayyar-2025',
       'gautam-2012',
+      ...Object.keys(addedSources),
     ]);
     expect(table.sources['pasieczna-2025']?.doi).toBe('10.3390/molecules30030684');
-    for (const s of Object.values(table.sources)) {
-      expect(s.licence).toMatch(/CC BY/);
-      expect(s.licence).not.toMatch(/NC|ND/);
+    for (const [key, s] of Object.entries(table.sources)) {
       expect(s.verification).toContain('confirm a range against your own literature');
+      if (key === 'socrates-2001') {
+        // The book: no DOI, cited by ISBN, all rights reserved (only band positions are used).
+        expect(s.doi).toBeUndefined();
+        expect(s.citation).toContain('ISBN 0-471-85298-8');
+        expect(s.licence).toMatch(/all rights reserved.*owner/);
+        continue;
+      }
       expect(s.doi).toMatch(/^10\./);
+      // Open licences only; NoDerivatives (ND) would forbid the transcription.
+      expect(s.licence).toMatch(/CC BY/);
+      expect(s.licence).not.toMatch(/ND/);
     }
+    for (const key of ['kaaouass-2024', 'bishop-2021', 'luo-2022'])
+      expect(table.sources[key]?.licence).toMatch(/^CC BY-NC 4\.0/);
     for (const row of [...table.functionalGroups, ...table.metalOxides])
       expect(table.sources[row.source]).toBeTruthy();
   });
@@ -86,6 +109,7 @@ describe('data/ftir/groups.json', () => {
     expect(new Set(table.functionalGroups.map((g) => g.id)).size).toBe(
       table.functionalGroups.length,
     );
+    expect(new Set(table.metalOxides.map((m) => m.id)).size).toBe(table.metalOxides.length);
     expect(table.metalOxides.map((m) => m.label)).toContain('TiO2 anatase');
   });
 
@@ -107,6 +131,19 @@ describe('data/ftir/groups.json', () => {
     const boroxol = rowsOf('gautam-2012').find((g) => g.label === 'Boroxol rings');
     expect(boroxol?.approximate).toBeUndefined();
     expect(rowsOf('gautam-2012').some((g) => g.label.includes('metallic cations'))).toBe(false);
+    // Socrates 2001, Tables 4.1, 10.7 and 17.1 (pp. 83, 124, 234).
+    expect(find('socrates-2001', 'monosubstituted (–C≡CH)')).toEqual([{ from: 2100, to: 2150 }]);
+    expect(find('socrates-2001', 'Fermi resonance')).toEqual([{ from: 2650, to: 2745 }]);
+    expect(find('socrates-2001', 'P=O stretch, unassociated')).toEqual([{ from: 1175, to: 1350 }]);
+    // Kaaouass et al., Table 2: BO₄ stretching from 830 (MCBV4) to 888 (MCBV1) cm⁻¹.
+    expect(find('kaaouass-2024', 'BO₄ unit stretching')).toEqual([{ from: 830, to: 888 }]);
+    const mineral = (id: string) => table.metalOxides.find((m) => m.id === id)?.bands;
+    // Bishop et al., Table 9 (calcite) and Table 10 (KNO₃), measured fundamentals.
+    expect(mineral('bi-calcite')?.map((b) => b.cm)).toEqual([1420, 1067, 888, 716]);
+    expect(mineral('bi-kno3')?.[0]).toEqual({ cm: 1424, note: 'NO₃⁻ ν3, asymmetric stretch' });
+    // Luo et al., Table 1: 435.57 cm⁻¹ rounded; labelled as calculated.
+    expect(mineral('lu-ceo2')?.[0]?.cm).toBe(436);
+    expect(table.metalOxides.find((m) => m.id === 'lu-ceo2')?.label).toContain('calculated');
   });
 
   it('writes formulas back without touching other text', () => {
@@ -152,6 +189,15 @@ describe('suggestAssignments', () => {
         5,
       ),
     ).toEqual([]);
+  });
+
+  it('names the matched band when the table describes it', () => {
+    const [calcite] = suggestAssignments(1420, {
+      functionalGroups: [],
+      metalOxides: table.metalOxides.filter((m) => m.id === 'bi-calcite'),
+    });
+    expect(calcite?.label).toBe('Calcite (CaCO₃), CO₃²⁻ ν3, asymmetric stretch');
+    expect(calcite?.source).toBe('bishop-2021');
   });
 
   it('matches metal oxide bands from the table', () => {
