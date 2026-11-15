@@ -123,8 +123,8 @@ The code is released under the [MIT licence](LICENSE). Data files keep their own
 cite it using [CITATION.cff](CITATION.cff):
 
 > Arefin, S. (2026). Plot Bhai: a client-side wizard for XRD, UV-Vis, FTIR, particle size and
-> thermal analysis (Version 1.0.0) [Computer software]. Zenodo.
-> https://doi.org/10.5281/zenodo.24222106
+> thermal analysis (Version 1.1.0) [Computer software]. Zenodo.
+> https://doi.org/10.5281/zenodo.24222105
 
 The concept DOI [10.5281/zenodo.24222105](https://doi.org/10.5281/zenodo.24222105) always points
 to the latest version. Also cite the original paper or COD entry of every

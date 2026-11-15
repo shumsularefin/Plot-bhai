@@ -1,5 +1,17 @@
 # Progress
 
+## Release 1.1.0 (done, owner request 2026-11-15)
+
+- Version 1.1.0 in package.json, package-lock.json and CITATION.cff (date 2026-11-15); the README
+  citation names 1.1.0 with the concept DOI until Zenodo gives the version DOI.
+- New CHANGELOG.md: the features of stages 19a to 19g and 22 and a table of the values that change
+  when the same data are analysed again.
+- Decision: 1.1.0, not 1.5.0. The GSAS-II work (stages 16 to 21) is already in v1.0.0 (tag on the
+  merge of #68), so only the UV-Vis, FTIR and Particles work is new, and it adds features without
+  breaking saved sessions (semantic versioning: a minor step).
+- Still for the owner: after Zenodo archives the release, add its version DOI to the identifiers
+  in CITATION.cff and to the README citation (docs/RELEASING.md).
+
 ## Stage 22: UV-Vis open items (done)
 
 Branch `stage-22-uvvis-open-items`. No new packages. Checks in docs/validation.md, section 22.
