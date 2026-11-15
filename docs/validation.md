@@ -1722,13 +1722,13 @@ user, shown as an assumption on the table, the figure label, the CSV and the met
 from the n(Eg) estimates. Labelled an estimate. Saved sessions without n are unchanged (the setting
 is absent), so no migration was needed.
 
-| Check                                                                   | Kind                | Tolerance      | Result                   |
-| ----------------------------------------------------------------------- | ------------------- | -------------- | ------------------------ |
-| α = 10⁴ cm⁻¹, n = 2: σ = 5308.8374595834212 S/m (by hand, 20 digits)    | hand-worked value   | 10⁻¹² relative | pass                     |
-| σ against numpy on 6 α × 4 n, and ε₀ equal to SciPy's CODATA value      | independent (numpy) | 10⁻¹² relative | after the Validation run |
-| σ = ε₀ω·2nk with k = αλ/(4π) (Fox eq. 7.15 with κ = ε₂/2n), three cases | consistency with k  | 10⁻¹² relative | pass                     |
-| σ ∝ n and σ ∝ α; NaN for n ≤ 0 or non-finite α                          | invariance, guard   | 10⁻¹⁵ relative | pass                     |
-| Methods sentence only when n was typed and α is absolute                | regression          | as stated      | pass                     |
+| Check                                                                   | Kind                | Tolerance      | Result                           |
+| ----------------------------------------------------------------------- | ------------------- | -------------- | -------------------------------- |
+| α = 10⁴ cm⁻¹, n = 2: σ = 5308.8374595834212 S/m (by hand, 20 digits)    | hand-worked value   | 10⁻¹² relative | pass                             |
+| σ against numpy on 6 α × 4 n, and ε₀ equal to SciPy's CODATA value      | independent (numpy) | 10⁻¹² relative | pass (numpy 2.5.4, scipy 1.18.1) |
+| σ = ε₀ω·2nk with k = αλ/(4π) (Fox eq. 7.15 with κ = ε₂/2n), three cases | consistency with k  | 10⁻¹² relative | pass                             |
+| σ ∝ n and σ ∝ α; NaN for n ≤ 0 or non-finite α                          | invariance, guard   | 10⁻¹⁵ relative | pass                             |
+| Methods sentence only when n was typed and α is absolute                | regression          | as stated      | pass                             |
 
 Open: the film tool (Swanepoel) gives n but no α, so σ is not offered there.
 
