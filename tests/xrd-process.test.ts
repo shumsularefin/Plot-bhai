@@ -19,7 +19,7 @@ import { generatePattern, pseudoVoigt, type SyntheticPeak } from '../src/core/xr
 /*
  * Known-answer tests on synthetic data. Peaks are pseudo-Voigt (η = 0.5) at chosen positions
  * and heights; backgrounds and the Kα2 doublet are known exactly, so the corrected pattern can
- * be compared with the truth. Tolerances are stated in each test and in docs/PROGRESS.md.
+ * be compared with the truth. Tolerances are stated in each test.
  */
 
 const CU = ANODES.Cu;

@@ -1,5 +1,5 @@
 /*
- * The materials and phases of the reference library (CLAUDE.md stage 6a). Each phase is a
+ * The materials and phases of the reference library (stage 6a). Each phase is a
  * search request to the Crystallography Open Database, not a COD ID: the build script picks
  * the entry. `mineral` and `spaceGroup` are filters that separate polymorphs; they are
  * checked against what COD itself reports for each entry, and the chosen entry's own values

@@ -1,9 +1,9 @@
 # Reference papers
 
-The PDFs are kept on the owner's computer, not in this repository. This page lists the papers
+The PDFs are kept by the maintainer, not in this repository. This page lists the papers
 supplied by the project owner for checking equations, constants, citations and the polymer
-coordinates. What was checked against each is recorded in docs/PROGRESS.md and
-docs/polymer-library.md.
+coordinates. What was checked against each is recorded in docs/polymer-library.md and
+docs/validation.md.
 
 **Copyright.** These PDFs belong to their publishers and authors. They are not covered by the
 project's MIT licence. They are not redistributed here; cite them by DOI. The
@@ -27,5 +27,5 @@ CIF header in `data/polymers/`.
 | `polymj.3.600.pdf`             | Hasegawa et al., Polym. J. 3 (1972) 600, PVDF α and β              |
 | `161929a0.pdf`                 | Bunn, Nature 161 (1948) 929, PVA                                   |
 
-The other files are the method and constant references listed in docs/PROGRESS.md, plus papers
+The other files are the method and constant references cited in the source code, plus papers
 read but not used (see docs/polymer-library.md, "Not included").

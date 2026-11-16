@@ -11,3 +11,4 @@ e2e-failure.png
 
 # Copyrighted reference PDFs: keep locally, never commit
 docs/papers/*.pdf
+*.tsbuildinfo
