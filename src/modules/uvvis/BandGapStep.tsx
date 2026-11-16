@@ -326,7 +326,14 @@ export function BandGapStep({ data, update }: StepContext<UvvisData>) {
         />
       </section>
 
-      <OpticalConstants analysis={analysis} data={data} update={update} name={spectrum.name} />
+      <OpticalConstants
+        analysis={analysis}
+        choice={choice}
+        data={data}
+        update={update}
+        change={change}
+        name={spectrum.name}
+      />
     </div>
   );
 }

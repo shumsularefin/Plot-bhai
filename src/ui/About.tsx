@@ -97,6 +97,95 @@ export default function About() {
         </ul>
       </section>
 
+      <section aria-labelledby="about-features">
+        <h2 id="about-features">What each tool does</h2>
+        <h3>XRD</h3>
+        <ul>
+          <li>
+            Reads text scans and Bruker .brml and .raw (version 4) and Rigaku .rasx files, and
+            exports the processed pattern as .xy and .xye.
+          </li>
+          <li>
+            Shows the chosen phase as a 3D crystal structure (rotate, zoom, distances and angles)
+            and suggests a cell for an unknown pattern (cubic to monoclinic, triclinic on request),
+            ranked by de Wolff M20 and Smith–Snyder F<sub>N</sub>.
+          </li>
+          <li>
+            Rietveld refinement with the GSAS-II TCH profile, peak asymmetry and Finger–Cox–Jephcoat
+            axial divergence, crystallite size and microstrain (isotropic, uniaxial or anisotropic),
+            sample optics (polarisation, variable slit, transparency, roughness, capillary
+            absorption), anomalous dispersion, spherical-harmonic texture, Le Bail mode, excluded
+            ranges, amorphous content by internal standard, dopants on a shared site, sequential
+            refinement of a series, bond lengths and angles with uncertainties, bond-valence sums,
+            Durbin–Watson d and the Bérar–Lelann correction of the uncertainties. Under Advanced:
+            atom positions, occupancies and isotropic or anisotropic displacement.
+          </li>
+          <li>
+            Peak fitting with Gaussian, Lorentzian, pseudo-Voigt, Pearson VII and split pseudo-Voigt
+            profiles, and a GSAS-II starting set (.xye, .instprm and a CIF per phase) to continue
+            the refinement there.
+          </li>
+        </ul>
+        <h3>UV-Vis</h3>
+        <ul>
+          <li>
+            Absorbance, transmittance and diffuse reflectance (Kubelka–Munk), with a film thickness
+            or a cuvette path length, from text files or Galactic .spc instrument files.
+          </li>
+          <li>
+            Tauc band gap with a suggested fit region anchored on the steepest part of the edge, a
+            sub-gap baseline (straight line or a scattering power law a + c·E<sup>m</sup>), removal
+            of a second absorbing component, several transitions reported side by side, and an
+            Urbach tail.
+          </li>
+          <li>
+            Cross-checks of the gap: a Cody plot, a sigmoid (Boltzmann) fit and the steepest rise of
+            the edge. Absorption bands with a peak table and band fitting.
+          </li>
+          <li>
+            Optical constants of a film: α corrected for reflection, the extinction coefficient k,
+            rough refractive-index estimates from E<sub>g</sub>, and the optical conductivity from a
+            refractive index you type. A separate thin-film tool uses the Swanepoel envelope method
+            for n and the thickness.
+          </li>
+        </ul>
+        <h3>FTIR</h3>
+        <ul>
+          <li>
+            Thermo OMNIC .spa, Bruker OPUS, PerkinElmer .sp and Galactic .spc files besides text.
+          </li>
+          <li>
+            Peak table with width, area and an intensity class, peaks added or removed by hand,
+            bands compared across samples, diffuse reflectance (Kubelka–Munk or log(1/R)), removal
+            of the CO₂ band and normalisation to a chosen band.
+          </li>
+          <li>Functional group suggestions from published tables, always as candidates.</li>
+        </ul>
+        <h3>Particle size</h3>
+        <ul>
+          <li>
+            Mean with its standard error and confidence interval, coefficient of variation, moment
+            means D[1,0], D[3,2] and D[4,3], volume-weighted Dv10, Dv50, Dv90 and span, normal and
+            lognormal fits with an Anderson–Darling check, and distributions of aspect ratio,
+            circularity and solidity, with a session file and a sample report.
+          </li>
+        </ul>
+        <h3>Thermal analysis</h3>
+        <ul>
+          <li>
+            TGA, DSC and combined TGA–DSC: mass loss steps, onset, peak and endset temperatures,
+            enthalpy, glass transition, ranked event suggestions and a calcination starting point,
+            and activation energy from several heating rates.
+          </li>
+        </ul>
+        <p>
+          Every method is checked three ways before it is released: on synthetic data with a known
+          answer, against an independent program (GSAS-II, pymatgen, SciPy or NumPy) or a published
+          example, and by an invariance or round-trip test. The checks and their tolerances are
+          listed on the <a href="#/validation">validation page</a>.
+        </p>
+      </section>
+
       <section aria-labelledby="about-xrd">
         <h2 id="about-xrd">XRD equations</h2>
         <p>
@@ -267,6 +356,17 @@ export default function About() {
           </Eq>
           <Eq note="Band gap where the fitted line meets the energy axis">Eg = −a / b</Eq>
           <Eq note="Urbach tail">α = α₀ exp(E / Eu)</Eq>
+          <Eq note="Cody plot, Eg where the line meets zero">(α / h ν)^(1/2) = B (h ν − Eg)</Eq>
+          <Eq note="Sigmoid fit of the edge (Zanatta 2019); n = 0.3 direct, 4.3 indirect, 3.6 amorphous">
+            Eg = E0 − n δE
+          </Eq>
+          <Eq note="Extinction coefficient, λ in cm">k = α λ / (4π)</Eq>
+          <Eq note="Optical conductivity, S/m, α in m⁻¹, n typed by you (Fox, Optical Properties of Solids)">
+            σ = ε₀ c n α
+          </Eq>
+          <Eq note="Refractive index estimate (Hervé and Vandamme 1994, eq. 10), Eg in eV">
+            n² = 1 + (13.6 / (Eg + 3.4))²
+          </Eq>
         </ul>
         <p>
           The Tauc band gap depends on the chosen transition type and fit window, so treat it as an

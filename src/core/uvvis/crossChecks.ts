@@ -10,9 +10,15 @@ import { fitBandGap, suggestRegion, type BandGapFit, type RegionRule } from './t
  */
 
 /**
- * Cody plot: "the extrapolation of the linear least squares fit of (α/E)^1/2 to zero", which
- * assumes a constant dipole transition matrix element (Zanatta 2019, citing G. D. Cody et al.,
- * ref. 62 there), against the Tauc form (α·E)^1/2. Both are used for amorphous semiconductors:
+ * Cody plot: G. D. Cody, "The Optical Absorption Edge of a-Si:H", Semiconductors and Semimetals,
+ * Vol. 21, Part B (Academic Press, 1984), chapter 2, doi:10.1016/S0080-8784(08)62910-5 (supplied
+ * by the owner, read 2026-11-15): with an energy-independent dipole (coordinate) matrix element,
+ * p. 26, eq. 23 (p. 29) gives ε₂(E) = Q²M³(0.2/ν)(E − E_G)², and Fig. 16 plots (ε₂)^1/2 against E,
+ * E_G where the least-squares line meets zero. With ε₂ = nαc/ω (M. Fox, Optical Properties of
+ * Solids, κ = ε₂/2n and α = 2ωκ/c), (ε₂)^1/2 ∝ (nα/E)^1/2, which is (α/E)^1/2 for constant n: Zanatta
+ * 2019's "extrapolation of the linear least squares fit of (α/E)^1/2 to zero". The earlier paper
+ * of Cody et al., Phys. Rev. Lett. 47 (1981) 1480, eq. 2, still uses the Tauc form (α·E)^1/2, so it
+ * is not the source of this plot. Both are used for amorphous semiconductors:
  * M. E. Sánchez-Vergara et al., Molecules 17 (2012) 10000, doi:10.3390/molecules170910000 (CC BY,
  * read 2026-11-14) state that Cody "suggests, instead, that the dipole matrix element is actually
  * independent of the photon energy" and that Cody plots curve less than Tauc plots. Kasikov and

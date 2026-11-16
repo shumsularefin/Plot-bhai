@@ -4,6 +4,7 @@ import { DEFAULT_CLEANING } from '../../core/uvvis/process';
 import { uvvisPeaks } from '../../core/uvvis/peaks';
 import { baselineUsed, cleanAll, resultRows, type ResultRow } from './analysis';
 import { bandFitKey, bandSignal } from './bands';
+import { extinctionRows } from './OpticalExtras';
 import { bandFitFor, peakEditsFor, peaksFor, type UvvisData } from './data';
 
 const PROFILE_NAMES = {
@@ -82,6 +83,10 @@ export function methodsInput(
               toEv: analysis.sigmoid.fit.toEv,
             }
           : null,
+        conductivityIndex:
+          choice.assumedIndex != null && extinctionRows(analysis).length > 0
+            ? choice.assumedIndex
+            : null,
         bands: {
           count: peaks.length,
           prominencePercent: settings.prominencePercent,

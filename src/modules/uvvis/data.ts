@@ -91,6 +91,12 @@ export interface BandGapChoice {
    */
   powerBaseline?: { exponent: number | null };
   /**
+   * Refractive index n typed by the user, assumed constant over the spectrum, for the optical
+   * conductivity σ = ε₀cnα (stage 22). Absent or null means σ is not calculated, so sessions saved
+   * before stage 22 are unchanged. Never filled from the empirical n(Eg) relations.
+   */
+  assumedIndex?: number | null;
+  /**
    * For the method 'subtract-component': the spectrum of the second component (a dye, modifier
    * or support measured alone) and its scale factor c, or null to fit c below the edge.
    */

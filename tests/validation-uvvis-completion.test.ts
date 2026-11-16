@@ -1,9 +1,14 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { HC_EV_NM } from '../src/core/uvvis/conversions';
+import { HC_EV_NM, VACUUM_PERMITTIVITY_F_PER_M } from '../src/core/uvvis/conversions';
 import { codyGap, sigmoidGap, type SigmoidType } from '../src/core/uvvis/crossChecks';
-import { alphaWithReflection, extinctionCoefficient, indexFromGap } from '../src/core/uvvis/optics';
+import {
+  alphaWithReflection,
+  extinctionCoefficient,
+  indexFromGap,
+  opticalConductivity,
+} from '../src/core/uvvis/optics';
 import { uvvisPeaks, DEFAULT_UVVIS_PEAKS } from '../src/core/uvvis/peaks';
 
 /*
@@ -38,6 +43,8 @@ interface Fixture {
   slab: { t: number; r: number; thicknessNm: number; alpha: number }[];
   extinction: { alpha: number; wavelengthNm: number; k: number }[];
   index: { egEv: number; moss: number; ravindra: number; herveVandamme: number }[];
+  /** Absent until the Validation workflow has rerun the script (stage 22). */
+  conductivity?: { epsilon0: number; alpha: number[]; n: number[]; sigma: number[][] };
   peaks: {
     wavelengthNm: number[];
     absorbance: number[];
@@ -110,6 +117,18 @@ describe('UV-Vis completion against NumPy and SciPy', () => {
     expect(rel(indexFromGap('moss', c.egEv), c.moss)).toBeLessThan(1e-12);
     expect(rel(indexFromGap('ravindra', c.egEv), c.ravindra)).toBeLessThan(1e-12);
     expect(rel(indexFromGap('herve-vandamme', c.egEv), c.herveVandamme)).toBeLessThan(1e-12);
+  });
+
+  it('gives the optical conductivity as numpy does, with the same ε₀ as SciPy', () => {
+    const c = f.conductivity;
+    expect(c).toBeDefined();
+    if (!c) return;
+    expect(c.epsilon0).toBe(VACUUM_PERMITTIVITY_F_PER_M);
+    c.n.forEach((n, i) =>
+      c.alpha.forEach((alpha, j) =>
+        expect(rel(opticalConductivity(alpha, n), c.sigma[i]?.[j] as number)).toBeLessThan(1e-12),
+      ),
+    );
   });
 
   it('picks the same bands as scipy find_peaks', () => {

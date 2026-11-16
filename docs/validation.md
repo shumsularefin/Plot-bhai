@@ -1241,14 +1241,16 @@ New methods (src/core/uvvis/peaks.ts, crossChecks.ts, optics.ts):
   minima offered as suggestions. λmax in the results table keeps its old meaning (highest point).
 - Path length: α = ln(10)·A/l with l a film thickness (nm) or a cuvette path (cm).
 - Cody plot: (α/E)^(1/2) against E, a straight line, Eg where it meets zero (A. R. Zanatta,
-  Sci. Rep. 9 (2019) 11225, citing G. D. Cody et al.).
+  Sci. Rep. 9 (2019) 11225; checked in stage 22 against G. D. Cody, Semiconductors and Semimetals
+  21B (1984), ch. 2, eq. 23).
 - Sigmoid (Boltzmann) fit: α(E) = α_max + (α_min − α_max)/(1 + exp((E − E0)/δE)) (Zanatta Eq. 8),
   Eg = E0 − n·δE with n = 0.3 (direct), 4.3 (indirect), 3.6 (amorphous) (Eq. 9), σ(Eg) from the
   full covariance.
 - Reflection-corrected α of a film: α = (1/d)·ln[(1 − R)²/(2T) + √((1 − R)⁴/(4T²) + R²)] (Zanatta
   Eq. 6; also Kasikov and Aarik, Bulg. J. Phys. 51 (2024) 311, Eq. 27), no substrate.
 - k = αλ/(4π). n from Eg by Moss (n⁴Eg = 95 eV), Ravindra (n = 4.084 − 0.62 Eg) and Hervé–Vandamme
-  (n² = 1 + (13.6/(Eg + 3.47))²), as written by S. K. Tripathy, Opt. Mater. 46 (2015) 240, Eqs. 1–3,
+  (n² = 1 + (13.6/(Eg + 3.4))²), first taken from S. K. Tripathy, Opt. Mater. 46 (2015) 240, Eqs.
+  1–3 (with B = 3.47 eV), checked against the original papers in stage 22 (B = 3.4 eV since then),
   shown as rough estimates with the stated ranges.
 
 ### Checks
@@ -1271,7 +1273,7 @@ tests/validation-uvvis-completion.test.ts.
 | R = 0 gives Beer–Lambert; large αd gives Zanatta Eq. 5                         | limits of the equation                   | 10⁻⁶; 10⁻⁸ rel    |
 | α from T and R in five cases                                                   | scipy brentq on the slab model           | 10⁻⁹ rel          |
 | k = 0.1 at 500 nm from α = 25132.74 cm⁻¹; three more cases                     | hand value; numpy                        | 10⁻¹²             |
-| Ravindra(1 eV) = 3.464, HV(3.33 eV) = √5, Moss(95/16 eV) = 2; six Eg values    | hand values; numpy                       | 10⁻¹²             |
+| Ravindra(1 eV) = 3.464, HV(3.4 eV) = √5, Moss(95/16 eV) = 2; six Eg values     | hand values; numpy                       | 10⁻¹²             |
 | Band positions, heights and prominences of two Gaussian bands with noise       | scipy.signal.find_peaks, numpy.polyfit   | 10⁻⁹ nm; 10⁻¹²    |
 | Band removed and added by hand, shoulder accepted                              | synthetic                                | exact             |
 | 1 cm cuvette: α = ln(10)·A and the same Eg as without a path                   | invariance                               | 10⁻¹⁰; 10⁻⁶ eV    |
@@ -1283,17 +1285,15 @@ covariance and the root finding, not the equations themselves.
 
 ### Open
 
-- The original papers of Cody (1981), Moss (1950), Ravindra et al. (1979) and Hervé–Vandamme (1994)
-  were not opened; the equations are taken from Zanatta (2019) and Tripathy (2015). Still open after
-  stage 22 (part A skipped: the papers were not supplied).
-- Hervé–Vandamme B: Tripathy prints B = 3.47 eV; other secondary sources give 3.4 eV. 3.47 is used
-  and flagged for verification.
+- Cody, Moss, Ravindra and Hervé–Vandamme were checked against the original sources in stage 22
+  (section 22, part A); Hervé–Vandamme B is now 3.4 eV as the original prints, and the Cody plot is
+  cited to Cody's 1984 chapter.
 - The default sigmoid range (±0.25 eV around the midpoint of the rise near the Tauc gap) is my
   reading of Zanatta's "~500 meV energy range centered in between the min-max α values".
 - Zanatta gives no worked table of a fit to compare with, so no published example was run.
-- Optical conductivity (σ = αnc/4π) was not built: it needs n at each wavelength together with α,
-  and no SI form of the equation from a source opened in the session was found. Still open after stage
-  22 (part D1 skipped: the textbook page was not supplied).
+- Optical conductivity is built in the main tool from a constant n typed by the user (section 22,
+  part D1). In the film tool it is still open: the Swanepoel result gives n but no α at each
+  wavelength, and Swanepoel's α equations were not opened in the session.
 - The reflection correction models a free-standing slab; the substrate is not included, which
   Kasikov and Aarik find matters for films thinner than about 1 µm.
 
@@ -1481,8 +1481,8 @@ What was found:
   What stays unread is listed in section 19.
 - The ZnO example's bond-valence sum: the published structure (COD 1577381) gives 1.904 for Zn, and
   the end-to-end run shows 1.906(3) after refinement. A sum of 1.69 was not reproduced.
-- The tracker in docs/EXECUTION-PLAN.md had rows "17" and "18" beside 17a to 17i; they are now 18
-  and 19, and this work is row 20.
+- The stage numbers were tidied: the stages once numbered "17" and "18" beside 17a to 17i are now
+  18 and 19, and this work is stage 20.
 
 Decisions kept (the owner can change them):
 
@@ -1552,15 +1552,14 @@ Open:
   (the host is gone, the IUCr site needs a browser) and carry no stated licence. They stay
   "recognised, cannot read". Closed by the owner on 2026-11-15: no raw files are
   available to test with.
-- The differences found in GSAS-II are drafted as reports in docs/gsas2-issue-drafts.md, for the
-  owner to send; they are not resolved.
+- The differences found in GSAS-II are drafted as reports for the GSAS-II developers;
+  they are not resolved.
 - The counting-noise limits (0.5 and 2) stay a rule of the site, as the owner left them.
 
 ## 22: UV-Vis open items (2026-11-15)
 
-Four parts were set by the owner. Part A (original papers of Cody, Moss, Ravindra and Hervé–Vandamme)
-and part D1 (optical conductivity) need sources that were not supplied, so they were skipped and
-their Open entries in 19e stay.
+Four parts were set by the owner. Parts A (original papers) and D1 (optical conductivity) waited
+for sources, which the owner supplied on 2026-11-15; both were then done.
 
 ### Part B: suggested Tauc region anchored on the steepest part of the edge
 
@@ -1735,15 +1734,72 @@ Open:
 
 - No real spectrum of a scattering sample with a known gap was available to test the power law on.
 
+### Own choices, decided by the owner's rule (2026-11-15)
+
+The owner asked for the choices labelled "own choice" in parts B and C to be decided from standard
+practice and the literature, without waiting for the owner. They are kept as built:
+
+| Choice                                                             | Kept as | Basis                                                                                                                                                                                     |
+| ------------------------------------------------------------------ | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fit the power law to all the data below the edge                   | kept    | Kubetschek et al. 2024, p. 8: the exponents were "fitted in the linear region below 850 nm", that is over the whole non-resonant range below the transitions                              |
+| Bounds 0 ≤ m ≤ 4                                                   | kept    | the same page gives m = 4 (Rayleigh) and m = 2 (van de Hulst, Mie) as the two limits; 0 is included so that a flat level is also covered. No higher value is physical for this scattering |
+| Constant a in a + c·Eᵐ                                             | kept    | own choice: the straight-line baseline of 19a has an offset as well, and a sample or cuvette offset does not follow λ⁻ᵐ                                                                   |
+| Steepest-point anchor (±0.05 eV slope, 3σ bound, half-height rise) | kept    | own choice: the Tauc line is fitted on the linear part of the rising edge; no paper stating the steepest-point rule was opened, so the 19b and 22 checks are its only support             |
+| Fallback to the earlier rule when the slope still rises at the end | kept    | own choice, needed by the curved-background case above                                                                                                                                    |
+| Warning at σ(Eg) > 0.05 eV                                         | kept    | own choice: larger than the ±0.03 eV margin Makuła et al. 2018 state for their gaps, so the warning appears only when the background, not the edge fit, dominates the uncertainty         |
+| Suggestion when the power-law residual is at most half the line's  | kept    | own choice: it fires on the c·E² and c·E⁴ cases and not on a straight level or a c·E background (above)                                                                                   |
+
 ### Part D: optical conductivity; polydispersity index
 
-| Item                    | Check                                                                | Source                    | Result                            |
-| ----------------------- | -------------------------------------------------------------------- | ------------------------- | --------------------------------- |
-| D1 optical conductivity | not built: the textbook page with the SI definition was not supplied | none                      | skipped; the 19e Open entry stays |
-| D2 polydispersity index | not built; one help sentence beside the CV                           | owner decision, Nov. 2026 | 19f Open entry closed             |
+| Item                    | Check                                      | Source                    | Result                |
+| ----------------------- | ------------------------------------------ | ------------------------- | --------------------- |
+| D1 optical conductivity | built in the main tool; see below          | M. Fox, chapter 7         | pass                  |
+| D2 polydispersity index | not built; one help sentence beside the CV | owner decision, Nov. 2026 | 19f Open entry closed |
+
+### Part D1: optical conductivity
+
+Source opened in the session (supplied by the owner): M. Fox, Optical Properties of Solids (Oxford
+University Press), chapter 7, "Free electrons": eq. 7.15 (p. 183), ε_r(ω) = 1 + iσ(ω)/(ε₀ω), so the
+real part of σ is ε₀ωε₂; p. 194, κ = ε₂/(2n); eq. 7.18 (p. 184, via eq. 1.19), α = 2ωκ/c. Together,
+σ = ε₀cnα in S/m with α in m⁻¹. ε₀ = 8.8541878188 × 10⁻¹² F/m, 2022 CODATA
+(https://physics.nist.gov/cgi-bin/cuu/Value?ep0, read 2026-11-15).
+
+Code: src/core/uvvis/optics.ts (`opticalConductivity`), src/core/uvvis/conversions.ts (ε₀),
+src/modules/uvvis/OpticalExtras.tsx (table, CSV, figure), src/core/uvvis/methods.ts. Tests:
+tests/uvvis-optical-conductivity.test.ts, tests/validation-uvvis-completion.test.ts. Independent:
+scripts/validation/spectra/uvvis_completion.py, block `conductivity` (numpy arrays, ε₀ and c from
+scipy.constants).
+
+Offered only where α is absolute (a film with its thickness) and only from a constant n typed by the
+user, shown as an assumption on the table, the figure label, the CSV and the methods text. Never
+from the n(Eg) estimates. Labelled an estimate. Saved sessions without n are unchanged (the setting
+is absent), so no migration was needed.
+
+| Check                                                                   | Kind                | Tolerance      | Result                           |
+| ----------------------------------------------------------------------- | ------------------- | -------------- | -------------------------------- |
+| α = 10⁴ cm⁻¹, n = 2: σ = 5308.8374595834212 S/m (by hand, 20 digits)    | hand-worked value   | 10⁻¹² relative | pass                             |
+| σ against numpy on 6 α × 4 n, and ε₀ equal to SciPy's CODATA value      | independent (numpy) | 10⁻¹² relative | pass (numpy 2.5.4, scipy 1.18.1) |
+| σ = ε₀ω·2nk with k = αλ/(4π) (Fox eq. 7.15 with κ = ε₂/2n), three cases | consistency with k  | 10⁻¹² relative | pass                             |
+| σ ∝ n and σ ∝ α; NaN for n ≤ 0 or non-finite α                          | invariance, guard   | 10⁻¹⁵ relative | pass                             |
+| Methods sentence only when n was typed and α is absolute                | regression          | as stated      | pass                             |
+
+Open: the film tool (Swanepoel) gives n but no α, so σ is not offered there.
 
 ### Part A: original papers
 
-Not done: the papers of Cody et al. 1981, Moss 1950, Ravindra and Srivastava 1979 and Hervé and
-Vandamme 1994 were not supplied. The code, the on-screen text and the methods text are unchanged
-(Hervé–Vandamme B stays 3.47 eV, as printed by Tripathy 2015), and the 19e Open entries stay.
+All four papers were supplied by the owner and read on 2026-11-15.
+
+| Paper                                                                                       | Compared                                                                                                                                          | Result                                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T. S. Moss, Proc. Phys. Soc. B 63 (1950) 167, p. 168                                        | n⁴/λ ≈ 77 (λ in µm), "for the more highly refractive compounds", worse as n falls; against the code's n⁴Eg = 95 eV                                | same relation in energy form: 77 × 1.23984 eV·µm = 95.5 eV. K = 95 eV kept, the form of Hervé–Vandamme eq. 1 (0.12 % in n)                                                                                |
+| N. M. Ravindra, S. Auluck, V. K. Srivastava, Phys. Status Solidi B 93 (1979) K155, eq. 5    | n = 4.084 − 0.62 E_G, "valid for a wide range of semiconductors independent of structure"                                                         | matches the code, constants and units                                                                                                                                                                     |
+| P. J. L. Hervé, L. K. J. Vandamme, Infrared Phys. Technol. 35 (1994) 609, eq. 10            | n² = 1 + [A/(Eg + B)]², A = 13.6 eV, B = 3.4 eV; not for IV–VI compounds                                                                          | B changed from 3.47 eV (Tripathy 2015) to 3.4 eV in optics.ts, methods.ts, the CSV note, the tests and the SciPy script                                                                                   |
+| G. D. Cody et al., Phys. Rev. Lett. 47 (1981) 1480, eq. 2                                   | (α(E,T)·E)^(1/2) = C[E − E₀(T)], the Tauc form, E₀ ≈ 1.70 eV for a-Si:H                                                                           | not the source of the (α/E)^(1/2) plot; it contradicted the attribution of 19e, so the later chapter below was supplied by the owner                                                                      |
+| G. D. Cody, Semiconductors and Semimetals 21B (1984), ch. 2, p. 26, eq. 23 (p. 29), Fig. 16 | energy-independent dipole (coordinate) matrix element; ε₂(E) = Q²M³(0.2/ν)(E − E_G)²; (ε₂)^(1/2) plotted against E, E_G where the line meets zero | with ε₂ = nαc/ω (Fox, p. 194 and eq. 7.18), (ε₂)^(1/2) ∝ (nα/E)^(1/2): the code's (α/E)^(1/2) for constant n. Formula unchanged; citation corrected in crossChecks.ts, the help text and the methods text |
+
+Stated ranges: none of the originals gives the numeric warning ranges (0.17–3.68 eV for Moss, a
+failure below 1.4 eV for Hervé–Vandamme); those stay from Tripathy 2015 and are labelled so.
+
+Values that changed: every Hervé–Vandamme refractive index, by +0.5 % to +1.3 % for Eg from 6 to
+1.4 eV: Eg = 1.4 eV, n = 2.9663 → 3.0046; 3.2 eV, 2.2710 → 2.2904; 3.4 eV, 2.2179 → 2.2361; 6 eV,
+1.7500 → 1.7588. No band gap and no other result changed.

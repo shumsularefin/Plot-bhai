@@ -50,6 +50,8 @@ export interface UvvisMethodsInput {
     cody: [number, number] | null;
     /** Sigmoid fit, when the cross-check gave a gap. */
     sigmoid: { type: SigmoidType; fromEv: number; toEv: number } | null;
+    /** Refractive index typed by the user for the optical conductivity, or null when not used. */
+    conductivityIndex: number | null;
     /** Bands of the band table, and the prominence threshold used. */
     bands: { count: number; prominencePercent: number; shoulders: number; hand: number };
     /** Band fit on the energy axis, when one was made. */
@@ -271,7 +273,7 @@ export function uvvisMethodsParagraph(input: UvvisMethodsInput): string {
               `${number((s.cody as [number, number])[0])}–${number((s.cody as [number, number])[1])} eV`,
           ),
         ),
-      )}) and Eg read where it meets zero (no refractive index factor).`,
+      )}) and Eg read where it meets zero (G. D. Cody, Semiconductors and Semimetals 21B (1984), ch. 2, eq. 23; refractive index taken as constant).`,
     );
   const sigmoid = fitted.filter((s) => s.sigmoid);
   if (sigmoid.length > 0) {
@@ -288,8 +290,14 @@ export function uvvisMethodsParagraph(input: UvvisMethodsInput): string {
     );
   }
   sentences.push(
-    'Refractive indices listed with the band gaps are rough empirical estimates from Eg by the relations of Moss (n⁴Eg = 95 eV), Ravindra (n = 4.084 − 0.62Eg) and Hervé–Vandamme (n² = 1 + (13.6/(Eg + 3.47))², energies in eV), as given by S. K. Tripathy, Opt. Mater. 46 (2015) 240.',
+    'Refractive indices listed with the band gaps are rough empirical estimates from Eg by the relations of Moss (n⁴Eg = 95 eV; T. S. Moss, Proc. Phys. Soc. B 63 (1950) 167, in the form of Hervé and Vandamme, eq. 1), Ravindra (n = 4.084 − 0.62Eg; N. M. Ravindra, S. Auluck and V. K. Srivastava, Phys. Status Solidi B 93 (1979) K155, eq. 5) and Hervé–Vandamme (n² = 1 + (13.6/(Eg + 3.4))²; P. J. L. Hervé and L. K. J. Vandamme, Infrared Phys. Technol. 35 (1994) 609, eq. 10), energies in eV.',
   );
+
+  const conductivity = fitted.filter((s) => s.conductivityIndex !== null);
+  if (conductivity.length > 0)
+    sentences.push(
+      `The optical conductivity was estimated as σ = ε₀cnα (S/m; from M. Fox, Optical Properties of Solids, Oxford University Press, eqs. 7.15 and 7.18, with κ = ε₂/2n), with ε₀ = 8.8541878188 × 10⁻¹² F/m (CODATA 2022) and a refractive index assumed constant over the spectrum, n = ${list(unique(conductivity.map((s) => number(s.conductivityIndex as number))))}.`,
+    );
 
   const banded = spectra.filter((s) => s.bands.count > 0);
   if (banded.length > 0) {

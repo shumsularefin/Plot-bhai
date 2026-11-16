@@ -4,7 +4,7 @@ import { runBandGapJob, type BandGapAnalysis, type BandGapJob } from './bandGap'
 
 /*
  * The band gap analysis runs in a web worker (src/workers/bandgap.worker.ts): on a spectrum of
- * 50,000 points it takes seconds (CLAUDE.md section 6: heavy work never blocks the main thread).
+ * 50,000 points it takes seconds (heavy work must never block the main thread).
  * Results are kept by the content of their inputs, so the Band gap step, the Results step, its
  * figures and the analysis record share them. One job runs at a time; a job nobody waits for any
  * more (the user moved on) is dropped before it starts. Where workers do not exist (unit tests in
