@@ -426,11 +426,11 @@ html:has(.wizard-footer) {
   color: var(--color-text-muted);
 }
 
-/* How to do this step: a grouped box of numbered tips, laid out in tiles when there is room. */
+/* How to do this step: a grouped box of numbered tips, one compact row per tip. */
 .step-guide {
   display: grid;
-  gap: var(--space-3);
-  padding: var(--space-4);
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-toolbar);
@@ -452,22 +452,25 @@ html:has(.wizard-footer) {
 
 .step-guide ol {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
-  gap: var(--space-3);
   margin: 0;
   padding: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-control);
   list-style: none;
   counter-reset: tip;
 }
 
 .step-guide li {
   display: flex;
+  align-items: baseline;
   gap: var(--space-3);
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-control);
+  padding: var(--space-2) var(--space-3);
   counter-increment: tip;
+}
+
+.step-guide li + li {
+  border-top: 1px solid var(--color-border);
 }
 
 .step-guide li::before {

@@ -485,7 +485,7 @@ async function main() {
   }
   const index: ReferenceIndex = {
     source:
-      'Patterns computed from CIF files of the Crystallography Open Database (COD, http://www.crystallography.net/), kinematic model, Cu Ka1; see docs/PROGRESS.md.',
+      'Patterns computed from CIF files of the Crystallography Open Database (COD, http://www.crystallography.net/), kinematic model, Cu Ka1; see DATA-SOURCES.md.',
     intensityWavelength: ANODES.Cu.kAlpha1,
     families: [],
   };

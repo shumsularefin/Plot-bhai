@@ -1,5 +1,5 @@
 {
- "source": "Patterns computed from CIF files of the Crystallography Open Database (COD, http://www.crystallography.net/), kinematic model, Cu Ka1; see docs/PROGRESS.md.",
+ "source": "Patterns computed from CIF files of the Crystallography Open Database (COD, http://www.crystallography.net/), kinematic model, Cu Ka1; see DATA-SOURCES.md.",
  "intensityWavelength": 1.5405929,
  "families": [
   {

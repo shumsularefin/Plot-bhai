@@ -1,4 +1,4 @@
-// Fails when the initial JavaScript of the app shell exceeds the budget in CLAUDE.md
+// Fails when the initial JavaScript of the app shell exceeds the budget
 // (150 KB gzipped). "Initial" means every script index.html loads or preloads; lazily
 // loaded tool chunks are listed for information only. Run after `npm run build`.
 import { readFileSync, readdirSync } from 'node:fs';

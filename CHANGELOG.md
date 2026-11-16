@@ -4,8 +4,7 @@ Versions follow [semantic versioning](https://semver.org): a new minor number (1
 and keeps every saved session readable; a new major number (2.0.0) would break something users
 depend on. Each version is archived on Zenodo; the concept DOI
 [10.5281/zenodo.24222105](https://doi.org/10.5281/zenodo.24222105) always points to the latest.
-Details of every change and its checks are in [docs/PROGRESS.md](docs/PROGRESS.md) and
-[docs/validation.md](docs/validation.md).
+Details of every check are in [docs/validation.md](docs/validation.md).
 
 ## 1.1.0 (2026-11-15)
 

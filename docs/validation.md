@@ -1481,8 +1481,8 @@ What was found:
   What stays unread is listed in section 19.
 - The ZnO example's bond-valence sum: the published structure (COD 1577381) gives 1.904 for Zn, and
   the end-to-end run shows 1.906(3) after refinement. A sum of 1.69 was not reproduced.
-- The tracker in docs/EXECUTION-PLAN.md had rows "17" and "18" beside 17a to 17i; they are now 18
-  and 19, and this work is row 20.
+- The stage numbers were tidied: the stages once numbered "17" and "18" beside 17a to 17i are now
+  18 and 19, and this work is stage 20.
 
 Decisions kept (the owner can change them):
 
@@ -1552,8 +1552,8 @@ Open:
   (the host is gone, the IUCr site needs a browser) and carry no stated licence. They stay
   "recognised, cannot read". Closed by the owner on 2026-11-15: no raw files are
   available to test with.
-- The differences found in GSAS-II are drafted as reports in docs/gsas2-issue-drafts.md, for the
-  owner to send; they are not resolved.
+- The differences found in GSAS-II are drafted as reports for the GSAS-II developers;
+  they are not resolved.
 - The counting-noise limits (0.5 and 2) stay a rule of the site, as the owner left them.
 
 ## 22: UV-Vis open items (2026-11-15)
