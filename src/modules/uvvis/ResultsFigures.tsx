@@ -4,7 +4,9 @@ import { PlotPanel } from '../../ui/plot/PlotPanel';
 import type { SeriesSource } from '../../ui/plot/series';
 import type { PlotMarker } from '../../ui/plot/types';
 import type { StepContext } from '../../ui/wizard/types';
-import { analyseSpectrum, cleanAll, type BandGapAnalysis } from './analysis';
+import { cleanAll, spectrumJob } from './analysis';
+import type { BandGapAnalysis } from './bandGap';
+import { useBandGaps } from './bandGapClient';
 import { bandLabels, bandRows } from './bands';
 import { bandGapFor, type UvvisData } from './data';
 import { taucLabels } from './labels';
@@ -102,14 +104,28 @@ function TaucFigure({ data, update }: Pick<StepContext<UvvisData>, 'data' | 'upd
   const first = spectra[0];
   const transition: TransitionId =
     figures.taucTransition ?? (first ? bandGapFor(data, first.id).transition : 'direct-allowed');
-  const items = useMemo<TaucItem[]>(() => {
+  const wanted = useMemo(() => {
     const cleaned = cleanAll(data.spectra, data.cleaning);
     return data.spectra.flatMap((s, i) => {
-      const choice = { ...bandGapFor(data, s.id), transition };
-      const analysis = analyseSpectrum(data, cleaned, i, choice);
-      return analysis ? [{ id: s.id, name: s.name, analysis }] : [];
+      const job = spectrumJob(data, cleaned, i, { ...bandGapFor(data, s.id), transition });
+      return job ? [{ id: s.id, name: s.name, job }] : [];
     });
   }, [data, transition]);
+  const jobs = useMemo(() => wanted.map((w) => w.job), [wanted]);
+  // The last figure of the same spectra stays while another transition is analysed.
+  const gaps = useBandGaps(jobs, wanted.map((w) => w.id).join('\u0000'));
+  const analyses = gaps.analyses ?? gaps.previous;
+  const items = useMemo<TaucItem[]>(
+    () =>
+      analyses
+        ? wanted.map((w, i) => ({
+            id: w.id,
+            name: w.name,
+            analysis: analyses[i] as BandGapAnalysis,
+          }))
+        : [],
+    [wanted, analyses],
+  );
   const fitted = items.filter((it) => it.analysis.fit);
   const chosen = figures.taucIds
     ? fitted.filter((it) => (figures.taucIds as string[]).includes(it.id))
@@ -191,6 +207,13 @@ function TaucFigure({ data, update }: Pick<StepContext<UvvisData>, 'data' | 'upd
           </select>
         </label>
       </div>
+      <p class="field-hint" role="status">
+        {gaps.error
+          ? `The band gaps could not be found: ${gaps.error}`
+          : gaps.analyses
+            ? ''
+            : 'Finding the band gaps for this transition…'}
+      </p>
       <fieldset class="radiation-fields">
         <legend>Spectra in the figure</legend>
         {items.map((it) => (

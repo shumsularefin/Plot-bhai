@@ -9,7 +9,15 @@ import { GAP_METHODS, TRANSITIONS } from '../../core/uvvis/tauc';
 import { formatWithSigma } from '../../ui/format';
 import { powerBaselineText } from './tables';
 import { fingerprint, type AnalysisRecord, type RecordData } from '../../ui/report/record';
-import { baselineUsed, cleanAll, fitMessages, resultRows, type ResultRow } from './analysis';
+import {
+  baselineUsed,
+  cleanAll,
+  fitMessages,
+  resultJobs,
+  rowsFrom,
+  type ResultRow,
+} from './analysis';
+import { analyseJobs } from './bandGapClient';
 import { bandRows, ORIGIN_TEXT } from './bands';
 import { cleaningFor, type UvvisData } from './data';
 import { methodsText } from './methodsText';
@@ -19,7 +27,9 @@ const n = (v: number, digits = 4) => Number(v.toPrecision(digits)).toString();
 /** The UV-Vis analysis record (see src/ui/report/record.ts), written from the saved session. */
 export async function uvvisRecord(data: UvvisData): Promise<AnalysisRecord> {
   const cleaned = cleanAll(data.spectra, data.cleaning);
-  const rows = resultRows(data);
+  // The band gaps come from the worker (and its cache, usually filled by the Results step).
+  const pending = resultJobs(data);
+  const rows = rowsFrom(pending, await analyseJobs(pending.map((r) => r.job)));
   const bands = bandRows(data);
   const records: RecordData[] = [];
   const results: AnalysisRecord['results'] = [];
@@ -77,7 +87,7 @@ export async function uvvisRecord(data: UvvisData): Promise<AnalysisRecord> {
       `λmax searched from ${data.lambdaRange.fromNm ?? 'the start'} to ${data.lambdaRange.toNm ?? 'the end'} nm`,
     ],
     results,
-    methods: methodsText(data),
+    methods: methodsText(data, rows),
   };
 }
 

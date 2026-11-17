@@ -17,7 +17,7 @@ import type { StepContext } from '../../ui/wizard/types';
 import { downloadCsv } from '../xrd/csv';
 import { TableBox } from '../xrd/MethodDetails';
 import { NumberInput } from '../xrd/NumberInput';
-import { sigmoidTypeFor, type BandGapAnalysis } from './analysis';
+import { sigmoidTypeFor, type BandGapAnalysis } from './bandGap';
 import type { BandGapChoice, UvvisData } from './data';
 import { codyLabels, edgeLabels } from './labels';
 import { gapText } from './tables';

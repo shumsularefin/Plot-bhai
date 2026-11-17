@@ -1,45 +1,14 @@
 import { energyFromWavelength } from '../../core/uvvis/conversions';
-import {
-  codyGap,
-  sigmoidGap,
-  suggestSigmoidRange,
-  type CodyGap,
-  type SigmoidFit,
-  type SigmoidType,
-} from '../../core/uvvis/crossChecks';
-import {
-  cleanSpectrum,
-  DEFAULT_CLEANING,
-  lambdaMax,
-  toQuantity,
-  type Cleaned,
-} from '../../core/uvvis/process';
-import {
-  absorptionSignal,
-  analyseTaucGap,
-  compareTransitions,
-  derivativeMaximum,
-  GAP_METHODS,
-  interpolateOnto,
-  suggestUrbachRegion,
-  SUB_GAP_SHIFT_EV,
-  TRANSITIONS,
-  urbachFit,
-  type AbsorptionSignal,
-  type DerivativePeak,
-  type TaucGap,
-  type TransitionComparison,
-  type TransitionId,
-  type UrbachFit,
-} from '../../core/uvvis/tauc';
+import { cleanSpectrum, DEFAULT_CLEANING, lambdaMax, type Cleaned } from '../../core/uvvis/process';
+import { GAP_METHODS, SUB_GAP_SHIFT_EV, type TaucGap } from '../../core/uvvis/tauc';
 import type { Spectrum } from '../../core/uvvis/types';
 import {
-  bandGapFor,
-  opticalPathNm,
-  reportedTransitions,
-  type BandGapChoice,
-  type UvvisData,
-} from './data';
+  runBandGapJob,
+  type BandGapAnalysis,
+  type BandGapJob,
+  type CleanedSpectrum,
+} from './bandGap';
+import { bandGapFor, reportedTransitions, type BandGapChoice, type UvvisData } from './data';
 
 /** Cleans every spectrum with its own settings (the blank is the spectrum chosen for it). */
 export function cleanAll(spectra: readonly Spectrum[], cleaning: UvvisData['cleaning']): Cleaned[] {
@@ -50,201 +19,6 @@ export function cleanAll(spectra: readonly Spectrum[], cleaning: UvvisData['clea
       : undefined;
     return cleanSpectrum(s, settings, blank);
   });
-}
-
-export interface BandGapAnalysis extends TaucGap {
-  signal: AbsorptionSignal;
-  /** For 'subtract-component': the component spectrum used, or why none could be used. */
-  component: { name: string } | null;
-  componentProblem: ComponentProblem;
-  /** True when the method was chosen automatically. */
-  automatic: boolean;
-  comparison: TransitionComparison[];
-  urbach: { region: [number, number] | null; fit: UrbachFit | null } | null;
-  derivative: DerivativePeak | null;
-  /** What was measured, from the settings: it decides what α means. */
-  sample: BandGapChoice['sample'];
-  /** How reflection was treated in α (films with a thickness only; null otherwise). */
-  reflection: Reflection | null;
-  /** Cody plot cross-check, when switched on. */
-  cody: CodyGap | null;
-  /** Sigmoid (Boltzmann) cross-check, when switched on. */
-  sigmoid: SigmoidCheck | null;
-}
-
-/**
- * Reflection in α of a film: 'corrected' with the chosen reflectance spectrum, 'none' when no
- * spectrum is chosen (α is then overestimated where the film reflects), or why the chosen one
- * cannot be used.
- */
-export type Reflection =
-  | { state: 'corrected'; name: string }
-  | { state: 'none' }
-  | { state: 'not-reflectance' | 'no-overlap'; name: string };
-
-export interface SigmoidCheck {
-  type: SigmoidType;
-  range: [number, number] | null;
-  fit: SigmoidFit | null;
-}
-
-/** The sigmoid type that matches a Tauc transition, used when the user has not chosen one. */
-export const sigmoidTypeFor = (transition: TransitionId): SigmoidType =>
-  transition.startsWith('direct') ? 'direct' : 'indirect';
-
-/** A spectrum with its cleaned data, as passed for the second component. */
-export interface CleanedSpectrum {
-  spectrum: Pick<Spectrum, 'id' | 'name' | 'kind' | 'scale'>;
-  cleaned: Pick<Cleaned, 'wavelengthNm' | 'values'>;
-}
-
-/** Why a chosen component spectrum cannot be used, or null when it can. */
-export type ComponentProblem = 'none-chosen' | 'unit' | 'no-overlap' | null;
-
-/** All band gap numbers of one cleaned spectrum under its settings. */
-export function analyseBandGap(
-  spectrum: Pick<Spectrum, 'kind' | 'scale'>,
-  cleaned: Pick<Cleaned, 'wavelengthNm' | 'values'>,
-  choice: BandGapChoice,
-  component: CleanedSpectrum | null = null,
-  reflectance: CleanedSpectrum | null = null,
-): BandGapAnalysis {
-  const path = opticalPathNm(choice);
-  const film = choice.sample === 'film' && path !== null && spectrum.kind !== 'reflectance';
-  let reflection: Reflection | null = film ? { state: 'none' } : null;
-  let reflectanceValues: Float64Array | null = null;
-  if (film && reflectance) {
-    const name = reflectance.spectrum.name;
-    const percent =
-      reflectance.spectrum.kind === 'reflectance'
-        ? toQuantity(reflectance.cleaned.values, reflectance.spectrum, 'reflectance')
-        : null;
-    if (!percent) reflection = { state: 'not-reflectance', name };
-    else {
-      reflectanceValues = interpolateOnto(
-        reflectance.cleaned.wavelengthNm,
-        percent.map((v) => v / 100),
-        cleaned.wavelengthNm,
-      );
-      if (reflectanceValues.some(Number.isFinite)) reflection = { state: 'corrected', name };
-      else {
-        reflectanceValues = null;
-        reflection = { state: 'no-overlap', name };
-      }
-    }
-  }
-  const signal = absorptionSignal(
-    cleaned.wavelengthNm,
-    cleaned.values,
-    spectrum,
-    path,
-    reflectanceValues,
-  );
-  // The component is converted to the same quantity (A or F(R)); its scale, including any
-  // thickness, is absorbed by the factor c.
-  let componentSignal: Float64Array | null = null;
-  let componentProblem: ComponentProblem = null;
-  if (choice.method === 'subtract-component') {
-    if (!component) componentProblem = 'none-chosen';
-    else {
-      const other = absorptionSignal(
-        component.cleaned.wavelengthNm,
-        component.cleaned.values,
-        component.spectrum,
-        null,
-      );
-      if ((other.unit === 'kubelka-munk') !== (signal.unit === 'kubelka-munk')) {
-        componentProblem = 'unit';
-      } else {
-        componentSignal = interpolateOnto(other.energyEv, other.signal, signal.energyEv);
-        if (!componentSignal.some(Number.isFinite)) {
-          componentSignal = null;
-          componentProblem = 'no-overlap';
-        }
-      }
-    }
-  }
-  const options = {
-    method: choice.method,
-    baselineRegion: choice.baselineRegion,
-    ...(choice.legacySuggestion && { legacySuggestion: true }),
-    ...(choice.regionRule && { regionRule: choice.regionRule }),
-    ...(choice.powerBaseline && {
-      baselineShape: 'power' as const,
-      baselineExponent: choice.powerBaseline.exponent,
-    }),
-    component: componentSignal
-      ? { signal: componentSignal, factor: choice.component?.factor ?? null }
-      : null,
-  };
-  const gap = analyseTaucGap(
-    signal.energyEv,
-    signal.signal,
-    TRANSITIONS[choice.transition].exponent,
-    { ...options, edgeRegion: choice.regions[choice.transition] ?? null },
-  );
-  const { fit, region } = gap;
-  const comparison = compareTransitions(signal.energyEv, signal.signal, choice.regions, options);
-
-  let urbach: BandGapAnalysis['urbach'] = null;
-  if (choice.urbach.enabled) {
-    const urbachRegion =
-      choice.urbach.region ??
-      (fit ? suggestUrbachRegion(signal.energyEv, signal.signal, fit.egEv) : null);
-    urbach = {
-      region: urbachRegion,
-      fit: urbachRegion
-        ? urbachFit(signal.energyEv, signal.signal, urbachRegion[0], urbachRegion[1])
-        : null,
-    };
-  }
-  // The derivative is searched around the fit region (0.3 eV either side), or over everything.
-  const derivative =
-    choice.derivative === 'off'
-      ? null
-      : derivativeMaximum(
-          signal.energyEv,
-          signal.signal,
-          choice.derivative,
-          region ? region[0] - 0.3 : -Infinity,
-          region ? region[1] + 0.3 : Infinity,
-        );
-  const cody = choice.cody.enabled
-    ? codyGap(
-        signal.energyEv,
-        signal.signal,
-        choice.cody.region,
-        choice.legacySuggestion || choice.regionRule ? 'widest' : 'steepest',
-      )
-    : null;
-  let sigmoid: SigmoidCheck | null = null;
-  if (choice.sigmoid.enabled) {
-    const type = choice.sigmoid.type ?? sigmoidTypeFor(choice.transition);
-    const range =
-      choice.sigmoid.range ??
-      (fit ? suggestSigmoidRange(signal.energyEv, signal.signal, fit.egEv) : null);
-    sigmoid = {
-      type,
-      range,
-      fit: range
-        ? sigmoidGap(signal.energyEv, signal.signal, range, type, choice.sigmoid.range === null)
-        : null,
-    };
-  }
-  return {
-    ...gap,
-    signal,
-    component: componentSignal && component ? { name: component.spectrum.name } : null,
-    componentProblem,
-    automatic: choice.method === null,
-    comparison,
-    urbach,
-    derivative,
-    sample: choice.sample,
-    reflection,
-    cody,
-    sigmoid,
-  };
 }
 
 export interface ResultRow {
@@ -293,31 +67,45 @@ export function reflectanceFor(
   return spectrum && clean ? { spectrum, cleaned: clean } : null;
 }
 
-/** The band gap analysis of one spectrum of the session with its saved settings. */
-export function analyseSpectrum(
+const slim = (c: CleanedSpectrum | null): CleanedSpectrum | null =>
+  c && {
+    spectrum: {
+      id: c.spectrum.id,
+      name: c.spectrum.name,
+      kind: c.spectrum.kind,
+      scale: c.spectrum.scale,
+    },
+    cleaned: { wavelengthNm: c.cleaned.wavelengthNm, values: c.cleaned.values },
+  };
+
+/** The analysis job of one spectrum of the session with its saved settings. */
+export function spectrumJob(
   data: UvvisData,
   cleaned: readonly Cleaned[],
   index: number,
   choice: BandGapChoice = bandGapFor(data, data.spectra[index]?.id ?? ''),
-): BandGapAnalysis | null {
+): BandGapJob | null {
   const spectrum = data.spectra[index];
   const clean = cleaned[index];
   if (!spectrum || !clean) return null;
-  return analyseBandGap(
-    spectrum,
-    clean,
+  return {
+    spectrum: { kind: spectrum.kind, scale: spectrum.scale },
+    cleaned: { wavelengthNm: clean.wavelengthNm, values: clean.values },
     choice,
-    componentFor(data.spectra, cleaned, choice, spectrum.id),
-    reflectanceFor(data.spectra, cleaned, choice, spectrum.id),
-  );
+    component: slim(componentFor(data.spectra, cleaned, choice, spectrum.id)),
+    reflectance: slim(reflectanceFor(data.spectra, cleaned, choice, spectrum.id)),
+  };
 }
 
+/** A result row before its analysis is done, with the job that gives it. */
+export type PendingRow = Omit<ResultRow, 'analysis' | 'edgeNm'> & { job: BandGapJob };
+
 /**
- * Result rows from the cleaned data: per spectrum, one for the transition in use and one for each
- * other transition chosen to be reported, each with its own fit region. The cross-checks (Cody,
- * sigmoid) belong to the spectrum and are kept on its first row only.
+ * The rows of the results table from the cleaned data: per spectrum, one for the transition in
+ * use and one for each other transition chosen to be reported, each with its own fit region. The
+ * cross-checks (Cody, sigmoid) belong to the spectrum and are kept on its first row only.
  */
-export function resultRows(data: UvvisData): ResultRow[] {
+export function resultJobs(data: UvvisData): PendingRow[] {
   const cleaned = cleanAll(data.spectra, data.cleaning);
   return data.spectra.flatMap((spectrum, i) => {
     const clean = cleaned[i] ?? spectrum;
@@ -339,20 +127,34 @@ export function resultRows(data: UvvisData): ResultRow[] {
               cody: { ...saved.cody, enabled: false },
               sigmoid: { ...saved.sigmoid, enabled: false },
             };
-      const analysis = analyseSpectrum(data, cleaned, i, choice);
-      if (!analysis) return [];
-      return [
-        {
-          spectrum,
-          choice,
-          primary: k === 0,
-          lambdaMax: max,
-          analysis,
-          edgeNm: analysis.fit ? energyFromWavelength(analysis.fit.egEv) : null,
-        },
-      ];
+      const job = spectrumJob(data, cleaned, i, choice);
+      return job ? [{ spectrum, choice, primary: k === 0, lambdaMax: max, job }] : [];
     });
   });
+}
+
+/** The result rows, given the analysis of each pending row (in the same order). */
+export function rowsFrom(pending: readonly PendingRow[], analyses: readonly BandGapAnalysis[]) {
+  return pending.map((row, i): ResultRow => {
+    const analysis = analyses[i] as BandGapAnalysis;
+    return {
+      spectrum: row.spectrum,
+      choice: row.choice,
+      primary: row.primary,
+      lambdaMax: row.lambdaMax,
+      analysis,
+      edgeNm: analysis.fit ? energyFromWavelength(analysis.fit.egEv) : null,
+    };
+  });
+}
+
+/** The result rows, analysed on this thread (see `useBandGaps` for the worker). */
+export function resultRows(data: UvvisData): ResultRow[] {
+  const pending = resultJobs(data);
+  return rowsFrom(
+    pending,
+    pending.map((row) => runBandGapJob(row.job)),
+  );
 }
 
 export interface FitMessage {

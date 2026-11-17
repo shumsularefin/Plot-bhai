@@ -17,11 +17,17 @@ export interface LinearFit {
  * with Sxx = Σ(x − x̄)² and Sxy = Σ(x − x̄)(y − ȳ). Units follow x and y.
  * Returns null with fewer than two points or when every x is the same.
  */
-export function linearFit(x: readonly number[], y: readonly number[]): LinearFit | null {
+export function linearFit(x: ArrayLike<number>, y: ArrayLike<number>): LinearFit | null {
   const n = x.length;
   if (n < 2) return null;
-  const xBar = x.reduce((s, v) => s + v, 0) / n;
-  const yBar = y.reduce((s, v) => s + v, 0) / n;
+  let sumX = 0;
+  let sumY = 0;
+  for (let i = 0; i < n; i++) {
+    sumX += x[i] as number;
+    sumY += y[i] as number;
+  }
+  const xBar = sumX / n;
+  const yBar = sumY / n;
   let sxx = 0;
   let sxy = 0;
   let sst = 0;

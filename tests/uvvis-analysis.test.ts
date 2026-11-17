@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { HC_EV_NM } from '../src/core/uvvis/conversions';
 import { DEFAULT_CLEANING } from '../src/core/uvvis/process';
 import { EXAMPLE_BAND_GAP_EV } from '../src/core/uvvis/synthetic';
-import { analyseBandGap, cleanAll, fitMessages, resultRows } from '../src/modules/uvvis/analysis';
+import { cleanAll, fitMessages, resultRows } from '../src/modules/uvvis/analysis';
+import { analyseBandGap } from '../src/modules/uvvis/bandGap';
 import {
   DEFAULT_BAND_GAP,
   exampleSpectra,

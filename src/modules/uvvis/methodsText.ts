@@ -2,7 +2,7 @@ import { SOFTWARE } from '../../ui/software';
 import { uvvisMethodsParagraph, type UvvisMethodsInput } from '../../core/uvvis/methods';
 import { DEFAULT_CLEANING } from '../../core/uvvis/process';
 import { uvvisPeaks } from '../../core/uvvis/peaks';
-import { baselineUsed, cleanAll, resultRows } from './analysis';
+import { baselineUsed, cleanAll, resultRows, type ResultRow } from './analysis';
 import { bandFitKey, bandSignal } from './bands';
 import { extinctionRows } from './OpticalExtras';
 import { bandFitFor, peakEditsFor, peaksFor, type UvvisData } from './data';
@@ -13,9 +13,11 @@ const PROFILE_NAMES = {
   'pseudo-voigt': 'pseudo-Voigt',
 } as const;
 
-/** The settings that went into the analysis, read from the saved session. */
-export function methodsInput(data: UvvisData): UvvisMethodsInput {
-  const all = resultRows(data);
+/** The settings that went into the analysis, read from the saved session and its result rows. */
+export function methodsInput(
+  data: UvvisData,
+  all: ResultRow[] = resultRows(data),
+): UvvisMethodsInput {
   const rows = all.filter((r) => r.primary);
   const cleaned = cleanAll(data.spectra, data.cleaning);
   return {
@@ -105,4 +107,5 @@ export function methodsInput(data: UvvisData): UvvisMethodsInput {
   };
 }
 
-export const methodsText = (data: UvvisData): string => uvvisMethodsParagraph(methodsInput(data));
+export const methodsText = (data: UvvisData, rows?: ResultRow[]): string =>
+  uvvisMethodsParagraph(methodsInput(data, rows));

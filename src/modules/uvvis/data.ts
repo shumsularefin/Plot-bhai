@@ -308,12 +308,6 @@ export function reportedTransitions(choice: BandGapChoice): TransitionId[] {
   return [choice.transition, ...choice.reported.filter((t) => t !== choice.transition)];
 }
 
-/** Optical path in nm for α = ln(10)·A/path: the film thickness, or the cuvette path length. */
-export function opticalPathNm(choice: BandGapChoice): number | null {
-  if (choice.sample === 'solution') return choice.pathCm !== null ? choice.pathCm * 1e7 : null;
-  return choice.thicknessNm;
-}
-
 export function cleaningFor(data: Pick<UvvisData, 'cleaning'>, id: string): CleaningSettings {
   return data.cleaning[id] ?? DEFAULT_CLEANING;
 }

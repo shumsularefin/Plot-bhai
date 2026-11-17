@@ -1,4 +1,5 @@
 import { linearFit } from '../math/linearFit';
+import { linearFitMargin, WindowSums, type WindowLine } from '../math/windowSums';
 import { energyFromWavelength } from './conversions';
 import { toQuantity } from './process';
 import { alphaWithReflection } from './optics';
@@ -179,38 +180,157 @@ const MINIMUM_STRAIGHT = 0.98;
  */
 export type RegionRule = 'steepest' | 'widest';
 
-interface Candidate {
-  from: number;
-  to: number;
-  target: number;
+/*
+ * Speed (2026-11-15): the region search fits a line to every window, about 300,000 windows of up
+ * to 7,000 points on a 50,000-point spectrum, which took about 20 s per search with `linearFit`.
+ * Each window's line now comes from double-double prefix sums in constant time (`WindowSums`).
+ * Those numbers differ from `linearFit` in the last digits, and on a noise-free curve many
+ * windows tie at R² ≈ 1 to the last digit, so the old rounding decides which one wins. To keep the
+ * suggestion exactly as before, every comparison below that is closer than `linearFitMargin` of
+ * the scale of the numbers involved (more than the rounding of `linearFit`) is decided again
+ * with `linearFit` on those windows (`decide`); the windows chosen, and so the regions and band
+ * gaps, are then bit-identical to the earlier code (tests/uvvis-tauc-speed.test.ts).
+ */
+
+/** Σ(y − ȳ)² / Σy² at or below which a window is checked with `linearFit` (own choice). */
+const FLAT_WINDOW = 1e-8;
+
+/** A sliding window of the region search with its straight-line fit. */
+class Candidate {
+  readonly from: number;
+  readonly to: number;
   slope: number;
   intercept: number;
-  steepness: number;
   r2: number;
+  /** True once slope, intercept and r2 are those of `linearFit` on the window. */
+  private exact = false;
+  /** Relative margin of the values while not exact, and scales for slope and axis intercept. */
+  private readonly margin: number;
+  private readonly slopeScale: number;
+  private readonly xMean: number;
+
+  constructor(
+    private readonly xs: Float64Array,
+    private readonly ys: Float64Array,
+    private readonly start: number,
+    private readonly end: number,
+    readonly target: number,
+    /** Highest y in the window. */
+    readonly top: number,
+    line: WindowLine,
+  ) {
+    this.from = xs[start] as number;
+    this.to = xs[end] as number;
+    this.slope = line.slope;
+    this.intercept = line.intercept;
+    this.r2 = line.rSquared;
+    this.margin = linearFitMargin(line);
+    this.slopeScale = Math.sqrt(line.syy / line.sxx);
+    this.xMean = line.xMean;
+  }
+
+  /** Replaces the fit by that of `linearFit`; false when `linearFit` gives no rising line. */
+  refine(): boolean {
+    if (!this.exact) {
+      const fit = linearFit(
+        this.xs.subarray(this.start, this.end + 1),
+        this.ys.subarray(this.start, this.end + 1),
+      );
+      this.exact = true;
+      this.slope = fit?.slope ?? NaN;
+      this.intercept = fit?.intercept ?? NaN;
+      this.r2 = fit?.rSquared ?? NaN;
+    }
+    return this.slope > 0 && Number.isFinite(this.r2);
+  }
+
+  /** The line meets y = 0 here, eV. */
+  get gap(): number {
+    return -this.intercept / this.slope;
+  }
+
+  /** Rise relative to the highest value in the window. */
+  get steepness(): number {
+    return this.slope / this.top;
+  }
+
+  get slopeTolerance(): number {
+    return this.exact ? 0 : this.margin * this.slopeScale;
+  }
+
+  get r2Tolerance(): number {
+    return this.exact ? 0 : this.margin;
+  }
+
+  /** gap = x̄ − ȳ/b: the rounding of ȳ, x̄ and of b (relative to the slope scale) carries into it. */
+  get gapTolerance(): number {
+    if (this.exact) return 0;
+    const x = Math.abs(this.xMean);
+    const g = this.gap;
+    return (
+      this.margin *
+      (x + Math.abs(x - g) + ((x + Math.abs(g)) * this.slopeScale) / Math.abs(this.slope))
+    );
+  }
+}
+
+/**
+ * The sign of value() (positive, zero or negative, or NaN), with the candidates' fits from
+ * `linearFit` when |value()| is within the tolerance. After refinement the expression is
+ * evaluated exactly as the earlier code compared it: a − b ≥ 0 exactly when a ≥ b for doubles.
+ */
+function decide(candidates: Candidate[], value: () => number, tolerance: () => number): number {
+  const v = value();
+  if (Math.abs(v) > tolerance()) return v;
+  for (const c of candidates) c.refine();
+  return value();
 }
 
 /** Sliding windows of 0.1 to 0.6 eV (at least 6 points) with a rising straight-line fit. */
-function windows(xs: number[], ys: number[], top: number): Candidate[] {
+function windows(xList: number[], yList: number[], top: number): Candidate[] {
+  const xs = Float64Array.from(xList);
+  const ys = Float64Array.from(yList);
+  const sums = new WindowSums(xs, ys);
   const candidates: Candidate[] = [];
   for (const span of SPANS) {
     let end = 0;
+    // Indices of the window whose y decrease from the front: the front is the window's maximum.
+    const queue = new Int32Array(xs.length);
+    let head = 0;
+    let tail = 0;
+    const enter = (i: number) => {
+      while (tail > head && (ys[queue[tail - 1] as number] as number) <= (ys[i] as number)) tail--;
+      queue[tail++] = i;
+    };
+    enter(0);
     for (let start = 0; start < xs.length; start++) {
-      while (end < xs.length - 1 && (xs[end] as number) - (xs[start] as number) < span) end++;
+      while (end < xs.length - 1 && (xs[end] as number) - (xs[start] as number) < span)
+        enter(++end);
       if ((xs[end] as number) - (xs[start] as number) < span) break;
+      while ((queue[head] as number) < start) head++;
       if (end - start + 1 < 6) continue;
-      const wy = ys.slice(start, end + 1);
-      if (Math.max(...wy) < 0.05 * top) continue;
-      const fit = linearFit(xs.slice(start, end + 1), wy);
-      if (!fit || !(fit.slope > 0) || !Number.isFinite(fit.rSquared)) continue;
-      candidates.push({
-        from: xs[start] as number,
-        to: xs[end] as number,
-        target: span,
-        slope: fit.slope,
-        intercept: fit.intercept,
-        steepness: fit.slope / Math.max(...wy),
-        r2: fit.rSquared,
-      });
+      let highest = ys[queue[head] as number] as number;
+      // Math.max, as before, gives +0 for a window holding both zeros.
+      if (highest === 0) highest = Math.max(...ys.subarray(start, end + 1));
+      if (highest < 0.05 * top) continue;
+      // Never null here: the window spans at least 0.1 eV, so its energies are not all equal.
+      const line = sums.line(start, end);
+      if (!line) continue;
+      const c = new Candidate(xs, ys, start, end, span, highest, line);
+      if (
+        !(
+          decide(
+            [c],
+            () => c.slope,
+            () => c.slopeTolerance,
+          ) > 0
+        )
+      )
+        continue;
+      // R² is NaN when every y is equal, which double-double sums may round to a tiny spread:
+      // a nearly flat window is checked with `linearFit`.
+      if (line.syy <= FLAT_WINDOW * line.sumYY) c.refine();
+      if (c.slope > 0 && Number.isFinite(c.r2)) candidates.push(c);
     }
   }
   return candidates;
@@ -367,10 +487,16 @@ export function suggestRegion(
   const top = ys.reduce((m, v) => Math.max(m, v), 0);
   const steep = steepestRise(energyEv, y);
   if (steep?.atEnd) return suggestRegionBefore22(energyEv, y);
-  const describesEdge = (c: Candidate) => {
-    const gap = -c.intercept / c.slope;
-    return gap > 0 && gap < c.from && (steep === null || gap <= steep.energyEv);
-  };
+  const gapBelow = (c: Candidate, limit: number) =>
+    decide(
+      [c],
+      () => limit - c.gap,
+      () => c.gapTolerance,
+    );
+  const describesEdge = (c: Candidate) =>
+    gapBelow(c, 0) < 0 &&
+    gapBelow(c, c.from) > 0 &&
+    (steep === null || gapBelow(c, steep.energyEv) >= 0);
   const valid = windows(xs, ys, top).filter(describesEdge);
   if (valid.length === 0) return null;
   const anchored = valid.filter(
@@ -378,7 +504,11 @@ export function suggestRegion(
       steep !== null &&
       c.from <= steep.energyEv &&
       c.to >= steep.energyEv &&
-      c.slope >= MAIN_RISE_FRACTION * steep.slope,
+      decide(
+        [c],
+        () => c.slope - MAIN_RISE_FRACTION * steep.slope,
+        () => c.slopeTolerance,
+      ) >= 0,
   );
   const chosen = straightestWidest(anchored.length > 0 ? anchored : valid);
   return [chosen.from, chosen.to];
@@ -400,28 +530,63 @@ function suggestRegionBefore22(energyEv: Float64Array, y: Float64Array): [number
   if (candidates.length === 0) return null;
   const chosen = straightestWidest(candidates);
   const narrowest = candidates.filter(
-    (c) => c.target === candidates[0]?.target && c.r2 >= MINIMUM_STRAIGHT,
+    (c) => c.target === candidates[0]?.target && atLeast(c, MINIMUM_STRAIGHT),
   );
   if (narrowest.length === 0) return [chosen.from, chosen.to];
-  const steepest = narrowest.reduce((a, b) => (b.steepness > a.steepness ? b : a));
-  const gap = -chosen.intercept / chosen.slope;
-  if (gap > 0 && gap <= steepest.to) return [chosen.from, chosen.to];
+  const steepest = narrowest.reduce((a, b) =>
+    decide(
+      [a, b],
+      () => b.steepness - a.steepness,
+      () => a.slopeTolerance / a.top + b.slopeTolerance / b.top,
+    ) > 0
+      ? b
+      : a,
+  );
+  const gapAbove = (limit: number) =>
+    decide(
+      [chosen],
+      () => chosen.gap - limit,
+      () => chosen.gapTolerance,
+    );
+  if (gapAbove(0) > 0 && gapAbove(steepest.to) <= 0) return [chosen.from, chosen.to];
   const best = straightestWidest(
     candidates.filter((c) => c.from <= steepest.to && c.to >= steepest.from),
   );
   return [best.from, best.to];
 }
 
+/** R² ≥ threshold. */
+function atLeast(c: Candidate, threshold: number): boolean {
+  return (
+    decide(
+      [c],
+      () => c.r2 - threshold,
+      () => c.r2Tolerance,
+    ) >= 0
+  );
+}
+
+/** The candidate of higher R², the first when they are equal. */
+function straighter(a: Candidate, b: Candidate): Candidate {
+  return decide(
+    [a, b],
+    () => b.r2 - a.r2,
+    () => a.r2Tolerance + b.r2Tolerance,
+  ) > 0
+    ? b
+    : a;
+}
+
 /** The widest window with R² ≥ 0.995 (else 0.98), the straightest among those; else the straightest. */
-function straightestWidest<T extends { target: number; r2: number }>(candidates: T[]): T {
+function straightestWidest(candidates: Candidate[]): Candidate {
   for (const threshold of [STRAIGHT, MINIMUM_STRAIGHT]) {
-    const good = candidates.filter((c) => c.r2 >= threshold);
+    const good = candidates.filter((c) => atLeast(c, threshold));
     if (good.length > 0) {
-      const widest = Math.max(...good.map((c) => c.target));
-      return good.filter((c) => c.target === widest).reduce((a, b) => (b.r2 > a.r2 ? b : a));
+      const widest = good.reduce((m, c) => Math.max(m, c.target), -Infinity);
+      return good.filter((c) => c.target === widest).reduce(straighter);
     }
   }
-  return candidates.reduce((a, b) => (b.r2 > a.r2 ? b : a));
+  return candidates.reduce(straighter);
 }
 
 /*

@@ -13,7 +13,9 @@ import type { SeriesSource } from '../../ui/plot/series';
 import type { PlotMarker } from '../../ui/plot/types';
 import type { StepContext } from '../../ui/wizard/types';
 import { NumberInput } from '../xrd/NumberInput';
-import { analyseSpectrum, cleanAll, fitMessages, type BandGapAnalysis } from './analysis';
+import { cleanAll, fitMessages, spectrumJob } from './analysis';
+import { useBandGaps } from './bandGapClient';
+import type { BandGapAnalysis } from './bandGap';
 import { bandGapFor, type BandGapChoice, type UvvisData } from './data';
 import { CrossChecks, OpticalConstants } from './OpticalExtras';
 import { taucLabels, urbachLabels } from './labels';
@@ -67,14 +69,26 @@ export function BandGapStep({ data, update }: StepContext<UvvisData>) {
   const choice = spectrum ? bandGapFor(data, spectrum.id) : undefined;
 
   const index = spectrum ? spectra.indexOf(spectrum) : -1;
-  const analysis = useMemo(
-    () => (choice && cleanedSpectrum ? analyseSpectrum(data, cleaned, index, choice) : null),
+  const jobs = useMemo(() => {
+    const job = choice && cleanedSpectrum ? spectrumJob(data, cleaned, index, choice) : null;
+    return job ? [job] : [];
     // `data` matters here only through the spectra, which `cleaned` follows.
-    [choice, cleanedSpectrum, cleaned, index], // eslint-disable-line react-hooks/exhaustive-deps
-  );
+  }, [choice, cleanedSpectrum, cleaned, index]); // eslint-disable-line react-hooks/exhaustive-deps
+  // While the analysis of new settings runs, the last one of the same spectrum stays on screen.
+  const gaps = useBandGaps(jobs, spectrum?.id);
+  const analysis = gaps.analyses?.[0] ?? gaps.previous?.[0] ?? null;
 
-  if (!spectrum || !analysis || !choice) {
+  if (!spectrum || !choice) {
     return <p>No spectra are loaded. Go back to Upload to add one.</p>;
+  }
+  if (!analysis) {
+    return gaps.error ? (
+      <p class="message is-warning" role="alert">
+        The band gap could not be found: {gaps.error}
+      </p>
+    ) : (
+      <p role="status">Finding the band gap…</p>
+    );
   }
 
   const change = (patch: Partial<BandGapChoice>) =>
@@ -123,6 +137,9 @@ export function BandGapStep({ data, update }: StepContext<UvvisData>) {
       <p class="field-hint">
         The band gap is estimated from the cleaned spectrum of step 2. Each spectrum has its own
         settings below.
+      </p>
+      <p class="field-hint" role="status">
+        {gaps.analyses ? '' : 'Updating the band gap for the new settings…'}
       </p>
 
       <section class="process-step is-on" aria-labelledby="tauc-title">
