@@ -250,6 +250,7 @@ export function analyse(data: KineticsData, prepared: Prepared): KineticOutcome 
             eaKJ: v.eaKJ,
             eaSigmaKJ: 0,
             rSquared: 1,
+            points: [],
             runs: v.runs,
           }))
         : isoconversional(massRuns, window[0], window[1], alphas, data.method);
