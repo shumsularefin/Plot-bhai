@@ -465,6 +465,7 @@ export function OpticalConstants({ analysis, choice, data, update, change, name 
           </p>
         </HelpTip>
       </h4>
+      {eg !== undefined ? <IndexTable eg={eg} /> : <p class="field-hint">Needs a Tauc band gap.</p>}
       {rows.length > 0 && (
         <Conductivity
           rows={rows}
@@ -475,7 +476,6 @@ export function OpticalConstants({ analysis, choice, data, update, change, name 
           name={name}
         />
       )}
-      {eg !== undefined ? <IndexTable eg={eg} /> : <p class="field-hint">Needs a Tauc band gap.</p>}
     </section>
   );
 }

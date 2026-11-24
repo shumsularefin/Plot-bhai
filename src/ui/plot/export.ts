@@ -189,6 +189,13 @@ export function renderSvgString(
             xDomain,
             width,
             style,
+            yValues: Boolean(
+              figure?.axes.yValues === 'show'
+                ? true
+                : figure?.axes.yValues === 'hide'
+                  ? false
+                  : labels.yValues,
+            ),
             svgAttributes: { x: 0, y: height - lanesHeight, width, height: lanesHeight },
           }),
       )

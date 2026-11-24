@@ -14,7 +14,8 @@ export function penetrationDepthUm(
   sampleIndex: number,
   angleDeg: number,
 ): number | null {
-  if (!(wavenumberCm > 0 && crystalIndex > 0 && sampleIndex > 0)) return null;
+  if (!(wavenumberCm > 0 && crystalIndex > 0 && sampleIndex > 0 && angleDeg > 0 && angleDeg < 90))
+    return null;
   const sin = Math.sin((angleDeg * Math.PI) / 180);
   const under = sin * sin - (sampleIndex / crystalIndex) ** 2;
   if (!(under > 0) || sin <= 0) return null;
@@ -32,5 +33,6 @@ export function atrCorrect(
   absorbance: Float64Array,
   referenceCm: number,
 ): Float64Array {
+  if (!(referenceCm > 0)) return absorbance.slice();
   return absorbance.map((a, i) => (a * (wavenumber[i] as number)) / referenceCm);
 }

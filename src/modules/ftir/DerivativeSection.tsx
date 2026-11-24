@@ -72,7 +72,7 @@ export function DerivativeSection({
         <NumberInput
           label="Window (points, odd)"
           value={st.window}
-          min={4}
+          min={5}
           max={201}
           step={2}
           onChange={(v) =>

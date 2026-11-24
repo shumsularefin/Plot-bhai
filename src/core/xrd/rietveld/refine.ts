@@ -1109,7 +1109,7 @@ export function refineRietveld(
             : [],
       ),
     );
-  if (choices.overallB && !choices.biso)
+  if (choices.overallB && !choices.biso && !choices.aniso)
     stage(
       'Overall displacement factor B',
       layout.phases.flatMap((pl, k) => ((phases[k] as PhaseModel).leBail ? [] : [pl.b])),

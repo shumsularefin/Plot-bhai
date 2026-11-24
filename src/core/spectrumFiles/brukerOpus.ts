@@ -41,6 +41,7 @@ interface Block {
 function parameters(bytes: Uint8Array, block: Block): Map<string, number | string> {
   const view = dataView(bytes);
   const out = new Map<string, number | string>();
+  if (block.offset < 0 || block.words < 0 || block.offset >= bytes.length) return out;
   const end = Math.min(bytes.length, block.offset + 4 * block.words);
   let at = block.offset;
   while (at + 8 <= end) {

@@ -174,7 +174,11 @@ export function fillJacobian(input: JacobianInput): number[] {
     const minusLists = place(-h);
     const minus = fits(minusLists) ? minusLists : null;
     const slope = (q0: number, qp: number, qm: number | undefined) =>
-      qm === undefined || qm === q0 || qp === q0 ? (qp - q0) / h : (qp - qm) / (2 * h);
+      qm === undefined || qm === q0
+        ? (qp - q0) / h
+        : qp === q0
+          ? (q0 - qm) / h
+          : (qp - qm) / (2 * h);
     affected.forEach((k, i) => {
       const base = peaks[k] as PlacedPeak[];
       const list = plus[i] as PlacedPeak[];

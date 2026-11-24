@@ -84,12 +84,13 @@ export function calibrationWarnings(c: Calibration, names: AxisNames = GENERIC_A
       'Two of the marked points are very close together, so a small clicking error changes the scale a lot. Use ticks far apart, near the ends of each axis.',
     );
   const tilt = (Math.atan2(u.y, u.x) * 180) / Math.PI;
-  const tiltFromLevel = Math.abs(((tilt + 90) % 180) - 90);
+  const tiltFromLevel = Math.abs(((((tilt + 90) % 180) + 180) % 180) - 90);
   if (tiltFromLevel > MAX_TILT_DEG)
     out.push(
       `The ${names.x} axis is tilted by ${tiltFromLevel.toFixed(1)}°. The values are still mapped correctly, but the curve is read column by column, so straighten the image in step 1 for a cleaner trace.`,
     );
-  const angle = (Math.acos((u.x * v.x + u.y * v.y) / (length(u) * length(v))) * 180) / Math.PI;
+  const cosAngle = Math.max(-1, Math.min(1, (u.x * v.x + u.y * v.y) / (length(u) * length(v))));
+  const angle = (Math.acos(cosAngle) * 180) / Math.PI;
   if (Math.abs(angle - 90) > MAX_SKEW_DEG)
     out.push(
       `The two axes meet at ${angle.toFixed(1)}°, not 90°. Check that the ${names.x} points are on the horizontal axis and the ${names.y} points on the vertical one.`,

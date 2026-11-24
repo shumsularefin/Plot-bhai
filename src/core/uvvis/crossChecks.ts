@@ -195,12 +195,12 @@ export function sigmoidGap(
     evaluate(p, model, jacobian) {
       const [sMin, sMax, e0, d] = p as unknown as [number, number, number, number];
       for (let i = 0; i < n; i++) {
-        const u = Math.exp(((x[i] as number) - e0) / d);
-        const g = 1 / (1 + u);
+        const z = ((x[i] as number) - e0) / d;
+        const g = z >= 0 ? Math.exp(-z) / (1 + Math.exp(-z)) : 1 / (1 + Math.exp(z));
         model[i] = sMax + (sMin - sMax) * g;
         if (jacobian) {
-          // ∂g/∂e0 = g²·u/d, ∂g/∂d = g²·u·(E − e0)/d².
-          const dg = g * g * u;
+          // ∂g/∂e0 = g(1 − g)/d, ∂g/∂d = g(1 − g)(E − e0)/d².
+          const dg = g * (1 - g);
           jacobian[i * 4] = g;
           jacobian[i * 4 + 1] = 1 - g;
           jacobian[i * 4 + 2] = ((sMin - sMax) * dg) / d;

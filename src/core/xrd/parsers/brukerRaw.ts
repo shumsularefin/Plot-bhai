@@ -97,8 +97,10 @@ export function parseBrukerRaw(bytes: Uint8Array): ParseResult {
         // Stored as f64 but sometimes written from an f32 (1.5405999422…): round to 6 decimals.
         wavelengthFromFileA = Number(kAlpha1.toFixed(6));
       }
-      const anode = ascii(bytes, at + 116, 4);
-      if (anode) metadata.push({ key: 'Anode', value: anode });
+      if (length >= 120) {
+        const anode = ascii(bytes, at + 116, 4);
+        if (anode) metadata.push({ key: 'Anode', value: anode });
+      }
     }
     at += length;
   }

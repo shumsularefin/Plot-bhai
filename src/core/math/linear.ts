@@ -5,6 +5,12 @@
 export function solve(a: readonly (readonly number[])[], b: readonly number[]): number[] | null {
   const n = b.length;
   const m = a.map((row, i) => [...row, b[i] as number]);
+  let maxAbs = 0;
+  for (let r = 0; r < n; r++) {
+    const row = m[r] as number[];
+    for (let c = 0; c < n; c++) maxAbs = Math.max(maxAbs, Math.abs(row[c] as number));
+  }
+  const eps = Math.max(maxAbs * 1e-14, 1e-30);
   for (let col = 0; col < n; col++) {
     let pivot = col;
     for (let r = col + 1; r < n; r++) {
@@ -15,7 +21,7 @@ export function solve(a: readonly (readonly number[])[], b: readonly number[]): 
         pivot = r;
     }
     const pivotRow = m[pivot] as number[];
-    if (Math.abs(pivotRow[col] as number) < 1e-14) return null;
+    if (Math.abs(pivotRow[col] as number) < eps) return null;
     [m[col], m[pivot]] = [pivotRow, m[col] as number[]];
     const top = m[col] as number[];
     for (let r = col + 1; r < n; r++) {

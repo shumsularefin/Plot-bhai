@@ -84,13 +84,13 @@ export function parseJcamp(text: string): JcampResult {
       });
     }
   } else if (xUnits === 'MICROMETERS' || xUnits === 'MICRONS') {
-    toWavenumber = (x) => 1e4 / x;
+    toWavenumber = (x) => (x > 0 ? 1e4 / x : Number.NaN);
     notes.push({
       level: 'info',
       text: 'The X axis was in micrometres and was converted to cm⁻¹ (10⁴ / µm).',
     });
   } else if (xUnits === 'NANOMETERS') {
-    toWavenumber = (x) => 1e7 / x;
+    toWavenumber = (x) => (x > 0 ? 1e7 / x : Number.NaN);
     notes.push({
       level: 'info',
       text: 'The X axis was in nanometres and was converted to cm⁻¹ (10⁷ / nm).',
@@ -108,11 +108,14 @@ export function parseJcamp(text: string): JcampResult {
 
   if (data.label === 'XYPOINTS') {
     for (const line of body) {
-      for (const pair of line.split(/;|\s{2,}/).filter((p) => p.trim() !== '')) {
-        const parts = pair.trim().split(/[\s,]+/);
-        if (parts.length < 2) continue;
-        const x = parseNumber(parts[0] as string);
-        const y = parseNumber(parts[1] as string);
+      const tokens = line
+        .replace(/;/g, ' ')
+        .trim()
+        .split(/[\s,]+/)
+        .filter((t) => t !== '');
+      for (let i = 0; i + 1 < tokens.length; i += 2) {
+        const x = parseNumber(tokens[i] as string);
+        const y = parseNumber(tokens[i + 1] as string);
         if (Number.isNaN(x) || Number.isNaN(y)) return { ok: false, error: COMPRESSED };
         xs.push(x * xFactor);
         ys.push(y * yFactor);
