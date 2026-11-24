@@ -10,7 +10,7 @@ export function solve(a: readonly (readonly number[])[], b: readonly number[]): 
     const row = m[r] as number[];
     for (let c = 0; c < n; c++) maxAbs = Math.max(maxAbs, Math.abs(row[c] as number));
   }
-  const eps = Math.max(maxAbs * 1e-14, 1e-30);
+  const eps = maxAbs > 0 ? Math.min(1e-14, Math.max(maxAbs * 1e-14, 1e-30)) : 1e-14;
   for (let col = 0; col < n; col++) {
     let pivot = col;
     for (let r = col + 1; r < n; r++) {
