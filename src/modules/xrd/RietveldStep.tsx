@@ -1568,7 +1568,7 @@ function AtomsTable({ result, name }: { result: RietveldResult; name: string }) 
                 header: 'Dopant fraction x',
                 value: (r) => r.atom.substitute?.fraction.value ?? '',
               },
-              { header: 's.u. x', value: (r) => r.atom.substitute?.fraction.esd ?? '' },
+              { header: 's.u. dopant x', value: (r) => r.atom.substitute?.fraction.esd ?? '' },
               { header: 'Occupancy', value: (r) => r.atom.occupancy.value },
               { header: 's.u. occupancy', value: (r) => r.atom.occupancy.esd },
               {

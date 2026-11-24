@@ -113,7 +113,10 @@ export function phaseFromCif(
     };
   }
   const sites = expandAtoms(crystal);
-  const dMin = Math.min(CIF_D_MIN, wavelengthA / (2 * Math.sin((75 * Math.PI) / 180)));
+  const dMin =
+    wavelengthA < CU_KALPHA1 - 1e-3
+      ? Math.min(CIF_D_MIN, wavelengthA / (2 * Math.sin((75 * Math.PI) / 180)))
+      : CIF_D_MIN;
   const lines = reflections(crystal, factors, dMin);
   if (lines.length === 0)
     return { ok: false, error: 'No diffraction lines were found for this structure.' };
