@@ -323,6 +323,7 @@ export function RietveldSetup({ settings, set, phases, lambda, result, patternNa
                       w: first.w.value,
                       x: first.x.value,
                       y: first.y.value,
+                      ...(result?.axial && { shl: result.axial.value }),
                     },
                     source: `the refinement of ${first.name} in ${patternName}`,
                   },
