@@ -128,8 +128,8 @@ export function Home() {
               </a>
             </h3>
             <p class="tool-description">
-              One sample, several techniques: the results of your XRD, FTIR, UV-Vis and thermal
-              analyses in one summary with a single methods section.
+              One sample, several techniques: the results of your XRD, FTIR, UV-Vis, thermal
+              (TGA/DSC) and particle size analyses in one summary with a single methods section.
             </p>
             <span class="tool-cta" aria-hidden="true">
               Combine →
