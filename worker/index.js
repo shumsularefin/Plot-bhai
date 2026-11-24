@@ -8,7 +8,15 @@ export default {
   async fetch(request, env, context) {
     // Cloudflare's cache, keyed by the URL alone (the CORS header is added per request).
     const cache = globalThis.caches?.default;
-    const key = new Request(new URL(request.url).toString());
+    const canonical = new URL(request.url);
+    const allowed = ['elements', 'exclude', 'formula', 'name', 'max', 'id'];
+    const sorted = new URLSearchParams();
+    for (const name of allowed) {
+      const val = canonical.searchParams.get(name);
+      if (val !== null) sorted.set(name, val);
+    }
+    canonical.search = sorted.toString();
+    const key = new Request(canonical.toString());
     if (request.method === 'GET' && cache) {
       const hit = await cache.match(key);
       if (hit) {

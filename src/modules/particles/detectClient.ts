@@ -47,8 +47,9 @@ export class DetectClient {
         this.pending = null;
         resolve({ id, kind: 'error' });
       });
-      // The pixels are copied, so the caller's gray image stays usable.
-      this.worker?.postMessage({ ...request, id, gray: request.gray.slice() } as DetectRequest);
+      // Copy once and transfer the backing buffer so the caller's gray image stays usable.
+      const copy = request.gray.slice();
+      this.worker?.postMessage({ ...request, id, gray: copy } as DetectRequest, [copy.buffer]);
     });
   }
 

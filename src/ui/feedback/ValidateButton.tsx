@@ -202,7 +202,7 @@ export function ValidateButton({ tool }: { tool: string }) {
               </>
             )}
             <div class="export-actions">
-              {ready && !result?.ok && (
+              {FEEDBACK_API && ready && !result?.ok && (
                 <button
                   type="button"
                   class="btn btn-primary"

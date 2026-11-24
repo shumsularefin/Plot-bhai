@@ -53,7 +53,10 @@ export function stereologyOf(data: ParticleData): StereologyResult | null {
     mean: both,
     intercepts: horizontal.intercepts + vertical.intercepts,
     unit: perPixelNm === null ? 'px' : 'nm',
-    astmG: perPixelNm !== null && both !== null ? astmGrainSize(both * 1e-6) : null,
+    astmG:
+      structure === 'grains' && perPixelNm !== null && both !== null
+        ? astmGrainSize(both * 1e-6)
+        : null,
   };
 }
 

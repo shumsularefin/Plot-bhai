@@ -24,8 +24,8 @@ is never verified.
 Uploaded files never leave the browser. The only network requests are:
 
 - the COD lookup (element symbols, formulas or COD numbers);
-- the feedback Worker (a random browser ID, the analysis section name, a validation verdict and an
-  optional comment; IP addresses and browser IDs are stored only as salted hashes, comments are
-  published only after the owner approves them).
+- the feedback Worker (automatic anonymous visit and finished-analysis counters plus optional
+  validation verdicts and comments; IP addresses and random browser IDs are stored only as salted
+  hashes, and comments are published only after the owner approves them).
 
-There are no accounts, cookies for tracking, analytics, third-party CDNs or web fonts.
+There are no accounts, tracking cookies, third-party analytics, third-party CDNs or web fonts.

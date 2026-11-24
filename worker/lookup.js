@@ -113,22 +113,31 @@ export function trimEntry(row) {
   };
 }
 
+const fetchInit = (fetcher) =>
+  fetcher === fetch && typeof AbortSignal?.timeout === 'function'
+    ? { signal: AbortSignal.timeout(10_000) }
+    : undefined;
+
 async function search(url, origin, fetcher) {
   const built = codQuery(url.searchParams);
   if (built.error) return reply({ error: built.error }, 400, origin);
-  const count = Number(
-    (await (await fetcher(`${COD}/result?${built.query}&format=count`)).text()).trim(),
-  );
+  const init = fetchInit(fetcher);
+  const countRes = await fetcher(`${COD}/result?${built.query}&format=count`, init);
+  if (!countRes.ok) return reply({ error: 'COD did not answer as expected.' }, 502, origin);
+  const count = Number((await countRes.text()).trim());
   if (!Number.isFinite(count))
     return reply({ error: 'COD did not answer as expected.' }, 502, origin);
   if (count > MAX_RESULTS) return reply({ count, tooMany: true, max: MAX_RESULTS }, 200, origin);
   if (count === 0) return reply({ count: 0, results: [] }, 200, origin);
-  const rows = await (await fetcher(`${COD}/result?${built.query}&format=json`)).json();
+  const rowsRes = await fetcher(`${COD}/result?${built.query}&format=json`, init);
+  if (!rowsRes.ok) return reply({ error: 'COD did not answer as expected.' }, 502, origin);
+  const rows = await rowsRes.json();
+  if (!Array.isArray(rows)) return reply({ error: 'COD did not answer as expected.' }, 502, origin);
   return reply({ count: rows.length, results: rows.map(trimEntry) }, 200, origin);
 }
 
 async function cif(id, origin, fetcher) {
-  const response = await fetcher(`${COD}/${id}.cif`);
+  const response = await fetcher(`${COD}/${id}.cif`, fetchInit(fetcher));
   if (response.status === 404) return reply({ error: `COD has no entry ${id}.` }, 404, origin);
   if (!response.ok) return reply({ error: 'COD did not answer as expected.' }, 502, origin);
   const text = await response.text();

@@ -20,9 +20,61 @@ function simpson(f: (x: number) => number, a: number, b: number, intervals: numb
  * (L = 10 up to z = 3, then 30/z) because φ falls off over about 1/z; the part beyond z + L is
  * below 1e-20 of Q(z). Relative error below 1e-9 (checked against SciPy in the tests).
  */
+/** Complementary error function erfc(x) for x >= 0 (Cody 1969 rational Chebyshev, rel err < 1e-15). */
+function erfcPos(x: number): number {
+  if (x < 0.46875) {
+    const a = [
+      3.1611237438705656, 113.86415415105016, 377.485237685302, 3209.3775891384695,
+      0.18577770618460315,
+    ];
+    const b = [23.60129095234412, 244.02463793444417, 1282.6165260773723, 2844.2368334391706];
+    const y = x * x;
+    let num = a[4] as number;
+    let den = 1;
+    for (let i = 0; i < 4; i++) {
+      num = num * y + (a[i] as number);
+      den = den * y + (b[i] as number);
+    }
+    return 1 - (x * num) / den;
+  }
+  if (x <= 4) {
+    const c = [
+      0.5641884969886701, 8.883149794388376, 66.11919063714163, 298.63513819740013,
+      881.9522212417691, 1712.0476126340706, 2051.0783778260715, 1230.3393547979972,
+      2.1531153547440385e-8,
+    ];
+    const d = [
+      15.744926110709835, 117.6939508913125, 537.1811018620099, 1621.3895745666902,
+      3290.7992357334596, 4362.619090143247, 3439.3676741437216, 1230.3393548037494,
+    ];
+    let num = c[8] as number;
+    let den = 1;
+    for (let i = 0; i < 8; i++) {
+      num = num * x + (c[i] as number);
+      den = den * x + (d[i] as number);
+    }
+    return (Math.exp(-x * x) * num) / den;
+  }
+  const p = [
+    0.30532663496123234, 0.36034489994980444, 0.12578172611122925, 0.016083785148742277,
+    6.587491615298378e-4, 0.016315387137302097,
+  ];
+  const q = [
+    2.5685201922898224, 1.8729528499234604, 0.5279051029514284, 0.06051834131244132,
+    0.0023352049762686919,
+  ];
+  const y = 1 / (x * x);
+  let num = p[5] as number;
+  let den = 1;
+  for (let i = 0; i < 5; i++) {
+    num = num * y + (p[i] as number);
+    den = den * y + (q[i] as number);
+  }
+  return (Math.exp(-x * x) * (1 / Math.sqrt(Math.PI) - (y * num) / den)) / x;
+}
+
 function upperNormalTail(z: number): number {
-  const length = z <= 3 ? 10 : 30 / z;
-  return simpson((x) => Math.exp(-0.5 * x * x), z, z + length, 2000) / Math.sqrt(2 * Math.PI);
+  return 0.5 * erfcPos(z / Math.SQRT2);
 }
 
 /**

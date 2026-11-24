@@ -14,10 +14,14 @@ export type IndexingResponse =
 self.onmessage = ({ data }: MessageEvent<IndexingRequest>) => {
   const post = (message: IndexingResponse) => (self as unknown as Worker).postMessage(message);
   let last = 0;
-  const solutions = indexPattern(data.positions, data.options, (fraction) => {
-    if (fraction - last < 0.02) return;
-    last = fraction;
-    post({ id: data.id, kind: 'progress', fraction });
-  });
-  post({ id: data.id, kind: 'done', solutions });
+  try {
+    const solutions = indexPattern(data.positions, data.options, (fraction) => {
+      if (fraction - last < 0.02) return;
+      last = fraction;
+      post({ id: data.id, kind: 'progress', fraction });
+    });
+    post({ id: data.id, kind: 'done', solutions });
+  } catch {
+    post({ id: data.id, kind: 'done', solutions: [] });
+  }
 };

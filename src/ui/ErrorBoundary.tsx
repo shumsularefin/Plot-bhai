@@ -18,6 +18,20 @@ export function ErrorBoundary({ children }: { children: ComponentChildren }) {
       <button type="button" class="btn" onClick={() => window.location.reload()}>
         Reload the page
       </button>
+      <button
+        type="button"
+        class="btn"
+        onClick={() => {
+          try {
+            indexedDB.deleteDatabase('xrd-toolkit');
+          } catch {
+            // Ignore if IndexedDB is unavailable.
+          }
+          window.location.reload();
+        }}
+      >
+        Reset saved data and reload
+      </button>
     </div>
   );
 }

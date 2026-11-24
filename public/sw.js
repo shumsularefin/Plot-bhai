@@ -1,9 +1,18 @@
 // Offline support. Pages are fetched from the network first and fall back to the cache; hashed files in
-// /assets/ never change, so they are served from the cache first. Only files the user has already
-// opened are stored, so a tool works offline after its first visit. Nothing leaves the device.
-const CACHE = 'xrdtk-v1';
+// /assets/ never change, so they are served from the cache first. Core shell assets are precached on
+// install so the app loads offline after first visit.
+const CACHE = 'plot-bhai-v2';
+const PRECACHE = ['/', '/theme-init.js', '/favicon.svg', '/manifest.webmanifest'];
 
-self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches
+      .open(CACHE)
+      .then((cache) => cache.addAll(PRECACHE))
+      .catch(() => undefined)
+      .then(() => self.skipWaiting()),
+  );
+});
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
@@ -19,8 +28,12 @@ self.addEventListener('activate', (event) => {
 async function fromNetwork(request) {
   const response = await fetch(request);
   if (response.ok) {
-    const cache = await caches.open(CACHE);
-    await cache.put(request, response.clone());
+    try {
+      const cache = await caches.open(CACHE);
+      await cache.put(request, response.clone());
+    } catch {
+      // Ignore Cache Storage quota errors so network responses still succeed.
+    }
   }
   return response;
 }
@@ -32,6 +45,16 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/assets/')) {
     event.respondWith(caches.match(request).then((hit) => hit ?? fromNetwork(request)));
   } else {
-    event.respondWith(fromNetwork(request).catch(() => caches.match(request)));
+    event.respondWith(
+      fromNetwork(request).catch(async () => {
+        const hit = await caches.match(request);
+        if (hit) return hit;
+        if (request.mode === 'navigate') {
+          const shell = await caches.match('/');
+          if (shell) return shell;
+        }
+        return Response.error();
+      }),
+    );
   }
 });

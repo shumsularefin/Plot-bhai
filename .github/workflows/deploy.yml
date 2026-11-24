@@ -34,7 +34,7 @@ jobs:
           node-version: 22
           cache: npm
       - if: steps.setup.outputs.ready == 'true'
-        run: npm ci && npm run build
+        run: npm ci && npm run typecheck && npm test && npm run build
       - uses: FirebaseExtended/action-hosting-deploy@v0
         if: steps.setup.outputs.ready == 'true'
         with:
