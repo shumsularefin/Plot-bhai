@@ -57,7 +57,9 @@ export function percentTFromAbsorbance(absorbance: number): number {
  * Returns NaN for R ≤ 0.
  */
 export function kubelkaMunk(reflectance: number): number {
-  return reflectance > 0 ? (1 - reflectance) ** 2 / (2 * reflectance) : NaN;
+  if (!(reflectance > 0)) return NaN;
+  if (reflectance >= 1) return 0;
+  return (1 - reflectance) ** 2 / (2 * reflectance);
 }
 
 /** Maps a function over a Float64Array, returning a new array. */

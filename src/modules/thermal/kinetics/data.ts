@@ -9,9 +9,10 @@ export interface KineticRun extends LoadedTable {
   rate: number | null;
 }
 
-export type KineticMethod = 'kissinger' | 'fwo' | 'kas' | 'starink' | 'friedman' | 'coats-redfern';
+export type KineticMethod =
+  'kissinger' | 'fwo' | 'kas' | 'starink' | 'friedman' | 'vyazovkin' | 'coats-redfern';
 /** The methods that give Ea at each conversion level from several heating rates. */
-export type IsoconversionalMethod = 'fwo' | 'kas' | 'starink' | 'friedman';
+export type IsoconversionalMethod = 'fwo' | 'kas' | 'starink' | 'friedman' | 'vyazovkin';
 
 export const METHOD_LABELS: Record<KineticMethod, string> = {
   kissinger: 'Kissinger (peak temperatures)',
@@ -19,6 +20,7 @@ export const METHOD_LABELS: Record<KineticMethod, string> = {
   kas: 'Kissinger–Akahira–Sunose (isoconversional, TGA)',
   starink: 'Starink (isoconversional, TGA)',
   friedman: 'Friedman (differential isoconversional, TGA)',
+  vyazovkin: 'Vyazovkin (nonlinear integral, ICTAC 2011, TGA)',
   'coats-redfern': 'Coats–Redfern (reaction models, each run, TGA)',
 };
 

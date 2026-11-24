@@ -23,7 +23,8 @@ import { LIGHT_M_PER_S, VACUUM_PERMITTIVITY_F_PER_M } from './conversions';
 export function alphaWithReflection(t: number, r: number, thicknessCm: number): number {
   if (!(t > 0) || !(r >= 0) || !(r < 1) || !(thicknessCm > 0)) return NaN;
   const a = (1 - r) ** 2 / (2 * t);
-  return Math.log(a + Math.sqrt(a * a + r * r)) / thicknessCm;
+  const arg = a + Math.sqrt(a * a + r * r);
+  return arg > 1 ? Math.log(arg) / thicknessCm : 0;
 }
 
 /** The slab transmittance of `alphaWithReflection`: T = (1 − R)² x / (1 − R² x²), x = exp(−αd). */

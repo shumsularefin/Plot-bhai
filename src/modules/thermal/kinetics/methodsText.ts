@@ -58,5 +58,8 @@ export function kineticsMethodsText(
   if (outcome.method === 'friedman') {
     return `${intro}, using the Friedman differential method. ${conversion} The rate dα/dT at each α was taken from the DTG (local quadratic slope over ${data.dtgWindowC} °C) divided by (m₀ − m_f), and ln(β·dα/dT) was plotted against 1/T (T in K); the slope equals −E_a/R, ${gas}. ${span}${synthetic}`;
   }
+  if (outcome.method === 'vyazovkin') {
+    return `${intro}, using the Vyazovkin nonlinear integral isoconversional method (Vyazovkin & Dollimore 1996; ICTAC Kinetics Committee 2011). ${conversion} At each α, E_a was found by minimizing Φ(E_α) = Σ_i Σ_{j≠i} [I(E_α, T_{α,i}) β_j] / [I(E_α, T_{α,j}) β_i] using the Senum–Yang 4th-order rational temperature integral, ${gas}. ${span}${synthetic}`;
+  }
   return `${intro}, using the Kissinger–Akahira–Sunose method. ${conversion} At each α, ln(β/T²) was plotted against 1/T (T in K) and E_a was obtained from the slope = −E_a/R, ${gas}. ${span}${synthetic}`;
 }

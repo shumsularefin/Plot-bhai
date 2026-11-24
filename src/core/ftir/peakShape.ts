@@ -59,6 +59,12 @@ export function peakShapes(
     for (let i = a; i <= b; i++) if ((y[i] as number) < (y[k] as number)) k = i;
     return k;
   };
+  let spectrumFloor = Infinity;
+  for (let i = start; i <= end; i++) {
+    const v = y[i] as number;
+    if (v < spectrumFloor) spectrumFloor = v;
+  }
+  if (!Number.isFinite(spectrumFloor)) spectrumFloor = 0;
   return centres.map((c, k) => {
     const prev = centres[k - 1];
     const next = centres[k + 1];
@@ -73,7 +79,15 @@ export function peakShapes(
     const h = net(c);
     const floor = Math.min(yL, yR);
     const above = (y[c] as number) - floor;
+    const totalAbove = (y[c] as number) - spectrumFloor;
+    const symmetricOverlap =
+      prev !== undefined &&
+      next !== undefined &&
+      totalAbove > 0 &&
+      yL - spectrumFloor > totalAbove / 2 &&
+      yR - spectrumFloor > totalAbove / 2;
     const overlap =
+      symmetricOverlap ||
       (prev !== undefined && yL - floor > above / 2) ||
       (next !== undefined && yR - floor > above / 2);
     if (!(h > 0) || L === R)

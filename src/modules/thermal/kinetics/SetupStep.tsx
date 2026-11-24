@@ -41,10 +41,11 @@ export function KineticsSetupStep({ data, update }: StepContext<KineticsData>) {
           <HelpTip term="kinetic method">
             <p>
               Kissinger uses the peak temperature of one event in each run. The isoconversional
-              methods (Flynn–Wall–Ozawa, KAS, Starink and the differential Friedman method) use the
-              temperature at which the same fraction of the mass has been lost, for many fractions,
-              so they show whether the activation energy changes during the step. Coats–Redfern fits
-              each run separately with a set of reaction models. Use TGA runs for all but Kissinger.
+              methods (Flynn–Wall–Ozawa, KAS, Starink, differential Friedman and nonlinear integral
+              Vyazovkin) use the temperature at which the same fraction of the mass has been lost,
+              for many fractions, so they show whether the activation energy changes during the
+              step. Coats–Redfern fits each run separately with a set of reaction models. Use TGA
+              runs for all but Kissinger.
             </p>
           </HelpTip>
         </legend>
