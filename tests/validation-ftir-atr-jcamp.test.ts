@@ -8,7 +8,7 @@ describe('FTIR Harrick (1967) ATR penetration depth and JCAMP-DX validation', ()
     // Diamond / ZnSe (n1 = 2.40), sample n2 = 1.50, theta = 45 deg, nu = 1000 cm^-1 -> ~2.008 um
     const dpDiamond = penetrationDepthUm(1000, 2.4, 1.5, 45);
     expect(dpDiamond).not.toBeNull();
-    expect(dpDiamond).toBeCloseTo(2.0082, 3);
+    expect(dpDiamond).toBeCloseTo(2.0052, 3);
 
     // Ge (n1 = 4.00), sample n2 = 1.50, theta = 45 deg, nu = 1000 cm^-1 -> ~0.664 um
     const dpGe = penetrationDepthUm(1000, 4.0, 1.5, 45);

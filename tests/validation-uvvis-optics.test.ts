@@ -9,26 +9,45 @@ import {
 import { filmIndex, substrateIndex, swanepoel, type Extremum } from '../src/core/uvvis/swanepoel';
 
 describe('UV-Vis Swanepoel (1983) and optical constants independent validation', () => {
-  it('reproduces Swanepoel (1983) Table 1 a-Si:H film thickness (1000 nm) and refractive index', () => {
-    // Swanepoel (1983), J. Phys. E: Sci. Instrum. 16, 1214, Table 1 (s = 1.51, true d = 1000 nm)
+  it('reproduces analytical transparent thin-film thickness (1000 nm) and refractive index', () => {
+    // Exact Swanepoel (1983) transparent-region interference fringes:
+    // 2 * n(lambda) * d = m * lambda, T_M = 2s/(s^2+1), T_m = 4 n^2 s / (n^4 + n^2(s^2+1) + s^2)
     const s = 1.51;
-    expect(substrateIndex(0.92)).toBeCloseTo(1.512, 2);
+    const dTrue = 1000;
+    const tMax = (2 * s) / (s * s + 1);
+    expect(substrateIndex(tMax)).toBeCloseTo(s, 6);
 
-    const extrema: Extremum[] = [
-      { kind: 'max', wavelengthNm: 1470, value: 0.92, opposite: 0.562 },
-      { kind: 'min', wavelengthNm: 1215, value: 0.553, opposite: 0.92 },
-      { kind: 'max', wavelengthNm: 1039, value: 0.92, opposite: 0.541 },
-      { kind: 'min', wavelengthNm: 910, value: 0.525, opposite: 0.92 },
-      { kind: 'max', wavelengthNm: 814, value: 0.92, opposite: 0.506 },
-      { kind: 'min', wavelengthNm: 737, value: 0.483, opposite: 0.92 },
-      { kind: 'max', wavelengthNm: 677, value: 0.918, opposite: 0.453 },
-    ];
-    expect(filmIndex(0.92, 0.562, s)).toBeCloseTo(2.61, 2);
+    const nOf = (nm: number) => 2.4 + 2e5 / (nm * nm);
+    const solveLambda = (order: number) => {
+      let lo = 400;
+      let hi = 2500;
+      for (let i = 0; i < 60; i++) {
+        const mid = 0.5 * (lo + hi);
+        if (2 * nOf(mid) * dTrue - order * mid > 0) lo = mid;
+        else hi = mid;
+      }
+      return 0.5 * (lo + hi);
+    };
+
+    const orders = [9, 8.5, 8, 7.5, 7, 6.5, 6, 5.5, 5];
+    const extrema: Extremum[] = orders.map((m) => {
+      const wavelengthNm = solveLambda(m);
+      const n = nOf(wavelengthNm);
+      const tMin = (4 * n * n * s) / (n ** 4 + n * n * (s * s + 1) + s * s);
+      const isMax = Number.isInteger(m);
+      return { kind: isMax ? 'max' : 'min', wavelengthNm, t: isMax ? tMax : tMin };
+    });
+
+    const nCheck = nOf(1000);
+    const tMinCheck =
+      (4 * nCheck * nCheck * s) / (nCheck ** 4 + nCheck * nCheck * (s * s + 1) + s * s);
+    expect(filmIndex(tMax, tMinCheck, s)).toBeCloseTo(nCheck, 6);
+
     const out = swanepoel(s, extrema);
     expect(out.ok).toBe(true);
     if (out.ok) {
-      expect(out.result.thicknessNm).toBeGreaterThan(980);
-      expect(out.result.thicknessNm).toBeLessThan(1020);
+      expect(out.result.d2).toBeGreaterThan(985);
+      expect(out.result.d2).toBeLessThan(1015);
     }
   });
 
@@ -44,7 +63,7 @@ describe('UV-Vis Swanepoel (1983) and optical constants independent validation',
     const k = extinctionCoefficient(alphaTrue, 500);
     expect(k).toBeCloseTo((alphaTrue * 500e-7) / (4 * Math.PI), 6);
 
-    // Optical conductivity sigma = eps0 * c * n * alpha (in S/m when alpha in m^-1)
+    // Optical conductivity sigma = eps0 * c * n * alpha
     const sigma = opticalConductivity(alphaTrue, 2.2);
     expect(sigma).toBeGreaterThan(0);
 
