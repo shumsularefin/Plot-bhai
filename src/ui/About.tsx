@@ -147,8 +147,9 @@ export default function About() {
         <h3>XRD</h3>
         <ul>
           <li>
-            Reads text scans and Bruker .brml and .raw (version 4) and Rigaku .rasx files, and
-            exports the processed pattern as .xy and .xye.
+            Reads text scans, Excel .xlsx workbooks, PANalytical .xrdml, Rigaku .ras/.rasx, Bruker
+            .brml/.raw (version 4) and pdCIF (.cif) files, and exports the processed pattern as .xy
+            and .xye.
           </li>
           <li>
             Shows the chosen phase as a 3D crystal structure (rotate, zoom, distances and angles)
@@ -175,7 +176,8 @@ export default function About() {
         <ul>
           <li>
             Absorbance, transmittance and diffuse reflectance (Kubelka–Munk), with a film thickness
-            or a cuvette path length, from text files or Galactic .spc instrument files.
+            or a cuvette path length, from text files, Excel .xlsx workbooks or Galactic .spc
+            instrument files.
           </li>
           <li>
             Tauc band gap with a suggested fit region anchored on the steepest part of the edge, a
@@ -197,7 +199,8 @@ export default function About() {
         <h3>FTIR</h3>
         <ul>
           <li>
-            Thermo OMNIC .spa, Bruker OPUS, PerkinElmer .sp and Galactic .spc files besides text.
+            Excel .xlsx workbooks, JCAMP-DX (.jdx), .dpt, Thermo OMNIC .spa, Bruker OPUS,
+            PerkinElmer .sp and Galactic .spc files besides text.
           </li>
           <li>
             Peak table with width, area and an intensity class, peaks added or removed by hand,

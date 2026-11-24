@@ -99,7 +99,7 @@ export default function Validation() {
       <h1 class="page-title">How Plot Bhai is validated</h1>
       <p class="page-lead">
         A number you put in a paper has to be right. Validated numerical methods in Plot Bhai are
-        checked three ways before it is released: on made-up data where the true answer is known,
+        checked three ways before they are released: on made-up data where the true answer is known,
         against another program or a published worked example, and by checks that the answer does
         not change when it should not (for example when the data are shifted or scaled).
       </p>
@@ -115,7 +115,7 @@ export default function Validation() {
           <a href="https://github.com/shumsularefin/Plot-bhai" rel="noopener noreferrer">
             public source code
           </a>
-          , run again on every change
+          , with core unit and validation tests run on every change
         </li>
       </ul>
       <p>

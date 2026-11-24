@@ -6,6 +6,53 @@ depend on. Each version is archived on Zenodo; the concept DOI
 [10.5281/zenodo.24222105](https://doi.org/10.5281/zenodo.24222105) always points to the latest.
 Details of every check are in [docs/validation.md](docs/validation.md).
 
+## 1.2.0 (2026-11-25)
+
+Full technical and scientific audit release (Stages 1–10): zero-dependency Excel `.xlsx` import,
+Vyazovkin (ICTAC 2011) kinetics, log-x plot digitization, BibTeX & printable HTML report export,
+independent SciPy/analytical validation for Thermal, XRD size–strain, UV-Vis optics/Swanepoel,
+FTIR ATR/JCAMP-DX and Digitize, plus numerical, parser, PWA, Worker and accessibility hardening.
+
+### New features
+
+- **Zero-dependency Excel `.xlsx` import & Excel-CSV fixes**: Drop `.xlsx` workbooks directly into
+  FTIR, UV-Vis, XRD and Thermal (built on the in-browser ZIP reader, no external libraries); handles
+  Excel-exported `.csv` files with multiple trailing empty commas, quoted commas and UTF-8 BOM, plus
+  a clear message for legacy `.xls` files.
+- **Vyazovkin (ICTAC 2011) nonlinear integral kinetics**: Added to the Thermal Kinetics wizard with
+  Senum–Yang 4th-order temperature integrals, `Ea(α)` plotting, CSV export and cited methods text.
+- **Digitize log-x axis**: Added Linear / Logarithmic toggle for the X-axis alongside the Y-axis.
+- **One-click BibTeX & printable HTML Sample Report**: Added **Copy BibTeX** / **Download .bib** on
+  the About page and **Download printable HTML** on Sample Report.
+- **Synchrotron XRD foundation**: Added backwards-compatible `customWavelengthA` support and
+  high-angle `dMin` computation for shorter wavelengths (`Mo`, `Ag`) in `phaseFromCif`.
+
+### Fixes & hardening
+
+- **Numerical & parser fixes**: Prevented collinear `overallB + aniso` in Rietveld, scaled `linear.ts`
+  small-norm pivot threshold (`<= 1e-14`), guarded Whittaker Cholesky against `NaN`, stabilized
+  UV-Vis sigmoid Jacobian, clamped noisy `R >= 1` (Kubelka–Munk) and `T + R > 1` (Zanatta `α`),
+  matched typed-`c` film optical paths in UV-Vis component subtraction, detected symmetric two-sided
+  FTIR peak overlap, fixed ATR zero-reference/angle guards and JCAMP `XYPOINTS` splitting, fixed
+  Galactic `.spc` & Bruker OPUS/RAW bounds, extracted Rigaku `.ras` wavelength, preserved Rietveld
+  `.xye`/pdCIF `sigma` when no cleaning steps are enabled, fixed TGA `%` blank drift and DSC `Tg`
+  divide-by-zero, fixed Digitize reversed-axis tilt modulo, and synced XRD reference lane margins
+  when Y-axis numbers are shown.
+- **Performance, PWA, Workers & accessibility**: Replaced 2,000-step Simpson normal-tail loop with
+  Cody's `erfc` (~1000× faster), used Transferables in Particle Worker, closed leaked `ImageBitmap`s,
+  versioned `public/sw.js` (`plot-bhai-v2`) with precache and offline fallback, added CSP-clean
+  `public/404.html`, added IndexedDB reset button in `ErrorBoundary`, hardened COD and Feedback
+  Workers, added CI test gating before Firebase deploy, added Skip-to-content link, dynamic page
+  titles, `aria-current`, light-mode `@media print` CSS, and aligned all documentation and privacy
+  disclosures.
+
+### Validation
+
+- Added independent SciPy/NumPy and analytical validation suites for Thermal (TGA CaC₂O₄·H₂O, DSC
+  melt/Tg, ODE-integrated ICTAC kinetics including Vyazovkin), XRD size–strain (Scherrer, Monshi,
+  W–H UDM, SSP, Halder–Wagner, dislocation density), UV-Vis Swanepoel & Zanatta optics, FTIR
+  Harrick ATR & JCAMP-DX, and Digitize calibration (Section 23 in `docs/validation.md`).
+
 ## 1.1.0 (2026-11-15)
 
 The UV-Vis, FTIR and Particles tools, audited, validated three ways and extended (stages 19a to
