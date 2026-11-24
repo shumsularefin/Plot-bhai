@@ -1,4 +1,5 @@
 import { decodeText, hasNulBytes, isZip } from '../text/bytes';
+import { isXlsxZip, LEGACY_XLS_ERROR, xlsxToDelimitedText } from '../text/xlsx';
 import { COMMENT, detectLayout, numericRow, splitFields } from '../text/delimitedTable';
 import { baseName } from '../xrd/import';
 import { formatNumber } from '../xrd/parsers/numbers';
@@ -16,6 +17,20 @@ const EXPORT_HINT =
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /** Imports a file's bytes. */
+/** Async importer supporting Excel .xlsx workbooks in addition to delimited thermal text files. */
+export async function importThermalFileAsync(
+  bytes: Uint8Array,
+  name = '',
+): Promise<ThermalImportResult> {
+  if (name.toLowerCase().endsWith('.xls')) return { ok: false, error: LEGACY_XLS_ERROR };
+  if (bytes.length > 0 && bytes.length <= MAX_FILE_BYTES && isXlsxZip(bytes)) {
+    const sheet = await xlsxToDelimitedText(bytes);
+    if (!sheet.ok) return sheet;
+    return importThermalText(sheet.text);
+  }
+  return importThermalFile(bytes);
+}
+
 export function importThermalFile(bytes: Uint8Array): ThermalImportResult {
   if (bytes.length === 0) return { ok: false, error: 'This file is empty.' };
   if (bytes.length > MAX_FILE_BYTES) {

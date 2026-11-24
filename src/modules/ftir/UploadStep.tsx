@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'preact/hooks';
-import { importFtirFile, importFtirText } from '../../core/ftir/import';
+import { importFtirFileAsync, importFtirText } from '../../core/ftir/import';
 import type { FtirImportResult, FtirSpectrum } from '../../core/ftir/types';
 import { DataSources, ImageSourceLink } from '../../ui/DataSources';
 import { FileDrop } from '../../ui/FileDrop';
@@ -22,7 +22,10 @@ type Request = { kind: 'file'; file: File } | { kind: 'text'; name: string; text
 async function read(request: Request): Promise<FtirImportResult> {
   try {
     return request.kind === 'file'
-      ? importFtirFile(request.file.name, new Uint8Array(await request.file.arrayBuffer()))
+      ? await importFtirFileAsync(
+          request.file.name,
+          new Uint8Array(await request.file.arrayBuffer()),
+        )
       : importFtirText(request.name, request.text, 'pasted');
   } catch {
     return { ok: false, error: 'Something went wrong while reading this file.' };
@@ -153,7 +156,7 @@ export function UploadStep({ data, update }: StepContext<FtirData>) {
         <>
           <DataSources imageHref="#/ftir/image">
             <FileDrop
-              formats=".csv, .txt, .dpt or JCAMP-DX (.jdx, .dx) with wavenumber (cm⁻¹) in the first column and one or more spectra in the other columns, or an instrument file: Thermo OMNIC .spa, Bruker OPUS (.0, .1, …), PerkinElmer .sp or Galactic .spc. Files stay on your device."
+              formats=".csv, .xlsx, .txt, .dpt or JCAMP-DX (.jdx, .dx) with wavenumber (cm⁻¹) in the first column and one or more spectra in the other columns, or an instrument file: Thermo OMNIC .spa, Bruker OPUS (.0, .1, …), PerkinElmer .sp or Galactic .spc. Files stay on your device."
               onFiles={importFiles}
               disabled={full}
             />

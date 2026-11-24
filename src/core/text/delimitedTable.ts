@@ -14,12 +14,37 @@ export interface Layout {
   decimalComma: boolean;
 }
 
+function splitQuoted(line: string, sep: string): string[] {
+  const out: string[] = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i] as string;
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (ch === sep && !inQuotes) {
+      out.push(cur.trim());
+      cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  out.push(cur.trim());
+  return out;
+}
+
 export function splitFields(line: string, delimiter: Delimiter): string[] {
+  const cleaned = line.replace(/^\uFEFF/, '');
   const fields = (
-    delimiter === 'space' ? line.trim().split(/\s+/) : line.split(delimiter).map((f) => f.trim())
-  ).map((f) => f.replace(/^"(.*)"$/, '$1'));
-  // A trailing delimiter ("10.0,123,") leaves one empty field at the end.
-  if (fields.length > 1 && fields[fields.length - 1] === '') fields.pop();
+    delimiter === 'space' ? cleaned.trim().split(/\s+/) : splitQuoted(cleaned, delimiter)
+  ).map((f) => f.replace(/^"(.*)"$/, '$1').trim());
+  // Excel CSV exports often append multiple trailing empty columns ("4000,98.5,,,").
+  while (fields.length > 1 && fields[fields.length - 1] === '') fields.pop();
   return fields;
 }
 
@@ -33,7 +58,7 @@ export function numericRow(line: string, layout: Layout): number[] | null {
 
 /** Picks the delimiter (and decimal style) that turns the most lines into rows of numbers. */
 export function detectLayout(lines: readonly string[]): Layout | null {
-  const sample = lines.filter((l) => l.trim() !== '' && !COMMENT.test(l)).slice(0, 400);
+  const sample = lines.filter((l) => l.trim() !== '' && !COMMENT.test(l)).slice(0, 1000);
   let best: { layout: Layout; rows: number } | null = null;
   for (const delimiter of DELIMITERS) {
     for (const decimalComma of delimiter === ',' ? [false] : [false, true]) {

@@ -1,4 +1,5 @@
 import { decodeText, hasNulBytes, isZip } from '../text/bytes';
+import { isXlsxZip, LEGACY_XLS_ERROR, xlsxToDelimitedText } from '../text/xlsx';
 import { COMMENT, detectLayout, numericRow, splitFields } from '../text/delimitedTable';
 import { baseName } from '../xrd/import';
 import { formatNumber } from '../xrd/parsers/numbers';
@@ -24,6 +25,20 @@ function extensionOf(name: string): string {
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /** Imports a file's bytes. `name` is the file name, used for the format and the spectrum names. */
+/** Async importer supporting Excel .xlsx workbooks in addition to all sync UV-Vis formats. */
+export async function importSpectraFileAsync(
+  name: string,
+  bytes: Uint8Array,
+): Promise<SpectraImportResult> {
+  if (extensionOf(name) === 'xls') return { ok: false, error: LEGACY_XLS_ERROR };
+  if (bytes.length > 0 && bytes.length <= MAX_FILE_BYTES && isXlsxZip(bytes)) {
+    const sheet = await xlsxToDelimitedText(bytes);
+    if (!sheet.ok) return sheet;
+    return importSpectraText(name, sheet.text, 'csv');
+  }
+  return importSpectraFile(name, bytes);
+}
+
 export function importSpectraFile(name: string, bytes: Uint8Array): SpectraImportResult {
   if (bytes.length === 0) return { ok: false, error: 'This file is empty.' };
   if (bytes.length > MAX_FILE_BYTES) {

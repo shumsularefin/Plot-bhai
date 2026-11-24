@@ -1,4 +1,5 @@
 import { decodeText, hasNulBytes, isZip } from '../text/bytes';
+import { LEGACY_XLS_ERROR, looksLikeXlsxEntries, xlsxToDelimitedText } from '../text/xlsx';
 import { listZip, readZipFiles, ZipError } from '../text/unzip';
 import { brmlWanted, looksLikeBrml, parseBrml } from './parsers/brml';
 import { looksLikeBrukerRaw, parseBrukerRaw } from './parsers/brukerRaw';
@@ -47,6 +48,11 @@ export async function importFileAsync(name: string, bytes: Uint8Array): Promise<
     if (looksLikeBrml(names)) {
       return toResult(name, 'brml', parseBrml(await readZipFiles(bytes, brmlWanted)));
     }
+    if (looksLikeXlsxEntries(names)) {
+      const sheet = await xlsxToDelimitedText(bytes);
+      if (!sheet.ok) return sheet;
+      return importText(name, sheet.text);
+    }
   } catch (error) {
     if (error instanceof ZipError) return { ok: false, error: error.message };
     throw error;
@@ -63,6 +69,7 @@ export async function importFileAsync(name: string, bytes: Uint8Array): Promise<
  */
 export function importFile(name: string, bytes: Uint8Array): ImportResult {
   const extension = extensionOf(name);
+  if (extension === 'xls') return { ok: false, error: LEGACY_XLS_ERROR };
   if (bytes.length === 0) return { ok: false, error: 'This file is empty.' };
   if (bytes.length > MAX_FILE_BYTES) {
     return {

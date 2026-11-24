@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'preact/hooks';
-import { guessMapping, importThermalFile } from '../../core/thermal/import';
+import { guessMapping, importThermalFileAsync } from '../../core/thermal/import';
 import { estimateHeatingRate, rampIndices } from '../../core/thermal/process';
 import {
   EXAMPLE_HEATING_RATE,
@@ -47,7 +47,10 @@ const PREVIEW_ROWS = 5;
 /** Reads a table file for the sample or the blank; the message says why a file was refused. */
 export async function loadTable(file: File): Promise<LoadedTable | string> {
   try {
-    const result = importThermalFile(new Uint8Array(await file.arrayBuffer()));
+    const result = await importThermalFileAsync(
+      new Uint8Array(await file.arrayBuffer()),
+      file.name,
+    );
     if (!result.ok) return result.error;
     return {
       name: file.name,
