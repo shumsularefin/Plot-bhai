@@ -144,7 +144,9 @@ export function particleMethodsParagraph(input: ParticleMethodsInput): string {
   sentences.push(
     input.nmPerPixel !== null
       ? `${where} with ${input.software}; lengths were calibrated from the scale bar of the image (${number(input.nmPerPixel)} nm per pixel${input.images > 1 ? ' for the image on screen' : ''}).`
-      : `${where} with ${input.software}; no scale was set, so sizes are in pixels.`,
+      : input.unit !== 'px'
+        ? `${where} with ${input.software}; lengths were calibrated from each image's scale bar (${unit}).`
+        : `${where} with ${input.software}; no scale was set, so sizes are in pixels.`,
   );
   if (input.detection) sentences.push(detectionSentence(input.detection));
   if (input.handCount > 0) {

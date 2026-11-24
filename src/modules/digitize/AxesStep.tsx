@@ -85,6 +85,28 @@ export function AxesStep({ data, update }: StepContext<ShotData>) {
       </p>
 
       <fieldset class="method-choice">
+        <legend>Scale of the {axes.x} axis</legend>
+        <label class="check">
+          <input
+            type="radio"
+            name="x-scale"
+            checked={(data.xScale ?? 'linear') === 'linear'}
+            onChange={() => update({ xScale: 'linear' })}
+          />
+          Linear
+        </label>
+        <label class="check">
+          <input
+            type="radio"
+            name="x-scale"
+            checked={data.xScale === 'log'}
+            onChange={() => update({ xScale: 'log' })}
+          />
+          Logarithmic (ticks like 10, 100, 1000)
+        </label>
+      </fieldset>
+
+      <fieldset class="method-choice">
         <legend>Scale of the {axes.y} axis</legend>
         <label class="check">
           <input

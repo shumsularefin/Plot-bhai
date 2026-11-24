@@ -136,7 +136,7 @@ export function analyseBandGap(
         component.cleaned.wavelengthNm,
         component.cleaned.values,
         component.spectrum,
-        null,
+        choice.componentFactor !== null ? path : null,
       );
       if ((other.unit === 'kubelka-munk') !== (signal.unit === 'kubelka-munk')) {
         componentProblem = 'unit';

@@ -89,5 +89,16 @@ export function parseRas(text: string): ParseResult {
       text: 'The third column (attenuator factor) is not 1 everywhere. It was not applied to the intensities. Check in your instrument software whether the exported intensities are already corrected.',
     });
   }
-  return { ok: true, scan: { twoTheta, intensity, notes } };
+  const wlRaw = header.get('HW_XG_WAVE_LENGTH_ALPHA1');
+  const wl = wlRaw !== undefined ? Number(wlRaw) : Number.NaN;
+  const wavelengthFromFileA = Number.isFinite(wl) && wl > 0 ? wl : undefined;
+  return {
+    ok: true,
+    scan: {
+      twoTheta,
+      intensity,
+      notes,
+      ...(wavelengthFromFileA !== undefined && { wavelengthFromFileA }),
+    },
+  };
 }

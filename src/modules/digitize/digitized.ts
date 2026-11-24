@@ -37,6 +37,7 @@ export function calibrationOf(
       { at: y1.at as Point, value: value(y1.value) },
       { at: y2.at as Point, value: value(y2.value) },
     ],
+    ...(data.xScale && { xScale: data.xScale }),
     yScale: data.yScale,
   };
   const error = calibrationError(calibration, names);
