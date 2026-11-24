@@ -1820,7 +1820,11 @@ for Digitize calibration (`tests/validation-thermal.test.ts`, `tests/validation-
 | ICTAC multi-rate kinetics (Kissinger, KAS, FWO, Starink, Friedman) | `scipy.integrate.solve_ivp` ODE + `linregress` (Ea = 120 kJ/mol) | ±0.01–0.1 kJ/mol           | Pass   |
 | XRD Scherrer, Monshi–Scherrer & Dislocation Density                | NumPy / `scipy.stats.linregress` (D = 25.0 nm)                   | ±1e-4 nm, rel 1e-6         | Pass   |
 | XRD Williamson–Hall UDM, Size–Strain Plot & Halder–Wagner          | `scipy.stats.linregress` (D = 25.0 nm, ε = 0.0020)               | ±1e-3 nm, ±1e-4 strain     | Pass   |
-| Digitize affine calibration (rotated, log-y, reversed FTIR x-axis) | Exact analytical projection & tilt angle                         | ±1e-6                      | Pass   |
+| Digitize affine calibration (rotated, log-x/log-y, reversed FTIR)  | Exact analytical projection & tilt angle                         | ±1e-6                      | Pass   |
+| ICTAC Vyazovkin nonlinear integral kinetics (Senum–Yang)           | `scipy.integrate.solve_ivp` ODE (Ea = 120 kJ/mol)                | ±0.6 kJ/mol                | Pass   |
+| UV-Vis Swanepoel (1983) thin-film thickness & index                | Exact analytical fringes (d = 1000 nm, s = 1.51)                 | ±1.5 % d, ±1e-6 n          | Pass   |
+| UV-Vis Zanatta α(T, R, d), k, σ & Hervé–Vandamme n(Eg)             | Exact slab inverse & Hervé–Vandamme (1994) Eq. 10                | ±1e-4                      | Pass   |
+| FTIR Harrick (1967) ATR penetration depth dp & JCAMP-DX            | Harrick (1967) Diamond/Ge 45° & NIST-style .jdx                  | ±1e-3 µm                   | Pass   |
 
 Open:
 

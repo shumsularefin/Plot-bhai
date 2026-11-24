@@ -424,3 +424,19 @@ input[type='range']::-moz-range-thumb {
     height: 20px;
   }
 }
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0.5rem;
+  z-index: 1000;
+  padding: 0.5rem 0.9rem;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border: 2px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+}
+
+.skip-link:focus {
+  left: 0.5rem;
+}

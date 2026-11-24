@@ -43,6 +43,9 @@ export function App() {
 
   return (
     <div class="shell">
+      <a class="skip-link" href="#main-content">
+        Skip to content
+      </a>
       <header class="site-header">
         <div class="container">
           <a href="#/" class="brand">
@@ -62,7 +65,7 @@ export function App() {
           </nav>
         </div>
       </header>
-      <main class="site-main">
+      <main id="main-content" class="site-main">
         <div class="container">
           <ErrorBoundary key={path}>
             {path === '/about' ? (

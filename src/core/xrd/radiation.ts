@@ -44,6 +44,15 @@ export interface RadiationSettings {
   kAlpha1Only: boolean;
   /** Intensity of Kα2 relative to Kα1 (dimensionless, 0 to 1). */
   kAlpha2Ratio: number;
+  /** Optional custom monochromatic wavelength in Å (e.g. synchrotron beamline). */
+  customWavelengthA?: number;
+}
+
+/** Returns the effective primary wavelength (Å) for tube or custom monochromatic radiation. */
+export function effectiveWavelengthA(r: RadiationSettings): number {
+  return r.customWavelengthA !== undefined && r.customWavelengthA > 0
+    ? r.customWavelengthA
+    : ANODES[r.anode].kAlpha1;
 }
 
 export const DEFAULT_RADIATION: RadiationSettings = {
