@@ -25,6 +25,8 @@ export interface Calibration {
   x: readonly [AxisPoint, AxisPoint];
   y: readonly [AxisPoint, AxisPoint];
   yScale: AxisScale;
+  /** Optional x-axis scale (defaults to 'linear' for backwards compatibility). */
+  xScale?: AxisScale;
 }
 
 /** What the axes show, for the messages: for example 2θ and intensity, or wavenumber and transmittance. */
@@ -65,6 +67,8 @@ export function calibrationError(c: Calibration, names: AxisNames = GENERIC_AXES
   if (!finite) return 'Type a number for each of the four marked points.';
   if (x1.value === x2.value) return `The two ${names.x} points need different values.`;
   if (y1.value === y2.value) return `The two ${names.y} points need different values.`;
+  if ((c.xScale ?? 'linear') === 'log' && (x1.value <= 0 || x2.value <= 0))
+    return `On a logarithmic axis the ${names.x} values must be above zero.`;
   if (c.yScale === 'log' && (y1.value <= 0 || y2.value <= 0))
     return `On a logarithmic axis the ${names.y} values must be above zero.`;
   if (length(sub(x2.at, x1.at)) < 1 || length(sub(y2.at, y1.at)) < 1)
@@ -108,10 +112,13 @@ export function toData(c: Calibration, p: Point): { x: number; y: number } {
   const v = sub(c.y[1].at, c.y[0].at);
   const [a] = decompose(sub(p, c.x[0].at), u, v) ?? [NaN];
   const [, d] = decompose(sub(p, c.y[0].at), u, v) ?? [NaN, NaN];
+  const xScale = c.xScale ?? 'linear';
+  const x0 = toAxis(c.x[0].value, xScale);
+  const x1 = toAxis(c.x[1].value, xScale);
   const y0 = toAxis(c.y[0].value, c.yScale);
   const y1 = toAxis(c.y[1].value, c.yScale);
   return {
-    x: c.x[0].value + a * (c.x[1].value - c.x[0].value),
+    x: fromAxis(x0 + a * (x1 - x0), xScale),
     y: fromAxis(y0 + d * (y1 - y0), c.yScale),
   };
 }
@@ -120,7 +127,9 @@ export function toData(c: Calibration, p: Point): { x: number; y: number } {
 export function toPixel(c: Calibration, value: { x: number; y: number }): Point {
   const u = sub(c.x[1].at, c.x[0].at);
   const v = sub(c.y[1].at, c.y[0].at);
-  const a = (value.x - c.x[0].value) / (c.x[1].value - c.x[0].value);
+  const xScale = c.xScale ?? 'linear';
+  const x0 = toAxis(c.x[0].value, xScale);
+  const a = (toAxis(value.x, xScale) - x0) / (toAxis(c.x[1].value, xScale) - x0);
   const y0 = toAxis(c.y[0].value, c.yScale);
   const d = (toAxis(value.y, c.yScale) - y0) / (toAxis(c.y[1].value, c.yScale) - y0);
   // Q₁ − P₁ = α u + β v, and p = P₁ + a u + b v = Q₁ + c u + d v gives b = d + β.

@@ -47,4 +47,25 @@ describe('Digitize affine calibration analytical validation', () => {
     });
     expect(warnings.some((w) => w.includes('tilted'))).toBe(false);
   });
+
+  it('round-trips log-x and log-y coordinates accurately', () => {
+    const logLog: Calibration = {
+      x: [
+        { at: { x: 100, y: 400 }, value: 1 },
+        { at: { x: 500, y: 400 }, value: 10000 },
+      ],
+      y: [
+        { at: { x: 100, y: 400 }, value: 0.1 },
+        { at: { x: 100, y: 100 }, value: 100 },
+      ],
+      xScale: 'log',
+      yScale: 'log',
+    };
+    const px = toPixel(logLog, { x: 100, y: 10 });
+    expect(px.x).toBeCloseTo(300, 6);
+    expect(px.y).toBeCloseTo(200, 6);
+    const data = toData(logLog, px);
+    expect(data.x).toBeCloseTo(100, 6);
+    expect(data.y).toBeCloseTo(10, 6);
+  });
 });

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { analyseEvent, analyseGlassTransition } from '../src/core/thermal/dsc';
-import { friedman, isoconversional, kissinger } from '../src/core/thermal/kinetics';
+import { friedman, isoconversional, kissinger, vyazovkin } from '../src/core/thermal/kinetics';
 import { analyseSteps, temperatureAtMass } from '../src/core/thermal/steps';
 
 interface ThermalRef {
@@ -150,5 +150,9 @@ describe('Thermal independent validation against SciPy / NumPy', () => {
     expect(mean(fwo)).toBeCloseTo(kin.scipy.fwoMeanEaKJ, 1);
     expect(mean(starink)).toBeCloseTo(kin.scipy.starinkMeanEaKJ, 1);
     expect(mean(fri)).toBeCloseTo(kin.scipy.friedmanMeanEaKJ, 1);
+
+    const vyaz = vyazovkin(massRuns, 150, 450, kin.alphas);
+    expect(vyaz.length).toBe(kin.alphas.length);
+    expect(Math.abs(mean(vyaz) - kin.trueEaKJ)).toBeLessThan(0.6);
   });
 });

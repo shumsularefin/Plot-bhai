@@ -1,6 +1,22 @@
+import { useState } from 'preact/hooks';
 import { CreditsText } from './Credits';
+import { downloadBlob } from './plot/export';
 import { DOI, VERSION } from './software';
 import './about.css';
+
+function bibtexCitation(): string {
+  return [
+    '@software{arefin2026plotbhai,',
+    '  author    = {Arefin, Shumsul},',
+    '  title     = {{Plot Bhai: a client-side wizard for XRD, UV-Vis, FTIR, particle size and thermal analysis}},',
+    `  version   = {${VERSION}},`,
+    '  year      = {2026},',
+    '  publisher = {Zenodo},',
+    `  doi       = {${DOI}},`,
+    `  url       = {https://doi.org/${DOI}}`,
+    '}',
+  ].join('\n');
+}
 
 /** One equation with a plain-language reading. Static text, so no maths renderer is needed. */
 function Eq({ children, note }: { children: string; note: string }) {
@@ -13,6 +29,22 @@ function Eq({ children, note }: { children: string; note: string }) {
 }
 
 export default function About() {
+  const [citeStatus, setCiteStatus] = useState('');
+  const copyBibtex = async () => {
+    try {
+      await navigator.clipboard.writeText(bibtexCitation());
+      setCiteStatus('BibTeX copied.');
+    } catch {
+      setCiteStatus('Copying is blocked in this browser. Use Download .bib instead.');
+    }
+  };
+  const downloadBibtex = () => {
+    downloadBlob(
+      new Blob([bibtexCitation() + '\n'], { type: 'application/x-bibtex' }),
+      'plot-bhai.bib',
+    );
+    setCiteStatus('Saved plot-bhai.bib.');
+  };
   return (
     <article class="about">
       <h1 class="page-title">About Plot Bhai</h1>
@@ -40,6 +72,19 @@ export default function About() {
           version you used. Please also cite the original paper or COD entry of every reference
           pattern you used.
         </p>
+        <div class="export-actions">
+          <button type="button" class="btn" onClick={() => void copyBibtex()}>
+            Copy BibTeX
+          </button>
+          <button type="button" class="btn" onClick={downloadBibtex}>
+            Download .bib
+          </button>
+        </div>
+        {citeStatus && (
+          <p class="export-status" role="status">
+            {citeStatus}
+          </p>
+        )}
       </section>
 
       <section aria-labelledby="about-privacy">

@@ -173,6 +173,27 @@ export default function SampleReport() {
     downloadBlob(new Blob([text], { type: 'text/markdown' }), name);
     setStatus(`Saved ${name}.`);
   };
+  const downloadHtml = () => {
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const title = sample.trim() || 'Sample report';
+    const sections = parts
+      .map(
+        (p) =>
+          `<section><h2>${esc(p.tool)}</h2>${p.results
+            .map(
+              (r) =>
+                `<h3>${esc(r.title)}</h3><ul>${r.lines
+                  .map((line) => `<li>${esc(line)}</li>`)
+                  .join('')}</ul>`,
+            )
+            .join('')}<p>${esc(p.methods)}</p></section>`,
+      )
+      .join('');
+    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"/><title>${esc(title)} — Plot Bhai</title><style>body{font-family:system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#111;line-height:1.6}h1,h2{margin-top:1.6rem}ul{padding-left:1.25rem}li{margin:.25rem 0}</style></head><body><h1>${esc(title)}</h1>${sections}</body></html>`;
+    const name = `${fileStem(sample.trim() || 'sample')}-report.html`;
+    downloadBlob(new Blob([html], { type: 'text/html;charset=utf-8' }), name);
+    setStatus(`Saved ${name}.`);
+  };
   const missing = TOOLS.filter((t) => !parts.some((p) => p.tool === t.tool));
 
   return (
@@ -258,6 +279,9 @@ export default function SampleReport() {
                 </button>
                 <button type="button" class="btn btn-primary" onClick={download}>
                   Download the report (.md)
+                </button>
+                <button type="button" class="btn" onClick={downloadHtml}>
+                  Download printable HTML
                 </button>
               </div>
               <p class="export-status" role="status">
