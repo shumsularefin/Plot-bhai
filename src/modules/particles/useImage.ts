@@ -19,6 +19,7 @@ export function cacheImage(id: string, image: DecodedImage): void {
 }
 
 export function clearImageCache(): void {
+  if (cache?.image.source instanceof ImageBitmap) cache.image.source.close();
   cache = undefined;
 }
 
@@ -53,7 +54,10 @@ export function useImage(info: ImageInfo | null): State {
         return;
       }
       const result = await decodeImage(info.name, new Uint8Array(await blob.arrayBuffer()), blob);
-      if (!active) return;
+      if (!active) {
+        if (result.ok && result.image.source instanceof ImageBitmap) result.image.source.close();
+        return;
+      }
       if (!result.ok) {
         setState({ status: 'error', error: result.error });
         return;
