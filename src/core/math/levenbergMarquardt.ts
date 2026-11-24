@@ -136,8 +136,8 @@ export function levenbergMarquardt(problem: LeastSquaresProblem): LeastSquaresRe
       if (decrease < 1e-10 || relativeStep < 1e-9) converged = true;
     } else {
       lambda *= 10;
-      // No downhill step exists even with a tiny step: we are at the minimum.
-      if (lambda > 1e12 || relativeStep < 1e-12) converged = true;
+      if (relativeStep < 1e-12) converged = true;
+      else if (lambda > 1e12) break;
     }
   }
 

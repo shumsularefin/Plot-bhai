@@ -113,16 +113,19 @@ export function useStore<T>(store: PersistedStore<T>): { state: T; status: Store
   const [, rerender] = useState(0);
   useEffect(() => {
     const unsubscribe = store.subscribe(() => rerender((n) => n + 1));
-    const onHide = () => void store.flush();
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') void store.flush();
+    };
+    const onPageHide = () => void store.flush();
     document.addEventListener('visibilitychange', onHide);
-    window.addEventListener('pagehide', onHide);
+    window.addEventListener('pagehide', onPageHide);
     // The store may have changed between first render and subscribing.
     rerender((n) => n + 1);
     return () => {
       unsubscribe();
       // A cleanup that Preact runs late (after a test environment is torn down) finds no document.
       globalThis.document?.removeEventListener('visibilitychange', onHide);
-      globalThis.window?.removeEventListener('pagehide', onHide);
+      globalThis.window?.removeEventListener('pagehide', onPageHide);
     };
   }, [store]);
   return { state: store.get(), status: store.status() };

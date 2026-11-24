@@ -50,7 +50,10 @@ export function d1Store(db) {
         kind,
         who,
       ),
-    prune: (before) => run('DELETE FROM daily WHERE day < ?', before),
+    async prune(before) {
+      await run('DELETE FROM daily WHERE day < ?', before);
+      await run('DELETE FROM analyses WHERE day < ?', before);
+    },
     addAnalysis: (a) =>
       run(
         'INSERT INTO analyses (id, day, tool, browser) VALUES (?, ?, ?, ?)',
@@ -66,7 +69,13 @@ export function d1Store(db) {
       );
       return row ? { ...row, validated: row.validated === 1 } : null;
     },
-    markValidated: (id) => run('UPDATE analyses SET validated = 1 WHERE id = ?', id),
+    async markValidated(id) {
+      const result = await run(
+        'UPDATE analyses SET validated = 1 WHERE id = ? AND validated = 0',
+        id,
+      );
+      return (result.meta?.changes ?? 1) > 0;
+    },
     addValidation: (v) =>
       run(
         'INSERT INTO validations (created, tool, verdict, comment, status) VALUES (?, ?, ?, ?, ?)',

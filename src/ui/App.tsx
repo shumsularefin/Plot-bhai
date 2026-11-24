@@ -21,9 +21,25 @@ const loadThermalImage = () => import('../modules/digitize/targets/thermal');
 const loadValidation = () => import('./Validation');
 const loadReport = () => import('../modules/report/SampleReport');
 
+const ROUTE_TITLES: Record<string, string> = {
+  '/': 'Plot Bhai',
+  '/xrd': 'XRD — Plot Bhai',
+  '/uvvis': 'UV-Vis — Plot Bhai',
+  '/ftir': 'FTIR — Plot Bhai',
+  '/particles': 'Particle size — Plot Bhai',
+  '/thermal': 'Thermal (TGA & DSC) — Plot Bhai',
+  '/report': 'Sample report — Plot Bhai',
+  '/validation': 'Validation — Plot Bhai',
+  '/about': 'About — Plot Bhai',
+};
+
 export function App() {
   const path = useHashPath();
   useEffect(recordVisit, []);
+  useEffect(() => {
+    document.title = ROUTE_TITLES[path] ?? 'Plot Bhai';
+    window.scrollTo?.(0, 0);
+  }, [path]);
 
   return (
     <div class="shell">
@@ -36,8 +52,12 @@ export function App() {
             Plot Bhai
           </a>
           <nav class="site-nav" aria-label="Site">
-            <a href="#/validation">Validation</a>
-            <a href="#/about">About</a>
+            <a href="#/validation" aria-current={path === '/validation' ? 'page' : undefined}>
+              Validation
+            </a>
+            <a href="#/about" aria-current={path === '/about' ? 'page' : undefined}>
+              About
+            </a>
             <ThemeToggle />
           </nav>
         </div>

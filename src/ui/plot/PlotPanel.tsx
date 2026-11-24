@@ -342,6 +342,13 @@ export function PlotPanel(props: PlotPanelProps) {
           <ReferenceLanes
             lanes={props.lanes}
             domain={domain}
+            yValues={Boolean(
+              figure?.axes.yValues === 'show'
+                ? true
+                : figure?.axes.yValues === 'hide'
+                  ? false
+                  : axisLabels.yValues,
+            )}
             {...(props.lanesKey && { keyNote: props.lanesKey })}
           />
         )}

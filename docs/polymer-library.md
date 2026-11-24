@@ -28,6 +28,7 @@ paper and DOI, has no COD number, and is flagged for the owner's verification.
 | PVDF α                             | Hasegawa 1972              | P2₁/c       | R 0.157 against summed Fcalc                                                                                                                    |
 | PVDF β                             | Hasegawa 1972              | Cm2m        | statistical disorder modelled as half-occupied off-mirror atoms                                                                                 |
 | PVA                                | Bunn 1948                  | P2₁/m       | O half-occupied at two sites, as in the paper                                                                                                   |
+| Chitosan (anhydrous)               | Naito et al. 2016          | P2₁2₁2₁     | bonds as paper (Biopolymers 105:361, doi:10.1002/bip.22818)                                                                                     |
 
 ## Not included
 

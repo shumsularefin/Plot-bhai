@@ -96,12 +96,26 @@ scope.onmessage = ({ data: request }) => {
   const progress = (stage: string) =>
     scope.postMessage({ id: request.id, kind: 'progress', stage });
   if ('series' in request) {
-    const { series } = request;
-    const items = series.patterns.map((p) => seriesItem(series, p, request.anomalous));
-    const points = refineSeries(items, series.copyForward, refineRietveld, (index, total, stage) =>
-      progress(`Pattern ${index + 1} of ${total}: ${stage}`),
-    );
-    scope.postMessage({ id: request.id, kind: 'series', points });
+    try {
+      const { series } = request;
+      const items = series.patterns.map((p) => seriesItem(series, p, request.anomalous));
+      const points = refineSeries(
+        items,
+        series.copyForward,
+        refineRietveld,
+        (index, total, stage) => progress(`Pattern ${index + 1} of ${total}: ${stage}`),
+      );
+      scope.postMessage({ id: request.id, kind: 'series', points });
+    } catch (e) {
+      scope.postMessage({
+        id: request.id,
+        kind: 'done',
+        outcome: {
+          ok: false,
+          error: `The series refinement failed: ${e instanceof Error ? e.message : 'unknown problem'}.`,
+        },
+      });
+    }
     return;
   }
   let outcome: RietveldOutcome;

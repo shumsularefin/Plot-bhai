@@ -34,7 +34,8 @@ XRD · Rietveld · UV-Vis · FTIR · TGA / DSC · Particle size from SEM / TEM
 - 🧭 **A wizard, not a manual.** Every tool is a short sequence of steps with one main action each,
   clear Back and Next, and a "What is this?" note on every technical term.
 - 🔒 **Your data stays on your device.** All processing runs in your browser. No accounts, no
-  uploads, no analytics, no third-party scripts or fonts.
+  file uploads, no tracking cookies, and no third-party scripts or fonts (only an anonymous
+  first-party visit and completion counter; details in [DATA-SOURCES.md](DATA-SOURCES.md)).
 - 📄 **Publication ready.** SVG, PNG at 300 / 600 dpi and PDF figures at journal column widths,
   CSV for every table, and a "Methods text" paragraph written from the settings you actually used.
 - ✅ **Validated three ways.** Every numerical method is checked against synthetic data with a known
@@ -55,7 +56,7 @@ XRD · Rietveld · UV-Vis · FTIR · TGA / DSC · Particle size from SEM / TEM
 | **FTIR**                | Baseline and smoothing, peak picking, band fitting, peak tables and ranked functional group suggestions.                                                                                                                                                                                  |
 | **TGA and DSC**         | Mass loss steps with DTG, onset / peak / endset temperatures, T5, T10 and T50, enthalpy, glass transition, ranked event suggestions, a calcination starting point and multi-rate activation energy.                                                                                       |
 | **Particle size**       | Set the scale bar on an SEM or TEM image, detect or draw particles, and build a size distribution with statistics.                                                                                                                                                                        |
-| **Sample report**       | Combine the XRD, FTIR, UV-Vis and thermal results for one sample into a single summary with one methods section.                                                                                                                                                                          |
+| **Sample report**       | Combine the XRD, FTIR, UV-Vis, thermal (TGA/DSC) and particle size results for one sample into a single summary with one methods section.                                                                                                                                                 |
 
 Size and strain methods: Scherrer, Monshi–Scherrer, Williamson–Hall (UDM, USDM, UDEDM), size–strain
 plot and Halder–Wagner, plus dislocation density, texture coefficient and crystallinity index.

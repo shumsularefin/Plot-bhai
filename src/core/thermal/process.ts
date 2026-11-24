@@ -143,7 +143,8 @@ export function cleanRun(
         text: `The blank only covers ${formatNumber(bT[0] as number, 0)} to ${formatNumber(bT[bT.length - 1] as number, 0)} °C. Outside that range its end value is held constant, so the correction there is a guess.`,
       });
     }
-    m = m.map((v, i) => v - interpolate(bT, bm, T[i] as number));
+    const blankOrigin = blank.massUnit === 'percent' ? (bm[0] as number) : 0;
+    m = m.map((v, i) => v - (interpolate(bT, bm, T[i] as number) - blankOrigin));
     notes.push({ level: 'info', text: 'The blank curve was subtracted from the sample mass.' });
   }
 

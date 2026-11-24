@@ -28,7 +28,7 @@ export function solveBanded(
         ((d1[i - 1] as number) - (l2[i] as number) * (l1[i - 1] as number)) / (l0[i - 1] as number);
     }
     const sum = (d0[i] as number) - (l1[i] as number) ** 2 - (l2[i] as number) ** 2;
-    l0[i] = Math.sqrt(sum);
+    l0[i] = Math.sqrt(sum > 1e-18 ? sum : 1e-18);
   }
   const forward = new Float64Array(n);
   for (let i = 0; i < n; i++) {

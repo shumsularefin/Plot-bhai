@@ -12,9 +12,10 @@ function Inline({ text }: { text: string }) {
   );
 }
 
-/** True for the "Open:" line that starts a list of checks not yet done. */
+/** True for the "Open:" line or "### Open" heading that starts a list of checks not yet done. */
 const startsOpenList = (block: MarkdownBlock | undefined) =>
-  block?.kind === 'paragraph' && block.text === 'Open:';
+  (block?.kind === 'paragraph' && block.text === 'Open:') ||
+  (block?.kind === 'heading' && block.text.trim() === 'Open');
 
 function Block({ block, open }: { block: MarkdownBlock; open: boolean }) {
   if (block.kind === 'heading')
@@ -97,7 +98,7 @@ export default function Validation() {
       </p>
       <h1 class="page-title">How Plot Bhai is validated</h1>
       <p class="page-lead">
-        A number you put in a paper has to be right. Each numerical method added to the XRD tool is
+        A number you put in a paper has to be right. Validated numerical methods in Plot Bhai are
         checked three ways before it is released: on made-up data where the true answer is known,
         against another program or a published worked example, and by checks that the answer does
         not change when it should not (for example when the data are shifted or scaled).

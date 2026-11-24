@@ -12,6 +12,7 @@ interface LanesSvgProps {
   xDomain: Domain;
   width: number;
   style: PlotStyle;
+  yValues?: boolean;
   svgAttributes: SVGAttributes<SVGSVGElement>;
 }
 
@@ -21,8 +22,8 @@ interface LanesSvgProps {
  * peaks. The lane name (phase and COD ID) sits at the left edge of its lane. Reference lines
  * with no measured peak are drawn thinner and lighter, as on screen.
  */
-export function LanesSvg({ lanes, xDomain, width, style, svgAttributes }: LanesSvgProps) {
-  const m = plotMargins(style.fontSize);
+export function LanesSvg({ lanes, xDomain, width, style, yValues, svgAttributes }: LanesSvgProps) {
+  const m = plotMargins(style.fontSize, yValues);
   const innerW = Math.max(1, width - m.left - m.right);
   const laneH = style.fontSize * LANE_HEIGHT_EM;
   const height = lanes.length * laneH;

@@ -199,7 +199,10 @@ export async function handle(request, store, env, now = Date.now()) {
     ) {
       return json({ error: 'Daily limit reached.' }, 429, origin);
     }
-    await store.markValidated(data.id);
+    const marked = await store.markValidated(data.id);
+    if (marked === false) {
+      return json({ error: 'This analysis was already validated.' }, 409, origin);
+    }
     await store.addValidation({
       created: new Date(now).toISOString(),
       tool: data.tool,

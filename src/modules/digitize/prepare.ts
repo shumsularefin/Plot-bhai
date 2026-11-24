@@ -158,7 +158,10 @@ export function useShotImage(key: string, info: ShotImageInfo | null, degrees: n
         return;
       }
       const result = await decodeShot(blob);
-      if (!active) return;
+      if (!active) {
+        if (result.ok) result.bitmap.close();
+        return;
+      }
       if (!result.ok) {
         setState({ status: 'error', error: result.error });
         return;

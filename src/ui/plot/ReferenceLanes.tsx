@@ -27,6 +27,7 @@ const TAG_ROOM = 12;
 interface ReferenceLanesProps {
   lanes: readonly ReferenceLane[];
   domain: Domain;
+  yValues?: boolean;
   /** How the line heights are scaled, for the key. */
   keyNote?: string;
 }
@@ -39,6 +40,7 @@ interface ReferenceLanesProps {
 export function ReferenceLanes({
   lanes,
   domain,
+  yValues,
   keyNote = 'Taller lines are stronger in the reference. Point at a line to see its (hkl) and 2θ.',
 }: ReferenceLanesProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -54,7 +56,7 @@ export function ReferenceLanes({
     return () => observer.disconnect();
   }, []);
 
-  const m = plotMargins(FONT_SIZE);
+  const m = plotMargins(FONT_SIZE, yValues);
   const innerW = Math.max(1, width - m.left - m.right);
   const [x0, x1] = domain;
   const px = (x: number) => ((x - x0) / (x1 - x0)) * innerW;

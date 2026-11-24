@@ -84,7 +84,7 @@ settings unless the user changes them.
 
 - New independent checks in CI: SciPy, lmfit, pybaselines, scikit-image, ImageJ 1.54f,
   SpectroChemPy, brukeropusreader, spc-io and specio.
-- docs/validation.md grew from 20 to 30 sections and from 229 to 530 table rows.
+- docs/validation.md grew from 20 to 30 sections and from 229 to 453 recorded check rows.
 
 ## 1.0.0 (2026-11-14)
 

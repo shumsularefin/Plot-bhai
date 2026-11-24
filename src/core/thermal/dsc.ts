@@ -459,8 +459,10 @@ export function analyseGlassTransition(
   const ti = Tr[steep] as number;
   const ei = er[steep] as number;
   const m = slope[steep] as number;
-  const meet = (f: { intercept: number; slope: number }) =>
-    (f.intercept - ei + m * ti) / (m - f.slope);
+  const meet = (f: { intercept: number; slope: number }) => {
+    const denom = m - f.slope;
+    return Math.abs(denom) > 1e-12 ? (f.intercept - ei + m * ti) / denom : midpoint;
+  };
   const onset = meet(pre);
   const endset = meet(post);
   const stepHeight = line(post, midpoint) - line(pre, midpoint);

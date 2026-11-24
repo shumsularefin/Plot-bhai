@@ -465,3 +465,105 @@ export function resultWarnings(
   }
   return notes;
 }
+
+/**
+ * Senum–Yang 4th-order rational approximation to the Arrhenius temperature integral
+ * I(E, T) = (E / R) · p(x), x = E / (R · T), accurate to < 1e-6 for x >= 10
+ * (Senum & Yang, J. Therm. Anal. 11, 1977, 445–447; ICTAC 2011).
+ */
+function temperatureIntegral(eaJ: number, tK: number): number {
+  const x = eaJ / (GAS_CONSTANT * tK);
+  const num = x * x * x + 18 * x * x + 86 * x + 96;
+  const den = x * x * x * x + 20 * x * x * x + 120 * x * x + 240 * x + 120;
+  const px = (Math.exp(-x) / x) * (num / den);
+  return (eaJ / GAS_CONSTANT) * px;
+}
+
+export interface VyazovkinPoint {
+  alpha: number;
+  eaKJ: number;
+  /** Value of the Vyazovkin objective Φ(E_α); n(n − 1) is the exact minimum for ideal data. */
+  phi: number;
+  runs: number;
+}
+
+/**
+ * Vyazovkin nonlinear integral isoconversional method (Vyazovkin & Dollimore 1996; ICTAC Kinetics
+ * Committee 2011). For each conversion level α, finds E_α in [10, 600] kJ/mol minimizing
+ *   Φ(E_α) = Σ_{i=1}^n Σ_{j≠i} [I(E_α, T_{α,i}) · β_j] / [I(E_α, T_{α,j}) · β_i]
+ * via coarse grid search followed by golden-section refinement.
+ */
+export function vyazovkin(
+  runs: readonly MassRun[],
+  fromC: number,
+  toC: number,
+  alphas: readonly number[],
+): VyazovkinPoint[] {
+  const perRun = runs.map((r) => temperaturesAtConversion(r, fromC, toC, alphas));
+  const out: VyazovkinPoint[] = [];
+  const gr = (Math.sqrt(5) - 1) / 2;
+
+  alphas.forEach((alpha, k) => {
+    const pairs: { tK: number; beta: number }[] = [];
+    perRun.forEach((temps, r) => {
+      const t = temps?.[k];
+      if (t !== undefined && t !== null) {
+        pairs.push({ tK: t + KELVIN_OFFSET, beta: (runs[r] as MassRun).betaKPerMin });
+      }
+    });
+    if (pairs.length < 3) return;
+
+    const objective = (eaKJ: number): number => {
+      const eaJ = eaKJ * 1000;
+      const ints = pairs.map((p) => temperatureIntegral(eaJ, p.tK));
+      let sum = 0;
+      for (let i = 0; i < pairs.length; i++) {
+        for (let j = 0; j < pairs.length; j++) {
+          if (i === j) continue;
+          const num = (ints[i] as number) * (pairs[j] as { beta: number }).beta;
+          const den = (ints[j] as number) * (pairs[i] as { beta: number }).beta;
+          if (!(den > 0) || !Number.isFinite(num / den)) return Number.POSITIVE_INFINITY;
+          sum += num / den;
+        }
+      }
+      return sum;
+    };
+
+    // Coarse scan over [10, 600] kJ/mol in 5 kJ/mol steps to bracket the global minimum
+    let bestE = 10;
+    let bestPhi = objective(10);
+    for (let e = 15; e <= 600; e += 5) {
+      const val = objective(e);
+      if (val < bestPhi) {
+        bestPhi = val;
+        bestE = e;
+      }
+    }
+
+    // Golden-section search in [bestE - 10, bestE + 10]
+    let a = Math.max(5, bestE - 10);
+    let b = Math.min(650, bestE + 10);
+    let c = b - gr * (b - a);
+    let d = a + gr * (b - a);
+    let fc = objective(c);
+    let fd = objective(d);
+    for (let iter = 0; iter < 50; iter++) {
+      if (fc < fd) {
+        b = d;
+        d = c;
+        fd = fc;
+        c = b - gr * (b - a);
+        fc = objective(c);
+      } else {
+        a = c;
+        c = d;
+        fc = fd;
+        d = a + gr * (b - a);
+        fd = objective(d);
+      }
+    }
+    const eaKJ = 0.5 * (a + b);
+    out.push({ alpha, eaKJ, phi: objective(eaKJ), runs: pairs.length });
+  });
+  return out;
+}

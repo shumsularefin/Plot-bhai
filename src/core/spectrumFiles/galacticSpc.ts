@@ -83,8 +83,11 @@ export function parseGalacticSpc(bytes: Uint8Array): InstrumentResult {
   const short = (flags & 0x01) !== 0;
   const spectra: { x: Float64Array; y: Float64Array }[] = [];
   for (let s = 0; s < subfiles; s++) {
-    // A file with several subfiles keeps each one's exponent in its subheader.
-    const e = multi ? view.getInt8(at + 1) : exponent;
+    if (at + SUBHEADER > bytes.length) return damaged;
+    // A file with several subfiles keeps each one's exponent in its subheader;
+    // main exponent -128 (IEEE float32) or subexp 0 inherits the main exponent.
+    const subExp = view.getInt8(at + 1);
+    const e = multi && exponent !== -128 && subExp !== 0 ? subExp : exponent;
     at += SUBHEADER;
     const width = e === -128 ? 4 : short ? 2 : 4;
     if (at + width * points > bytes.length) return damaged;

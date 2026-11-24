@@ -1,6 +1,22 @@
+import { useState } from 'preact/hooks';
 import { CreditsText } from './Credits';
+import { downloadBlob } from './plot/export';
 import { DOI, VERSION } from './software';
 import './about.css';
+
+function bibtexCitation(): string {
+  return [
+    '@software{arefin2026plotbhai,',
+    '  author    = {Arefin, Shumsul},',
+    '  title     = {{Plot Bhai: a client-side wizard for XRD, UV-Vis, FTIR, particle size and thermal analysis}},',
+    `  version   = {${VERSION}},`,
+    '  year      = {2026},',
+    '  publisher = {Zenodo},',
+    `  doi       = {${DOI}},`,
+    `  url       = {https://doi.org/${DOI}}`,
+    '}',
+  ].join('\n');
+}
 
 /** One equation with a plain-language reading. Static text, so no maths renderer is needed. */
 function Eq({ children, note }: { children: string; note: string }) {
@@ -13,6 +29,22 @@ function Eq({ children, note }: { children: string; note: string }) {
 }
 
 export default function About() {
+  const [citeStatus, setCiteStatus] = useState('');
+  const copyBibtex = async () => {
+    try {
+      await navigator.clipboard.writeText(bibtexCitation());
+      setCiteStatus('BibTeX copied.');
+    } catch {
+      setCiteStatus('Copying is blocked in this browser. Use Download .bib instead.');
+    }
+  };
+  const downloadBibtex = () => {
+    downloadBlob(
+      new Blob([bibtexCitation() + '\n'], { type: 'application/x-bibtex' }),
+      'plot-bhai.bib',
+    );
+    setCiteStatus('Saved plot-bhai.bib.');
+  };
   return (
     <article class="about">
       <h1 class="page-title">About Plot Bhai</h1>
@@ -40,21 +72,34 @@ export default function About() {
           version you used. Please also cite the original paper or COD entry of every reference
           pattern you used.
         </p>
+        <div class="export-actions">
+          <button type="button" class="btn" onClick={() => void copyBibtex()}>
+            Copy BibTeX
+          </button>
+          <button type="button" class="btn" onClick={downloadBibtex}>
+            Download .bib
+          </button>
+        </div>
+        {citeStatus && (
+          <p class="export-status" role="status">
+            {citeStatus}
+          </p>
+        )}
       </section>
 
       <section aria-labelledby="about-privacy">
         <h2 id="about-privacy">Privacy</h2>
         <p>
           All processing happens in your browser. Your files are never uploaded, and the site has no
-          accounts, analytics or tracking. Two kinds of request leave your browser. The optional
-          online COD search sends the elements, formula or COD number you choose. The testing
-          counters and the Validate button send a random ID for this browser, the name of the
-          analysis section, and your verdict and comment when you validate; your data and results
-          are never sent. The service keeps your IP address and browser ID only as salted hashes, to
-          enforce daily limits, and comments are published on the home page only after the site
-          owner approves them. Your work is kept in this browser (IndexedDB) so a refresh does not
-          lose it; clearing site data removes it. Use the session file in each tool to keep a copy
-          or move it to another device.
+          accounts, third-party analytics or tracking cookies. Two kinds of request leave your
+          browser. The optional online COD search sends the elements, formula or COD number you
+          choose. The testing counters and the Validate button send a random ID for this browser,
+          the name of the analysis section, and your verdict and comment when you validate; your
+          data and results are never sent. The service keeps your IP address and browser ID only as
+          salted hashes, to enforce daily limits, and comments are published on the home page only
+          after the site owner approves them. Your work is kept in this browser (IndexedDB) so a
+          refresh does not lose it; clearing site data removes it. Use the session file in each tool
+          to keep a copy or move it to another device.
         </p>
       </section>
 
@@ -233,7 +278,8 @@ export default function About() {
           Reference patterns are calculated from structures in the Crystallography Open Database
           (COD, crystallography.net), an open collection of crystal structures. Each reference shows
           its COD ID. Atomic scattering factors use the Cromer-Mann form from International Tables
-          Vol. C. The calculation ignores anomalous dispersion.
+          Vol. C. Reference stick overlays ignore anomalous dispersion, while Rietveld refinement
+          includes Cromer–Liberman f′ and f″.
         </p>
         <h3>Finding and adding reference phases</h3>
         <p>
@@ -389,11 +435,11 @@ export default function About() {
           with positions from the NIST Computational Chemistry Comparison and Benchmark Database.
         </p>
         <p>
-          Functional group suggestions come from the tables of S. Pasieczna-Patkowska, M. Cichy and
-          J. Flieger, Molecules 30 (2025) 684, doi:10.3390/molecules30030684, licensed CC BY 4.0
-          (Tables 2 and 3). A suggestion is a candidate within a chosen distance of a band, not an
-          assignment. The table was checked row by row against the article; its ranges are typical
-          values from one review, so confirm a band against your own literature.
+          Functional group suggestions combine tables from S. Pasieczna-Patkowska, M. Cichy and J.
+          Flieger, Molecules 30 (2025) 684 (doi:10.3390/molecules30030684, CC BY 4.0) with
+          additional organic, mineral, glass and oxide band tables cited per row in
+          data/ftir/groups.json. A suggestion is a candidate within a chosen distance of a band, not
+          an assignment, so confirm every band against your own literature.
         </p>
       </section>
 
