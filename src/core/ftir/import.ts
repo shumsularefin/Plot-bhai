@@ -1,4 +1,5 @@
 import { decodeText, hasNulBytes, isZip } from '../text/bytes';
+import { isXlsxZip, LEGACY_XLS_ERROR, xlsxToDelimitedText } from '../text/xlsx';
 import { COMMENT, detectLayout, numericRow, splitFields } from '../text/delimitedTable';
 import { baseName } from '../xrd/import';
 import { formatNumber } from '../xrd/parsers/numbers';
@@ -34,6 +35,21 @@ function extensionOf(name: string): string {
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
+/** Async importer supporting Excel .xlsx workbooks in addition to all sync FTIR formats. */
+export async function importFtirFileAsync(
+  name: string,
+  bytes: Uint8Array,
+): Promise<FtirImportResult> {
+  const extension = extensionOf(name);
+  if (extension === 'xls') return { ok: false, error: LEGACY_XLS_ERROR };
+  if (bytes.length > 0 && bytes.length <= MAX_FILE_BYTES && isXlsxZip(bytes)) {
+    const sheet = await xlsxToDelimitedText(bytes);
+    if (!sheet.ok) return sheet;
+    return importFtirText(name, sheet.text, 'csv');
+  }
+  return importFtirFile(name, bytes);
+}
+
 /** Imports a file's bytes. `name` is the file name, used for the format and the spectrum names. */
 export function importFtirFile(name: string, bytes: Uint8Array): FtirImportResult {
   if (bytes.length === 0) return { ok: false, error: 'This file is empty.' };
@@ -50,6 +66,7 @@ export function importFtirFile(name: string, bytes: Uint8Array): FtirImportResul
   if (instrument) {
     return instrument.ok ? importInstrumentFile(name, instrument.file) : instrument;
   }
+  if (extension === 'xls') return { ok: false, error: LEGACY_XLS_ERROR };
   if (isZip(bytes) || (!utf16 && hasNulBytes(bytes)) || (extension in BINARY_FORMATS && !utf16)) {
     const what =
       BINARY_FORMATS[extension] ??

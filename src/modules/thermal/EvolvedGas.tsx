@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'preact/hooks';
 import { evolvedTemperatures, signalPeak, type EvolvedAxis } from '../../core/thermal/evolved';
-import { importThermalFile } from '../../core/thermal/import';
+import { importThermalFileAsync } from '../../core/thermal/import';
 import { EXAMPLE_STEPS, type SyntheticStep } from '../../core/thermal/synthetic';
 import type { StepResult } from '../../core/thermal/steps';
 import { formatNumber } from '../../core/xrd/parsers/numbers';
@@ -121,7 +121,10 @@ export function EvolvedGas({ data, update, curve, dtg, steps }: EvolvedGasProps)
   const add = async (list: FileList | null) => {
     const file = list?.[0];
     if (!file) return;
-    const result = importThermalFile(new Uint8Array(await file.arrayBuffer()));
+    const result = await importThermalFileAsync(
+      new Uint8Array(await file.arrayBuffer()),
+      file.name,
+    );
     if (!result.ok) setProblem(`${file.name}: ${result.error}`);
     else if (result.table.columns.length < 2) {
       setProblem(`${file.name}: needs an x column and at least one signal column.`);

@@ -1,4 +1,4 @@
-import { importSpectraFile, importSpectraText } from '../../core/uvvis/import';
+import { importSpectraFileAsync, importSpectraText } from '../../core/uvvis/import';
 import type { SpectraImportResult } from '../../core/uvvis/types';
 
 /**
@@ -10,7 +10,10 @@ export async function importSpectra(
 ): Promise<SpectraImportResult> {
   try {
     return request.kind === 'file'
-      ? importSpectraFile(request.file.name, new Uint8Array(await request.file.arrayBuffer()))
+      ? await importSpectraFileAsync(
+          request.file.name,
+          new Uint8Array(await request.file.arrayBuffer()),
+        )
       : importSpectraText(request.name, request.text, 'pasted');
   } catch {
     return { ok: false, error: 'Something went wrong while reading this file.' };
