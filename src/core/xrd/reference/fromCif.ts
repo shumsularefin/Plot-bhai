@@ -92,6 +92,7 @@ export function phaseFromCif(
   fileName: string,
   factors: FormFactors,
   id: string,
+  wavelengthA = CU_KALPHA1,
 ): CifPhaseResult {
   let block: CifBlock;
   try {
@@ -112,10 +113,11 @@ export function phaseFromCif(
     };
   }
   const sites = expandAtoms(crystal);
-  const lines = reflections(crystal, factors, CIF_D_MIN);
+  const dMin = Math.min(CIF_D_MIN, wavelengthA / (2 * Math.sin((75 * Math.PI) / 180)));
+  const lines = reflections(crystal, factors, dMin);
   if (lines.length === 0)
     return { ok: false, error: 'No diffraction lines were found for this structure.' };
-  const peaks = patternFor(lines, CU_KALPHA1).filter((p) => p.intensity >= MIN_INTENSITY);
+  const peaks = patternFor(lines, wavelengthA).filter((p) => p.intensity >= MIN_INTENSITY);
 
   const notes: DataMessage[] = [];
   if (crystal.atoms.some((a) => a.occupancy < 0.999))

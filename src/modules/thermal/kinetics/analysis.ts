@@ -6,6 +6,7 @@ import {
   peakTemperature,
   rateWarnings,
   resultWarnings,
+  vyazovkin,
   type CoatsRedfernResult,
   type IsoPoint,
   type KissingerResult,
@@ -235,7 +236,7 @@ export function analyse(data: KineticsData, prepared: Prepared): KineticOutcome 
     }
     return { ok: true, method: 'coats-redfern', window, runs: fitted, notes };
   }
-  const levels =
+  const levels: IsoPoint[] =
     data.method === 'friedman'
       ? friedman(
           runs.map((r, i) => ({ ...(massRuns[i] as MassRun), dtg: r.signal })),
@@ -243,7 +244,16 @@ export function analyse(data: KineticsData, prepared: Prepared): KineticOutcome 
           window[1],
           alphas,
         )
-      : isoconversional(massRuns, window[0], window[1], alphas, data.method);
+      : data.method === 'vyazovkin'
+        ? vyazovkin(massRuns, window[0], window[1], alphas).map((v) => ({
+            alpha: v.alpha,
+            eaKJ: v.eaKJ,
+            eaSigmaKJ: 0,
+            rSquared: 1,
+            points: [],
+            runs: v.runs,
+          }))
+        : isoconversional(massRuns, window[0], window[1], alphas, data.method);
   if (levels.length === 0) {
     return {
       ok: false,
