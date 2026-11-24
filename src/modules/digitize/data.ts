@@ -48,6 +48,7 @@ export interface ShotData {
   /** Area of the rotated image that holds the plot; null means the whole image. */
   crop: Rect | null;
   marks: Record<MarkId, AxisMark>;
+  xScale?: AxisScale;
   yScale: AxisScale;
   curve: CurveSettings;
   /** Name the curve gets in the analysis tool. */

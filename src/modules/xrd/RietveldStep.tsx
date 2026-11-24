@@ -199,14 +199,14 @@ export function RietveldStep({ data, update }: StepContext<XrdData>) {
     cleaning ?? DEFAULT_PROCESSING,
     data.radiation,
   );
+  const cleaningSteps = cleaning ? cleaningNames(cleaning) : [];
   const measured = useMemo(
     () =>
-      pattern && !useCleaned
+      pattern && (!useCleaned || cleaningSteps.length === 0)
         ? { x: pattern.twoTheta, y: pattern.intensity, sigma: pattern.sigma }
         : processed && { x: processed.twoTheta, y: processed.intensity, sigma: undefined },
-    [pattern, useCleaned, processed],
+    [pattern, useCleaned, cleaningSteps.length, processed],
   );
-  const cleaningSteps = cleaning ? cleaningNames(cleaning) : [];
 
   const lines = ANODES[data.radiation.anode];
   // Kα2 stripped from the data must not be put back by the model.
