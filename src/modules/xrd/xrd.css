@@ -1512,8 +1512,12 @@
   aspect-ratio: 1;
   touch-action: none;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
-  background: var(--color-surface);
+  border-radius: 10px;
+  background: radial-gradient(
+    circle at 50% 44%,
+    var(--color-surface) 0%,
+    var(--color-surface-subtle, var(--color-bg)) 100%
+  );
   cursor: grab;
   /* A drag must turn the crystal, never select the axis letters or start a native drag. */
   user-select: none;
@@ -1544,14 +1548,20 @@
   color: var(--color-text-muted);
 }
 .structure-cell {
-  stroke: var(--color-text);
-  stroke-width: 1.8;
+  stroke: var(--color-text-muted);
+  stroke-width: 0.95;
+  stroke-opacity: 0.78;
   stroke-linecap: round;
 }
+.structure-cell.is-back {
+  stroke-width: 0.8;
+  stroke-opacity: 0.36;
+  stroke-dasharray: 3 2.5;
+}
 .structure-face {
-  fill-opacity: 0.32;
-  stroke-width: 1;
-  stroke-opacity: 0.8;
+  fill-opacity: 0.52;
+  stroke-width: 0.7;
+  stroke-opacity: 0.72;
   stroke-linejoin: round;
 }
 .structure-bond,
@@ -1570,7 +1580,7 @@
   stroke-linecap: round;
 }
 .structure-atom {
-  stroke-width: 0.8;
+  stroke-width: 0.45;
   cursor: pointer;
 }
 .structure-atom:focus-visible {

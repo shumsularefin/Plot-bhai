@@ -18,22 +18,82 @@ import covalent from '../../../data/reference/covalent-radii.json';
 import { HelpTip } from '../../ui/HelpTip';
 
 const RADII = (covalent as { radii: Record<string, number> }).radii;
-/** Okabe–Ito colours (colour-blind safe), assigned to the elements in alphabetical order. */
-const PALETTE = [
-  '#E69F00',
-  '#56B4E9',
-  '#009E73',
-  '#F0E442',
-  '#0072B2',
-  '#D55E00',
-  '#CC79A7',
-  '#999999',
+/** Standard CPK / VESTA crystallographic element colours (refined for studio shading). */
+const CPK_COLORS: Record<string, string> = {
+  H: '#E2E8F0',
+  Li: '#9F6CE0',
+  Be: '#7BC950',
+  B: '#D48A78',
+  C: '#4B5563',
+  N: '#3B66D4',
+  O: '#D9383A',
+  F: '#6BC253',
+  Na: '#7C5CD6',
+  Mg: '#5EB85C',
+  Al: '#9AA5B4',
+  Si: '#B8956E',
+  P: '#D97B29',
+  S: '#D4A82A',
+  Cl: '#38B058',
+  K: '#7048B8',
+  Ca: '#4EA866',
+  Ti: '#8B97A8',
+  V: '#6C7A8E',
+  Cr: '#6882B8',
+  Mn: '#8B62A8',
+  Fe: '#C45B37',
+  Co: '#C75878',
+  Ni: '#4AA86C',
+  Cu: '#B86A3E',
+  Zn: '#6A7B9E',
+  Ga: '#A8787C',
+  Ge: '#6A8E8C',
+  As: '#9A68B8',
+  Se: '#D48828',
+  Br: '#9A3828',
+  Sr: '#36A868',
+  Y: '#5CB8C4',
+  Zr: '#68A8B0',
+  Nb: '#58A0B8',
+  Mo: '#4E98A8',
+  Ru: '#3C8898',
+  Rh: '#3A7C90',
+  Pd: '#487488',
+  Ag: '#B8C2CC',
+  Cd: '#C8A850',
+  In: '#96687A',
+  Sn: '#6E7F8A',
+  Sb: '#825EA8',
+  Te: '#B86E28',
+  I: '#7A3292',
+  Ba: '#3B9E5A',
+  La: '#5FA8D3',
+  Ce: '#D4C268',
+  Nd: '#6CC496',
+  Gd: '#50C0A0',
+  W: '#3A82B8',
+  Pt: '#9EA8B8',
+  Au: '#D4A428',
+  Pb: '#5A606E',
+  Bi: '#8B4FA8',
+};
+const FALLBACK_PALETTE = [
+  '#4F7CAC',
+  '#C46D5E',
+  '#5A9A78',
+  '#9A6FB0',
+  '#C49A45',
+  '#5299A8',
+  '#A66A82',
+  '#7D8794',
 ];
+const LIGHT_DIR: Vec3 = [-0.42, 0.52, 0.74];
+const TRIAD_COLORS = ['#D9383A', '#16A34A', '#2563EB'] as const;
 const VIEW = 400;
 /** Atoms beyond this are not focusable one by one, to keep keyboard use practical. */
 const MAX_FOCUSABLE = 200;
 /** Bond radius in Å (drawing only). */
-const BOND_R = 0.12;
+const BOND_R = 0.095;
 /** Each cell edge is drawn as this many pieces for the depth order. */
 const EDGE_PIECES = 8;
 /** A press that moves less than this (px) is a click on an atom, not a drag. */
@@ -193,7 +253,10 @@ export function StructureViewer({ phase }: { phase: ReferencePhase }) {
       ),
       axes: [toCartesian(m, [1, 0, 0]), toCartesian(m, [0, 1, 0]), toCartesian(m, [0, 0, 1])],
       colour: Object.fromEntries(
-        elements.map((e, i) => [e, PALETTE[i % PALETTE.length] as string]),
+        elements.map((e, i) => [
+          e,
+          CPK_COLORS[e] ?? (FALLBACK_PALETTE[i % FALLBACK_PALETTE.length] as string),
+        ]),
       ),
       elements,
       span,
@@ -203,7 +266,7 @@ export function StructureViewer({ phase }: { phase: ReferencePhase }) {
   const [rotation, setRotation] = useState<Rotation>(START);
   const [zoom, setZoom] = useState(1);
   const [style, setStyle] = useState<Style>('ball');
-  const [labels, setLabels] = useState(true);
+  const [labels, setLabels] = useState(false);
   const [around, setAround] = useState('');
   const [picked, setPicked] = useState<number[]>([]);
   const svg = useRef<SVGSVGElement>(null);
@@ -257,7 +320,7 @@ export function StructureViewer({ phase }: { phase: ReferencePhase }) {
 
   // Mild perspective: the camera sits a few cell sizes in front of the centre.
   const camera = model.span * 4;
-  const scale = ((VIEW / 2 - 12) / (model.span + 0.6)) * zoom * 0.9;
+  const scale = ((VIEW / 2 - 10) / (model.span + 0.4)) * zoom * 0.96;
   const project = (v: Vec3) => {
     const p = apply(rotation, v);
     const f = camera / (camera - p[2]);
@@ -292,26 +355,49 @@ export function StructureViewer({ phase }: { phase: ReferencePhase }) {
           from[2] + (to[2] - from[2]) * t,
         ]);
         const el = atoms[k]?.element ?? '';
-        const w = 2 * BOND_R * scale * pm.f;
+        const baseCol = model.colour[el] ?? '#8E9AA8';
+        const w = Math.max(1.6, 2 * BOND_R * scale * pm.f);
+        const dx = pm.x - start.x;
+        const dy = pm.y - start.y;
+        const segLen = Math.hypot(dx, dy) || 1;
+        // Offset specular highlight perpendicular to bond toward upper-left key light
+        let nx = -dy / segLen;
+        let ny = dx / segLen;
+        if (nx * -0.65 + ny * -0.76 < 0) {
+          nx = -nx;
+          ny = -ny;
+        }
+        const off = w * 0.2;
+        const zAvg = (start.z + pm.z) / 2;
+        const depthFade = Math.max(0.76, Math.min(1, 0.92 + (zAvg / (model.span * 2.2)) * 0.16));
         items.push({
-          z: (start.z + pm.z) / 2,
+          z: zAvg,
           node: (
-            <g key={`b${i}-${j}-${k}`} class="structure-bond">
+            <g key={`b${i}-${j}-${k}`} class="structure-bond" opacity={depthFade}>
               <line
                 x1={start.x}
                 y1={start.y}
                 x2={pm.x}
                 y2={pm.y}
-                stroke={shade(model.colour[el] ?? '#999999', -0.45)}
-                stroke-width={w + 1.2}
+                stroke={shade(baseCol, -0.3)}
+                stroke-width={w}
               />
               <line
-                x1={start.x}
-                y1={start.y}
-                x2={pm.x}
-                y2={pm.y}
-                stroke={model.colour[el]}
-                stroke-width={w}
+                x1={start.x + nx * off * 0.35}
+                y1={start.y + ny * off * 0.35}
+                x2={pm.x + nx * off * 0.35}
+                y2={pm.y + ny * off * 0.35}
+                stroke={baseCol}
+                stroke-width={w * 0.74}
+              />
+              <line
+                x1={start.x + nx * off}
+                y1={start.y + ny * off}
+                x2={pm.x + nx * off}
+                y2={pm.y + ny * off}
+                stroke={shade(baseCol, 0.6)}
+                stroke-width={w * 0.26}
+                stroke-opacity="0.72"
               />
             </g>
           ),
@@ -327,12 +413,20 @@ export function StructureViewer({ phase }: { phase: ReferencePhase }) {
   };
   const focusable = atoms.length <= MAX_FOCUSABLE;
 
-  // Polyhedron faces join the depth order one by one, so atoms in front of a face cover it.
+  // Polyhedron faces join the depth order one by one with directional Phong facet shading.
   scene.polyhedra.forEach(({ centre, faces }) => {
     const el = atoms[centre]?.element ?? '';
-    const c = model.colour[el] ?? '#999999';
+    const c = model.colour[el] ?? '#8E9AA8';
     faces.forEach((f, n) => {
       const pts = f.map((j) => shown[j] as { x: number; y: number; z: number });
+      const r0 = apply(rotation, scene.positions[f[0] as number] as Vec3);
+      const r1 = apply(rotation, scene.positions[f[1] as number] as Vec3);
+      const r2 = apply(rotation, scene.positions[f[2] as number] as Vec3);
+      const e1: Vec3 = [r1[0] - r0[0], r1[1] - r0[1], r1[2] - r0[2]];
+      const e2: Vec3 = [r2[0] - r0[0], r2[1] - r0[1], r2[2] - r0[2]];
+      const normal = unit(cross(e1, e2));
+      const lit = Math.abs(dot(normal, LIGHT_DIR));
+      const facetFill = shade(c, -0.26 + lit * 0.56);
       items.push({
         z: pts.reduce((sum, q) => sum + q.z, 0) / pts.length,
         node: (
@@ -340,8 +434,8 @@ export function StructureViewer({ phase }: { phase: ReferencePhase }) {
             key={`p${centre}-${n}`}
             class="structure-face"
             points={pts.map((q) => `${q.x},${q.y}`).join(' ')}
-            fill={c}
-            stroke={shade(c, -0.5)}
+            fill={facetFill}
+            stroke={shade(c, -0.42)}
           />
         ),
       });
@@ -353,17 +447,19 @@ export function StructureViewer({ phase }: { phase: ReferencePhase }) {
     if (!a) return;
     const chosen = picked.indexOf(i);
     const r = Math.max(2, rOf(i) * scale * p.f);
+    const depthFade = Math.max(0.8, Math.min(1, 0.94 + (p.z / (model.span * 2.2)) * 0.14));
     items.push({
       z: p.z,
       node: (
-        <g key={`a${i}`}>
+        <g key={`a${i}`} opacity={depthFade}>
           <circle
             class={chosen >= 0 ? 'structure-atom is-picked' : 'structure-atom'}
             cx={p.x}
             cy={p.y}
             r={r}
             fill={`url(#${id}-${a.element})`}
-            stroke={chosen >= 0 ? undefined : shade(model.colour[a.element] ?? '#999999', -0.55)}
+            stroke={chosen >= 0 ? undefined : shade(model.colour[a.element] ?? '#8E9AA8', -0.38)}
+            stroke-opacity={chosen >= 0 ? undefined : 0.35}
             data-atom={i}
             tabIndex={focusable ? 0 : undefined}
             role={focusable ? 'button' : undefined}
@@ -412,12 +508,14 @@ export function StructureViewer({ phase }: { phase: ReferencePhase }) {
         at(t0 + ((t1 - t0) * n) / EDGE_PIECES),
         at(t0 + ((t1 - t0) * (n + 1)) / EDGE_PIECES),
       ];
+      const zMid = (p.z + q.z) / 2;
+      const isBack = zMid < 0;
       items.push({
-        z: (p.z + q.z) / 2,
+        z: zMid,
         node: (
           <line
             key={`e${i}-${j}-${n}`}
-            class="structure-cell"
+            class={isBack ? 'structure-cell is-back' : 'structure-cell'}
             x1={p.x}
             y1={p.y}
             x2={q.x}
@@ -601,32 +699,41 @@ export function StructureViewer({ phase }: { phase: ReferencePhase }) {
               <radialGradient
                 key={el}
                 id={`${id}-${el}`}
-                cx="0.45"
-                cy="0.42"
+                cx="0.42"
+                cy="0.38"
                 r="0.62"
-                fx="0.32"
-                fy="0.28"
+                fx="0.28"
+                fy="0.24"
               >
-                <stop offset="0" stop-color={shade(c, 0.85)} />
-                <stop offset="0.22" stop-color={shade(c, 0.3)} />
-                <stop offset="0.62" stop-color={c} />
-                <stop offset="1" stop-color={shade(c, -0.45)} />
+                <stop offset="0" stop-color={shade(c, 0.9)} />
+                <stop offset="0.16" stop-color={shade(c, 0.42)} />
+                <stop offset="0.5" stop-color={c} />
+                <stop offset="0.84" stop-color={shade(c, -0.38)} />
+                <stop offset="1" stop-color={shade(c, -0.22)} />
               </radialGradient>
             );
           })}
         </defs>
         {items.map((it) => it.node)}
         <g class="structure-triad" aria-hidden="true">
+          <circle cx={36} cy={VIEW - 36} r={2.2} fill="var(--color-text-muted)" />
           {[...triad]
             .sort((a, b) => a.z - b.z)
-            .map((t) => (
-              <g key={t.k}>
-                <line x1={34} y1={VIEW - 34} x2={t.x} y2={t.y} />
-                <text x={34 + (t.x - 34) * 1.35} y={VIEW - 34 + (t.y - VIEW + 34) * 1.35 + 4}>
-                  {'abc'[t.k]}
-                </text>
-              </g>
-            ))}
+            .map((t) => {
+              const col = TRIAD_COLORS[t.k] ?? 'var(--color-text-muted)';
+              return (
+                <g key={t.k}>
+                  <line x1={36} y1={VIEW - 36} x2={t.x + 2} y2={t.y - 2} stroke={col} />
+                  <text
+                    x={36 + (t.x - 34) * 1.36}
+                    y={VIEW - 36 + (t.y - VIEW + 34) * 1.36 + 4}
+                    fill={col}
+                  >
+                    {'abc'[t.k]}
+                  </text>
+                </g>
+              );
+            })}
         </g>
       </svg>
       <ul class="structure-legend" aria-label="Element colours">
@@ -634,7 +741,9 @@ export function StructureViewer({ phase }: { phase: ReferencePhase }) {
           <li key={el}>
             <span
               class="structure-swatch"
-              style={{ background: model.colour[el] }}
+              style={{
+                background: `radial-gradient(circle at 32% 28%, ${shade(model.colour[el] ?? '#8E9AA8', 0.72)}, ${model.colour[el] ?? '#8E9AA8'} 55%, ${shade(model.colour[el] ?? '#8E9AA8', -0.35)})`,
+              }}
               aria-hidden="true"
             />
             {el}
