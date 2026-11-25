@@ -1,7 +1,7 @@
 /* A figure kept in view (src/ui/Dock.tsx): beside the page on wide screens, along the bottom on narrow ones. */
 
 :root {
-  --dock-width: clamp(380px, 32vw, 820px);
+  --dock-width: clamp(410px, 37vw, 860px);
 }
 
 .dock-slot {
@@ -28,8 +28,10 @@
   flex: none;
   align-items: center;
   gap: var(--space-2);
+  min-height: 36px;
   padding: 0 var(--space-2) 0 var(--space-3);
   border-bottom: 1px solid var(--color-border);
+  background: var(--color-toolbar);
 }
 
 .dock-frame.is-collapsed .dock-bar {
@@ -40,8 +42,11 @@
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
