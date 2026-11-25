@@ -1,50 +1,60 @@
 .home {
   display: grid;
-  gap: var(--space-7);
+  gap: var(--space-6);
 }
 
 .home-hero {
-  padding: var(--space-5) 0 0;
+  padding: var(--space-5) var(--space-6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
 }
 
 .home-title {
-  font-size: 1.75rem;
-  line-height: 1.1;
+  font-size: 1.625rem;
+  line-height: 1.15;
   letter-spacing: -0.02em;
 }
 
 .home-tagline {
-  margin-top: var(--space-3);
+  margin-top: var(--space-2);
   color: var(--color-text-muted);
-  font-size: var(--text-lg);
+  font-size: var(--text-md);
 }
 
 .home-points {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  margin: var(--space-5) 0 0;
+  margin: var(--space-4) 0 0;
   padding: 0;
   list-style: none;
 }
 
 .home-points li {
-  padding: var(--space-1) var(--space-3);
+  padding: 2px var(--space-3);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  font-size: var(--text-sm);
+  border-radius: var(--radius-pill);
+  background: var(--color-toolbar);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
 }
 
 .home-section-title {
-  font-size: var(--text-xl);
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .tool-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--space-4);
-  margin: var(--space-4) 0 0;
+  margin: var(--space-3) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -66,14 +76,21 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-5);
+  padding: var(--space-4) var(--space-5);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  transition:
+    border-color var(--duration-fast),
+    box-shadow var(--duration-fast),
+    transform var(--duration-fast);
 }
 
 .tool-card:hover {
   border-color: var(--color-accent);
+  box-shadow: 0 3px 10px rgb(15 23 42 / 0.08);
+  transform: translateY(-1px);
 }
 
 .tool-card:focus-within {
@@ -81,21 +98,49 @@
   outline-offset: 2px;
 }
 
+.tool-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
 .tool-icon {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   padding: var(--space-2);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: var(--color-surface-muted);
+  background: var(--color-toolbar);
   fill: none;
   stroke: var(--color-accent);
-  stroke-width: 1.6;
+  stroke-width: 1.7;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
+.tool-badge {
+  padding: 2px 7px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: var(--weight-medium);
+  line-height: 1.4;
+}
+
+.tool-badge.is-verified {
+  border-color: var(--color-success-border);
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+  font-family: var(--font-sans);
+}
+
 .tool-name {
-  font-size: var(--text-xl);
+  font-size: var(--text-lg);
 }
 
 /* The whole card is clickable through the heading link. */
@@ -118,16 +163,26 @@
 .tool-description {
   flex: 1;
   color: var(--color-text-muted);
+  font-size: var(--text-sm);
 }
 
 .tool-inputs {
   color: var(--color-text-muted);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
 }
 
 .tool-cta {
   color: var(--color-accent);
+  font-size: var(--text-sm);
   font-weight: var(--weight-medium);
+}
+
+.home-how {
+  padding: var(--space-5) var(--space-6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
 }
 
 .home-steps {
@@ -148,7 +203,7 @@
 
 .home-steps li {
   counter-increment: step;
-  padding-left: calc(32px + var(--space-3));
+  padding-left: calc(28px + var(--space-3));
   position: relative;
 }
 
@@ -159,37 +214,45 @@
   left: 0;
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--color-accent);
-  color: var(--color-on-accent);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: var(--text-sm);
   font-weight: var(--weight-bold);
 }
 
 .home-steps h3 {
-  font-size: var(--text-lg);
+  font-size: var(--text-md);
 }
 
 .home-steps p {
   margin-top: var(--space-1);
   color: var(--color-text-muted);
+  font-size: var(--text-sm);
 }
 
 /* The card that explains how results are checked: same grid, quieter surface. */
 .tool-card.is-note {
-  background: var(--color-toolbar);
+  background: var(--color-surface);
 }
 
 .home-example {
   display: grid;
   gap: var(--space-5);
   align-items: center;
+  padding: var(--space-5) var(--space-6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
 }
 
 .home-example p {
   margin-top: var(--space-3);
   color: var(--color-text-muted);
+  font-size: var(--text-sm);
 }
 
 @media (min-width: 900px) {
@@ -209,17 +272,34 @@
   width: 100%;
   height: auto;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: #ffffff;
 }
 
 .home-figure figcaption {
   margin-top: var(--space-2);
   color: var(--color-text-muted);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
 }
 
 .home-credit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-toolbar);
   color: var(--color-text-muted);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
+}
+
+.home-credit::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-success);
+  flex: none;
 }

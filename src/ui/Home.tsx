@@ -6,6 +6,7 @@ import './home.css';
 
 interface ToolCard {
   name: string;
+  badge: string;
   description: string;
   href: string;
   /** True when the tool also reads a curve from a picture of a graph. */
@@ -17,6 +18,7 @@ interface ToolCard {
 const TOOLS: readonly ToolCard[] = [
   {
     name: 'XRD',
+    badge: '.CIF / .XY',
     description:
       'Clean a diffraction pattern, compare reference phases, fit peaks and work out crystallite size and strain.',
     href: '#/xrd',
@@ -25,6 +27,7 @@ const TOOLS: readonly ToolCard[] = [
   },
   {
     name: 'FTIR',
+    badge: '.CSV / .SPA',
     description:
       'Absorbance and transmittance spectra, peak tables and functional group suggestions.',
     href: '#/ftir',
@@ -33,6 +36,7 @@ const TOOLS: readonly ToolCard[] = [
   },
   {
     name: 'UV-Vis',
+    badge: '.DAT / .XLSX',
     description: 'Absorbance, transmittance and reflectance spectra, with Tauc band gap estimates.',
     href: '#/uvvis',
     fromImage: true,
@@ -40,6 +44,7 @@ const TOOLS: readonly ToolCard[] = [
   },
   {
     name: 'TGA and DSC',
+    badge: '.TG / .DSC',
     description:
       'Mass loss steps, thermal events, enthalpies, glass transition, calcination suggestions and activation energy.',
     href: '#/thermal',
@@ -48,6 +53,7 @@ const TOOLS: readonly ToolCard[] = [
   },
   {
     name: 'Particle size',
+    badge: '.IMG / .TIF',
     description: 'Measure particles in SEM or TEM images and build a size distribution.',
     href: '#/particles',
     fromImage: false,
@@ -101,9 +107,12 @@ export function Home() {
         <ul class="tool-grid">
           {TOOLS.map((tool) => (
             <li key={tool.name} class="tool-card">
-              <svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true">
-                {tool.icon}
-              </svg>
+              <div class="tool-card-top">
+                <svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  {tool.icon}
+                </svg>
+                <span class="tool-badge">{tool.badge}</span>
+              </div>
               <h3 class="tool-name">
                 <a href={tool.href} class="tool-link">
                   {tool.name}
@@ -119,9 +128,12 @@ export function Home() {
             </li>
           ))}
           <li class="tool-card is-note">
-            <svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M6 3h9l4 4v14H6zM9 11h7M9 15h7M9 7h3" />
-            </svg>
+            <div class="tool-card-top">
+              <svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 3h9l4 4v14H6zM9 11h7M9 15h7M9 7h3" />
+              </svg>
+              <span class="tool-badge">.PDF / .HTML</span>
+            </div>
             <h3 class="tool-name">
               <a href="#/report" class="tool-link">
                 Sample report
@@ -136,9 +148,12 @@ export function Home() {
             </span>
           </li>
           <li class="tool-card is-note">
-            <svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 12.5l5 5L20 6.5" />
-            </svg>
+            <div class="tool-card-top">
+              <svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 12.5l5 5L20 6.5" />
+              </svg>
+              <span class="tool-badge is-verified">465 checks</span>
+            </div>
             <h3 class="tool-name">
               <a href="#/validation" class="tool-link">
                 How this is validated
