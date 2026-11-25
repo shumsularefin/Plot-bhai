@@ -74,9 +74,11 @@ export function ExportPanel({
     (figure?.legend.show ?? true)
       ? (shownSeries > 1 ? shownSeries : 0) + (peakLabels?.key.length ?? 0)
       : 0;
+  const activeResidual = settings.includeResidual === false ? undefined : residual;
+  const activeLanes = settings.includeLanes === false ? undefined : lanes;
   const minHeight = minimumHeightMm(settings, {
-    residual: residual !== undefined,
-    lanes: lanes?.length ?? 0,
+    residual: activeResidual !== undefined,
+    lanes: activeLanes?.length ?? 0,
     legendRows,
     peakLabels: peakLabels !== undefined && (figure?.peakLabels.show ?? true),
   });
@@ -137,9 +139,9 @@ export function ExportPanel({
       labels,
       settings,
       points,
-      residual,
+      activeResidual,
       peakLabels,
-      lanes,
+      activeLanes,
       lowerAxis,
       bands,
       figure,
@@ -157,9 +159,9 @@ export function ExportPanel({
         labels,
         settings,
         points,
-        residual,
+        activeResidual,
         peakLabels,
-        lanes,
+        activeLanes,
         lowerAxis,
         bands,
         figure,
@@ -183,9 +185,9 @@ export function ExportPanel({
         labels,
         settings,
         points,
-        residual,
+        activeResidual,
         peakLabels,
-        lanes,
+        activeLanes,
         lowerAxis,
         bands,
         figure,
@@ -324,9 +326,9 @@ export function ExportPanel({
       {settings.heightMm < minHeight && (
         <p class="message is-warning">
           <strong>Check:</strong> at {settings.heightMm} mm the plot itself gets very little room
-          next to the legend, labels{residual ? ', residual panel' : ''}
-          {lanes?.length ? ' and reference lanes' : ''}. A height of at least {minHeight} mm keeps
-          about 25 mm for the data.{' '}
+          next to the legend, labels{activeResidual ? ', residual panel' : ''}
+          {activeLanes?.length ? ' and reference lanes' : ''}. A height of at least {minHeight} mm
+          keeps about 25 mm for the data.{' '}
           {minHeight <= 230 && (
             <button
               type="button"
@@ -337,6 +339,31 @@ export function ExportPanel({
             </button>
           )}
         </p>
+      )}
+
+      {((lanes && lanes.length > 0) || residual !== undefined) && (
+        <div class="export-row">
+          {lanes && lanes.length > 0 && (
+            <label class="check">
+              <input
+                type="checkbox"
+                checked={settings.includeLanes !== false}
+                onChange={(e) => onChange({ includeLanes: e.currentTarget.checked })}
+              />
+              Include reference lanes (COD)
+            </label>
+          )}
+          {residual !== undefined && (
+            <label class="check">
+              <input
+                type="checkbox"
+                checked={settings.includeResidual !== false}
+                onChange={(e) => onChange({ includeResidual: e.currentTarget.checked })}
+              />
+              Include residual panel
+            </label>
+          )}
+        </div>
       )}
 
       <Advanced id="export-size" title="Figure size and font">
