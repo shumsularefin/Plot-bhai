@@ -1691,14 +1691,3 @@
   text-decoration: underline;
   cursor: pointer;
 }
-
-/* Desktop inspector card headers & uppercase section eyebrows */
-.process-step-title,
-.region-summary > .export-title,
-.peak-table-header > .export-title {
-  color: var(--color-text);
-  font-size: 0.78rem;
-  font-weight: var(--weight-bold);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
