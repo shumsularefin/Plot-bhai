@@ -185,17 +185,29 @@
 
 .message {
   padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
   border-left: 3px solid var(--color-border-strong);
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
-  background: var(--color-bg);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: var(--text-sm);
+}
+
+.message.is-info {
+  border-color: var(--color-info-border);
+  border-left-color: var(--color-accent);
+  background: var(--color-info-bg);
 }
 
 .message.is-warning {
+  border-color: var(--color-warning-border);
   border-left-color: var(--plot-2);
+  background: var(--color-warning-bg);
 }
 
 .message.is-error {
+  border-color: var(--color-danger-border);
   border-left-color: var(--color-danger);
+  background: var(--color-danger-bg);
 }
 
 .pattern-card > .btn {
@@ -278,11 +290,17 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
+  box-shadow: var(--shadow-card);
 }
 
-/* A switched-off step recedes. */
+.process-step.is-on {
+  border-left: 3px solid var(--color-accent);
+}
+
+/* A switched-off step recedes cleanly into the workbench canvas. */
 .process-step:not(.is-on) {
-  background: var(--color-bg);
+  background: color-mix(in srgb, var(--color-surface) 55%, var(--color-bg));
+  box-shadow: none;
 }
 
 .process-step-header {
@@ -467,24 +485,47 @@
 }
 
 .region-ok {
-  color: var(--color-text-muted);
+  display: inline-block;
+  padding: 1px var(--space-2);
+  border: 1px solid var(--color-success-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  line-height: 1.5;
 }
 
 /* Short labels for the region checks, explained once under the table. */
 .region-flag {
   display: inline-block;
   margin: 1px var(--space-1) 1px 0;
-  padding: 0 var(--space-2);
+  padding: 1px var(--space-2);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
   background: var(--color-surface-muted);
   color: var(--color-text);
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
-  line-height: 1.6;
+  line-height: 1.5;
+}
+
+.region-flag.is-warning {
+  border-color: var(--color-warning-border);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+}
+
+.region-flag.is-info {
+  border-color: var(--color-info-border);
+  background: var(--color-info-bg);
+  color: var(--color-info-text);
 }
 
 .region-flag.is-error {
-  color: var(--color-danger);
+  border-color: var(--color-danger-border);
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
 }
 
 .region-meanings {
@@ -525,6 +566,8 @@
   overflow-x: auto;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
 }
 
 .peak-table {
@@ -558,7 +601,15 @@
   position: sticky;
   top: 0;
   background: var(--color-surface-muted);
-  font-weight: var(--weight-medium);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.peak-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--color-accent-soft) 45%, transparent);
 }
 
 .sort-button {

@@ -201,11 +201,23 @@ textarea {
   margin-top: 0;
 }
 
+table {
+  font-variant-numeric: tabular-nums;
+}
+
 .advanced {
   margin: var(--space-3) 0;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.advanced[open] > summary {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-muted);
+  margin-bottom: var(--space-3);
 }
 
 .advanced > summary {
