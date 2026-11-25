@@ -311,10 +311,8 @@
 }
 
 .process-step-title {
-  font-size: 0.84rem;
+  font-size: var(--text-md);
   font-weight: var(--weight-bold);
-  letter-spacing: 0.035em;
-  text-transform: uppercase;
 }
 
 .process-step-description {
@@ -562,12 +560,12 @@
 
 /* The table may be wider than a phone; it scrolls inside its own box, never the page. */
 .table-scroll {
-  /* Exact .pb-tbl card container from template.html across all 50+ tables in Plot Bhai */
+  /* Keeps visually hidden labels inside the scrolling box instead of widening the page. */
   position: relative;
   max-width: 100%;
   overflow-x: auto;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--color-surface);
   box-shadow: var(--shadow-card);
 }
@@ -582,8 +580,8 @@
 
 .peak-table th,
 .peak-table td {
-  padding: 5px 10px;
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
   text-align: right;
 }
 
@@ -602,17 +600,12 @@
 .peak-table thead th {
   position: sticky;
   top: 0;
-  padding: 7px 10px;
-  border-bottom: 1px solid var(--color-border);
-  border-left: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: var(--text-sm);
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
   font-weight: var(--weight-bold);
-}
-
-.peak-table thead th:first-child {
-  border-left: 0;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .peak-table tbody tr:hover td {
