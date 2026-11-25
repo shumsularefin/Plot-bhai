@@ -39,7 +39,12 @@
 
 .site-main {
   flex: 1;
-  padding: var(--space-7) 0 var(--space-8);
+  padding: var(--space-4) 0 var(--space-7);
+}
+
+.has-dock .site-header .container {
+  max-width: none;
+  padding: 0 var(--space-4);
 }
 
 .site-footer {
