@@ -35,6 +35,10 @@ export interface ExportSettings {
   customWidthMm?: number;
   /** Publisher whose figure rules the size and font were set from (the width is then custom). */
   journal?: JournalId | undefined;
+  /** Whether to include reference stick lanes (COD) at the bottom of the figure (default true). */
+  includeLanes?: boolean | undefined;
+  /** Whether to include the residual panel at the bottom of the figure (default true). */
+  includeResidual?: boolean | undefined;
 }
 
 export const DEFAULT_EXPORT_SETTINGS: ExportSettings = {

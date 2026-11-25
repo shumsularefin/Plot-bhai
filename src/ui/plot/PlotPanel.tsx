@@ -14,7 +14,7 @@ import {
   type FigureStyle,
 } from './figure';
 import { moveObject, ObjectEditor } from './ObjectEditor';
-import type { ExportSettings, LowerAxis } from './export';
+import { EXPORT_FONTS, figureSize, type ExportSettings, type LowerAxis } from './export';
 import { InteractivePlot, type InteractivePlotProps, type PlotEditing } from './InteractivePlot';
 import type { PeakLabelSet } from './peakLabels';
 import { laneGuides, ReferenceLanes, type ReferenceLane } from './ReferenceLanes';
@@ -303,8 +303,12 @@ export function PlotPanel(props: PlotPanelProps) {
             Show the whole range
           </button>
         )}
-        <div ref={plotRef}>
+        <div ref={plotRef} style={{ fontFamily: EXPORT_FONTS[settings.export.font].family }}>
           <InteractivePlot
+            heightFor={(w) => {
+              const sz = figureSize(settings.export);
+              return Math.max(180, Math.min(540, Math.round(w * (sz.heightMm / sz.widthMm))));
+            }}
             series={series}
             labels={axisLabels}
             domain={domain}
@@ -338,7 +342,7 @@ export function PlotPanel(props: PlotPanelProps) {
             </p>
           )
         )}
-        {props.lanes && props.lanes.length > 0 && (
+        {props.lanes && props.lanes.length > 0 && settings.export.includeLanes !== false && (
           <ReferenceLanes
             lanes={props.lanes}
             domain={domain}
@@ -352,7 +356,7 @@ export function PlotPanel(props: PlotPanelProps) {
             {...(props.lanesKey && { keyNote: props.lanesKey })}
           />
         )}
-        {residualSeries && (
+        {residualSeries && settings.export.includeResidual !== false && (
           <InteractivePlot
             series={residualSeries}
             labels={{

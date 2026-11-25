@@ -309,41 +309,102 @@ export function fitRegion(
   const pair = options.kAlpha2 ?? null;
   const unit = options.unit ?? '°';
   const peakAt = (p: Float64Array, o: number) => peakFromVector(kind, p, o);
-  const result = levenbergMarquardt({
-    y: ys,
-    initial,
-    lower,
-    upper,
-    free,
-    evaluate(p, model, jacobian) {
-      const peaks = region.peaks.map((_, q) => peakAt(p, 2 + count * q));
-      for (let i = 0; i < n; i++) {
-        const xi = xs[i] as number;
-        let value = (p[0] as number) + (p[1] as number) * (xi - pivot);
-        if (jacobian) {
-          const row = i * m;
-          jacobian[row] = 1;
-          jacobian[row + 1] = xi - pivot;
-          peaks.forEach((peak, q) => {
-            value += profileWithGradient(xi, peak, gradient);
-            const copy = pair ? kAlpha2Copy(peak, pair) : null;
-            if (copy && pair) {
-              value += profileWithGradient(xi, copy.peak, gradient2);
-              gradient[0] = (gradient[0] as number) + pair.ratio * (gradient2[0] as number);
-              gradient[1] = (gradient[1] as number) + copy.dCenter * (gradient2[1] as number);
-              for (let j = 2; j < count; j++) {
-                gradient[j] = (gradient[j] as number) + (gradient2[j] as number);
+  const runFit = (start: Float64Array, maxIterations: number) =>
+    levenbergMarquardt({
+      y: ys,
+      initial: start,
+      lower,
+      upper,
+      free,
+      maxIterations,
+      evaluate(p, model, jacobian) {
+        const peaks = region.peaks.map((_, q) => peakAt(p, 2 + count * q));
+        for (let i = 0; i < n; i++) {
+          const xi = xs[i] as number;
+          let value = (p[0] as number) + (p[1] as number) * (xi - pivot);
+          if (jacobian) {
+            const row = i * m;
+            jacobian[row] = 1;
+            jacobian[row + 1] = xi - pivot;
+            peaks.forEach((peak, q) => {
+              value += profileWithGradient(xi, peak, gradient);
+              const copy = pair ? kAlpha2Copy(peak, pair) : null;
+              if (copy && pair) {
+                value += profileWithGradient(xi, copy.peak, gradient2);
+                gradient[0] = (gradient[0] as number) + pair.ratio * (gradient2[0] as number);
+                gradient[1] = (gradient[1] as number) + copy.dCenter * (gradient2[1] as number);
+                for (let j = 2; j < count; j++) {
+                  gradient[j] = (gradient[j] as number) + (gradient2[j] as number);
+                }
               }
-            }
-            jacobian.set(gradient, row + 2 + count * q);
-          });
-        } else {
-          for (const peak of peaks) value += peakValue(xi, peak, pair);
+              jacobian.set(gradient, row + 2 + count * q);
+            });
+          } else {
+            for (const peak of peaks) value += peakValue(xi, peak, pair);
+          }
+          model[i] = value;
         }
-        model[i] = value;
+      },
+    });
+
+  let result = runFit(initial, 200);
+  const hasCollapsedPeak = (r: typeof result) =>
+    region.peaks.some((_, q) => {
+      const o = 2 + count * q;
+      return r.atBound[o] || (r.parameters[o] as number) <= range * 1e-3;
+    });
+  if (!result.converged && !hasCollapsedPeak(result)) {
+    // Retry 1: continue from the current parameters with a larger iteration budget.
+    const continued = runFit(result.parameters, 600);
+    if ((continued.converged && continued.ssr <= result.ssr) || continued.ssr < result.ssr) {
+      result = continued;
+    }
+  }
+  // Compute baseline total sum of squares so multi-start perturbations only run when the
+  // region is not already near a converged optimum (preserving redundant-peak pruning).
+  let retryMean = 0;
+  for (let i = 0; i < n; i++) retryMean += ys[i] as number;
+  retryMean /= n;
+  let retrySst = 0;
+  for (let i = 0; i < n; i++) retrySst += ((ys[i] as number) - retryMean) ** 2;
+  const r2SoFar = retrySst > 0 ? 1 - result.ssr / retrySst : 1;
+  if (!result.converged && !hasCollapsedPeak(result) && r2SoFar < 0.995) {
+    // Retry 2+: multi-start perturbations of peak widths and profile mixing/exponent
+    // so overlapped or asymmetric regions settle cleanly instead of stalling in a local valley.
+    const widthsCount = kind === 'split-pseudo-voigt' ? 2 : 1;
+    const retries: readonly [number, number, number][] = [
+      [1.35, 0.25, 450],
+      [0.7, 0.75, 600],
+      [1.75, 0.5, 600],
+    ];
+    for (const [widthScale, shapeFrac, maxIter] of retries) {
+      const start = new Float64Array(initial);
+      for (let q = 0; q < region.peaks.length; q++) {
+        const o = 2 + count * q;
+        for (let j = 0; j < widthsCount; j++) {
+          const scaled = (initial[o + 2 + j] as number) * widthScale;
+          start[o + 2 + j] = Math.min(
+            upper[o + 2 + j] as number,
+            Math.max(lower[o + 2 + j] as number, scaled),
+          );
+        }
+        const last = o + count - 1;
+        if (free[last]) {
+          if (kind === 'pearson-vii') {
+            start[last] = 1.2 + shapeFrac * 4;
+          } else {
+            start[last] = shapeFrac;
+          }
+        }
       }
-    },
-  });
+      const candidate = runFit(start, maxIter);
+      const better =
+        (candidate.converged && !result.converged && candidate.ssr <= result.ssr * 1.005) ||
+        (candidate.converged === result.converged && candidate.ssr < result.ssr);
+      if (better) result = candidate;
+      if (result.converged) break;
+    }
+  }
 
   const p = result.parameters;
   const cov = (a: number, b: number) => result.covariance[a * m + b] as number;
