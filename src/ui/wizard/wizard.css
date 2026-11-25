@@ -547,110 +547,55 @@ html:has(.wizard-footer) {
 }
 
 /*
- * Wide desktop layout matching template.html:
- * - Full-width top bar (.wizard-sidebar) with Tool title on left and joined segmented step tabs (.stepper-list) centered.
- * - Recessed left inspector panel (.wizard-main, 44.3% width when a plot is docked) with crisp white cards & tables.
+ * Wide layouts (kept last so they win over the narrow rules above). From 34rem the steps sit in
+ * a slim column of numbers beside the step; from 46rem they show their names and descriptions
+ * unless the user has folded the sidebar to the numbers (.is-rail) to focus on the step.
  */
 @container wizard (min-width: 34rem) {
   .wizard {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
+    grid-template-columns: 3rem minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-5);
   }
 
+  /* Native desktop workflow rail: crisp white panel with hairline border and active blue step. */
   .wizard-sidebar {
     position: sticky;
-    top: 47px;
-    z-index: 8;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-2) var(--space-4);
-    min-height: 49px;
-    padding: 6px 16px;
-    border-bottom: 1px solid var(--color-border);
-    background: linear-gradient(var(--color-toolbar-top), var(--color-toolbar-bottom));
+    top: var(--space-4);
+    max-height: calc(100dvh - 2 * var(--space-4));
+    overflow: auto;
+    padding: var(--space-3) var(--space-1);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-card);
   }
 
   .wizard-sidebar-head {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
+    display: grid;
+    justify-items: center;
   }
 
-  .wizard-sidebar-toggle,
-  .wizard-crumb,
-  .wizard-rail-title {
+  .wizard-sidebar-head > :not(.wizard-sidebar-toggle) {
     display: none;
-  }
-
-  .wizard-tool {
-    font-size: var(--text-lg);
-    font-weight: var(--weight-bold);
-    letter-spacing: -0.02em;
-  }
-
-  .wizard-saved {
-    font-size: var(--text-xs);
-  }
-
-  .stepper {
-    flex: 1 1 auto;
-    display: flex;
-    justify-content: center;
-    min-width: 0;
   }
 
   .stepper-compact {
     display: none;
   }
 
-  /* Joined segmented control matching .pb-tabs in template.html */
   .stepper-list {
-    display: inline-flex;
-    flex-wrap: wrap;
-    max-width: 100%;
-    border: 1px solid var(--color-control-border);
-    border-radius: 7px;
-    background: var(--color-control);
-    overflow: hidden;
-  }
-
-  .stepper-item {
-    display: flex;
-  }
-
-  .stepper-item:not(:last-child)::after {
-    display: none;
-  }
-
-  .stepper-item + .stepper-item {
-    border-left: 1px solid var(--color-control-border);
+    display: grid;
+    gap: 2px;
   }
 
   .stepper-target {
-    align-items: center;
     justify-content: center;
-    min-height: 30px;
-    padding: 0 13px;
-    border-radius: 0;
-    font-size: var(--text-sm);
-    font-weight: var(--weight-regular);
-    white-space: nowrap;
+    padding: var(--space-3) 0;
   }
 
-  .stepper-number {
-    display: none;
-  }
-
+  /* Names stay for screen readers (and as the hover hint) while only the numbers show. */
   .stepper-text {
-    display: inline-flex;
-    align-items: center;
-    padding-top: 0;
-  }
-
-  /* Keep step summaries accessible in DOM without cluttering the horizontal tab bar */
-  .stepper-summary {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -659,39 +604,90 @@ html:has(.wizard-footer) {
     white-space: nowrap;
   }
 
-  .is-current .stepper-target,
-  button.stepper-target[aria-current='step']:hover {
-    background: linear-gradient(var(--color-accent-top), var(--color-accent));
-    color: var(--color-on-accent);
-    font-weight: var(--weight-medium);
+  .stepper-item:not(:last-child)::after {
+    left: calc(50% - 0.5px);
   }
 
-  .wizard-main {
-    padding: var(--space-4) var(--space-4) var(--space-6);
+  .wizard-rail-title {
+    display: block;
   }
 
+  /* The compact stepper's "Step 2 of 8" line is gone; the step header says it instead. */
   .wizard-count {
     display: inline-block;
   }
 }
 
-/* When a plot is docked on desktop, constrain .wizard-main to the recessed 44.3% left inspector (.pb-left) */
-@media (min-width: 1100px) {
-  .has-dock:not(.dock-collapsed) .wizard-main {
-    width: calc(100vw - var(--dock-width));
-    min-width: 480px;
-    min-height: calc(100dvh - 96px);
-    padding: 12px 14px 18px;
-    background: var(--color-panel);
-    border-right: 1px solid var(--color-border);
-  }
+/*
+ * Between 1100 and 1279 px the pinned plot sits beside the step and leaves too little room for
+ * step names, so the sidebar always shows numbers there, whether or not a plot is pinned. At
+ * every other width the pinned plot leaves the sidebar as it is, so the layout does not jump.
+ */
+@media not ((min-width: 1100px) and (max-width: 1279.98px)) {
+  @container wizard (min-width: 46rem) {
+    .wizard-sidebar-toggle {
+      display: inline-block;
+      min-width: 0;
+    }
 
-  .has-dock:not(.dock-collapsed) .wizard-step-number {
-    display: none;
-  }
+    .wizard:not(.is-rail) {
+      grid-template-columns: 13.5rem minmax(0, 1fr);
+      gap: var(--space-6);
+    }
 
-  .has-dock:not(.dock-collapsed) .wizard-step-title {
-    font-size: 1.25rem;
-    letter-spacing: -0.015em;
+    .wizard:not(.is-rail) .wizard-sidebar {
+      padding: var(--space-4) var(--space-3);
+    }
+
+    .wizard:not(.is-rail) .wizard-sidebar-head {
+      grid-template-columns: minmax(0, 1fr) auto;
+      justify-items: stretch;
+      gap: var(--space-1);
+      padding: 0 0 0 var(--space-2);
+    }
+
+    .wizard:not(.is-rail) .wizard-sidebar-head > * {
+      display: block;
+      grid-column: 1;
+    }
+
+    /* Below the toggle button, so it can use the full width and stay on one line. */
+    .wizard:not(.is-rail) .wizard-sidebar-head > .wizard-saved {
+      display: flex;
+      grid-column: 1 / -1;
+    }
+
+    .wizard:not(.is-rail) .wizard-sidebar-toggle {
+      display: inline-block;
+      grid-column: 2;
+      grid-row: 1;
+      justify-self: end;
+    }
+
+    .wizard:not(.is-rail) .wizard-tool {
+      font-size: var(--text-xl);
+    }
+
+    .wizard:not(.is-rail) .stepper-target {
+      justify-content: flex-start;
+      padding: var(--space-3) var(--space-2);
+    }
+
+    .wizard:not(.is-rail) .stepper-text {
+      position: static;
+      width: auto;
+      height: auto;
+      overflow: visible;
+      clip-path: none;
+      white-space: normal;
+    }
+
+    .wizard:not(.is-rail) .stepper-item:not(:last-child)::after {
+      left: calc(var(--space-2) + 0.6875rem - 0.5px);
+    }
+
+    .wizard:not(.is-rail) .wizard-rail-title {
+      display: none;
+    }
   }
 }

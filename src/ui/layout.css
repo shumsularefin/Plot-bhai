@@ -13,16 +13,8 @@
 }
 
 .site-header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
   border-bottom: 1px solid var(--color-border);
-  background: linear-gradient(var(--color-toolbar-top), var(--color-toolbar-bottom));
-}
-
-.has-dock .site-header .container {
-  max-width: none;
-  padding: 0 var(--space-4);
+  background: var(--color-toolbar);
 }
 
 .site-header .container {
@@ -47,13 +39,7 @@
 
 .site-main {
   flex: 1;
-  padding: var(--space-5) 0 var(--space-7);
-}
-
-@media (min-width: 1100px) {
-  .has-dock:not(.dock-collapsed) .site-main {
-    padding: 0;
-  }
+  padding: var(--space-7) 0 var(--space-8);
 }
 
 .site-footer {

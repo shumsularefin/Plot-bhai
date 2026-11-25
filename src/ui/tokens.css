@@ -6,44 +6,38 @@
 :root {
   color-scheme: light;
 
-  /* Native desktop palette aligned to template.html (--pb-*). Every text pair meets WCAG AA (tests/tokens.test.ts). */
-  --color-bg: #edf0f6;
-  --color-panel: #e6eaf2;
+  /* Neutral desktop slate palette and one accent colour. Text pairs meet WCAG AA (checked in tests/tokens.test.ts). */
+  --color-bg: #f3f5f8;
   --color-surface: #ffffff;
-  --color-surface-muted: #e7eaf0;
-  --color-border: #c8cfdb;
-  --color-control-border: #c5ccd9;
+  --color-surface-muted: #e9edf3;
+  --color-border: #d6dce5;
+  --color-control-border: #b4becc;
   --color-border-strong: #64748b;
-  --color-text: #0a0a0b;
-  --color-text-muted: #333c4a;
-  --color-accent: #1862c8;
-  --color-accent-top: #3a8cf1;
-  --color-accent-hover: #175bc0;
+  --color-text: #0f172a;
+  --color-text-muted: #425066;
+  --color-accent: #005fcc;
+  --color-accent-hover: #004ca3;
   --color-accent-soft: #e6f0fc;
   --color-on-accent: #ffffff;
   --color-danger: #b42318;
-  --color-success: #2f6b34;
-  --color-focus: #1862c8;
-  --color-control: #f6f7fa;
-  --color-control-top: #ffffff;
-  --color-control-bottom: #f0f2f6;
-  --color-control-active: #e4e8ef;
-  --color-toolbar: #eceef3;
-  --color-toolbar-top: #f2f4f9;
-  --color-toolbar-bottom: #e8ebf1;
-  --color-track: #d4d8df;
-  --color-success-bg: #c3e6c4;
-  --color-success-border: #a5d6a7;
-  --color-success-text: #2f6b34;
-  --color-warning-bg: #fde8b9;
-  --color-warning-border: #f2cf83;
-  --color-warning-text: #b8620c;
-  --color-danger-bg: #fde4e4;
-  --color-danger-border: #f3b5b5;
+  --color-success: #167942;
+  --color-focus: #005fcc;
+  --color-control: #ffffff;
+  --color-control-active: #e2e7ef;
+  --color-toolbar: #edf0f5;
+  --color-track: #cbd5e1;
+  --color-success-bg: #e7f6ec;
+  --color-success-border: #b7e4c7;
+  --color-success-text: #146c35;
+  --color-warning-bg: #fef4dc;
+  --color-warning-border: #f3d285;
+  --color-warning-text: #8a5300;
+  --color-danger-bg: #fdecec;
+  --color-danger-border: #f5bcbc;
   --color-danger-text: #a51c1c;
-  --color-info-bg: #e7f0fd;
-  --color-info-border: #bfd6f6;
-  --color-info-text: #1554ad;
+  --color-info-bg: #eaf2fd;
+  --color-info-border: #bfd8f8;
+  --color-info-text: #0b4ea2;
   --check-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M3.5 7.4l2.4 2.3 4.6-5.2' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   --select-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 14'%3E%3Cpath d='M2 5l3-3 3 3M2 9l3 3 3-3' fill='none' stroke='%233c3c43' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 
@@ -100,13 +94,13 @@
 
   --radius-sm: 3px;
   --radius-md: 5px;
-  --radius-lg: 9px;
+  --radius-lg: 6px;
   /* Buttons and fields: a small, native-looking rounding. */
-  --radius-control: 6px;
+  --radius-control: 5px;
   --radius-pill: 999px;
 
   --shadow-popover: 0 8px 30px rgb(0 0 0 / 0.1), 0 1px 3px rgb(0 0 0 / 0.06);
-  --shadow-card: 0 1px 2px rgb(20 30 50 / 0.08), 0 3px 10px rgb(20 30 50 / 0.04);
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.05);
   --shadow-control: 0 0 0 0.5px rgb(0 0 0 / 0.16), 0 0.5px 1.5px rgb(0 0 0 / 0.16);
 
   /* Layout. --gutter is the minimum side padding at every width. */
@@ -145,8 +139,7 @@
   :root:not([data-theme='light']) {
     color-scheme: dark;
     --color-bg: #14171c;
-    --color-panel: #181c23;
-    --color-surface: #1e232b;
+    --color-surface: #1c2128;
     --color-surface-muted: #262c36;
     --color-border: #323a46;
     --color-control-border: #4b5563;
@@ -154,20 +147,15 @@
     --color-text: #f0f4f8;
     --color-text-muted: #b1bac4;
     --color-accent: #3898ff;
-    --color-accent-top: #52a6ff;
     --color-accent-hover: #60aeff;
     --color-accent-soft: #10253f;
     --color-on-accent: #0b1220;
     --color-danger: #ff7b72;
     --color-success: #3fb950;
     --color-focus: #3898ff;
-    --color-control: #2a313c;
-    --color-control-top: #313946;
-    --color-control-bottom: #252b35;
+    --color-control: #2c333e;
     --color-control-active: #3a4351;
-    --color-toolbar: #1a1f27;
-    --color-toolbar-top: #202630;
-    --color-toolbar-bottom: #171c23;
+    --color-toolbar: #191d24;
     --color-track: #3e4756;
     --color-success-bg: #122b1d;
     --color-success-border: #1f5c39;
@@ -192,8 +180,7 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
   --color-bg: #14171c;
-  --color-panel: #181c23;
-  --color-surface: #1e232b;
+  --color-surface: #1c2128;
   --color-surface-muted: #262c36;
   --color-border: #323a46;
   --color-control-border: #4b5563;
@@ -201,20 +188,15 @@
   --color-text: #f0f4f8;
   --color-text-muted: #b1bac4;
   --color-accent: #3898ff;
-  --color-accent-top: #52a6ff;
   --color-accent-hover: #60aeff;
   --color-accent-soft: #10253f;
   --color-on-accent: #0b1220;
   --color-danger: #ff7b72;
   --color-success: #3fb950;
   --color-focus: #3898ff;
-  --color-control: #2a313c;
-  --color-control-top: #313946;
-  --color-control-bottom: #252b35;
+  --color-control: #2c333e;
   --color-control-active: #3a4351;
-  --color-toolbar: #1a1f27;
-  --color-toolbar-top: #202630;
-  --color-toolbar-bottom: #171c23;
+  --color-toolbar: #191d24;
   --color-track: #3e4756;
   --color-success-bg: #122b1d;
   --color-success-border: #1f5c39;
