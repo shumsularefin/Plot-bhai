@@ -12,6 +12,7 @@ export const dscSteps: readonly WizardStep<DscData>[] = [
   {
     id: 'upload',
     title: 'Upload and describe the run',
+    tab: 'Upload',
     summary: 'Load data, atmosphere and rate',
     guide: [
       'Drop your DSC file on the box, or press Choose a file. Or press Try with example data.',
@@ -25,6 +26,7 @@ export const dscSteps: readonly WizardStep<DscData>[] = [
   {
     id: 'clean',
     title: 'Clean data',
+    tab: 'Clean',
     summary: 'Ramp, range and smoothing',
     guide: [
       'Pick the ramp to analyse (for example the second heating).',
@@ -36,6 +38,7 @@ export const dscSteps: readonly WizardStep<DscData>[] = [
   {
     id: 'events',
     title: 'Baseline and events',
+    tab: 'Events',
     summary: 'Peaks, onsets and enthalpies',
     guide: [
       'Peaks (melting, crystallisation, reactions) are found automatically.',
@@ -47,6 +50,7 @@ export const dscSteps: readonly WizardStep<DscData>[] = [
   {
     id: 'glass',
     title: 'Glass transition and crystallinity',
+    tab: 'Glass transition',
     summary: 'Tg, heat capacity step, crystallinity',
     guide: [
       'A glass transition is a step, not a peak. Set the windows before and after it.',
@@ -58,6 +62,7 @@ export const dscSteps: readonly WizardStep<DscData>[] = [
   {
     id: 'combined',
     title: 'Combined interpretation',
+    tab: 'Interpretation',
     summary: 'TGA and DSC together',
     guide: [
       'Heat flow and mass are read together on one temperature axis.',

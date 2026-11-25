@@ -13,6 +13,7 @@ export const thermalSteps: readonly WizardStep<ThermalData>[] = [
   {
     id: 'upload',
     title: 'Upload and describe the run',
+    tab: 'Upload',
     summary: 'Load data, atmosphere and rate',
     guide: [
       'Drop your TGA file on the box, or press Choose a file. Or press Try with example data.',
@@ -35,6 +36,7 @@ export const thermalSteps: readonly WizardStep<ThermalData>[] = [
   {
     id: 'clean',
     title: 'Clean data',
+    tab: 'Clean',
     summary: 'Blank, smoothing and normalising',
     guide: [
       'The run is cut to its heating part automatically.',
@@ -46,6 +48,7 @@ export const thermalSteps: readonly WizardStep<ThermalData>[] = [
   {
     id: 'steps',
     title: 'Mass loss steps',
+    tab: 'Mass loss',
     summary: 'Steps from TGA and DTG',
     guide: [
       'Each peak of the DTG curve (the lower plot) is one mass loss step.',
@@ -57,6 +60,7 @@ export const thermalSteps: readonly WizardStep<ThermalData>[] = [
   {
     id: 'assign',
     title: 'Assign events',
+    tab: 'Assign',
     summary: 'Ranked event suggestions',
     guide: [
       'Each step gets ranked suggestions of what it might be, with a reason.',
@@ -68,6 +72,7 @@ export const thermalSteps: readonly WizardStep<ThermalData>[] = [
   {
     id: 'calcination',
     title: 'Calcination suggestion',
+    tab: 'Calcination',
     summary: 'A starting point to test',
     guide: [
       'The suggestion is the lowest temperature worth trying, after the last mass loss step.',
@@ -79,6 +84,7 @@ export const thermalSteps: readonly WizardStep<ThermalData>[] = [
   {
     id: 'results',
     title: 'Results and export',
+    tab: 'Results',
     summary: 'Tables, figures and methods text',
     guide: [
       'Check the steps and events table.',

@@ -10,6 +10,7 @@ export const dscMethodsSteps: readonly WizardStep<DscMethodsData>[] = [
   {
     id: 'upload',
     title: 'Method and runs',
+    tab: 'Runs',
     summary: 'Pick a method, load runs',
     guide: [
       'Choose the method, then load the runs it asks for, or press Try with example data.',
@@ -22,6 +23,7 @@ export const dscMethodsSteps: readonly WizardStep<DscMethodsData>[] = [
   {
     id: 'setup',
     title: 'Range and settings',
+    tab: 'Settings',
     summary: 'Range, peak limits, gas switch',
     guide: [
       'Check the runs on the plot.',
@@ -33,6 +35,7 @@ export const dscMethodsSteps: readonly WizardStep<DscMethodsData>[] = [
   {
     id: 'results',
     title: 'Results and export',
+    tab: 'Results',
     summary: 'Result, CSV and methods text',
     guide: ['Read the result and check the plot.', 'Download the CSV and copy the methods text.'],
     render: (context) => <DscMethodsResultsStep {...context} />,

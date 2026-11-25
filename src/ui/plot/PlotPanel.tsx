@@ -266,7 +266,7 @@ export function PlotPanel(props: PlotPanelProps) {
 
   return (
     <div class="plot-panel">
-      <Dock label="Plot" mode={props.dock ?? 'auto'}>
+      <Dock label="Interactive plot" mode={props.dock ?? 'auto'}>
         {props.toolbar}
         {legendSeries.length > 1 && (
           <ul class="plot-legend" aria-label="Legend">

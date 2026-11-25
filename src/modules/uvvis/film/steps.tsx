@@ -10,6 +10,7 @@ export const filmSteps: readonly WizardStep<FilmData>[] = [
   {
     id: 'upload',
     title: 'Method and spectrum',
+    tab: 'Spectrum',
     summary: 'Pick a method, load a spectrum',
     guide: [
       'Choose the plasmon band fit or the thin film method.',
@@ -22,6 +23,7 @@ export const filmSteps: readonly WizardStep<FilmData>[] = [
   {
     id: 'setup',
     title: 'Range and settings',
+    tab: 'Settings',
     summary: 'Range, band or substrate',
     guide: [
       'Set the range on the plot.',
@@ -33,6 +35,7 @@ export const filmSteps: readonly WizardStep<FilmData>[] = [
   {
     id: 'results',
     title: 'Results and export',
+    tab: 'Results',
     summary: 'Result, CSV and methods text',
     guide: ['Read the result and check the plot.', 'Download the CSV and copy the methods text.'],
     render: (context) => <FilmResultsStep {...context} />,

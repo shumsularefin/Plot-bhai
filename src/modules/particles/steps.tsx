@@ -26,6 +26,7 @@ export const particleSteps: readonly WizardStep<ParticleData>[] = [
   {
     id: 'scale',
     title: 'Crop and scale',
+    tab: 'Scale',
     summary: 'Set the scale bar',
     guide: [
       'Crop away the info bar if the image has one.',
@@ -37,6 +38,7 @@ export const particleSteps: readonly WizardStep<ParticleData>[] = [
   {
     id: 'adjust',
     title: 'Adjust the image',
+    tab: 'Adjust',
     summary: 'Brightness, background, noise',
     guide: [
       'Say whether the particles are darker or lighter than the background.',
@@ -49,6 +51,7 @@ export const particleSteps: readonly WizardStep<ParticleData>[] = [
   {
     id: 'detect',
     title: 'Find the particles',
+    tab: 'Detect',
     summary: 'Detect or draw particles',
     guide: [
       'Choose Detect automatically, or Draw by hand to outline every particle yourself.',
@@ -61,6 +64,7 @@ export const particleSteps: readonly WizardStep<ParticleData>[] = [
   {
     id: 'results',
     title: 'Distribution and export',
+    tab: 'Distribution',
     summary: 'Histogram and statistics',
     guide: [
       'Choose which particles go into the distribution.',

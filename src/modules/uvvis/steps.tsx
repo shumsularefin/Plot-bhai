@@ -27,6 +27,7 @@ export const uvvisSteps: readonly WizardStep<UvvisData>[] = [
   {
     id: 'clean',
     title: 'Data type and cleaning',
+    tab: 'Clean',
     summary: 'Display, blank and smoothing',
     guide: [
       'Choose how the spectra are shown; your data are not changed.',
@@ -38,6 +39,7 @@ export const uvvisSteps: readonly WizardStep<UvvisData>[] = [
   {
     id: 'bands',
     title: 'Absorption bands',
+    tab: 'Bands',
     summary: 'Band table and band fit',
     guide: [
       'The band maxima of each spectrum are listed with their wavelength and photon energy.',
@@ -61,6 +63,7 @@ export const uvvisSteps: readonly WizardStep<UvvisData>[] = [
   {
     id: 'results',
     title: 'Results and export',
+    tab: 'Results',
     summary: 'Tables, figures and methods text',
     guide: [
       'Check the results table.',

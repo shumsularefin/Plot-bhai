@@ -1,5 +1,29 @@
+/* Documentation pages (About, Validation): one document panel, sections divided by rules. */
+.about {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-6) var(--space-6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+@media (max-width: 639px) {
+  .about {
+    padding: var(--space-4);
+  }
+}
+
 .about section {
-  margin-top: var(--space-6);
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-hairline);
+  scroll-margin-top: 72px;
+}
+
+.about section > h2 {
+  scroll-margin-top: 72px;
 }
 
 .about-eqs {
@@ -30,4 +54,12 @@
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: var(--space-4);
   }
+}
+
+.about:not(.validation) > * + * {
+  margin-top: var(--space-3);
+}
+
+.about section > * + * {
+  margin-top: var(--space-2);
 }

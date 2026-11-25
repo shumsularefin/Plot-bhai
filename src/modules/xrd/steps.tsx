@@ -32,6 +32,7 @@ export const xrdSteps: readonly WizardStep<XrdData>[] = [
   {
     id: 'clean',
     title: 'Clean data',
+    tab: 'Clean',
     summary: 'Background, smoothing and Kα2',
     guide: [
       'Every switch is optional: turn on only what your data need.',
@@ -43,6 +44,7 @@ export const xrdSteps: readonly WizardStep<XrdData>[] = [
   {
     id: 'material',
     title: 'Choose material',
+    tab: 'Material',
     summary: 'Elements, formula or CIF',
     guide: [
       'Click the elements of your sample in the periodic table, or type a formula (BiVO4) or COD number in the search bar.',
@@ -54,6 +56,7 @@ export const xrdSteps: readonly WizardStep<XrdData>[] = [
   {
     id: 'phases',
     title: 'Compare reference phases',
+    tab: 'Phases',
     summary: 'Match reference patterns',
     guide: [
       "Each phase's reference lines are drawn under your pattern; solid lines have a peak in your data, dashed ones do not.",
@@ -65,6 +68,7 @@ export const xrdSteps: readonly WizardStep<XrdData>[] = [
   {
     id: 'rietveld',
     title: 'Rietveld refinement (optional)',
+    tab: 'Rietveld',
     summary: 'Refine cell and phase fractions',
     guide: [
       'This step is optional: press Next to skip it.',
@@ -76,6 +80,7 @@ export const xrdSteps: readonly WizardStep<XrdData>[] = [
   {
     id: 'fit',
     title: 'Fit peaks',
+    tab: 'Fit peaks',
     summary: 'Peak positions and widths',
     guide: [
       'Peaks are found automatically (circles). Move the prominence slider to find more or fewer.',
@@ -87,6 +92,7 @@ export const xrdSteps: readonly WizardStep<XrdData>[] = [
   {
     id: 'instrument',
     title: 'Instrument correction',
+    tab: 'Instrument',
     summary: 'Remove instrument broadening',
     guide: [
       'Peaks are widened by the instrument too; remove that part for a true crystallite size.',
@@ -110,6 +116,7 @@ export const xrdSteps: readonly WizardStep<XrdData>[] = [
   {
     id: 'export',
     title: 'Export for your paper',
+    tab: 'Export',
     summary: 'Figures, tables and methods text',
     guide: [
       'Download the figure as SVG or PNG at the journal width you need.',

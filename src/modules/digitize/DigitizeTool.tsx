@@ -30,10 +30,8 @@ export function DigitizeTool({ target }: { target: DigitizeTarget }) {
   const steps = useMemo(() => digitizeSteps(target), [target]);
   return (
     <TargetProvider value={target}>
-      <p class="back-link">
-        <a href={target.route}>← Back to {target.tool} analysis</a>
-      </p>
       <Wizard
+        back={{ href: target.route, label: `Back to ${target.tool} analysis` }}
         title={`${target.tool}: data from a graph image`}
         steps={steps}
         store={storeFor(target.storeKey)}

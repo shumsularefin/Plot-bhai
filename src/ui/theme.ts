@@ -27,7 +27,3 @@ export function applyThemePreference(preference: ThemePreference): void {
     // Storage blocked (private mode): the theme still applies for this page view.
   }
 }
-
-export function nextThemePreference(current: ThemePreference): ThemePreference {
-  return current === 'system' ? 'light' : current === 'light' ? 'dark' : 'system';
-}
