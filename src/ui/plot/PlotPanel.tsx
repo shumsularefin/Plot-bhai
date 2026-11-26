@@ -270,16 +270,58 @@ export function PlotPanel(props: PlotPanelProps) {
         label="Interactive plot"
         mode={props.dock ?? 'auto'}
         after={
-          <FigureEditor
-            figure={figure}
-            onChange={setFigure}
-            series={series}
-            peakLabels={peakLabels}
-            xName={xName}
-            xUnit={xUnit}
-            placement={placement}
-            onPlacement={setPlacement}
-          />
+          <div class="figure-tools">
+            <FigureEditor
+              figure={figure}
+              onChange={setFigure}
+              series={series}
+              peakLabels={peakLabels}
+              xName={xName}
+              xUnit={xUnit}
+              placement={placement}
+              onPlacement={setPlacement}
+            />
+            <Advanced id="plot-range" title="Plot range">
+              <div class="plot-controls">
+                <fieldset class="plot-range">
+                  <legend>
+                    {xName} range{xUnit && ` (${xUnit})`}
+                  </legend>
+                  <label>
+                    From
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="any"
+                      value={round(shown(domain[0]))}
+                      onChange={(e) => setRange(0, e.currentTarget.value)}
+                    />
+                  </label>
+                  <label>
+                    To
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="any"
+                      value={round(shown(domain[1]))}
+                      onChange={(e) => setRange(1, e.currentTarget.value)}
+                    />
+                  </label>
+                </fieldset>
+                <div class="plot-buttons">
+                  <button type="button" class="btn" onClick={() => zoom(1.5)}>
+                    Zoom in
+                  </button>
+                  <button type="button" class="btn" onClick={() => zoom(1 / 1.5)}>
+                    Zoom out
+                  </button>
+                  <button type="button" class="btn" onClick={() => setDomain(extent)}>
+                    Show all
+                  </button>
+                </div>
+              </div>
+            </Advanced>
+          </div>
         }
       >
         {props.toolbar}
@@ -476,47 +518,6 @@ export function PlotPanel(props: PlotPanelProps) {
           figure={figure}
         />
       </Dock>
-
-      <Advanced id="plot-range" title="Plot range">
-        <div class="plot-controls">
-          <fieldset class="plot-range">
-            <legend>
-              {xName} range{xUnit && ` (${xUnit})`}
-            </legend>
-            <label>
-              From
-              <input
-                type="number"
-                inputMode="decimal"
-                step="any"
-                value={round(shown(domain[0]))}
-                onChange={(e) => setRange(0, e.currentTarget.value)}
-              />
-            </label>
-            <label>
-              To
-              <input
-                type="number"
-                inputMode="decimal"
-                step="any"
-                value={round(shown(domain[1]))}
-                onChange={(e) => setRange(1, e.currentTarget.value)}
-              />
-            </label>
-          </fieldset>
-          <div class="plot-buttons">
-            <button type="button" class="btn" onClick={() => zoom(1.5)}>
-              Zoom in
-            </button>
-            <button type="button" class="btn" onClick={() => zoom(1 / 1.5)}>
-              Zoom out
-            </button>
-            <button type="button" class="btn" onClick={() => setDomain(extent)}>
-              Show all
-            </button>
-          </div>
-        </div>
-      </Advanced>
     </div>
   );
 }

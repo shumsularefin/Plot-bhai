@@ -125,10 +125,24 @@ export function offerOnce(id: string): boolean {
   }
 }
 
+/**
+ * The section name as the service accepts it: letters, digits, spaces and , . ' ’ ( ) – - only
+ * (see worker-feedback/feedback.js). A colon, as in "XRD analysis: data from a graph image",
+ * becomes a dash; anything else outside the set becomes a space.
+ */
+export function serviceToolName(tool: string): string {
+  return tool
+    .replace(/\s*:\s*/g, ' – ')
+    .replace(/[^\p{L}\p{N} ,.'’()–-]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 80);
+}
+
 /** Records a finished analysis in a section, unless one from today is still waiting for validation. */
 export async function recordAnalysis(tool: string): Promise<void> {
   if (proofFor(tool)?.day === today()) return;
-  const response = await post('/analysis', { tool });
+  const response = await post('/analysis', { tool: serviceToolName(tool) });
   if (!response?.ok) return;
   try {
     const { id, proof } = (await response.json()) as { id: string; proof: string };
@@ -159,7 +173,7 @@ export async function sendValidation(
     };
   }
   const response = await post('/validate', {
-    tool,
+    tool: serviceToolName(tool),
     id: proof.id,
     proof: proof.proof,
     verdict,

@@ -217,6 +217,8 @@
 }
 
 .stepper-tabs {
+  /* The containing block of the tabs' visually hidden text, so it scrolls with the tabs. */
+  position: relative;
   display: flex;
   max-width: 100%;
   margin: 0;

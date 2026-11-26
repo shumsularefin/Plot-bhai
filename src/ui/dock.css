@@ -198,6 +198,11 @@
   margin-top: var(--space-3);
 }
 
+.figure-tools {
+  display: grid;
+  gap: var(--space-3);
+}
+
 .dock-frame.is-in-slot .dock-after {
   margin: 0 0 var(--space-3);
 }
