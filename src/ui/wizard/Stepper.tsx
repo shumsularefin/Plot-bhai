@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'preact/hooks';
+
 interface StepperProps {
   /** Accessible name of the step list, for example "XRD analysis steps". */
   label: string;
@@ -27,10 +29,24 @@ export function Stepper({
 }: StepperProps) {
   const total = titles.length;
   const percent = Math.round(((current + 1) / total) * 100);
+  const list = useRef<HTMLOListElement>(null);
+
+  // On a narrow screen the tabs scroll sideways: keep the open step's tab in sight. Only the
+  // tab row scrolls, never the page.
+  useEffect(() => {
+    const ol = list.current;
+    const tab = ol?.children[current] as HTMLElement | undefined;
+    if (!ol || !tab || ol.scrollWidth <= ol.clientWidth) return;
+    const left = tab.offsetLeft; // the list is the tabs' offset parent (position: relative)
+    if (left < ol.scrollLeft) ol.scrollLeft = left;
+    else if (left + tab.offsetWidth > ol.scrollLeft + ol.clientWidth) {
+      ol.scrollLeft = left + tab.offsetWidth - ol.clientWidth;
+    }
+  }, [current]);
 
   return (
     <nav class="stepper" aria-label={label}>
-      <ol class="stepper-tabs">
+      <ol class="stepper-tabs" ref={list}>
         {titles.map((title, index) => {
           const state = index === current ? 'current' : index <= furthest ? 'reached' : 'todo';
           const summary = summaries?.[index];
