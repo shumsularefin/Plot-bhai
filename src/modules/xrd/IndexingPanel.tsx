@@ -174,7 +174,7 @@ export function IndexingPanel({ data, patternId: fixedId, fitted, onUse }: Index
       <fieldset class="method-choice">
         <legend>Crystal systems to try</legend>
         {SYSTEMS.map((s) => (
-          <label key={s} class="inline-field">
+          <label key={s} class="check">
             <input
               type="checkbox"
               checked={systems.includes(s)}
