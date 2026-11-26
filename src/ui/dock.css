@@ -192,3 +192,12 @@
     display: none;
   }
 }
+
+/* The graph editor under the figure and its export bar (the Dock's `after`). */
+.dock-after {
+  margin-top: var(--space-3);
+}
+
+.dock-frame.is-in-slot .dock-after {
+  margin: 0 0 var(--space-3);
+}

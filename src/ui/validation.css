@@ -35,7 +35,8 @@
 
 .validation-open {
   padding: var(--space-4) var(--space-4) var(--space-4) var(--space-7);
-  border-left: 3px solid var(--color-border-strong);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   background: var(--color-surface-muted);
 }
 

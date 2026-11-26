@@ -189,7 +189,6 @@
 .message {
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-border);
-  border-left: 3px solid var(--color-border-strong);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   font-size: var(--text-sm);
@@ -197,19 +196,16 @@
 
 .message.is-info {
   border-color: var(--color-info-border);
-  border-left-color: var(--color-accent);
   background: var(--color-info-bg);
 }
 
 .message.is-warning {
   border-color: var(--color-warning-border);
-  border-left-color: var(--plot-2);
   background: var(--color-warning-bg);
 }
 
 .message.is-error {
   border-color: var(--color-danger-border);
-  border-left-color: var(--color-danger);
   background: var(--color-danger-bg);
 }
 
@@ -296,11 +292,9 @@
   box-shadow: var(--shadow-card);
 }
 
-/* A switched-on card carries a blue edge. */
+/* A switched-on card has a blue outline. */
 .process-step.is-on {
-  box-shadow:
-    inset 3px 0 0 var(--color-accent),
-    var(--shadow-card);
+  border-color: var(--color-accent);
 }
 
 /* A switched-off card is a single quiet row. */

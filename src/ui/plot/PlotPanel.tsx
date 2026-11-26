@@ -266,7 +266,22 @@ export function PlotPanel(props: PlotPanelProps) {
 
   return (
     <div class="plot-panel">
-      <Dock label="Interactive plot" mode={props.dock ?? 'auto'}>
+      <Dock
+        label="Interactive plot"
+        mode={props.dock ?? 'auto'}
+        after={
+          <FigureEditor
+            figure={figure}
+            onChange={setFigure}
+            series={series}
+            peakLabels={peakLabels}
+            xName={xName}
+            xUnit={xUnit}
+            placement={placement}
+            onPlacement={setPlacement}
+          />
+        }
+      >
         {props.toolbar}
         {legendSeries.length > 1 && (
           <ul class="plot-legend" aria-label="Legend">
@@ -502,17 +517,6 @@ export function PlotPanel(props: PlotPanelProps) {
           </div>
         </div>
       </Advanced>
-
-      <FigureEditor
-        figure={figure}
-        onChange={setFigure}
-        series={series}
-        peakLabels={peakLabels}
-        xName={xName}
-        xUnit={xUnit}
-        placement={placement}
-        onPlacement={setPlacement}
-      />
     </div>
   );
 }

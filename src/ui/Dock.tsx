@@ -123,10 +123,16 @@ interface DockProps {
    */
   mode?: 'auto' | 'manual';
   children: ComponentChildren;
+  /**
+   * Tools for the figure itself (the graph editor), shown under the figure and its export bar so
+   * they stay apart from the step's settings and results. In the short bottom panel of a narrow
+   * screen there is no room for them, so there they follow the panel's place in the step instead.
+   */
+  after?: ComponentChildren;
 }
 
 /** A figure that can be kept in view while the page scrolls (see the comment at the top). */
-export function Dock({ label, mode = 'auto', children }: DockProps) {
+export function Dock({ label, mode = 'auto', children, after }: DockProps) {
   const id = useId();
   useDockState();
   useEffect(() => {
@@ -207,6 +213,7 @@ export function Dock({ label, mode = 'auto', children }: DockProps) {
       )}
       <div class="dock-content" hidden={collapsed}>
         <DockCompact.Provider value={docked && bottomPanel}>{children}</DockCompact.Provider>
+        {after !== undefined && !(docked && bottomPanel) && <div class="dock-after">{after}</div>}
       </div>
     </div>
   );
@@ -226,6 +233,7 @@ export function Dock({ label, mode = 'auto', children }: DockProps) {
           Keep this figure in view
         </button>
       )}
+      {after !== undefined && docked && bottomPanel && after}
     </div>
   );
 }
