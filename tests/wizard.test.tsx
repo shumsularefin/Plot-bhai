@@ -43,12 +43,17 @@ async function renderWizard(key: string) {
 const heading = () => screen.getByRole('heading', { level: 2 });
 
 describe('Wizard', () => {
-  it('lists every step with what it does, and names the open one with its place', async () => {
+  it('lists every step as a tab, and names the open one with its place', async () => {
     const store = await renderWizard('sidebar');
     act(() => store.set((s) => ({ ...s, step: 1, furthest: 1 })));
-    expect(screen.getByRole('complementary', { name: 'Test tool steps' })).toBeTruthy();
-    // Once in the step list and once under the open step's heading.
-    expect(screen.getAllByText('What the second step does')).toHaveLength(2);
+    const tabs = screen.getByRole('navigation', { name: 'Test tool steps' });
+    expect(tabs.querySelectorAll('button')).toHaveLength(3);
+    expect(tabs.querySelector('[aria-current="step"]')?.textContent).toContain('Second step');
+    // Under the open step's heading, and as the tab's hover hint.
+    expect(screen.getByText('What the second step does')).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: 'Step 2: Second step' }).getAttribute('title'),
+    ).toContain('What the second step does');
     expect(screen.getByText('Step 2 of 3')).toBeTruthy();
     expect(screen.getByText('Saved on this device')).toBeTruthy();
   });
@@ -91,16 +96,16 @@ describe('Wizard', () => {
     expect(screen.getAllByRole('button', { name: /Third step/ }).length).toBeGreaterThan(0);
   });
 
-  it('compact stepper: completed steps can be tapped, later ones cannot', async () => {
+  it('tabs: reached steps can be opened, later ones cannot', async () => {
     const store = await renderWizard('compact');
     act(() => store.set((s) => ({ ...s, step: 1, furthest: 1 })));
-    expect(screen.getByRole('button', { name: 'Go to step 3: Third step' })).toHaveProperty(
+    expect(screen.getByRole('button', { name: 'Step 3: Third step' })).toHaveProperty(
       'disabled',
       true,
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Go to step 1: First step' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Step 1: First step' }));
     expect(heading().textContent).toBe('First step');
-    fireEvent.click(screen.getByRole('button', { name: 'Go to step 2: Second step' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Step 2: Second step' }));
     expect(heading().textContent).toBe('Second step');
   });
 
@@ -123,6 +128,9 @@ describe('Wizard', () => {
     const store = await renderWizard('reset');
     act(() => store.set({ step: 1, furthest: 1, data: { name: 'x' } }));
     vi.spyOn(window, 'confirm').mockReturnValueOnce(true);
+    // Start over lives in the Settings menu.
+    expect(screen.queryByRole('button', { name: 'Start over' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
     fireEvent.click(screen.getByRole('button', { name: 'Start over' }));
     expect(heading().textContent).toBe('First step');
     expect(store.get()).toEqual(initialWizardState({ name: '' }));

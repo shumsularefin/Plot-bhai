@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks';
 import { LazyTool } from '../../ui/LazyTool';
 import { uvvisStore } from './uvvisStore';
+import { ToolModeContext } from '../../ui/wizard/ToolMode';
 import { Wizard } from '../../ui/wizard/Wizard';
 import '../xrd/xrd.css';
 import { uvvisSteps } from './steps';
@@ -16,6 +17,12 @@ function savedMode(): Mode {
     return 'spectra';
   }
 }
+
+const MODES = [
+  { id: 'spectra', label: 'Band gap and spectra' },
+  { id: 'concentration', label: 'Concentration and kinetics' },
+  { id: 'film', label: 'Plasmon and thin film' },
+] as const;
 
 // Defined once at module level so LazyTool does not reload it on every render.
 const loadConcentration = () => import('./concentration/ConcentrationTool');
@@ -33,37 +40,14 @@ export default function UvvisTool() {
     }
   };
   return (
-    <>
-      <fieldset class="segmented thermal-mode">
-        <legend>Analysis</legend>
-        <label class={mode === 'spectra' ? 'is-selected' : ''}>
-          <input
-            type="radio"
-            name="uvvis-mode"
-            checked={mode === 'spectra'}
-            onChange={() => choose('spectra')}
-          />
-          Band gap and spectra
-        </label>
-        <label class={mode === 'concentration' ? 'is-selected' : ''}>
-          <input
-            type="radio"
-            name="uvvis-mode"
-            checked={mode === 'concentration'}
-            onChange={() => choose('concentration')}
-          />
-          Concentration and kinetics
-        </label>
-        <label class={mode === 'film' ? 'is-selected' : ''}>
-          <input
-            type="radio"
-            name="uvvis-mode"
-            checked={mode === 'film'}
-            onChange={() => choose('film')}
-          />
-          Plasmon and thin film
-        </label>
-      </fieldset>
+    <ToolModeContext.Provider
+      value={{
+        label: 'Analysis',
+        value: mode,
+        options: MODES,
+        onChange: (id) => choose(id as Mode),
+      }}
+    >
       {mode === 'concentration' ? (
         <LazyTool load={loadConcentration} />
       ) : mode === 'film' ? (
@@ -71,6 +55,6 @@ export default function UvvisTool() {
       ) : (
         <Wizard title="UV-Vis analysis" steps={uvvisSteps} store={uvvisStore} />
       )}
-    </>
+    </ToolModeContext.Provider>
   );
 }

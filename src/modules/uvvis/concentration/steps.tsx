@@ -10,6 +10,7 @@ export const concentrationSteps: readonly WizardStep<ConcentrationData>[] = [
   {
     id: 'samples',
     title: 'Standards and samples',
+    tab: 'Samples',
     summary: 'Calibration standards and unknowns',
     guide: [
       'Load the spectra of standards of known concentration, of samples taken over time, or both.',
@@ -32,6 +33,7 @@ export const concentrationSteps: readonly WizardStep<ConcentrationData>[] = [
   {
     id: 'results',
     title: 'Results and export',
+    tab: 'Results',
     summary: 'Calibration line and concentrations',
     guide: [
       'Check the calibration line and the rate constant.',

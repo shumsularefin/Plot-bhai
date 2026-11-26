@@ -1,5 +1,5 @@
-import { createContext, type ComponentChildren } from 'preact';
-import { useEffect, useId, useRef, useState } from 'preact/hooks';
+import { createContext, createPortal, type ComponentChildren } from 'preact';
+import { useContext, useEffect, useId, useRef, useState } from 'preact/hooks';
 import './dock.css';
 
 /*
@@ -20,6 +20,13 @@ const BOTTOM_PANEL = '(max-width: 1099px)';
  * there, so the panel takes about a third of a phone screen and the step keeps the rest.
  */
 export const DockCompact = createContext(false);
+
+/**
+ * The right-hand pane of the workbench (src/ui/wizard/Wizard.tsx). Inside it the kept-in-view
+ * figure is part of the layout grid instead of floating over the page; without it (pages that
+ * are not a wizard, tests) the figure floats as before.
+ */
+export const DockSlot = createContext<HTMLElement | null>(null);
 
 function useBottomPanel(): boolean {
   const query = typeof matchMedia === 'undefined' ? null : matchMedia(BOTTOM_PANEL);
@@ -89,6 +96,12 @@ function setCollapsed(collapsed: boolean) {
   notify();
 }
 
+/** Whether figures are kept in view at all, for a settings switch. */
+export function useDockEnabled(): [boolean, (enabled: boolean) => void] {
+  useDockState();
+  return [state.enabled, setEnabled];
+}
+
 /** Re-renders on every change of the shared dock state. */
 function useDockState() {
   const [, setTick] = useState(0);
@@ -110,10 +123,16 @@ interface DockProps {
    */
   mode?: 'auto' | 'manual';
   children: ComponentChildren;
+  /**
+   * Tools for the figure itself (the graph editor), shown under the figure and its export bar so
+   * they stay apart from the step's settings and results. In the short bottom panel of a narrow
+   * screen there is no room for them, so there they follow the panel's place in the step instead.
+   */
+  after?: ComponentChildren;
 }
 
 /** A figure that can be kept in view while the page scrolls (see the comment at the top). */
-export function Dock({ label, mode = 'auto', children }: DockProps) {
+export function Dock({ label, mode = 'auto', children, after }: DockProps) {
   const id = useId();
   useDockState();
   useEffect(() => {
@@ -132,6 +151,8 @@ export function Dock({ label, mode = 'auto', children }: DockProps) {
   const collapsed = docked && state.collapsed;
   const bottomPanel = useBottomPanel();
   const frame = useRef<HTMLDivElement>(null);
+  const slot = useContext(DockSlot);
+  const inSlot = docked && slot !== null;
 
   // The page leaves room for the panel: a class on the root element, and the panel's height for
   // the bottom panel on narrow screens.
@@ -139,6 +160,7 @@ export function Dock({ label, mode = 'auto', children }: DockProps) {
     const root = globalThis.document?.documentElement;
     if (!docked || !root) return;
     root.classList.add('has-dock');
+    root.classList.toggle('dock-in-slot', inSlot);
     root.classList.toggle('dock-collapsed', collapsed);
     const element = frame.current;
     const observer =
@@ -153,38 +175,52 @@ export function Dock({ label, mode = 'auto', children }: DockProps) {
     }
     return () => {
       observer?.disconnect();
-      root.classList.remove('has-dock', 'dock-collapsed');
+      root.classList.remove('has-dock', 'dock-collapsed', 'dock-in-slot');
       root.style.removeProperty('--dock-height');
     };
-  }, [docked, collapsed]);
+  }, [docked, collapsed, inSlot]);
+
+  const figure = (
+    <div
+      ref={frame}
+      class={
+        docked
+          ? `dock-frame${collapsed ? ' is-collapsed' : ''}${inSlot ? ' is-in-slot' : ''}`
+          : 'dock-inline'
+      }
+      {...(docked && { role: 'region', 'aria-label': `${label} (kept in view)` })}
+    >
+      {docked && (
+        <div class="dock-bar">
+          <h2 class="dock-title">{label}</h2>
+          <button
+            type="button"
+            class="btn btn-quiet"
+            aria-expanded={!collapsed}
+            onClick={() => setCollapsed(!collapsed)}
+          >
+            {collapsed ? 'Expand' : 'Minimise'}
+          </button>
+          <button
+            type="button"
+            class="btn btn-quiet"
+            onClick={() => setEnabled(false)}
+            title="Show the figure in the step instead"
+          >
+            Unpin
+          </button>
+        </div>
+      )}
+      <div class="dock-content" hidden={collapsed}>
+        <DockCompact.Provider value={docked && bottomPanel}>{children}</DockCompact.Provider>
+        {after !== undefined && !(docked && bottomPanel) && <div class="dock-after">{after}</div>}
+      </div>
+    </div>
+  );
 
   return (
     <div class="dock-slot">
-      <div
-        ref={frame}
-        class={docked ? `dock-frame${collapsed ? ' is-collapsed' : ''}` : 'dock-inline'}
-        {...(docked && { role: 'region', 'aria-label': `${label} (kept in view)` })}
-      >
-        {docked && (
-          <div class="dock-bar">
-            <span class="dock-title">{label}</span>
-            <button
-              type="button"
-              class="btn btn-quiet"
-              aria-expanded={!collapsed}
-              onClick={() => setCollapsed(!collapsed)}
-            >
-              {collapsed ? 'Expand' : 'Minimise'}
-            </button>
-            <button type="button" class="btn btn-quiet" onClick={() => setEnabled(false)}>
-              Unpin
-            </button>
-          </div>
-        )}
-        <div class="dock-content" hidden={collapsed}>
-          <DockCompact.Provider value={docked && bottomPanel}>{children}</DockCompact.Provider>
-        </div>
-      </div>
+      {inSlot && slot ? createPortal(figure, slot) : figure}
       {!docked && (
         <button
           type="button"
@@ -197,6 +233,7 @@ export function Dock({ label, mode = 'auto', children }: DockProps) {
           Keep this figure in view
         </button>
       )}
+      {after !== undefined && docked && bottomPanel && after}
     </div>
   );
 }

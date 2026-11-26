@@ -9,3 +9,6 @@ export const DOI = '10.5281/zenodo.24222105';
 
 /** How the software is named in methods texts and analysis records, with its version and build. */
 export const SOFTWARE = `Plot Bhai ${VERSION} (free, runs in the browser; build ${__BUILD__}; doi:${DOI})`;
+
+/** Number of validation checks listed in docs/validation.md, shown on the home page and status bar. */
+export const VALIDATION_CHECKS = 465;

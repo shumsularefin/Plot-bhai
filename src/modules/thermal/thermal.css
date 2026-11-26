@@ -47,10 +47,6 @@
   align-items: center;
 }
 
-.thermal-mode {
-  margin: 0 0 var(--space-4);
-}
-
 .exo-choice {
   margin: var(--space-4) 0;
   padding: 0;

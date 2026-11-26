@@ -28,6 +28,7 @@ export function digitizeSteps({ axes, tool, figure }: DigitizeTarget): WizardSte
     {
       id: 'axes',
       title: 'Calibrate axes',
+      tab: 'Axes',
       summary: 'Click known axis values',
       guide: [
         `Click two labelled ticks on the ${axes.x} axis and type their values.`,
@@ -43,6 +44,7 @@ export function digitizeSteps({ axes, tool, figure }: DigitizeTarget): WizardSte
     {
       id: 'curve',
       title: 'Trace the curve',
+      tab: 'Curve',
       summary: 'Click the curve to trace it',
       guide: [
         'Click on the curve to trace it.',
@@ -56,6 +58,7 @@ export function digitizeSteps({ axes, tool, figure }: DigitizeTarget): WizardSte
     {
       id: 'send',
       title: `Add to ${tool}`,
+      tab: 'Send',
       summary: 'Send the data to the tool',
       guide: [
         `Check the name, then add the curve to your ${tool} analysis.`,

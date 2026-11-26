@@ -130,6 +130,58 @@
   }
 }
 
+/*
+ * In the workbench the figure fills the pane on the right (src/ui/wizard/wizard.css) rather than
+ * floating over the page. The bar names it; the figure's own export bar ends the pane.
+ */
+@media (min-width: 1100px) {
+  /* As tall as the figure needs, up to the pane; then it scrolls with the export bar in view. */
+  .dock-frame.is-in-slot {
+    position: static;
+    flex: 0 1 auto;
+    width: auto;
+    max-height: 100%;
+    min-height: 0;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+  }
+
+  .dock-frame.is-in-slot.is-collapsed {
+    flex: none;
+    box-shadow: var(--shadow-popover);
+  }
+
+  .dock-frame.is-in-slot .dock-content {
+    flex: 0 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4) 0;
+  }
+
+  .dock-frame.is-in-slot .image-viewer {
+    height: min(66dvh, 760px);
+  }
+
+  .has-dock.dock-in-slot .container {
+    margin-right: auto;
+  }
+}
+
+.dock-frame.is-in-slot .dock-bar {
+  min-height: 40px;
+  padding: 0 var(--space-2) 0 var(--space-4);
+  border-bottom-color: var(--color-head-border);
+  background: var(--gradient-head);
+}
+
+.dock-frame.is-in-slot .dock-title {
+  color: var(--color-text);
+  font-size: var(--text-md);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 @media print {
   .dock-frame {
     position: static;
@@ -139,4 +191,13 @@
   .dock-bar {
     display: none;
   }
+}
+
+/* The graph editor under the figure and its export bar (the Dock's `after`). */
+.dock-after {
+  margin-top: var(--space-3);
+}
+
+.dock-frame.is-in-slot .dock-after {
+  margin: 0 0 var(--space-3);
 }

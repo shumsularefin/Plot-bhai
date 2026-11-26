@@ -28,6 +28,7 @@ export const ftirSteps: readonly WizardStep<FtirData>[] = [
   {
     id: 'clean',
     title: 'Clean data',
+    tab: 'Clean',
     summary: 'Baseline and smoothing',
     guide: [
       'Every switch is optional: turn on only what your spectra need.',
@@ -39,6 +40,7 @@ export const ftirSteps: readonly WizardStep<FtirData>[] = [
   {
     id: 'peaks',
     title: 'Pick peaks',
+    tab: 'Peaks',
     summary: 'Find the bands',
     guide: [
       'Peaks are picked automatically and marked on the plot.',
@@ -63,6 +65,7 @@ export const ftirSteps: readonly WizardStep<FtirData>[] = [
   {
     id: 'assign',
     title: 'Assign groups',
+    tab: 'Assign',
     summary: 'Suggest functional groups',
     guide: [
       'Each peak gets ranked suggestions of functional groups, from typical wavenumber ranges.',
@@ -74,6 +77,7 @@ export const ftirSteps: readonly WizardStep<FtirData>[] = [
   {
     id: 'results',
     title: 'Results and export',
+    tab: 'Results',
     summary: 'Tables, figures and methods text',
     guide: [
       'Check the peak and assignment table.',
